@@ -158,37 +158,69 @@ namespace Aquora.API.Controllers
                     return BadRequest(ApiResponse<RawMaterialDto>.CreateFailure("A raw material with this name already exists in this company.", "Validation Error", HttpContext.TraceIdentifier));
                 }
 
-                var rawMaterial = new RawMaterial
+                var dbContext = _tenantContext as DbContext;
+                if (dbContext == null)
                 {
-                    Id = Guid.NewGuid(),
-                    Name = trimmedName,
-                    Category = categoryEnum.ToString(),
-                    Unit = unitEnum.ToString(),
-                    IsActive = request.IsActive,
-                    CompanyId = company.Id,
-                    // Populate legacy fields required by db constraints
-                    Code = trimmedName.Replace(" ", "_").ToUpperInvariant(),
-                    BaseUnit = unitEnum.ToString(),
-                    ConversionFactor = 1.0m,
-                    CurrentStock = request.CurrentStock
-                };
+                    return BadRequest(ApiResponse<RawMaterialDto>.CreateFailure("Database context is invalid.", "Infrastructure Error", HttpContext.TraceIdentifier));
+                }
 
-                _tenantContext.RawMaterials.Add(rawMaterial);
-                await _tenantContext.SaveChangesAsync();
-
-                var dto = new RawMaterialDto
+                using var transaction = await dbContext.Database.BeginTransactionAsync();
+                try
                 {
-                    Id = rawMaterial.Id,
-                    Name = rawMaterial.Name,
-                    Category = rawMaterial.Category,
-                    Unit = rawMaterial.Unit,
-                    IsActive = rawMaterial.IsActive,
-                    CurrentStock = rawMaterial.CurrentStock,
-                    CreatedAt = rawMaterial.CreatedAt,
-                    UpdatedAt = rawMaterial.UpdatedAt
-                };
+                    var rawMaterial = new RawMaterial
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = trimmedName,
+                        Category = categoryEnum.ToString(),
+                        Unit = unitEnum.ToString(),
+                        IsActive = request.IsActive,
+                        CompanyId = company.Id,
+                        // Populate legacy fields required by db constraints
+                        Code = trimmedName.Replace(" ", "_").ToUpperInvariant(),
+                        BaseUnit = unitEnum.ToString(),
+                        ConversionFactor = 1.0m,
+                        CurrentStock = request.CurrentStock
+                    };
 
-                return Success(dto, "Raw material created successfully.");
+                    _tenantContext.RawMaterials.Add(rawMaterial);
+
+                    // Every stock modification must create one ledger entry
+                    var movement = new InventoryMovement
+                    {
+                        Id = Guid.NewGuid(),
+                        RawMaterialId = rawMaterial.Id,
+                        Quantity = request.CurrentStock,
+                        ReferenceType = "OpeningStock",
+                        ReferenceId = rawMaterial.Id,
+                        TenantId = _currentUserContext.TenantId,
+                        CompanyId = company.Id,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = _currentUserContext.UserId?.ToString() ?? "System"
+                    };
+                    _tenantContext.InventoryMovements.Add(movement);
+
+                    await _tenantContext.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    var dto = new RawMaterialDto
+                    {
+                        Id = rawMaterial.Id,
+                        Name = rawMaterial.Name,
+                        Category = rawMaterial.Category,
+                        Unit = rawMaterial.Unit,
+                        IsActive = rawMaterial.IsActive,
+                        CurrentStock = rawMaterial.CurrentStock,
+                        CreatedAt = rawMaterial.CreatedAt,
+                        UpdatedAt = rawMaterial.UpdatedAt
+                    };
+
+                    return Success(dto, "Raw material created successfully.");
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
             }
             catch (DbUpdateException ex)
             {
@@ -259,54 +291,70 @@ namespace Aquora.API.Controllers
                     return BadRequest(ApiResponse<RawMaterialDto>.CreateFailure("A raw material with this name already exists in this company.", "Validation Error", HttpContext.TraceIdentifier));
                 }
 
-                rawMaterial.Name = trimmedName;
-                rawMaterial.Category = categoryEnum.ToString();
-                rawMaterial.Unit = unitEnum.ToString();
-                rawMaterial.IsActive = request.IsActive;
-                rawMaterial.CompanyId = company.Id;
-
                 var tenantId = _currentUserContext.TenantId;
                 var userIdStr = _currentUserContext.UserId?.ToString() ?? "System";
 
-                if (request.CurrentStock.HasValue && request.CurrentStock.Value != rawMaterial.CurrentStock)
+                var dbContext = _tenantContext as DbContext;
+                if (dbContext == null)
                 {
-                    decimal diff = request.CurrentStock.Value - rawMaterial.CurrentStock;
-                    rawMaterial.CurrentStock = request.CurrentStock.Value;
-                    
-                    var movement = new InventoryMovement
-                    {
-                        Id = Guid.NewGuid(),
-                        RawMaterialId = rawMaterial.Id,
-                        Quantity = diff,
-                        ReferenceType = "StockAdjustment",
-                        ReferenceId = rawMaterial.Id,
-                        TenantId = tenantId,
-                        CompanyId = company.Id,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = userIdStr
-                    };
-                    _tenantContext.InventoryMovements.Add(movement);
-                }
-                else if (request.StockAdjustment.HasValue && request.StockAdjustment.Value != 0)
-                {
-                    rawMaterial.CurrentStock += request.StockAdjustment.Value;
-                    
-                    var movement = new InventoryMovement
-                    {
-                        Id = Guid.NewGuid(),
-                        RawMaterialId = rawMaterial.Id,
-                        Quantity = request.StockAdjustment.Value,
-                        ReferenceType = "StockAdjustment",
-                        ReferenceId = rawMaterial.Id,
-                        TenantId = tenantId,
-                        CompanyId = company.Id,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = userIdStr
-                    };
-                    _tenantContext.InventoryMovements.Add(movement);
+                    return BadRequest(ApiResponse<RawMaterialDto>.CreateFailure("Database context is invalid.", "Infrastructure Error", HttpContext.TraceIdentifier));
                 }
 
-                await _tenantContext.SaveChangesAsync();
+                using var transaction = await dbContext.Database.BeginTransactionAsync();
+                try
+                {
+                    rawMaterial.Name = trimmedName;
+                    rawMaterial.Category = categoryEnum.ToString();
+                    rawMaterial.Unit = unitEnum.ToString();
+                    rawMaterial.IsActive = request.IsActive;
+                    rawMaterial.CompanyId = company.Id;
+
+                    if (request.CurrentStock.HasValue && request.CurrentStock.Value != rawMaterial.CurrentStock)
+                    {
+                        decimal diff = request.CurrentStock.Value - rawMaterial.CurrentStock;
+                        rawMaterial.CurrentStock = request.CurrentStock.Value;
+                        
+                        var movement = new InventoryMovement
+                        {
+                            Id = Guid.NewGuid(),
+                            RawMaterialId = rawMaterial.Id,
+                            Quantity = diff,
+                            ReferenceType = "StockAdjustment",
+                            ReferenceId = rawMaterial.Id,
+                            TenantId = tenantId,
+                            CompanyId = company.Id,
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedBy = userIdStr
+                        };
+                        _tenantContext.InventoryMovements.Add(movement);
+                    }
+                    else if (request.StockAdjustment.HasValue && request.StockAdjustment.Value != 0)
+                    {
+                        rawMaterial.CurrentStock += request.StockAdjustment.Value;
+                        
+                        var movement = new InventoryMovement
+                        {
+                            Id = Guid.NewGuid(),
+                            RawMaterialId = rawMaterial.Id,
+                            Quantity = request.StockAdjustment.Value,
+                            ReferenceType = "StockAdjustment",
+                            ReferenceId = rawMaterial.Id,
+                            TenantId = tenantId,
+                            CompanyId = company.Id,
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedBy = userIdStr
+                        };
+                        _tenantContext.InventoryMovements.Add(movement);
+                    }
+
+                    await _tenantContext.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
 
                 var dto = new RawMaterialDto
                 {
@@ -372,6 +420,74 @@ namespace Aquora.API.Controllers
             }
         }
 
+        /// <summary>
+        /// Returns paginated inventory movements for a specific raw material,
+        /// including a running stock balance computed across all movements (chronological order).
+        /// Movement history is lazily loaded — only fetched when the user expands a specific item row.
+        /// </summary>
+        [HttpGet("{id:guid}/movements")]
+        public async Task<ActionResult<ApiResponse<PagedResult<InventoryMovementDto>>>> GetMovements(
+            Guid id,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            try
+            {
+                var material = await _tenantContext.RawMaterials.FirstOrDefaultAsync(rm => rm.Id == id && !rm.IsDeleted);
+                if (material == null)
+                    return NotFound(ApiResponse<PagedResult<InventoryMovementDto>>.CreateFailure("Raw material not found.", "Not Found", HttpContext.TraceIdentifier));
+
+                // Compute ALL movements in chronological order for running balance
+                var allMovements = await _tenantContext.InventoryMovements
+                    .Where(m => m.RawMaterialId == id && !m.IsDeleted)
+                    .OrderBy(m => m.CreatedAt)
+                    .Select(m => new
+                    {
+                        m.Id,
+                        m.Quantity,
+                        m.ReferenceType,
+                        m.ReferenceId,
+                        m.CreatedAt,
+                        m.CreatedBy
+                    })
+                    .ToListAsync();
+
+                // Compute running balance prefix-sum
+                decimal runningBalance = 0;
+                var withBalance = allMovements.Select(m =>
+                {
+                    runningBalance += m.Quantity;
+                    return new InventoryMovementDto
+                    {
+                        Id = m.Id,
+                        Quantity = m.Quantity,
+                        ReferenceType = m.ReferenceType ?? "Unknown",
+                        ReferenceId = m.ReferenceId,
+                        BalanceAfter = runningBalance,
+                        CreatedAt = m.CreatedAt,
+                        CreatedBy = m.CreatedBy ?? "System",
+                        Unit = material.Unit
+                    };
+                }).ToList();
+
+                // Reverse so latest movement appears first for UI display
+                withBalance.Reverse();
+
+                var totalCount = withBalance.Count;
+                var paged = withBalance
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+
+                var result = new PagedResult<InventoryMovementDto>(paged, totalCount, pageNumber, pageSize);
+                return Success(result, "Inventory movements retrieved successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<PagedResult<InventoryMovementDto>>(ex.Message, "Failed to retrieve inventory movements.");
+            }
+        }
+
         [HttpGet("settings")]
         public async Task<ActionResult<ApiResponse<InventorySettingsDto>>> GetInventorySettings()
         {
@@ -433,9 +549,23 @@ namespace Aquora.API.Controllers
         }
     }
 
+
     public class InventorySettingsDto
     {
         public Guid? DefaultInkMaterialId { get; set; }
         public Guid? DefaultMakeupMaterialId { get; set; }
     }
+
+    public class InventoryMovementDto
+    {
+        public Guid Id { get; set; }
+        public decimal Quantity { get; set; }
+        public string ReferenceType { get; set; } = string.Empty;
+        public Guid ReferenceId { get; set; }
+        public decimal BalanceAfter { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string CreatedBy { get; set; } = string.Empty;
+        public string Unit { get; set; } = string.Empty;
+    }
 }
+

@@ -298,5 +298,57 @@ namespace Aquora.API.Controllers
                 return Failure<List<BrandDto>>(ex.Message, "Failed to load brands.");
             }
         }
+
+        [HttpGet("{id:guid}/movements")]
+        public async Task<ActionResult<ApiResponse<PagedResult<InventoryMovementDto>>>> GetMovements(
+            Guid id,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            try
+            {
+                var product = await _tenantContext.Products.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+                if (product == null)
+                {
+                    return NotFound(ApiResponse<PagedResult<InventoryMovementDto>>.CreateFailure("Product not found.", "Not Found", HttpContext.TraceIdentifier));
+                }
+
+                // Find all production entries for this product
+                var entryIds = await _tenantContext.ProductionEntries
+                    .Where(e => e.ProductId == id && !e.IsDeleted)
+                    .Select(e => e.Id)
+                    .ToListAsync();
+
+                // Get all inventory movements that reference these production entries
+                var query = _tenantContext.InventoryMovements
+                    .Include(m => m.RawMaterial)
+                    .Where(m => entryIds.Contains(m.ReferenceId) && m.ReferenceType == "ProductionEntry" && !m.IsDeleted);
+
+                var totalCount = await query.CountAsync();
+                var items = await query
+                    .OrderByDescending(m => m.CreatedAt)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(m => new InventoryMovementDto
+                    {
+                        Id = m.Id,
+                        Quantity = m.Quantity,
+                        ReferenceType = m.ReferenceType ?? "Unknown",
+                        ReferenceId = m.ReferenceId,
+                        BalanceAfter = 0, // Product has no physical stock tracking, we show raw material change details
+                        CreatedAt = m.CreatedAt,
+                        CreatedBy = m.CreatedBy ?? "System",
+                        Unit = m.RawMaterial.Unit
+                    })
+                    .ToListAsync();
+
+                var result = new PagedResult<InventoryMovementDto>(items, totalCount, pageNumber, pageSize);
+                return Success(result, "Product movements retrieved successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<PagedResult<InventoryMovementDto>>(ex.Message, "Failed to retrieve product movements.");
+            }
+        }
     }
 }

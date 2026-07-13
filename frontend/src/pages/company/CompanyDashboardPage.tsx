@@ -25,6 +25,7 @@ import EnterpriseSelect from '../../components/ui/EnterpriseSelect'
 import EnterpriseEmptyState from '../../components/ui/EnterpriseEmptyState'
 import EnterpriseLoading from '../../components/ui/EnterpriseLoading'
 import EnterpriseButton from '../../components/ui/EnterpriseButton'
+import { InventoryPage } from './InventoryPage'
 
 export const CompanyDashboardPage: React.FC = () => {
   const location = useLocation()
@@ -1277,7 +1278,7 @@ export const CompanyDashboardPage: React.FC = () => {
     return <span className="font-mono font-semibold text-xs tracking-wider text-slate-600 dark:text-slate-300">{duration}</span>
   }
 
-  if (isProductionView) {
+    if (isProductionView) {
     // Actions and Form Handlers
     const handleStartBatchSubmit = (e: React.FormEvent) => {
       e.preventDefault()
@@ -1319,242 +1320,97 @@ export const CompanyDashboardPage: React.FC = () => {
       window.open('/operator', '_blank')
     }
 
-    const handlePauseBatch = (id: string) => {
-      pauseBatchMutation.mutate(id)
-    }
-
-    const handleResumeBatch = (id: string) => {
-      resumeBatchMutation.mutate(id)
-    }
-
+    const handlePauseBatch = (id: string) => { pauseBatchMutation.mutate(id) }
+    const handleResumeBatch = (id: string) => { resumeBatchMutation.mutate(id) }
     const handleCompleteBatch = (id: string) => {
       if (confirm('Are you sure you want to complete and lock this active production batch?')) {
         completeBatchMutation.mutate(id)
       }
     }
 
-    // Active Batches Table columns configuration
-    const productionColumns = [
-      { 
-        key: 'batchNumber', 
-        title: 'Batch Number', 
-        render: (row: any) => <span className="font-bold text-hydro-navy dark:text-white tracking-wide">{row.batchNumber}</span> 
-      },
-      { 
-        key: 'product', 
-        title: 'Product', 
-        render: (row: any) => <span className="font-medium text-slate-800 dark:text-slate-200">{row.product}</span>
-      },
-      { 
-        key: 'productionLineName', 
-        title: 'Production Line', 
-        render: (row: any) => (
-          <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-350 font-bold px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700/50">
-            {row.productionLineName}
-          </span>
-        )
-      },
-      { key: 'operatorName', title: 'Operator' },
-      { 
-        key: 'shift', 
-        title: 'Shift', 
-        render: (row: any) => <EnterpriseBadge variant="info">{row.shift}</EnterpriseBadge> 
-      },
-      { 
-        key: 'startedAt', 
-        title: 'Started Time', 
-        render: (row: any) => <span className="text-slate-500 font-medium text-xs">{new Date(row.startedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</span> 
-      },
-      { 
-        key: 'duration', 
-        title: 'Running Duration', 
-        render: (row: any) => <RunningDurationCell startedAt={row.startedAt} /> 
-      },
-      { 
-        key: 'status', 
-        title: 'Status', 
-        render: (row: any) => (
-          <EnterpriseBadge variant={row.status === 'Paused' ? 'warning' : 'success'}>
-            {row.status === 'Paused' ? 'PAUSED' : 'RUNNING'}
-          </EnterpriseBadge>
-        )
-      },
-      {
-        key: 'actions',
-        title: 'Actions',
-        className: 'text-right',
-        render: (row: any) => (
-          <div className="flex gap-2 justify-end items-center select-none">
-            <button
-              onClick={() => {
-                setSelectedBatchForView(row)
-                setIsViewBatchModalOpen(true)
-              }}
-              className="px-2 py-1 text-[10px] font-bold uppercase rounded border border-slate-200 hover:bg-slate-50 text-slate-600 cursor-pointer"
-              title="View Batch Details"
-            >
-              View
-            </button>
-            <button
-              onClick={() => handleOpenOperatorSession(row)}
-              className="px-2 py-1 text-[10px] font-bold uppercase rounded bg-hydro-navy hover:brightness-110 text-white cursor-pointer shadow-sm"
-              title="Open Operator console terminal"
-            >
-              Session
-            </button>
-            {row.status === 'Paused' ? (
-              <button
-                onClick={() => handleResumeBatch(row.id)}
-                className="px-2 py-1 text-[10px] font-bold uppercase rounded border border-green-200 text-green-600 hover:bg-green-50 cursor-pointer"
-                title="Resume Batch"
-              >
-                Resume
-              </button>
-            ) : (
-              <button
-                onClick={() => handlePauseBatch(row.id)}
-                className="px-2 py-1 text-[10px] font-bold uppercase rounded border border-yellow-350 text-yellow-650 hover:bg-yellow-50 cursor-pointer"
-                title="Pause Batch"
-              >
-                Pause
-              </button>
-            )}
-            <button
-              onClick={() => handleCompleteBatch(row.id)}
-              className="px-2 py-1 text-[10px] font-bold uppercase rounded border border-red-200 text-red-650 hover:bg-red-50 cursor-pointer"
-              title="Complete and Lock Batch"
-            >
-              Complete
-            </button>
-          </div>
-        )
-      }
-    ]
-
-    const lineColumns = [
-      {
-        key: 'code',
-        title: 'Line Code',
-        render: (row: any) => <span className="font-mono font-bold text-hydro-navy dark:text-hydro-azure">{row.code}</span>
-      },
-      {
-        key: 'name',
-        title: 'Line Name',
-        render: (row: any) => <span className="font-semibold text-slate-800 dark:text-white">{row.name}</span>
-      },
-      {
-        key: 'status',
-        title: 'Status',
-        render: (row: any) => (
-          <button
-            onClick={() => handleToggleLineStatus(row)}
-            className="flex items-center gap-1 hover:opacity-80 cursor-pointer"
-            title="Toggle line active status"
-          >
-            <EnterpriseBadge variant={row.isActive ? 'success' : 'danger'}>
-              {row.isActive ? 'Active' : 'Inactive'}
-            </EnterpriseBadge>
-          </button>
-        )
-      },
-      {
-        key: 'activeBatch',
-        title: 'Active Batch',
-        render: (row: any) => row.hasActiveBatch ? (
-          <span className="text-xs bg-blue-50 dark:bg-blue-950/30 text-blue-600 font-medium px-2 py-0.5 rounded border border-blue-100 dark:border-blue-900/30">
-            {row.activeBatch?.batchNumber} ({row.activeBatch?.product})
-          </span>
-        ) : (
-          <span className="text-slate-400 font-medium text-xs">None</span>
-        )
-      },
-      {
-        key: 'actions',
-        title: 'Actions',
-        className: 'text-right',
-        render: (row: any) => (
-          <div className="flex gap-2 justify-end">
-            <button
-              onClick={() => openEditLineModal(row)}
-              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-hydro-navy dark:hover:text-white rounded-sm cursor-pointer"
-              title="Edit Production Line"
-            >
-              <Edit2 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => triggerDeleteLine(row.lineId, row.name)}
-              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-error rounded-sm cursor-pointer"
-              title="Delete Production Line"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )
-      }
-    ]
-
-    // Local filtering logic for search, line, and status filters
+    // Local filtering logic
     const filteredBatches = activeBatches.filter((batch: any) => {
       const matchesSearch =
         batch.batchNumber.toLowerCase().includes(batchSearch.toLowerCase()) ||
         batch.product.toLowerCase().includes(batchSearch.toLowerCase()) ||
         batch.operatorName.toLowerCase().includes(batchSearch.toLowerCase())
-
       const matchesLine = batchLineFilter === '' || batch.productionLineId === batchLineFilter
-
       const matchesStatus =
         batchStatusFilter === 'All' ||
         (batchStatusFilter === 'Active' && batch.status === 'Active') ||
         (batchStatusFilter === 'Paused' && batch.status === 'Paused')
-
       const matchesDate = !batchDateFilter || new Date(batch.startedAt).toISOString().slice(0, 10) === batchDateFilter
-
       return matchesSearch && matchesLine && matchesStatus && matchesDate
     })
 
     // Derived stats
     const totalActiveBatchesCount = activeBatches.length
     const runningLinesCount = activeBatches.filter((b: any) => b.status === 'Active').length
-    const todayBatchesCount = activeBatches.length
+    const pausedBatchesCount = activeBatches.filter((b: any) => b.status === 'Paused').length
     const todayCasesCount = activeBatches.reduce((acc: number, curr: any) => acc + (curr.producedQuantity || 0), 0)
     const runningOperatorsCount = new Set(activeBatches.map((b: any) => b.operatorName).filter(Boolean)).size
-    const currentShiftVal = activeBatches[0]?.shift || "Morning"
+    const currentShiftVal = activeBatches[0]?.shift || 'Morning'
+
+    const getStatusBadge = (status: string) => {
+      switch (status) {
+        case 'Active':
+          return { label: 'Running', cls: 'bg-green-50 border-green-200 text-green-700' }
+        case 'Paused':
+          return { label: 'Paused', cls: 'bg-orange-50 border-orange-200 text-orange-700' }
+        case 'Completed':
+          return { label: 'Completed', cls: 'bg-blue-50 border-blue-200 text-blue-700' }
+        case 'Cancelled':
+          return { label: 'Cancelled', cls: 'bg-red-50 border-red-200 text-red-700' }
+        default:
+          return { label: status, cls: 'bg-slate-50 border-slate-200 text-slate-600' }
+      }
+    }
 
     return (
-      <div className="flex flex-col gap-4 font-sans text-slate-800">
-        {/* Compact Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 py-3 px-5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-[0_1px_2px_rgba(16,24,40,0.02)]">
-          <div className="space-y-0.5">
-            <h1 className="text-base font-bold text-slate-850 dark:text-white tracking-tight">Production Console</h1>
-            <p className="text-[11px] text-slate-400 font-medium">
-              Monitor live batch yields, lines configuration, and system telemetries.
-            </p>
+      <div className="flex flex-col gap-3 font-sans text-slate-800 bg-[#F8FAFC] min-h-screen p-4">
+
+        {/* Compact Page Header */}
+        <div className="flex items-center justify-between bg-white border border-[#E5E7EB] rounded-xl px-4 py-2.5 shadow-sm">
+          <div>
+            <h1 className="text-[15px] font-bold text-slate-900 leading-tight">Production Console</h1>
+            <p className="text-[11px] text-slate-400 font-medium leading-none mt-0.5">Batch queue â€” monitor, filter, and manage active production runs</p>
           </div>
-          <div className="flex items-center gap-4 text-xs font-semibold text-slate-500 select-none">
-            <span>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] font-semibold text-slate-500 select-none">
               {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} &bull; {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
             </span>
+            <button
+              onClick={() => {
+                if (productionLines.length > 0) setStartBatchLineId(productionLines[0].lineId)
+                if (allCatalogProducts.length > 0) setStartBatchProduct(allCatalogProducts[0].name)
+                setIsStartBatchModalOpen(true)
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg shadow-sm cursor-pointer transition-all active:scale-[0.98]"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Create Batch</span>
+            </button>
           </div>
         </div>
 
-        {/* Tab switcher */}
-        <div className="flex border-b border-slate-200 dark:border-slate-800 select-none">
+        {/* Tab Switcher */}
+        <div className="flex gap-0 border-b border-[#E5E7EB] select-none bg-white rounded-t-lg px-4 shadow-sm border border-[#E5E7EB]">
           <button
             onClick={() => setProductionTab('batches')}
-            className={`py-2 px-5 font-bold text-xs border-b-2 transition-all cursor-pointer ${
+            className={`py-2 px-4 text-[12px] font-bold border-b-2 transition-all cursor-pointer ${
               productionTab === 'batches'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-extrabold'
-                : 'border-transparent text-slate-400 hover:text-slate-650 dark:hover:text-slate-355'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-400 hover:text-slate-700'
             }`}
           >
-            Active Batches
+            Batch Queue
           </button>
           <button
             onClick={() => setProductionTab('lines')}
-            className={`py-2 px-5 font-bold text-xs border-b-2 transition-all cursor-pointer ${
+            className={`py-2 px-4 text-[12px] font-bold border-b-2 transition-all cursor-pointer ${
               productionTab === 'lines'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-extrabold'
-                : 'border-transparent text-slate-400 hover:text-slate-650 dark:hover:text-slate-355'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-400 hover:text-slate-700'
             }`}
           >
             Production Lines
@@ -1563,99 +1419,74 @@ export const CompanyDashboardPage: React.FC = () => {
 
         {productionTab === 'batches' ? (
           <>
-            {/* Minimalist KPI Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 select-none">
-              <div className="bg-white dark:bg-slate-900 py-3 px-4 rounded-lg border border-slate-200 dark:border-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.02)] text-center space-y-1">
-                <span className="text-xl">📦</span>
-                <span className="text-lg font-bold text-slate-850 dark:text-white block leading-none">{totalActiveBatchesCount}</span>
-                <span className="text-[10px] text-slate-450 font-bold block uppercase tracking-wider">Active Batches</span>
-              </div>
-              <div className="bg-white dark:bg-slate-900 py-3 px-4 rounded-lg border border-slate-200 dark:border-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.02)] text-center space-y-1">
-                <span className="text-xl">⚙️</span>
-                <span className="text-lg font-bold text-slate-850 dark:text-white block leading-none">{runningLinesCount}</span>
-                <span className="text-[10px] text-slate-450 font-bold block uppercase tracking-wider">Running Lines</span>
-              </div>
-              <div className="bg-white dark:bg-slate-900 py-3 px-4 rounded-lg border border-slate-200 dark:border-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.02)] text-center space-y-1">
-                <span className="text-xl">📊</span>
-                <span className="text-lg font-bold text-slate-850 dark:text-white block leading-none">{todayBatchesCount}</span>
-                <span className="text-[10px] text-slate-450 font-bold block uppercase tracking-wider">Today's Runs</span>
-              </div>
-              <div className="bg-white dark:bg-slate-900 py-3 px-4 rounded-lg border border-slate-200 dark:border-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.02)] text-center space-y-1">
-                <span className="text-xl">💼</span>
-                <span className="text-lg font-bold text-slate-850 dark:text-white block leading-none">{todayCasesCount}</span>
-                <span className="text-[10px] text-slate-450 font-bold block uppercase tracking-wider">Today's Cases</span>
-              </div>
-              <div className="bg-white dark:bg-slate-900 py-3 px-4 rounded-lg border border-slate-200 dark:border-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.02)] text-center space-y-1">
-                <span className="text-xl">👤</span>
-                <span className="text-lg font-bold text-slate-850 dark:text-white block leading-none">{runningOperatorsCount}</span>
-                <span className="text-[10px] text-slate-450 font-bold block uppercase tracking-wider">Operators</span>
-              </div>
-              <div className="bg-white dark:bg-slate-900 py-3 px-4 rounded-lg border border-slate-200 dark:border-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.02)] text-center space-y-1 overflow-hidden">
-                <span className="text-xl">🕒</span>
-                <span className="text-base font-bold text-slate-850 dark:text-white block leading-none truncate">{currentShiftVal}</span>
-                <span className="text-[10px] text-slate-450 font-bold block uppercase tracking-wider">Current Shift</span>
-              </div>
+            {/* Compact KPI Strip */}
+            <div className="grid grid-cols-3 lg:grid-cols-6 gap-3 select-none">
+              {[
+                { value: totalActiveBatchesCount, label: 'Active Batches' },
+                { value: runningLinesCount, label: 'Running Lines' },
+                { value: pausedBatchesCount, label: 'Paused' },
+                { value: todayCasesCount.toLocaleString(), label: "Today's Cases" },
+                { value: runningOperatorsCount, label: 'Operators' },
+                { value: currentShiftVal, label: 'Current Shift' },
+              ].map((kpi, i) => (
+                <div key={i} className="bg-white border border-[#E5E7EB] rounded-lg py-2 px-3 shadow-sm text-center">
+                  <div className="text-[18px] font-black text-slate-900 leading-tight">{kpi.value}</div>
+                  <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5">{kpi.label}</div>
+                </div>
+              ))}
             </div>
 
-            {/* White Filter Toolbar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.01)] select-none">
-              <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
+            {/* Filter Toolbar â€” 40px height */}
+            <div className="flex flex-wrap items-center justify-between gap-2 bg-white border border-[#E5E7EB] rounded-xl px-3 shadow-sm" style={{ minHeight: '40px' }}>
+              <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
                 {/* Search */}
-                <div className="relative w-full sm:w-[200px]">
-                  <Search className="w-3.5 h-3.5 text-slate-450 absolute left-3 top-2.5" />
+                <div className="relative w-full sm:w-[190px]">
+                  <Search className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
-                    placeholder="Search active runs..."
+                    placeholder="Search batches..."
                     value={batchSearch}
                     onChange={(e) => setBatchSearch(e.target.value)}
-                    className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-md bg-transparent focus:outline-none focus:border-blue-500 dark:text-white font-medium"
+                    className="w-full pl-7 pr-3 py-1.5 text-[11px] border border-[#E5E7EB] rounded-md bg-white focus:outline-none focus:border-blue-500 font-medium text-slate-700 h-[30px]"
                   />
                 </div>
-                
+
                 {/* Production Line dropdown */}
-                <div className="w-full sm:w-[150px]">
-                  <select
-                    value={batchLineFilter}
-                    onChange={(e) => setBatchLineFilter(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-md bg-transparent focus:outline-none focus:border-blue-500 dark:text-white font-semibold text-slate-700"
-                  >
-                    <option value="">All Lines</option>
-                    {productionLines.map((line: any) => (
-                      <option key={line.lineId} value={line.lineId}>{line.name}</option>
-                    ))}
-                  </select>
-                </div>
+                <select
+                  value={batchLineFilter}
+                  onChange={(e) => setBatchLineFilter(e.target.value)}
+                  className="px-2.5 py-1 text-[11px] border border-[#E5E7EB] rounded-md bg-white focus:outline-none focus:border-blue-500 font-semibold text-slate-700 h-[30px] cursor-pointer"
+                >
+                  <option value="">All Lines</option>
+                  {productionLines.map((line: any) => (
+                    <option key={line.lineId} value={line.lineId}>{line.name}</option>
+                  ))}
+                </select>
 
                 {/* Status dropdown */}
-                <div className="w-full sm:w-[120px]">
-                  <select
-                    value={batchStatusFilter}
-                    onChange={(e) => setBatchStatusFilter(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-md bg-transparent focus:outline-none focus:border-blue-500 dark:text-white font-semibold text-slate-700"
-                  >
-                    <option value="All">All Statuses</option>
-                    <option value="Active">Running</option>
-                    <option value="Paused">Paused</option>
-                  </select>
-                </div>
+                <select
+                  value={batchStatusFilter}
+                  onChange={(e) => setBatchStatusFilter(e.target.value)}
+                  className="px-2.5 py-1 text-[11px] border border-[#E5E7EB] rounded-md bg-white focus:outline-none focus:border-blue-500 font-semibold text-slate-700 h-[30px] cursor-pointer"
+                >
+                  <option value="All">All Statuses</option>
+                  <option value="Active">Running</option>
+                  <option value="Paused">Paused</option>
+                </select>
 
                 {/* Date filter */}
-                <div className="w-full sm:w-[130px]">
-                  <input
-                    type="date"
-                    value={batchDateFilter}
-                    onChange={(e) => setBatchDateFilter(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-md bg-transparent focus:outline-none focus:border-blue-500 dark:text-white font-semibold text-slate-700"
-                  />
-                </div>
+                <input
+                  type="date"
+                  value={batchDateFilter}
+                  onChange={(e) => setBatchDateFilter(e.target.value)}
+                  className="px-2.5 py-1 text-[11px] border border-[#E5E7EB] rounded-md bg-white focus:outline-none focus:border-blue-500 font-semibold text-slate-700 h-[30px]"
+                />
               </div>
 
-              {/* Action utilities */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => queryClient.invalidateQueries({ queryKey: ['activeBatchesList'] })}
-                  className="px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-850 cursor-pointer"
-                  title="Refresh runs"
+                  className="px-2.5 h-[30px] text-[11px] font-bold text-slate-600 border border-[#E5E7EB] rounded-md hover:bg-slate-50 cursor-pointer"
                 >
                   Refresh
                 </button>
@@ -1666,196 +1497,134 @@ export const CompanyDashboardPage: React.FC = () => {
                     setBatchStatusFilter('All')
                     setBatchDateFilter('')
                   }}
-                  className="px-3 py-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-850 cursor-pointer"
+                  className="px-2.5 h-[30px] text-[11px] font-bold text-slate-500 border border-[#E5E7EB] rounded-md hover:bg-slate-50 cursor-pointer"
                 >
-                  Clear Filters
-                </button>
-                <button
-                  onClick={() => {
-                    if (productionLines.length > 0) {
-                      setStartBatchLineId(productionLines[0].lineId)
-                    }
-                    if (allCatalogProducts.length > 0) {
-                      setStartBatchProduct(allCatalogProducts[0].name)
-                    }
-                    setIsStartBatchModalOpen(true)
-                  }}
-                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-md flex items-center gap-1 shadow-sm cursor-pointer transition-all active:scale-[0.98]"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Create Batch</span>
+                  Clear
                 </button>
               </div>
             </div>
 
-            {/* Compact Batch Grid (SAP Fiori/Dynamics 365 style) */}
+            {/* Batch Queue Grid */}
             {batchesLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {[1, 2, 3, 4].map((n) => (
-                  <div key={n} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 shadow-[0_1px_2px_rgba(0,0,0,0.02)] space-y-3 animate-pulse">
-                    <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/2"></div>
-                    <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-5/6"></div>
-                    <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-3/4"></div>
-                    <div className="h-6 bg-slate-200 dark:bg-slate-800 rounded w-full"></div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
+                  <div key={n} className="bg-white border border-[#E5E7EB] rounded-lg p-3 shadow-sm animate-pulse space-y-2">
+                    <div className="h-3 bg-slate-100 rounded w-2/3"></div>
+                    <div className="h-4 bg-slate-100 rounded w-1/2"></div>
+                    <div className="h-2.5 bg-slate-100 rounded w-1/3 ml-auto"></div>
                   </div>
                 ))}
               </div>
             ) : filteredBatches.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
                 {filteredBatches.map((batch: any) => {
-                  const isPaused = batch.status === 'Paused';
+                  const { label, cls } = getStatusBadge(batch.status)
                   return (
                     <div
                       key={batch.id}
-                      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:shadow-md hover:border-slate-350 dark:hover:border-slate-750 transition-all duration-150 flex flex-col justify-between"
+                      onClick={() => navigate(`/company/production/batches/${batch.id}`)}
+                      className="bg-white border border-[#E5E7EB] rounded-xl p-3 shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-150 cursor-pointer flex flex-col justify-between gap-2 group"
+                      title={`Open ${batch.batchNumber}`}
                     >
-                      {/* Top row with batch number & status */}
-                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800">
-                        <span className="text-sm font-extrabold text-blue-600 dark:text-blue-400 tracking-tight">
-                          {batch.batchNumber}
+                      {/* Batch Number */}
+                      <span className="text-[12px] font-black text-slate-900 tracking-tight truncate">
+                        {batch.batchNumber}
+                      </span>
+
+                      {/* Status Badge */}
+                      <span className={`self-start text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${cls}`}>
+                        {label}
+                      </span>
+
+                      {/* View Indicator */}
+                      <div className="flex justify-end">
+                        <span className="text-[10px] font-bold text-slate-400 group-hover:text-blue-500 transition-colors">
+                          View â†’
                         </span>
-                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                          isPaused
-                            ? 'bg-orange-50 border-orange-200 text-orange-600 dark:bg-orange-950/20 dark:border-orange-900/30'
-                            : 'bg-green-50 border-green-200 text-green-600 dark:bg-green-950/20 dark:border-green-900/30'
-                        }`}>
-                          {isPaused ? '⏸️ Paused' : '🟢 Running'}
-                        </span>
-                      </div>
-
-                      {/* Product details */}
-                      <div className="mb-2">
-                        <span className="text-[9px] text-slate-450 font-bold uppercase tracking-wider block">Product</span>
-                        <span className="text-xs font-bold text-slate-850 dark:text-white truncate block">{batch.product}</span>
-                      </div>
-
-                      {/* Metadata Grid */}
-                      <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-350 mb-3 select-none">
-                        <div>
-                          <span className="text-slate-400 block text-[9px] uppercase tracking-wider">Line</span>
-                          <span className="text-slate-850 dark:text-slate-200 truncate block">{batch.productionLineName}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[9px] uppercase tracking-wider">Running Time</span>
-                          <RunningDurationCell startedAt={batch.startedAt} />
-                        </div>
-                        <div className="col-span-2 border-t border-slate-50 dark:border-slate-855 pt-1.5">
-                          <span className="text-slate-400 block text-[9px] uppercase tracking-wider">Operator</span>
-                          <span className="text-slate-850 dark:text-slate-100 truncate block">{batch.operatorName}</span>
-                        </div>
-                      </div>
-
-                      {/* Clean Outlined Action Buttons */}
-                      <div className="flex items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800 mt-auto select-none">
-                        <button
-                          onClick={() => navigate(`/company/production/batches/${batch.id}`)}
-                          className="flex-1 py-1 px-2 text-[10px] font-bold text-slate-650 dark:text-slate-200 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 rounded flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-[0.97]"
-                          title="View complete traces & logs"
-                        >
-                          <Eye className="w-3 h-3" />
-                          <span>View</span>
-                        </button>
-                        
-                        <button
-                          onClick={() => handleOpenOperatorSession(batch)}
-                          className="flex-1 py-1 px-2 text-[10px] font-bold text-slate-650 dark:text-slate-200 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 rounded flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-[0.97]"
-                          title="Open Operator Console Terminal"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          <span>Console</span>
-                        </button>
-
-                        <div className="flex items-center gap-1">
-                          {isPaused ? (
-                            <button
-                              onClick={() => handleResumeBatch(batch.id)}
-                              className="p-1.5 border border-green-200 hover:bg-green-50 dark:hover:bg-green-950/20 text-green-600 rounded cursor-pointer transition-all"
-                              title="Resume Batch"
-                            >
-                              <Play className="w-3 h-3 fill-current" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handlePauseBatch(batch.id)}
-                              className="p-1.5 border border-orange-200 hover:bg-orange-50 dark:hover:bg-orange-950/20 text-orange-600 rounded cursor-pointer transition-all"
-                              title="Pause Batch"
-                            >
-                              <Pause className="w-3 h-3 fill-current" />
-                            </button>
-                          )}
-                          
-                          <button
-                            onClick={() => handleCompleteBatch(batch.id)}
-                            className="p-1.5 border border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-650 dark:text-red-400 rounded cursor-pointer transition-all"
-                            title="Complete & Lock batch"
-                          >
-                            <CheckCircle className="w-3 h-3" />
-                          </button>
-                        </div>
                       </div>
                     </div>
-                  );
+                  )
                 })}
               </div>
             ) : (
-              <EnterpriseEmptyState
-                title="No Active Batches Found"
-                description={batchSearch || batchLineFilter || batchStatusFilter !== 'All' ? "Try refining your search filters." : "No production batches are currently running. Initialize a run to start tracing parameter logs."}
-                actionLabel="Create Production Batch"
-                onAction={() => {
-                  if (productionLines.length > 0) {
-                    setStartBatchLineId(productionLines[0].lineId)
-                  }
-                  if (allCatalogProducts.length > 0) {
-                    setStartBatchProduct(allCatalogProducts[0].name)
-                  }
-                  setIsStartBatchModalOpen(true)
-                }}
-              />
+              <div className="bg-white border border-[#E5E7EB] rounded-xl p-10 text-center shadow-sm">
+                <p className="text-[13px] font-semibold text-slate-500">
+                  {batchSearch || batchLineFilter || batchStatusFilter !== 'All'
+                    ? 'No batches match your filters. Try adjusting your search.'
+                    : 'No active production batches found. Create a batch to get started.'}
+                </p>
+                {!batchSearch && !batchLineFilter && batchStatusFilter === 'All' && (
+                  <button
+                    onClick={() => {
+                      if (productionLines.length > 0) setStartBatchLineId(productionLines[0].lineId)
+                      if (allCatalogProducts.length > 0) setStartBatchProduct(allCatalogProducts[0].name)
+                      setIsStartBatchModalOpen(true)
+                    }}
+                    className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg shadow-sm cursor-pointer transition-all"
+                  >
+                    Create Production Batch
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Result count */}
+            {!batchesLoading && filteredBatches.length > 0 && (
+              <div className="text-[11px] text-slate-400 font-medium select-none px-1">
+                Showing {filteredBatches.length} of {activeBatches.length} batches
+              </div>
             )}
           </>
         ) : (
           <>
+            {/* Production Lines Table */}
+            <div className="flex items-center justify-between mb-1 px-1">
+              <span className="text-[12px] font-bold text-slate-700">Production Lines</span>
+              <button
+                onClick={() => setIsAddLineModalOpen(true)}
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg cursor-pointer transition-all"
+              >
+                <Plus className="w-3 h-3" /> Add Line
+              </button>
+            </div>
             {linesLoading ? (
-              <EnterpriseLoading label="Loading production lines configuration..." />
+              <div className="bg-white border border-[#E5E7EB] rounded-xl p-6 text-center text-[12px] text-slate-400 shadow-sm">
+                Loading production lines...
+              </div>
             ) : productionLines.length > 0 ? (
-              <div className="w-full overflow-hidden border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 shadow-xs">
-                <div className="overflow-x-auto w-full">
-                  <table className="w-full text-left text-xs border-collapse">
+              <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-[12px] border-collapse">
                     <thead>
-                      <tr className="bg-[#F8FAFC] dark:bg-slate-800 border-b border-slate-200 dark:border-slate-800 text-[#344054] dark:text-slate-200 font-bold select-none h-[40px]">
-                        <th className="py-2.5 px-4">Line Code</th>
-                        <th className="py-2.5 px-4">Line Name</th>
-                        <th className="py-2.5 px-4">Status</th>
-                        <th className="py-2.5 px-4 text-right">Actions</th>
+                      <tr className="bg-[#F8FAFC] border-b border-[#E5E7EB] text-slate-600 font-bold select-none h-[36px]">
+                        <th className="py-2 px-4">Line Code</th>
+                        <th className="py-2 px-4">Line Name</th>
+                        <th className="py-2 px-4">Status</th>
+                        <th className="py-2 px-4 text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-350">
+                    <tbody className="divide-y divide-slate-100 text-slate-700">
                       {productionLines.map((row: any) => (
-                        <tr key={row.lineId} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 h-[40px] transition-colors">
-                          <td className="py-2.5 px-4 font-mono font-bold text-blue-600 dark:text-blue-400">{row.code}</td>
-                          <td className="py-2.5 px-4 font-bold text-slate-850 dark:text-white">{row.name}</td>
-                          <td className="py-2.5 px-4">
-                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                              row.isActive
-                                ? 'bg-green-50 border-green-200 text-green-600'
-                                : 'bg-red-50 border-red-200 text-red-650'
-                            }`}>
+                        <tr key={row.lineId} className="hover:bg-[#F8FAFC] h-[38px] transition-colors">
+                          <td className="py-2 px-4 font-mono font-bold text-blue-600">{row.code}</td>
+                          <td className="py-2 px-4 font-semibold text-slate-900">{row.name}</td>
+                          <td className="py-2 px-4">
+                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${row.isActive ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
                               {row.isActive ? 'Active' : 'Inactive'}
                             </span>
                           </td>
-                          <td className="py-2.5 px-4 text-right">
+                          <td className="py-2 px-4 text-right">
                             <div className="flex gap-1.5 justify-end">
                               <button
                                 onClick={() => openEditLineModal(row)}
-                                className="p-1 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-500 rounded"
+                                className="p-1 border border-[#E5E7EB] hover:bg-slate-50 text-slate-500 rounded"
                                 title="Edit Line"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => triggerDeleteLine(row.lineId, row.name)}
-                                className="p-1 border border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-650 dark:text-red-400 rounded"
+                                className="p-1 border border-red-200 hover:bg-red-50 text-red-600 rounded"
                                 title="Delete Line"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1869,1024 +1638,92 @@ export const CompanyDashboardPage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <EnterpriseEmptyState
-                title="No Production Lines Found"
-                description="Seeding did not execute or lines are missing. Create your first production line to configure routing."
-                actionLabel="Add Production Line"
-                onAction={() => setIsAddLineModalOpen(true)}
-              />
+              <div className="bg-white border border-[#E5E7EB] rounded-xl p-10 text-center shadow-sm">
+                <p className="text-[13px] font-semibold text-slate-500">No production lines found. Create your first line to get started.</p>
+                <button
+                  onClick={() => setIsAddLineModalOpen(true)}
+                  className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg shadow-sm cursor-pointer"
+                >
+                  Add Production Line
+                </button>
+              </div>
             )}
           </>
         )}
 
-        {/* 1. Add Production Line Modal */}
-        <EnterpriseModal
-          isOpen={isAddLineModalOpen}
-          onClose={() => setIsAddLineModalOpen(false)}
-          title="Create Production Line"
-        >
+        {/* Add Production Line Modal */}
+        <EnterpriseModal isOpen={isAddLineModalOpen} onClose={() => setIsAddLineModalOpen(false)} title="Create Production Line">
           <form onSubmit={handleAddLineSubmit} className="flex flex-col gap-4">
-            <EnterpriseInput
-              label="Line Name *"
-              value={addLineName}
-              onChange={(e) => setAddLineName(e.target.value)}
-              placeholder="e.g. Bottling Line C"
-              required
-            />
-            <EnterpriseInput
-              label="Line Code *"
-              value={addLineCode}
-              onChange={(e) => setAddLineCode(e.target.value)}
-              placeholder="e.g. LINE_C"
-              required
-            />
+            <EnterpriseInput label="Line Name *" value={addLineName} onChange={(e) => setAddLineName(e.target.value)} placeholder="e.g. Bottling Line C" required />
+            <EnterpriseInput label="Line Code *" value={addLineCode} onChange={(e) => setAddLineCode(e.target.value)} placeholder="e.g. LINE_C" required />
             <div className="flex items-center gap-3 mt-2 select-none">
-              <button
-                type="button"
-                onClick={() => setAddLineIsActive(!addLineIsActive)}
-                className="text-hydro-navy cursor-pointer"
-              >
-                {addLineIsActive ? (
-                  <ToggleRight className="w-9 h-9 text-green-500 fill-green-50" />
-                ) : (
-                  <ToggleLeft className="w-9 h-9 text-slate-400 fill-slate-50" />
-                )}
+              <button type="button" onClick={() => setAddLineIsActive(!addLineIsActive)} className="cursor-pointer">
+                {addLineIsActive ? <ToggleRight className="w-9 h-9 text-green-500" /> : <ToggleLeft className="w-9 h-9 text-slate-400" />}
               </button>
-              <span className="text-xs font-semibold text-slate-800 dark:text-white">Active Status</span>
+              <span className="text-xs font-semibold text-slate-800">Active Status</span>
             </div>
-
             <div className="flex gap-2 justify-end mt-4">
-              <EnterpriseButton type="button" onClick={() => setIsAddLineModalOpen(false)} variant="secondary">
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton type="submit" loading={createLineMutation.isPending}>
-                Create Line
-              </EnterpriseButton>
+              <EnterpriseButton type="button" onClick={() => setIsAddLineModalOpen(false)} variant="secondary">Cancel</EnterpriseButton>
+              <EnterpriseButton type="submit" loading={createLineMutation.isPending}>Create Line</EnterpriseButton>
             </div>
           </form>
         </EnterpriseModal>
 
-        {/* 2. Edit Production Line Modal */}
-        <EnterpriseModal
-          isOpen={isEditLineModalOpen}
-          onClose={() => setIsEditLineModalOpen(false)}
-          title="Modify Production Line"
-        >
+        {/* Edit Production Line Modal */}
+        <EnterpriseModal isOpen={isEditLineModalOpen} onClose={() => setIsEditLineModalOpen(false)} title="Modify Production Line">
           <form onSubmit={handleEditLineSubmit} className="flex flex-col gap-4">
-            <EnterpriseInput
-              label="Line Name *"
-              value={editLineName}
-              onChange={(e) => setEditLineName(e.target.value)}
-              required
-            />
-            <EnterpriseInput
-              label="Line Code *"
-              value={editLineCode}
-              onChange={(e) => setEditLineCode(e.target.value)}
-              required
-            />
+            <EnterpriseInput label="Line Name *" value={editLineName} onChange={(e) => setEditLineName(e.target.value)} required />
+            <EnterpriseInput label="Line Code *" value={editLineCode} onChange={(e) => setEditLineCode(e.target.value)} required />
             <div className="flex items-center gap-3 mt-2 select-none">
-              <button
-                type="button"
-                onClick={() => setEditLineIsActive(!editLineIsActive)}
-                className="text-hydro-navy cursor-pointer"
-              >
-                {editLineIsActive ? (
-                  <ToggleRight className="w-9 h-9 text-green-500 fill-green-50" />
-                ) : (
-                  <ToggleLeft className="w-9 h-9 text-slate-400 fill-slate-50" />
-                )}
+              <button type="button" onClick={() => setEditLineIsActive(!editLineIsActive)} className="cursor-pointer">
+                {editLineIsActive ? <ToggleRight className="w-9 h-9 text-green-500" /> : <ToggleLeft className="w-9 h-9 text-slate-400" />}
               </button>
-              <span className="text-xs font-semibold text-slate-800 dark:text-white">Active Status</span>
+              <span className="text-xs font-semibold text-slate-800">Active Status</span>
             </div>
-
             <div className="flex gap-2 justify-end mt-4">
-              <EnterpriseButton type="button" onClick={() => setIsEditLineModalOpen(false)} variant="secondary">
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton type="submit" loading={updateLineMutation.isPending}>
-                Save Changes
-              </EnterpriseButton>
+              <EnterpriseButton type="button" onClick={() => setIsEditLineModalOpen(false)} variant="secondary">Cancel</EnterpriseButton>
+              <EnterpriseButton type="submit" loading={updateLineMutation.isPending}>Save Changes</EnterpriseButton>
             </div>
           </form>
         </EnterpriseModal>
 
         {/* Create Production Batch Modal */}
-        <EnterpriseModal
-          isOpen={isStartBatchModalOpen}
-          onClose={() => setIsStartBatchModalOpen(false)}
-          title="Create Production Batch"
-        >
+        <EnterpriseModal isOpen={isStartBatchModalOpen} onClose={() => setIsStartBatchModalOpen(false)} title="Create Production Batch">
           <form onSubmit={handleStartBatchSubmit} className="flex flex-col gap-4">
-            <EnterpriseSelect
-              label="Production Line *"
-              value={startBatchLineId}
-              onChange={(e) => setStartBatchLineId(e.target.value)}
-              required
-            >
+            <EnterpriseSelect label="Production Line *" value={startBatchLineId} onChange={(e) => setStartBatchLineId(e.target.value)} required>
               {productionLines.map((line: any) => (
-                <option key={line.lineId} value={line.lineId}>
-                  {line.name} ({line.code})
-                </option>
+                <option key={line.lineId} value={line.lineId}>{line.name} ({line.code})</option>
               ))}
             </EnterpriseSelect>
-
-            <EnterpriseInput
-              label="Batch Number / Code *"
-              value={startBatchNumber}
-              onChange={(e) => setStartBatchNumber(e.target.value)}
-              placeholder="e.g. LOT-001, B-RUN-12"
-              required
-            />
-
-            <EnterpriseSelect
-              label="Product *"
-              value={startBatchProduct}
-              onChange={(e) => setStartBatchProduct(e.target.value)}
-              required
-            >
+            <EnterpriseInput label="Batch Number / Code *" value={startBatchNumber} onChange={(e) => setStartBatchNumber(e.target.value)} placeholder="e.g. LOT-001, B-RUN-12" required />
+            <EnterpriseSelect label="Product *" value={startBatchProduct} onChange={(e) => setStartBatchProduct(e.target.value)} required>
               {allCatalogProducts.map((prod: any) => (
-                <option key={prod.id} value={prod.name}>
-                  {prod.name} {prod.sku ? `(${prod.sku})` : ''}
-                </option>
+                <option key={prod.id} value={prod.name}>{prod.name} {prod.sku ? `(${prod.sku})` : ''}</option>
               ))}
             </EnterpriseSelect>
-
-            <EnterpriseSelect
-              label="Shift *"
-              value={startBatchShift}
-              onChange={(e) => setStartBatchShift(e.target.value)}
-              required
-            >
+            <EnterpriseSelect label="Shift *" value={startBatchShift} onChange={(e) => setStartBatchShift(e.target.value)} required>
               <option value="Day">Day Shift</option>
               <option value="Night">Night Shift</option>
               <option value="Evening">Evening Shift</option>
             </EnterpriseSelect>
-
-            <EnterpriseInput
-              label="Target Quantity (Cases) *"
-              type="number"
-              value={startBatchTargetQty}
-              onChange={(e) => setStartBatchTargetQty(e.target.value)}
-              placeholder="e.g. 1000"
-              required
-            />
-
+            <EnterpriseInput label="Target Quantity (Cases) *" type="number" value={startBatchTargetQty} onChange={(e) => setStartBatchTargetQty(e.target.value)} placeholder="e.g. 1000" required />
             <div className="flex gap-2 justify-end mt-4">
-              <EnterpriseButton type="button" onClick={() => setIsStartBatchModalOpen(false)} variant="secondary">
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton type="submit" loading={startBatchMutation.isPending}>
-                Start Batch
-              </EnterpriseButton>
+              <EnterpriseButton type="button" onClick={() => setIsStartBatchModalOpen(false)} variant="secondary">Cancel</EnterpriseButton>
+              <EnterpriseButton type="submit" loading={startBatchMutation.isPending}>Start Batch</EnterpriseButton>
             </div>
           </form>
-        </EnterpriseModal>
-
-        {/* View Batch Details Modal */}
-        <EnterpriseModal
-          isOpen={isViewBatchModalOpen}
-          onClose={() => setIsViewBatchModalOpen(false)}
-          title="Production Batch Details"
-        >
-          {selectedBatchForView && (
-            <div className="flex flex-col gap-4 text-xs font-semibold text-slate-800 dark:text-slate-200">
-              <div className="grid grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-900 p-4 rounded border border-slate-200 dark:border-slate-800">
-                <div>
-                  <span className="text-slate-400 block mb-1">Batch Number</span>
-                  <span className="text-sm font-bold text-hydro-navy dark:text-white">{selectedBatchForView.batchNumber}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block mb-1">Status</span>
-                  <EnterpriseBadge variant={selectedBatchForView.status === 'Paused' ? 'warning' : 'success'}>
-                    {selectedBatchForView.status}
-                  </EnterpriseBadge>
-                </div>
-                <div>
-                  <span className="text-slate-400 block mb-1">Product</span>
-                  <span>{selectedBatchForView.product}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block mb-1">Shift</span>
-                  <span>{selectedBatchForView.shift}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block mb-1">Production Line</span>
-                  <span>{selectedBatchForView.productionLineName} ({selectedBatchForView.productionLineCode})</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block mb-1">Operator</span>
-                  <span>{selectedBatchForView.operatorName}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block mb-1">Time Started</span>
-                  <span>{new Date(selectedBatchForView.startedAt).toLocaleString()}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block mb-1">Target Quantity</span>
-                  <span>{selectedBatchForView.targetQuantity} Cases</span>
-                </div>
-              </div>
-              <div className="flex justify-end mt-4">
-                <EnterpriseButton onClick={() => setIsViewBatchModalOpen(false)}>
-                  Close
-                </EnterpriseButton>
-              </div>
-            </div>
-          )}
         </EnterpriseModal>
       </div>
     )
   }
 
   if (isInventoryView || isWarehouseView) {
-
-
     return (
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <EnterpriseHeader title="Inventory Management" />
-
-          <div className="flex bg-[#F4F6F9] dark:bg-slate-800 p-1 rounded-lg gap-1 border border-[#E5E9F2] dark:border-slate-700 select-none">
-            <button
-              onClick={() => setInventoryTab('products')}
-              className={`px-4 py-2 text-xs font-semibold rounded-md transition-all ${inventoryTab === 'products'
-                ? 'bg-white dark:bg-slate-900 text-hydro-navy dark:text-white shadow-xs'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                }`}
-            >
-              Products
-            </button>
-            <button
-              onClick={() => setInventoryTab('raw_materials')}
-              className={`px-4 py-2 text-xs font-semibold rounded-md transition-all ${inventoryTab === 'raw_materials'
-                ? 'bg-white dark:bg-slate-900 text-hydro-navy dark:text-white shadow-xs'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                }`}
-            >
-              Raw Materials
-            </button>
-            <button
-              onClick={() => setInventoryTab('brands')}
-              className={`px-4 py-2 text-xs font-semibold rounded-md transition-all ${inventoryTab === 'brands'
-                ? 'bg-white dark:bg-slate-900 text-hydro-navy dark:text-white shadow-xs'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                }`}
-            >
-              Brands
-            </button>
-          </div>
-        </div>
-
-        {/* Tab Content */}
-        {inventoryTab === 'products' && (
-          <div className="flex flex-col gap-4">
-            {/* Search & Action Bar */}
-            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 bg-white dark:bg-slate-900 p-4 border border-[#E5E9F2] dark:border-slate-800 rounded-lg">
-              <div className="relative flex-1 max-w-md">
-                <input
-                  type="text"
-                  placeholder="Search products by name or SKU..."
-                  value={productsSearch}
-                  onChange={(e) => {
-                    setProductsSearch(e.target.value)
-                    setProductsPage(1)
-                  }}
-                  className="w-full h-[40px] pl-10 pr-4 text-sm bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-[#D0D5DD] dark:border-slate-700 rounded-lg focus:outline-none focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB]"
-                />
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              </div>
-              {canWrite && (
-                <EnterpriseButton
-                  onClick={() => {
-                    setProductFormName('')
-                    setProductFormBrandId(brands[0]?.id || '')
-                    setProductFormSKU('')
-                    setProductFormIsActive(true)
-                    setIsAddProductModalOpen(true)
-                  }}
-                  variant="primary"
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Product
-                </EnterpriseButton>
-              )}
-            </div>
-
-            {/* Table */}
-            {productsLoading ? (
-              <EnterpriseLoading label="Loading products..." />
-            ) : productsData?.items && productsData.items.length > 0 ? (
-              <div className="flex flex-col gap-4">
-                <EnterpriseTable
-                  columns={[
-                    { key: 'name', title: 'Product Name', render: (row: any) => <span className="font-semibold text-hydro-navy dark:text-white">{row.name}</span> },
-                    { key: 'brandName', title: 'Brand' },
-                    { key: 'sku', title: 'SKU', render: (row: any) => row.sku ? <code className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-650 dark:text-slate-350 rounded text-xs font-mono">{row.sku}</code> : <span className="text-slate-400">-</span> },
-                    { key: 'isActive', title: 'Status', render: (row: any) => <EnterpriseBadge variant={row.isActive ? 'success' : 'danger'}>{row.isActive ? 'Active' : 'Inactive'}</EnterpriseBadge> },
-                    { key: 'createdAt', title: 'Created At', render: (row: any) => new Date(row.createdAt).toLocaleDateString() },
-                    ...(canWrite ? [{
-                      key: 'actions',
-                      title: 'Actions',
-                      render: (row: any) => (
-                        <div className="flex gap-2">
-                          <button onClick={() => openEditProduct(row)} className="p-1 text-slate-500 hover:text-slate-700 dark:text-slate-450 dark:hover:text-slate-250">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => triggerDeleteProduct(row.id, row.name)} className="p-1 text-red-500 hover:text-red-750">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )
-                    }] : [])
-                  ]}
-                  data={productsData.items}
-                />
-
-                {/* Pagination */}
-                {productsData.totalPages > 1 && (
-                  <div className="p-4 border border-[#E5E9F2] dark:border-slate-800 bg-white dark:bg-slate-900 rounded-lg flex justify-between items-center text-xs select-none">
-                    <span className="text-slate-400 font-semibold">Page {productsPage} of {productsData.totalPages}</span>
-                    <div className="flex gap-2">
-                      <EnterpriseButton
-                        disabled={!productsData.hasPreviousPage}
-                        onClick={() => setProductsPage(p => p - 1)}
-                        variant="secondary"
-                        className="py-1 px-3 text-xs"
-                      >
-                        Prev
-                      </EnterpriseButton>
-                      <EnterpriseButton
-                        disabled={!productsData.hasNextPage}
-                        onClick={() => setProductsPage(p => p + 1)}
-                        variant="secondary"
-                        className="py-1 px-3 text-xs"
-                      >
-                        Next
-                      </EnterpriseButton>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <EnterpriseEmptyState
-                title="No Products Found"
-                description="Add products to your inventory catalog to start tracing production batches."
-                actionLabel={canWrite ? "Add Product" : undefined}
-                onAction={canWrite ? () => setIsAddProductModalOpen(true) : undefined}
-              />
-            )}
-          </div>
-        )}
-
-        {inventoryTab === 'raw_materials' && (
-          <div className="flex flex-col gap-4">
-            {/* Search & Action Bar */}
-            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 bg-white dark:bg-slate-900 p-4 border border-[#E5E9F2] dark:border-slate-800 rounded-lg">
-              <div className="relative flex-1 max-w-md">
-                <input
-                  type="text"
-                  placeholder="Search raw materials by name or category..."
-                  value={rawMaterialsSearch}
-                  onChange={(e) => {
-                    setRawMaterialsSearch(e.target.value)
-                    setRawMaterialsPage(1)
-                  }}
-                  className="w-full h-[40px] pl-10 pr-4 text-sm bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-[#D0D5DD] dark:border-slate-700 rounded-lg focus:outline-none focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB]"
-                />
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              </div>
-              {canWrite && (
-                <EnterpriseButton
-                  onClick={() => {
-                    setRawMaterialFormName('')
-                    setRawMaterialFormCategory('PREFORM')
-                    setRawMaterialFormUnit('PIECE')
-                    setRawMaterialFormIsActive(true)
-                    setRawMaterialFormCurrentStock('0')
-                    setRawMaterialFormStockAdjustment('0')
-                    setIsAddRawMaterialModalOpen(true)
-                  }}
-                  variant="primary"
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Raw Material
-                </EnterpriseButton>
-              )}
-            </div>
-
-            {/* Table */}
-            {rawMaterialsLoading ? (
-              <EnterpriseLoading label="Loading raw materials..." />
-            ) : rawMaterialsData?.items && rawMaterialsData.items.length > 0 ? (
-              <div className="flex flex-col gap-4">
-                <EnterpriseTable
-                  columns={[
-                    { key: 'name', title: 'Material Name', render: (row: any) => <span className="font-semibold text-hydro-navy dark:text-white">{row.name}</span> },
-                    { key: 'category', title: 'Category', render: (row: any) => <span className="px-2.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-350 text-xs font-semibold rounded">{row.category}</span> },
-                    { key: 'unit', title: 'Unit' },
-                    {
-                      key: 'availableStock', title: 'Available Stock', render: (row: any) => (
-                        <span className={`font-mono font-bold ${row.currentStock < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>
-                          {row.currentStock ?? 0} {row.unit}
-                        </span>
-                      )
-                    },
-                    {
-                      key: 'reservedStock', title: 'Reserved Stock', render: (row: any) => (
-                        <span className="font-mono text-slate-500">
-                          {row.currentStock > 0 ? Math.round(row.currentStock * 0.15) : 0} {row.unit}
-                        </span>
-                      )
-                    },
-                    {
-                      key: 'negativeStock', title: 'Negative Stock', render: (row: any) => (
-                        <span className="font-mono font-bold text-red-500">
-                          {row.currentStock < 0 ? row.currentStock : 0} {row.unit}
-                        </span>
-                      )
-                    },
-                    { key: 'isActive', title: 'Status', render: (row: any) => <EnterpriseBadge variant={row.isActive ? 'success' : 'danger'}>{row.isActive ? 'Active' : 'Inactive'}</EnterpriseBadge> },
-                    { key: 'createdAt', title: 'Created At', render: (row: any) => new Date(row.createdAt).toLocaleDateString() },
-                    ...(canWrite ? [{
-                      key: 'actions',
-                      title: 'Actions',
-                      render: (row: any) => (
-                        <div className="flex gap-2">
-                          <button onClick={() => openEditRawMaterial(row)} className="p-1 text-slate-500 hover:text-slate-700 dark:text-slate-455 dark:hover:text-slate-255">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => triggerDeleteRawMaterial(row.id, row.name)} className="p-1 text-red-500 hover:text-red-750">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )
-                    }] : [])
-                  ]}
-                  data={rawMaterialsData.items}
-                />
-
-                {/* Pagination */}
-                {rawMaterialsData.totalPages > 1 && (
-                  <div className="p-4 border border-[#E5E9F2] dark:border-slate-800 bg-white dark:bg-slate-900 rounded-lg flex justify-between items-center text-xs select-none">
-                    <span className="text-slate-400 font-semibold">Page {rawMaterialsPage} of {rawMaterialsData.totalPages}</span>
-                    <div className="flex gap-2">
-                      <EnterpriseButton
-                        disabled={!rawMaterialsData.hasPreviousPage}
-                        onClick={() => setRawMaterialsPage(p => p - 1)}
-                        variant="secondary"
-                        className="py-1 px-3 text-xs"
-                      >
-                        Prev
-                      </EnterpriseButton>
-                      <EnterpriseButton
-                        disabled={!rawMaterialsData.hasNextPage}
-                        onClick={() => setRawMaterialsPage(p => p + 1)}
-                        variant="secondary"
-                        className="py-1 px-3 text-xs"
-                      >
-                        Next
-                      </EnterpriseButton>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <EnterpriseEmptyState
-                title="No Raw Materials Found"
-                description="Add raw materials to track preforms, caps, labels, shrink film, and other catalog components."
-                actionLabel={canWrite ? "Add Raw Material" : undefined}
-                onAction={canWrite ? () => {
-                  setRawMaterialFormName('')
-                  setRawMaterialFormCategory('PREFORM')
-                  setRawMaterialFormUnit('PIECE')
-                  setRawMaterialFormIsActive(true)
-                  setIsAddRawMaterialModalOpen(true)
-                } : undefined}
-              />
-            )}
-          </div>
-        )}
-
-        {inventoryTab === 'brands' && (
-          <div className="flex flex-col gap-4 animate-fade-in">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xs border border-[#E4E7EC] dark:border-slate-800">
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <div className="relative w-full sm:w-72">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search Brands..."
-                    value={brandsSearch}
-                    onChange={(e) => setBrandsSearch(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-              {canWrite && (
-                <EnterpriseButton onClick={() => setIsAddBrandModalOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Brand
-                </EnterpriseButton>
-              )}
-            </div>
-
-            {brandsLoading ? (
-              <EnterpriseLoading />
-            ) : paginatedBrandsData?.items && paginatedBrandsData.items.length > 0 ? (
-              <EnterpriseCard>
-                <EnterpriseTable
-                  columns={[
-                    { key: 'name', title: 'Brand Name', render: (row: any) => <span className="font-semibold text-hydro-navy dark:text-white">{row.name}</span> },
-                    { key: 'code', title: 'Brand Code', render: (row: any) => row.code || '-' },
-                    { key: 'description', title: 'Description', render: (row: any) => row.description || '-' },
-                    { key: 'isActive', title: 'Status', render: (row: any) => <EnterpriseBadge variant={row.isActive ? 'success' : 'danger'}>{row.isActive ? 'Active' : 'Inactive'}</EnterpriseBadge> },
-                    { key: 'createdAt', title: 'Created Date', render: (row: any) => new Date(row.createdAt).toLocaleDateString() },
-                    {
-                      key: 'actions',
-                      title: 'Actions',
-                      render: (row: any) => (
-                        <div className="flex items-center gap-2">
-                          {canWrite && (
-                            <>
-                              <button onClick={() => openEditBrand(row)} className="p-1 text-slate-400 hover:text-blue-500 transition-colors" title="Edit">
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button onClick={() => triggerDeleteBrand(row.id, row.name)} className="p-1 text-slate-400 hover:text-red-500 transition-colors" title="Delete">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )
-                    }
-                  ]}
-                  data={paginatedBrandsData.items}
-                />
-
-                {paginatedBrandsData.totalPages > 1 && (
-                  <div className="flex items-center justify-between mt-6 pt-4 border-t border-[#E4E7EC] dark:border-slate-800">
-                    <EnterpriseButton
-                      variant="secondary"
-                      disabled={!paginatedBrandsData.hasPreviousPage}
-                      onClick={() => setBrandsPage(p => p - 1)}
-                    >
-                      Previous
-                    </EnterpriseButton>
-                    <span className="text-sm text-[#475467] dark:text-slate-400">
-                      Page {paginatedBrandsData.pageNumber} of {paginatedBrandsData.totalPages}
-                    </span>
-                    <EnterpriseButton
-                      variant="secondary"
-                      disabled={!paginatedBrandsData.hasNextPage}
-                      onClick={() => setBrandsPage(p => p + 1)}
-                    >
-                      Next
-                    </EnterpriseButton>
-                  </div>
-                )}
-              </EnterpriseCard>
-            ) : (
-              <EnterpriseEmptyState
-                icon={<Factory className="w-8 h-8" />}
-                title="No Brands Found"
-                description="Add brands to organize your products."
-                actionLabel={canWrite ? "Add Brand" : undefined}
-                onAction={canWrite ? () => setIsAddBrandModalOpen(true) : undefined}
-              />
-            )}
-          </div>
-        )}
-
-        {/* MODALS */}
-        {/* 1. Add Product Modal */}
-        <EnterpriseModal
-          isOpen={isAddProductModalOpen}
-          onClose={() => setIsAddProductModalOpen(false)}
-          title="Add New Product"
-          maxWidth="sm"
-        >
-          <form onSubmit={handleCreateProductSubmit} className="flex flex-col gap-4">
-            <EnterpriseInput
-              label="Product Name"
-              placeholder="E.g., Aquora Premium 500ml"
-              value={productFormName}
-              onChange={(e) => setProductFormName(e.target.value)}
-              required
-            />
-
-            <EnterpriseSelect
-              label="Brand"
-              value={productFormBrandId}
-              onChange={(e) => setProductFormBrandId(e.target.value)}
-              required
-            >
-              <option value="">Select a Brand</option>
-              {brands.map((b: any) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </EnterpriseSelect>
-
-            <EnterpriseInput
-              label="SKU (Stock Keeping Unit)"
-              placeholder="E.g., AQ-500ML (Optional)"
-              value={productFormSKU}
-              onChange={(e) => setProductFormSKU(e.target.value)}
-            />
-
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="checkbox"
-                id="addProductActive"
-                checked={productFormIsActive}
-                onChange={(e) => setProductFormIsActive(e.target.checked)}
-                className="w-4 h-4 accent-[#1A56DB]"
-              />
-              <label htmlFor="addProductActive" className="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
-                Active Product (Available for scheduling batches)
-              </label>
-            </div>
-
-            <div className="flex justify-end gap-2 mt-4">
-              <EnterpriseButton
-                type="button"
-                onClick={() => setIsAddProductModalOpen(false)}
-                variant="secondary"
-              >
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton
-                type="submit"
-                variant="primary"
-                disabled={createProductMutation.isPending}
-              >
-                {createProductMutation.isPending ? 'Saving...' : 'Add Product'}
-              </EnterpriseButton>
-            </div>
-          </form>
-        </EnterpriseModal>
-
-        {/* 2. Edit Product Modal */}
-        <EnterpriseModal
-          isOpen={isEditProductModalOpen}
-          onClose={() => setIsEditProductModalOpen(false)}
-          title="Edit Product Details"
-          maxWidth="sm"
-        >
-          <form onSubmit={handleEditProductSubmit} className="flex flex-col gap-4">
-            <EnterpriseInput
-              label="Product Name"
-              placeholder="E.g., Aquora Premium 500ml"
-              value={productFormName}
-              onChange={(e) => setProductFormName(e.target.value)}
-              required
-            />
-
-            <EnterpriseSelect
-              label="Brand"
-              value={productFormBrandId}
-              onChange={(e) => setProductFormBrandId(e.target.value)}
-              required
-            >
-              <option value="">Select a Brand</option>
-              {brands.map((b: any) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </EnterpriseSelect>
-
-            <EnterpriseInput
-              label="SKU (Stock Keeping Unit)"
-              placeholder="E.g., AQ-500ML (Optional)"
-              value={productFormSKU}
-              onChange={(e) => setProductFormSKU(e.target.value)}
-            />
-
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="checkbox"
-                id="editProductActive"
-                checked={productFormIsActive}
-                onChange={(e) => setProductFormIsActive(e.target.checked)}
-                className="w-4 h-4 accent-[#1A56DB]"
-              />
-              <label htmlFor="editProductActive" className="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
-                Active Product (Available for scheduling batches)
-              </label>
-            </div>
-
-            <div className="flex justify-end gap-2 mt-4">
-              <EnterpriseButton
-                type="button"
-                onClick={() => setIsEditProductModalOpen(false)}
-                variant="secondary"
-              >
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton
-                type="submit"
-                variant="primary"
-                disabled={updateProductMutation.isPending}
-              >
-                {updateProductMutation.isPending ? 'Saving...' : 'Save Changes'}
-              </EnterpriseButton>
-            </div>
-          </form>
-        </EnterpriseModal>
-
-        {/* 3. Add Raw Material Modal */}
-        <EnterpriseModal
-          isOpen={isAddRawMaterialModalOpen}
-          onClose={() => setIsAddRawMaterialModalOpen(false)}
-          title="Add New Raw Material"
-          maxWidth="sm"
-        >
-          <form onSubmit={handleCreateRawMaterialSubmit} className="flex flex-col gap-4">
-            <EnterpriseInput
-              label="Material Name"
-              placeholder="E.g., 28mm Preform (Premium)"
-              value={rawMaterialFormName}
-              onChange={(e) => setRawMaterialFormName(e.target.value)}
-              required
-            />
-
-            <EnterpriseSelect
-              label="Category"
-              value={rawMaterialFormCategory}
-              onChange={(e) => setRawMaterialFormCategory(e.target.value)}
-              required
-            >
-              {Object.values(RAW_MATERIAL_CATEGORIES).map(cat => (
-                <option key={cat.value} value={cat.value}>{cat.label}</option>
-              ))}
-            </EnterpriseSelect>
-
-            <EnterpriseSelect
-              label="Unit of Measurement"
-              value={rawMaterialFormUnit}
-              onChange={(e) => setRawMaterialFormUnit(e.target.value)}
-              required
-            >
-              <option value="PIECE">PIECE</option>
-              <option value="KG">KG</option>
-              <option value="GRAM">GRAM</option>
-              <option value="ROLL">ROLL</option>
-              <option value="BOX">BOX</option>
-              <option value="BAG">BAG</option>
-              <option value="LITER">LITER</option>
-              <option value="ML">ML</option>
-            </EnterpriseSelect>
-
-            <EnterpriseInput
-              type="number"
-              step="0.01"
-              label="Initial Current Stock"
-              placeholder="E.g., 500"
-              value={rawMaterialFormCurrentStock}
-              onChange={(e) => setRawMaterialFormCurrentStock(e.target.value)}
-            />
-
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="checkbox"
-                id="addMaterialActive"
-                checked={rawMaterialFormIsActive}
-                onChange={(e) => setRawMaterialFormIsActive(e.target.checked)}
-                className="w-4 h-4 accent-[#1A56DB]"
-              />
-              <label htmlFor="addMaterialActive" className="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
-                Active Material (Traceable on production floor)
-              </label>
-            </div>
-
-            <div className="flex justify-end gap-2 mt-4">
-              <EnterpriseButton
-                type="button"
-                onClick={() => setIsAddRawMaterialModalOpen(false)}
-                variant="secondary"
-              >
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton
-                type="submit"
-                variant="primary"
-                disabled={createRawMaterialMutation.isPending}
-              >
-                {createRawMaterialMutation.isPending ? 'Saving...' : 'Add Material'}
-              </EnterpriseButton>
-            </div>
-          </form>
-        </EnterpriseModal>
-
-        {/* 4. Edit Raw Material Modal */}
-        <EnterpriseModal
-          isOpen={isEditRawMaterialModalOpen}
-          onClose={() => setIsEditRawMaterialModalOpen(false)}
-          title="Edit Raw Material Details"
-          maxWidth="sm"
-        >
-          <form onSubmit={handleEditRawMaterialSubmit} className="flex flex-col gap-4">
-            <EnterpriseInput
-              label="Material Name"
-              placeholder="E.g., 28mm Preform (Premium)"
-              value={rawMaterialFormName}
-              onChange={(e) => setRawMaterialFormName(e.target.value)}
-              required
-            />
-
-            <EnterpriseSelect
-              label="Category"
-              value={rawMaterialFormCategory}
-              onChange={(e) => setRawMaterialFormCategory(e.target.value)}
-              required
-            >
-              {Object.values(RAW_MATERIAL_CATEGORIES).map(cat => (
-                <option key={cat.value} value={cat.value}>{cat.label}</option>
-              ))}
-            </EnterpriseSelect>
-
-            <EnterpriseSelect
-              label="Unit of Measurement"
-              value={rawMaterialFormUnit}
-              onChange={(e) => setRawMaterialFormUnit(e.target.value)}
-              required
-            >
-              <option value="PIECE">PIECE</option>
-              <option value="KG">KG</option>
-              <option value="GRAM">GRAM</option>
-              <option value="ROLL">ROLL</option>
-              <option value="BOX">BOX</option>
-              <option value="BAG">BAG</option>
-              <option value="LITER">LITER</option>
-              <option value="ML">ML</option>
-            </EnterpriseSelect>
-
-            <div className="grid grid-cols-2 gap-4">
-              <EnterpriseInput
-                type="number"
-                step="0.01"
-                label="Current Stock Level"
-                value={rawMaterialFormCurrentStock}
-                onChange={(e) => setRawMaterialFormCurrentStock(e.target.value)}
-                required
-              />
-              <EnterpriseInput
-                type="number"
-                step="0.01"
-                label="Add Stock (Purchase Receipt)"
-                placeholder="E.g., 40"
-                value={rawMaterialFormStockAdjustment}
-                onChange={(e) => setRawMaterialFormStockAdjustment(e.target.value)}
-              />
-            </div>
-
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="checkbox"
-                id="editMaterialActive"
-                checked={rawMaterialFormIsActive}
-                onChange={(e) => setRawMaterialFormIsActive(e.target.checked)}
-                className="w-4 h-4 accent-[#1A56DB]"
-              />
-              <label htmlFor="editMaterialActive" className="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
-                Active Material (Traceable on production floor)
-              </label>
-            </div>
-
-            <div className="flex justify-end gap-2 mt-4">
-              <EnterpriseButton
-                type="button"
-                onClick={() => setIsEditRawMaterialModalOpen(false)}
-                variant="secondary"
-              >
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton
-                type="submit"
-                variant="primary"
-                disabled={updateRawMaterialMutation.isPending}
-              >
-                {updateRawMaterialMutation.isPending ? 'Saving...' : 'Save Changes'}
-              </EnterpriseButton>
-            </div>
-          </form>
-        </EnterpriseModal>
-
-        {/* 5. Add Brand Modal */}
-        <EnterpriseModal
-          isOpen={isAddBrandModalOpen}
-          onClose={() => setIsAddBrandModalOpen(false)}
-          title="Add New Brand"
-          maxWidth="sm"
-        >
-          <form onSubmit={handleCreateBrandSubmit} className="flex flex-col gap-4">
-            <EnterpriseInput
-              label="Brand Name"
-              placeholder="E.g., Aquora Premium"
-              value={brandFormName}
-              onChange={(e) => setBrandFormName(e.target.value)}
-              required
-            />
-            <EnterpriseInput
-              label="Brand Code (Optional)"
-              placeholder="E.g., AQ-PRM"
-              value={brandFormCode}
-              onChange={(e) => setBrandFormCode(e.target.value)}
-            />
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Description (Optional)</label>
-              <textarea
-                className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-900 border-[#E4E7EC] dark:border-slate-800 text-slate-900 dark:text-white"
-                rows={3}
-                placeholder="Enter description..."
-                value={brandFormDescription}
-                onChange={(e) => setBrandFormDescription(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="checkbox"
-                id="addBrandActive"
-                checked={brandFormIsActive}
-                onChange={(e) => setBrandFormIsActive(e.target.checked)}
-                className="w-4 h-4 accent-[#1A56DB]"
-              />
-              <label htmlFor="addBrandActive" className="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
-                Active Brand
-              </label>
-            </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <EnterpriseButton type="button" onClick={() => setIsAddBrandModalOpen(false)} variant="secondary">
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton type="submit" variant="primary" disabled={createBrandMutation.isPending}>
-                {createBrandMutation.isPending ? 'Saving...' : 'Save Brand'}
-              </EnterpriseButton>
-            </div>
-          </form>
-        </EnterpriseModal>
-
-        {/* 6. Edit Brand Modal */}
-        <EnterpriseModal
-          isOpen={isEditBrandModalOpen}
-          onClose={() => setIsEditBrandModalOpen(false)}
-          title="Edit Brand Details"
-          maxWidth="sm"
-        >
-          <form onSubmit={handleEditBrandSubmit} className="flex flex-col gap-4">
-            <EnterpriseInput
-              label="Brand Name"
-              placeholder="E.g., Aquora Premium"
-              value={brandFormName}
-              onChange={(e) => setBrandFormName(e.target.value)}
-              required
-            />
-            <EnterpriseInput
-              label="Brand Code (Optional)"
-              placeholder="E.g., AQ-PRM"
-              value={brandFormCode}
-              onChange={(e) => setBrandFormCode(e.target.value)}
-            />
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Description (Optional)</label>
-              <textarea
-                className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-900 border-[#E4E7EC] dark:border-slate-800 text-slate-900 dark:text-white"
-                rows={3}
-                placeholder="Enter description..."
-                value={brandFormDescription}
-                onChange={(e) => setBrandFormDescription(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="checkbox"
-                id="editBrandActive"
-                checked={brandFormIsActive}
-                onChange={(e) => setBrandFormIsActive(e.target.checked)}
-                className="w-4 h-4 accent-[#1A56DB]"
-              />
-              <label htmlFor="editBrandActive" className="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
-                Active Brand
-              </label>
-            </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <EnterpriseButton type="button" onClick={() => setIsEditBrandModalOpen(false)} variant="secondary">
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton type="submit" variant="primary" disabled={updateBrandMutation.isPending}>
-                {updateBrandMutation.isPending ? 'Saving...' : 'Save Changes'}
-              </EnterpriseButton>
-            </div>
-          </form>
-        </EnterpriseModal>
-      </div>
+      <InventoryPage canWrite={canWrite} showToast={showToast} />
     )
   }
+
+
 
   if (isQualityView) {
     return (
@@ -3394,7 +2231,7 @@ export const CompanyDashboardPage: React.FC = () => {
             <CloudSun className="w-8 h-8 text-amber-500 animate-pulse" />
             <div className="text-xs">
               <span className="font-bold block uppercase text-[10px] text-slate-400">Main Facility Weather</span>
-              <span className="font-extrabold text-hydro-navy dark:text-white text-sm mt-0.5 block">24°C | Clear skies</span>
+              <span className="font-extrabold text-hydro-navy dark:text-white text-sm mt-0.5 block">24Â°C | Clear skies</span>
             </div>
           </div>
         </div>

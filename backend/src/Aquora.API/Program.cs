@@ -16,6 +16,7 @@ using Aquora.Application.Interfaces;
 using Aquora.Infrastructure;
 using Aquora.Persistence;
 using Aquora.Persistence.Context;
+using Aquora.Domain.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -272,6 +273,42 @@ PHASE 4: Active Database Instance Verification:
                         TenantSchemaResolver.CurrentSchemaName = tenant.SchemaName;
 
                         await tenantContext.Database.MigrateAsync();
+
+                        // Reconcile and migrate historical raw material stock to inventory movements
+                        var rawMaterials = await tenantContext.RawMaterials.Where(rm => !rm.IsDeleted).ToListAsync();
+                        bool reconciledAny = false;
+                        foreach (var rm in rawMaterials)
+                        {
+                            var movementsSum = await tenantContext.InventoryMovements
+                                .Where(m => m.RawMaterialId == rm.Id && !m.IsDeleted)
+                                .SumAsync(m => m.Quantity);
+
+                            var diff = rm.CurrentStock - movementsSum;
+                            if (diff != 0)
+                            {
+                                Log.Information($"[RECONCILIATION] RawMaterial '{rm.Name}' (ID: {rm.Id}) stock mismatch in '{tenant.SchemaName}': CurrentStock={rm.CurrentStock}, MovementsSum={movementsSum}. Reconciling diff of {diff}.");
+                                
+                                var reconciliationMovement = new InventoryMovement
+                                {
+                                    Id = Guid.NewGuid(),
+                                    RawMaterialId = rm.Id,
+                                    Quantity = diff,
+                                    ReferenceType = "OpeningStock",
+                                    ReferenceId = rm.Id,
+                                    TenantId = tenant.Id,
+                                    CompanyId = rm.CompanyId,
+                                    CreatedAt = DateTime.UtcNow,
+                                    CreatedBy = "System Migration",
+                                    IsDeleted = false
+                                };
+                                tenantContext.InventoryMovements.Add(reconciliationMovement);
+                                reconciledAny = true;
+                            }
+                        }
+                        if (reconciledAny)
+                        {
+                            await tenantContext.SaveChangesAsync();
+                        }
                     }
                     Log.Information($"Tenant {tenant.Name} migrated successfully.");
                 }

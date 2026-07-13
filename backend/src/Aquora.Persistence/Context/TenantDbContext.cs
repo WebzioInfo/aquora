@@ -119,6 +119,22 @@ namespace Aquora.Persistence.Context
             modelBuilder.Entity<RawMaterial>()
                 .HasIndex(rm => rm.Category);
 
+            // InventoryMovement query indexing optimizations
+            modelBuilder.Entity<InventoryMovement>()
+                .HasIndex(im => im.CreatedAt);
+            modelBuilder.Entity<InventoryMovement>()
+                .HasIndex(im => new { im.ReferenceType, im.ReferenceId });
+            modelBuilder.Entity<InventoryMovement>()
+                .HasIndex(im => im.RawMaterialId);
+            modelBuilder.Entity<InventoryMovement>()
+                .HasIndex(im => im.CompanyId);
+
+            // ProductionEntry query indexing optimizations
+            modelBuilder.Entity<ProductionEntry>()
+                .HasIndex(pe => pe.ProductId);
+            modelBuilder.Entity<ProductionEntry>()
+                .HasIndex(pe => pe.ProductionSessionId);
+
             // Apply soft delete query filters
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
