@@ -1,0 +1,16 @@
+using System;
+
+namespace Aquora.Application.DTOs.RawMaterials
+{
+    public class RawMaterialDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
+        public string Unit { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
+        public decimal CurrentStock { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+    }
+}

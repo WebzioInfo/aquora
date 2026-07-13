@@ -1,0 +1,26 @@
+using Microsoft.Extensions.DependencyInjection;
+using FluentValidation;
+using System.Reflection;
+using Aquora.Application.Interfaces.Services;
+using Aquora.Application.Services;
+
+namespace Aquora.Application
+{
+    public static class DependencyInjection
+    {
+        public static IServiceCollection AddApplication(this IServiceCollection services)
+        {
+            // Register all FluentValidation validators from this assembly
+            services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+
+            // Register services
+            services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<ITenantService, TenantService>();
+            services.AddScoped<ICompanyOnboardingService, CompanyOnboardingService>();
+            services.AddScoped<IHierarchyService, HierarchyService>();
+            services.AddScoped<ISchemaNameGenerator, SchemaNameGenerator>();
+
+            return services;
+        }
+    }
+}

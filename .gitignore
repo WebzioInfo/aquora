@@ -1,0 +1,28 @@
+# Logs
+*.log
+
+# .NET / C# build artifacts
+[Bb]in/
+[Oo]bj/
+**/bin/
+**/obj/
+
+# Node / React build artifacts
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.cache/
+**/.cache/
+
+# IDE files
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.sln.docstates
+
+# System / Gemini agent cache files
+.gemini/
+**/scratch/

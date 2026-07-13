@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Aquora.API/Aquora.API.csproj" />
+    <Project Path="src/Aquora.Application/Aquora.Application.csproj" />
+    <Project Path="src/Aquora.Domain/Aquora.Domain.csproj" />
+    <Project Path="src/Aquora.Infrastructure/Aquora.Infrastructure.csproj" />
+    <Project Path="src/Aquora.Persistence/Aquora.Persistence.csproj" />
+    <Project Path="src/Aquora.Shared/Aquora.Shared.csproj" />
+    <Project Path="src/Aquora.Tests/Aquora.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,33 @@
+using Microsoft.EntityFrameworkCore;
+using System.Threading;
+using System.Threading.Tasks;
+using Aquora.Domain.Entities;
+
+namespace Aquora.Application.Interfaces
+{
+    public interface ITenantDbContext
+    {
+        DbSet<Company> Companies { get; }
+        DbSet<ProductionLine> ProductionLines { get; }
+        DbSet<Station> Stations { get; }
+        DbSet<Machine> Machines { get; }
+        DbSet<Role> Roles { get; }
+        DbSet<Permission> Permissions { get; }
+        DbSet<UserRole> UserRoles { get; }
+        DbSet<RolePermission> RolePermissions { get; }
+        DbSet<AuditLog> AuditLogs { get; }
+        DbSet<ProductionBatch> ProductionBatches { get; }
+        DbSet<ProductionStationData> ProductionStationData { get; }
+        DbSet<SkuProduct> SkuProducts { get; }
+        DbSet<CaseConfiguration> CaseConfigurations { get; }
+        DbSet<RawMaterial> RawMaterials { get; }
+        DbSet<InventoryMovement> InventoryMovements { get; }
+        DbSet<ProductionEntry> ProductionEntries { get; }
+        DbSet<ProductionSession> ProductionSessions { get; }
+        DbSet<Brand> Brands { get; }
+        DbSet<Product> Products { get; }
+        DbSet<OperatorContextLog> OperatorContextLogs { get; }
+
+        Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+    }
+}

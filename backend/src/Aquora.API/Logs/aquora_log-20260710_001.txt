@@ -1,0 +1,927 @@
+2026-07-10 14:43:03.435 +05:30 [INF] EF Core Startup Diagnostics:
+2026-07-10 14:43:03.547 +05:30 [INF]   Host: 127.0.0.1
+2026-07-10 14:43:03.555 +05:30 [INF]   Port: 5433
+2026-07-10 14:43:03.562 +05:30 [INF]   Database: Aquora
+2026-07-10 14:43:03.564 +05:30 [INF]   Username: postgres
+2026-07-10 14:43:03.567 +05:30 [INF]   SSL Mode: "Disable"
+2026-07-10 14:43:03.572 +05:30 [INF]   Password Present: true
+2026-07-10 14:43:03.578 +05:30 [INF]   Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 14:43:03.581 +05:30 [INF]   Current Environment: Development
+2026-07-10 14:43:03.584 +05:30 [INF]   Current Configuration Source: Microsoft.Extensions.Configuration.ChainedConfigurationProvider
+2026-07-10 14:43:06.350 +05:30 [INF] Initializing database connection. Host: 127.0.0.1, Port: 5433, Database: Aquora, Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 14:43:06.354 +05:30 [INF] Verifying database connectivity (OpenConnectionAsync)...
+2026-07-10 14:43:06.821 +05:30 [INF] Database connectivity verified successfully.
+2026-07-10 14:43:11.139 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 14:43:11.150 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 14:43:11.154 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 14:43:11.336 +05:30 [ERR] Failed executing DbCommand (13ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_default."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-10 14:43:15.081 +05:30 [INF] Database has been successfully migrated and seeded.
+2026-07-10 14:43:15.082 +05:30 [INF] Starting Aquora API SaaS Foundation host...
+2026-07-10 14:43:15.298 +05:30 [ERR] Hosting failed to start
+System.IO.IOException: Failed to bind to address http://127.0.0.1:5000: address already in use.
+ ---> Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.
+ ---> System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.
+   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)
+   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)
+   at System.Net.Sockets.Socket.Bind(EndPoint localEP)
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+   --- End of inner exception stack trace ---
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.<>c__DisplayClass28_0`1.<<StartAsync>g__OnBind|0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+2026-07-10 14:43:15.351 +05:30 [FTL] Host terminated unexpectedly
+System.IO.IOException: Failed to bind to address http://127.0.0.1:5000: address already in use.
+ ---> Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.
+ ---> System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.
+   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)
+   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)
+   at System.Net.Sockets.Socket.Bind(EndPoint localEP)
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+   --- End of inner exception stack trace ---
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.<>c__DisplayClass28_0`1.<<StartAsync>g__OnBind|0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.Run(IHost host)
+   at Program.<Main>$(String[] args) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Program.cs:line 212
+2026-07-10 14:43:48.260 +05:30 [INF] EF Core Startup Diagnostics:
+2026-07-10 14:43:48.419 +05:30 [INF]   Host: 127.0.0.1
+2026-07-10 14:43:48.431 +05:30 [INF]   Port: 5433
+2026-07-10 14:43:48.438 +05:30 [INF]   Database: Aquora
+2026-07-10 14:43:48.440 +05:30 [INF]   Username: postgres
+2026-07-10 14:43:48.443 +05:30 [INF]   SSL Mode: "Disable"
+2026-07-10 14:43:48.450 +05:30 [INF]   Password Present: true
+2026-07-10 14:43:48.453 +05:30 [INF]   Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 14:43:48.456 +05:30 [INF]   Current Environment: Development
+2026-07-10 14:43:48.459 +05:30 [INF]   Current Configuration Source: Microsoft.Extensions.Configuration.ChainedConfigurationProvider
+2026-07-10 14:43:51.095 +05:30 [INF] Initializing database connection. Host: 127.0.0.1, Port: 5433, Database: Aquora, Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 14:43:51.100 +05:30 [INF] Verifying database connectivity (OpenConnectionAsync)...
+2026-07-10 14:43:51.560 +05:30 [INF] Database connectivity verified successfully.
+2026-07-10 14:43:53.908 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 14:43:53.916 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 14:43:53.919 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 14:43:54.066 +05:30 [ERR] Failed executing DbCommand (9ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_default."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-10 14:43:57.134 +05:30 [INF] Database has been successfully migrated and seeded.
+2026-07-10 14:43:57.136 +05:30 [INF] Starting Aquora API SaaS Foundation host...
+2026-07-10 14:43:57.295 +05:30 [ERR] Hosting failed to start
+System.IO.IOException: Failed to bind to address http://127.0.0.1:5000: address already in use.
+ ---> Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.
+ ---> System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.
+   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)
+   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)
+   at System.Net.Sockets.Socket.Bind(EndPoint localEP)
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+   --- End of inner exception stack trace ---
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.<>c__DisplayClass28_0`1.<<StartAsync>g__OnBind|0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+2026-07-10 14:43:57.324 +05:30 [FTL] Host terminated unexpectedly
+System.IO.IOException: Failed to bind to address http://127.0.0.1:5000: address already in use.
+ ---> Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.
+ ---> System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.
+   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)
+   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)
+   at System.Net.Sockets.Socket.Bind(EndPoint localEP)
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+   --- End of inner exception stack trace ---
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.<>c__DisplayClass28_0`1.<<StartAsync>g__OnBind|0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.Run(IHost host)
+   at Program.<Main>$(String[] args) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Program.cs:line 212
+2026-07-10 14:47:43.573 +05:30 [INF] EF Core Startup Diagnostics:
+2026-07-10 14:47:43.649 +05:30 [INF]   Host: 127.0.0.1
+2026-07-10 14:47:43.655 +05:30 [INF]   Port: 5433
+2026-07-10 14:47:43.660 +05:30 [INF]   Database: Aquora
+2026-07-10 14:47:43.661 +05:30 [INF]   Username: postgres
+2026-07-10 14:47:43.664 +05:30 [INF]   SSL Mode: "Disable"
+2026-07-10 14:47:43.668 +05:30 [INF]   Password Present: true
+2026-07-10 14:47:43.670 +05:30 [INF]   Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 14:47:43.672 +05:30 [INF]   Current Environment: Development
+2026-07-10 14:47:43.674 +05:30 [INF]   Current Configuration Source: Microsoft.Extensions.Configuration.ChainedConfigurationProvider
+2026-07-10 14:47:45.757 +05:30 [INF] Initializing database connection. Host: 127.0.0.1, Port: 5433, Database: Aquora, Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 14:47:45.760 +05:30 [INF] Verifying database connectivity (OpenConnectionAsync)...
+2026-07-10 14:47:46.063 +05:30 [INF] Database connectivity verified successfully.
+2026-07-10 14:47:48.588 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 14:47:48.596 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 14:47:48.601 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 14:47:48.768 +05:30 [ERR] Failed executing DbCommand (8ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_default."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-10 14:47:51.730 +05:30 [INF] Database has been successfully migrated and seeded.
+2026-07-10 14:47:51.732 +05:30 [INF] Starting Aquora API SaaS Foundation host...
+2026-07-10 14:48:39.199 +05:30 [WRN] Failed to determine the https port for redirect.
+2026-07-10 14:48:40.958 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.UnauthorizedAccessException: Invalid or expired refresh token.
+   at Aquora.Application.Services.AuthService.RefreshTokenAsync(RefreshTokenRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\AuthService.cs:line 220
+   at Aquora.API.Controllers.AuthController.RefreshToken(RefreshTokenRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Controllers\AuthController.cs:line 69
+   at lambda_method1601(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\TenantResolutionMiddleware.cs:line 108
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\ExceptionHandlingMiddleware.cs:line 27
+2026-07-10 14:59:15.388 +05:30 [INF] EF Core Startup Diagnostics:
+2026-07-10 14:59:15.434 +05:30 [INF]   Host: 127.0.0.1
+2026-07-10 14:59:15.441 +05:30 [INF]   Port: 5433
+2026-07-10 14:59:15.447 +05:30 [INF]   Database: Aquora
+2026-07-10 14:59:15.449 +05:30 [INF]   Username: postgres
+2026-07-10 14:59:15.450 +05:30 [INF]   SSL Mode: "Disable"
+2026-07-10 14:59:15.454 +05:30 [INF]   Password Present: true
+2026-07-10 14:59:15.456 +05:30 [INF]   Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 14:59:15.459 +05:30 [INF]   Current Environment: Development
+2026-07-10 14:59:15.461 +05:30 [INF]   Current Configuration Source: Microsoft.Extensions.Configuration.ChainedConfigurationProvider
+2026-07-10 14:59:17.258 +05:30 [INF] Initializing database connection. Host: 127.0.0.1, Port: 5433, Database: Aquora, Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 14:59:17.260 +05:30 [INF] Verifying database connectivity (OpenConnectionAsync)...
+2026-07-10 14:59:17.554 +05:30 [INF] Database connectivity verified successfully.
+2026-07-10 14:59:19.473 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 14:59:19.477 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 14:59:19.478 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 14:59:19.551 +05:30 [ERR] Failed executing DbCommand (5ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_default."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-10 14:59:21.330 +05:30 [INF] Database has been successfully migrated and seeded.
+2026-07-10 14:59:21.332 +05:30 [INF] Starting Aquora API SaaS Foundation host...
+2026-07-10 14:59:57.144 +05:30 [WRN] Failed to determine the https port for redirect.
+2026-07-10 15:18:11.113 +05:30 [INF] EF Core Startup Diagnostics:
+2026-07-10 15:18:11.211 +05:30 [INF]   Host: 127.0.0.1
+2026-07-10 15:18:11.219 +05:30 [INF]   Port: 5433
+2026-07-10 15:18:11.228 +05:30 [INF]   Database: Aquora
+2026-07-10 15:18:11.230 +05:30 [INF]   Username: postgres
+2026-07-10 15:18:11.233 +05:30 [INF]   SSL Mode: "Disable"
+2026-07-10 15:18:11.238 +05:30 [INF]   Password Present: true
+2026-07-10 15:18:11.241 +05:30 [INF]   Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 15:18:11.245 +05:30 [INF]   Current Environment: Development
+2026-07-10 15:18:11.247 +05:30 [INF]   Current Configuration Source: Microsoft.Extensions.Configuration.ChainedConfigurationProvider
+2026-07-10 15:18:12.615 +05:30 [INF] Initializing database connection. Host: 127.0.0.1, Port: 5433, Database: Aquora, Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 15:18:12.617 +05:30 [INF] Verifying database connectivity (OpenConnectionAsync)...
+2026-07-10 15:18:12.927 +05:30 [INF] Database connectivity verified successfully.
+2026-07-10 15:18:20.397 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 15:18:20.402 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 15:18:20.404 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 15:18:20.512 +05:30 [ERR] Failed executing DbCommand (6ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_default."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-10 15:18:22.301 +05:30 [INF] Database has been successfully migrated and seeded.
+2026-07-10 15:18:22.303 +05:30 [INF] Starting Aquora API SaaS Foundation host...
+2026-07-10 15:26:59.933 +05:30 [INF] Product Fetch: Tenant="9ad54e0a-2fb6-437f-941d-89e76c7f25b4", User=aacccd00-7dc7-43a8-8a31-545c01c216b7, Count=4, QueryTimeMs=42
+2026-07-10 15:27:07.980 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.UnauthorizedAccessException: Invalid or expired refresh token.
+   at Aquora.Application.Services.AuthService.RefreshTokenAsync(RefreshTokenRequest request)
+   at Aquora.API.Controllers.AuthController.RefreshToken(RefreshTokenRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Controllers\AuthController.cs:line 69
+   at lambda_method2076(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\TenantResolutionMiddleware.cs:line 114
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\ExceptionHandlingMiddleware.cs:line 27
+2026-07-10 15:29:15.585 +05:30 [INF] Product Fetch: Tenant="9ad54e0a-2fb6-437f-941d-89e76c7f25b4", User=aacccd00-7dc7-43a8-8a31-545c01c216b7, Count=1, QueryTimeMs=58
+2026-07-10 15:36:01.665 +05:30 [INF] Product Fetch: Tenant="9ad54e0a-2fb6-437f-941d-89e76c7f25b4", User=aacccd00-7dc7-43a8-8a31-545c01c216b7, Count=4, QueryTimeMs=83
+2026-07-10 15:36:18.019 +05:30 [INF] Product Fetch: Tenant="9ad54e0a-2fb6-437f-941d-89e76c7f25b4", User=aacccd00-7dc7-43a8-8a31-545c01c216b7, Count=4, QueryTimeMs=2
+2026-07-10 15:36:18.405 +05:30 [INF] Batch Creation: User=aacccd00-7dc7-43a8-8a31-545c01c216b7, Product="e05ee063-ef50-4f5b-b5a5-0f16b76c672d", BatchNumber=B-20260710-001, Shift=Morning, Timestamp="2026-07-10T10:06:18.4057891Z"
+2026-07-10 15:37:37.034 +05:30 [INF] Product Fetch: Tenant="9ad54e0a-2fb6-437f-941d-89e76c7f25b4", User=aacccd00-7dc7-43a8-8a31-545c01c216b7, Count=4, QueryTimeMs=10
+2026-07-10 15:48:23.303 +05:30 [INF] EF Core Startup Diagnostics:
+2026-07-10 15:48:23.451 +05:30 [INF]   Host: 127.0.0.1
+2026-07-10 15:48:23.459 +05:30 [INF]   Port: 5433
+2026-07-10 15:48:23.487 +05:30 [INF]   Database: Aquora
+2026-07-10 15:48:23.488 +05:30 [INF]   Username: postgres
+2026-07-10 15:48:23.490 +05:30 [INF]   SSL Mode: "Disable"
+2026-07-10 15:48:23.523 +05:30 [INF]   Password Present: true
+2026-07-10 15:48:23.524 +05:30 [INF]   Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 15:48:23.541 +05:30 [INF]   Current Environment: Development
+2026-07-10 15:48:23.542 +05:30 [INF]   Current Configuration Source: Microsoft.Extensions.Configuration.ChainedConfigurationProvider
+2026-07-10 15:48:26.286 +05:30 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2026-07-10 15:48:26.790 +05:30 [INF] Initializing database connection. Host: 127.0.0.1, Port: 5433, Database: Aquora, Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 15:48:26.793 +05:30 [INF] Verifying database connectivity (OpenConnectionAsync)...
+2026-07-10 15:48:27.438 +05:30 [INF] Database connectivity verified successfully.
+2026-07-10 15:48:32.821 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 15:48:32.842 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 15:48:32.851 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 15:48:32.853 +05:30 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2026-07-10 15:48:33.048 +05:30 [ERR] Failed executing DbCommand (14ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_default."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-10 15:48:40.309 +05:30 [INF] Database has been successfully migrated and seeded.
+2026-07-10 15:48:40.319 +05:30 [INF] Starting Aquora API SaaS Foundation host...
+2026-07-10 15:49:39.656 +05:30 [INF] Product Fetch: Tenant="9ad54e0a-2fb6-437f-941d-89e76c7f25b4", User=aacccd00-7dc7-43a8-8a31-545c01c216b7, Count=4, QueryTimeMs=60
+2026-07-10 15:49:40.309 +05:30 [INF] Batch Creation: User=aacccd00-7dc7-43a8-8a31-545c01c216b7, Product="749ee9e4-d02c-43e0-9fa6-105435fe82f4", BatchNumber=B-20260710-001, Shift=Morning, Timestamp="2026-07-10T10:19:40.3090684Z"
+2026-07-10 15:52:33.433 +05:30 [INF] Product Fetch: Tenant="9ad54e0a-2fb6-437f-941d-89e76c7f25b4", User=aacccd00-7dc7-43a8-8a31-545c01c216b7, Count=4, QueryTimeMs=54
+2026-07-10 15:53:58.150 +05:30 [INF] [PLATFORM AUDIT] Loaded 2 platform users.
+2026-07-10 15:53:58.223 +05:30 [INF] [PLATFORM AUDIT] Loaded 1 platform tenants.
+2026-07-10 16:06:20.803 +05:30 [INF] [PLATFORM AUDIT] Loaded 1 platform tenants.
+2026-07-10 16:06:22.296 +05:30 [INF] [PLATFORM AUDIT] Loaded 2 platform users.
+2026-07-10 16:06:35.544 +05:30 [INF] [PLATFORM AUDIT] Loaded 2 platform users.
+2026-07-10 16:07:50.272 +05:30 [INF] Product Fetch: Tenant="9ad54e0a-2fb6-437f-941d-89e76c7f25b4", User=aacccd00-7dc7-43a8-8a31-545c01c216b7, Count=4, QueryTimeMs=19
+2026-07-10 16:07:52.306 +05:30 [INF] Product Fetch: Tenant="9ad54e0a-2fb6-437f-941d-89e76c7f25b4", User=aacccd00-7dc7-43a8-8a31-545c01c216b7, Count=1, QueryTimeMs=194
+2026-07-10 16:25:27.639 +05:30 [INF] EF Core Startup Diagnostics:
+2026-07-10 16:25:27.705 +05:30 [INF]   Host: 127.0.0.1
+2026-07-10 16:25:27.708 +05:30 [INF]   Port: 5433
+2026-07-10 16:25:27.712 +05:30 [INF]   Database: Aquora
+2026-07-10 16:25:27.712 +05:30 [INF]   Username: postgres
+2026-07-10 16:25:27.713 +05:30 [INF]   SSL Mode: "Disable"
+2026-07-10 16:25:27.715 +05:30 [INF]   Password Present: true
+2026-07-10 16:25:27.716 +05:30 [INF]   Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 16:25:27.716 +05:30 [INF]   Current Environment: Development
+2026-07-10 16:25:27.716 +05:30 [INF]   Current Configuration Source: Microsoft.Extensions.Configuration.ChainedConfigurationProvider
+2026-07-10 16:25:29.030 +05:30 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2026-07-10 16:25:29.290 +05:30 [INF] Initializing database connection. Host: 127.0.0.1, Port: 5433, Database: Aquora, Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 16:25:29.290 +05:30 [INF] Verifying database connectivity (OpenConnectionAsync)...
+2026-07-10 16:25:29.619 +05:30 [INF] Database connectivity verified successfully.
+2026-07-10 16:25:29.620 +05:30 [INF] Executing Platform Database Migrations (public schema)...
+2026-07-10 16:25:30.039 +05:30 [INF] Platform Database Migrations applied successfully.
+2026-07-10 16:25:30.047 +05:30 [INF] Starting Aquora API SaaS Foundation host...
+2026-07-10 16:27:26.139 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.InvalidOperationException: ALREADY_VERIFIED
+   at Aquora.Application.Services.TenantService.SendOtpAsync(String email) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\TenantService.cs:line 43
+   at Aquora.API.Controllers.TenantController.SendOtp(OtpSendRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Controllers\TenantController.cs:line 31
+   at lambda_method24(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\TenantResolutionMiddleware.cs:line 115
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\ExceptionHandlingMiddleware.cs:line 27
+2026-07-10 16:28:01.324 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:28:01.327 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:28:01.328 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:28:01.328 +05:30 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2026-07-10 16:28:01.386 +05:30 [ERR] Failed executing DbCommand (5ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_gangothri_aqua_pvt_ltd."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-10 16:28:03.575 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:28:03.575 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:28:03.575 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:28:03.591 +05:30 [ERR] Failed executing DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_gangothri_aqua_pvt_ltd_2."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-10 16:28:05.106 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:28:05.106 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:28:05.106 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:28:05.181 +05:30 [ERR] Failed executing DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_true_4car."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-10 16:30:35.990 +05:30 [INF] EF Core Startup Diagnostics:
+2026-07-10 16:30:36.037 +05:30 [INF]   Host: 127.0.0.1
+2026-07-10 16:30:36.040 +05:30 [INF]   Port: 5433
+2026-07-10 16:30:36.044 +05:30 [INF]   Database: Aquora
+2026-07-10 16:30:36.044 +05:30 [INF]   Username: postgres
+2026-07-10 16:30:36.044 +05:30 [INF]   SSL Mode: "Disable"
+2026-07-10 16:30:36.047 +05:30 [INF]   Password Present: true
+2026-07-10 16:30:36.047 +05:30 [INF]   Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 16:30:36.047 +05:30 [INF]   Current Environment: Development
+2026-07-10 16:30:36.047 +05:30 [INF]   Current Configuration Source: Microsoft.Extensions.Configuration.ChainedConfigurationProvider
+2026-07-10 16:30:37.263 +05:30 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2026-07-10 16:30:37.507 +05:30 [INF] Initializing database connection. Host: 127.0.0.1, Port: 5433, Database: Aquora, Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 16:30:37.507 +05:30 [INF] Verifying database connectivity (OpenConnectionAsync)...
+2026-07-10 16:30:37.832 +05:30 [INF] Database connectivity verified successfully.
+2026-07-10 16:30:37.832 +05:30 [INF] Executing Platform Database Migrations (public schema)...
+2026-07-10 16:30:38.222 +05:30 [INF] Platform Database Migrations applied successfully.
+2026-07-10 16:30:38.229 +05:30 [INF] Starting Aquora API SaaS Foundation host...
+2026-07-10 16:31:01.845 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.InvalidOperationException: Subdomain is already taken.
+   at Aquora.Application.Services.TenantService.OnboardTenantAsync(Guid userId, OnboardingRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\TenantService.cs:line 166
+   at Aquora.API.Controllers.TenantController.Onboard(OnboardingRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Controllers\TenantController.cs:line 52
+   at lambda_method376(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\TenantResolutionMiddleware.cs:line 115
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\ExceptionHandlingMiddleware.cs:line 27
+2026-07-10 16:31:02.355 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.InvalidOperationException: Subdomain is already taken.
+   at Aquora.Application.Services.TenantService.OnboardTenantAsync(Guid userId, OnboardingRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\TenantService.cs:line 166
+   at Aquora.API.Controllers.TenantController.Onboard(OnboardingRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Controllers\TenantController.cs:line 52
+   at lambda_method376(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\TenantResolutionMiddleware.cs:line 115
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\ExceptionHandlingMiddleware.cs:line 27
+2026-07-10 16:31:02.813 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.InvalidOperationException: Subdomain is already taken.
+   at Aquora.Application.Services.TenantService.OnboardTenantAsync(Guid userId, OnboardingRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\TenantService.cs:line 166
+   at Aquora.API.Controllers.TenantController.Onboard(OnboardingRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Controllers\TenantController.cs:line 52
+   at lambda_method376(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\TenantResolutionMiddleware.cs:line 115
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\ExceptionHandlingMiddleware.cs:line 27
+2026-07-10 16:31:37.301 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:31:37.305 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:31:37.306 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:31:37.306 +05:30 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2026-07-10 16:31:37.360 +05:30 [ERR] Failed executing DbCommand (9ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_gangothri_aqua_pvt_ltd_3."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-10 16:31:39.392 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:31:39.393 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:31:39.393 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:31:39.449 +05:30 [ERR] Failed executing DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_gangothri_aqua_pvt_ltd_4."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-10 16:31:40.915 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:31:40.915 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:31:40.915 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:31:41.008 +05:30 [ERR] Failed executing DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_true_4car_2."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-10 16:38:52.838 +05:30 [INF] EF Core Startup Diagnostics:
+2026-07-10 16:38:52.939 +05:30 [INF]   Host: 127.0.0.1
+2026-07-10 16:38:52.945 +05:30 [INF]   Port: 5433
+2026-07-10 16:38:52.948 +05:30 [INF]   Database: Aquora
+2026-07-10 16:38:52.949 +05:30 [INF]   Username: postgres
+2026-07-10 16:38:52.954 +05:30 [INF]   SSL Mode: "Disable"
+2026-07-10 16:38:52.957 +05:30 [INF]   Password Present: true
+2026-07-10 16:38:52.958 +05:30 [INF]   Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 16:38:52.960 +05:30 [INF]   Current Environment: Development
+2026-07-10 16:38:52.961 +05:30 [INF]   Current Configuration Source: Microsoft.Extensions.Configuration.ChainedConfigurationProvider
+2026-07-10 16:38:54.032 +05:30 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2026-07-10 16:38:54.253 +05:30 [INF] Initializing database connection. Host: 127.0.0.1, Port: 5433, Database: Aquora, Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 16:38:54.255 +05:30 [INF] Verifying database connectivity (OpenConnectionAsync)...
+2026-07-10 16:38:54.544 +05:30 [INF] Database connectivity verified successfully.
+2026-07-10 16:38:54.545 +05:30 [INF] Executing Platform Database Migrations (public schema)...
+2026-07-10 16:38:54.955 +05:30 [INF] Platform Database Migrations applied successfully.
+2026-07-10 16:38:54.961 +05:30 [INF] Starting Aquora API SaaS Foundation host...
+2026-07-10 16:38:56.824 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.UnauthorizedAccessException: Invalid email, username, or password/PIN.
+   at Aquora.Application.Services.AuthService.LoginAsync(LoginRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\AuthService.cs:line 172
+   at Aquora.API.Controllers.AuthController.Login(LoginRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Controllers\AuthController.cs:line 62
+   at lambda_method24(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\TenantResolutionMiddleware.cs:line 115
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\ExceptionHandlingMiddleware.cs:line 27
+2026-07-10 16:39:00.319 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.UnauthorizedAccessException: Invalid email, username, or password/PIN.
+   at Aquora.Application.Services.AuthService.LoginAsync(LoginRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\AuthService.cs:line 172
+   at Aquora.API.Controllers.AuthController.Login(LoginRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Controllers\AuthController.cs:line 62
+   at lambda_method24(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\TenantResolutionMiddleware.cs:line 115
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\ExceptionHandlingMiddleware.cs:line 27
+2026-07-10 16:40:11.651 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.UnauthorizedAccessException: Invalid email, username, or password/PIN.
+   at Aquora.Application.Services.AuthService.LoginAsync(LoginRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\AuthService.cs:line 172
+   at Aquora.API.Controllers.AuthController.Login(LoginRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Controllers\AuthController.cs:line 62
+   at lambda_method24(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\TenantResolutionMiddleware.cs:line 115
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\ExceptionHandlingMiddleware.cs:line 27
+2026-07-10 16:42:00.012 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.UnauthorizedAccessException: Invalid email, username, or password/PIN.
+   at Aquora.Application.Services.AuthService.LoginAsync(LoginRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\AuthService.cs:line 180
+   at Aquora.API.Controllers.AuthController.Login(LoginRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Controllers\AuthController.cs:line 62
+   at lambda_method24(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\TenantResolutionMiddleware.cs:line 115
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\ExceptionHandlingMiddleware.cs:line 27
+2026-07-10 16:59:28.909 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:59:28.917 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:59:28.919 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 16:59:28.920 +05:30 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2026-07-10 17:03:33.098 +05:30 [ERR] Failed executing DbCommand (33ms) [Parameters=[@user_Id='aacccd00-7dc7-43a8-8a31-545c01c216b7'], CommandType='"Text"', CommandTimeout='30']
+SELECT u."Id", u."CreatedAt", u."CreatedBy", u."RoleId", u."TenantId", u."UpdatedAt", u."UpdatedBy", u."UserId", r0."Id", r0."Code", r0."CreatedAt", r0."CreatedBy", r0."DeletedAt", r0."DeletedBy", r0."IsDeleted", r0."Name", r0."TenantId", r0."UpdatedAt", r0."UpdatedBy"
+FROM aquora_tenant_default."UserRoles" AS u
+INNER JOIN (
+    SELECT r."Id", r."Code", r."CreatedAt", r."CreatedBy", r."DeletedAt", r."DeletedBy", r."IsDeleted", r."Name", r."TenantId", r."UpdatedAt", r."UpdatedBy"
+    FROM aquora_tenant_default."Roles" AS r
+    WHERE NOT (r."IsDeleted")
+) AS r0 ON u."RoleId" = r0."Id"
+WHERE u."UserId" = @user_Id
+2026-07-10 17:03:33.140 +05:30 [ERR] An exception occurred while iterating over the results of a query for context type 'Aquora.Persistence.Context.TenantDbContext'.
+Npgsql.PostgresException (0x80004005): 42P01: relation "aquora_tenant_default.UserRoles" does not exist
+
+POSITION: 277
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+  Exception data:
+    Severity: ERROR
+    SqlState: 42P01
+    MessageText: relation "aquora_tenant_default.UserRoles" does not exist
+    Position: 277
+    File: parse_relation.c
+    Line: 1448
+    Routine: parserOpenTable
+Npgsql.PostgresException (0x80004005): 42P01: relation "aquora_tenant_default.UserRoles" does not exist
+
+POSITION: 277
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+  Exception data:
+    Severity: ERROR
+    SqlState: 42P01
+    MessageText: relation "aquora_tenant_default.UserRoles" does not exist
+    Position: 277
+    File: parse_relation.c
+    Line: 1448
+    Routine: parserOpenTable
+2026-07-10 17:03:33.159 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+Npgsql.PostgresException (0x80004005): 42P01: relation "aquora_tenant_default.UserRoles" does not exist
+
+POSITION: 277
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync[TSource](IQueryable`1 source, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync[TSource](IQueryable`1 source, CancellationToken cancellationToken)
+   at Aquora.Application.Services.AuthService.GetUserRolesAndPermissionsAsync(User user) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\AuthService.cs:line 334
+   at Aquora.Application.Services.AuthService.LoginAsync(LoginRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\AuthService.cs:line 190
+   at Aquora.API.Controllers.AuthController.Login(LoginRequest request)
+   at lambda_method366(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context)
+  Exception data:
+    Severity: ERROR
+    SqlState: 42P01
+    MessageText: relation "aquora_tenant_default.UserRoles" does not exist
+    Position: 277
+    File: parse_relation.c
+    Line: 1448
+    Routine: parserOpenTable
+2026-07-10 17:05:35.301 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 17:05:35.304 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 17:05:35.306 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 17:07:37.327 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.UnauthorizedAccessException: Invalid email, username, or password/PIN.
+   at Aquora.Application.Services.AuthService.LoginAsync(LoginRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\AuthService.cs:line 172
+   at Aquora.API.Controllers.AuthController.Login(LoginRequest request)
+   at lambda_method366(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context)
+2026-07-10 17:07:44.325 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.UnauthorizedAccessException: Invalid email, username, or password/PIN.
+   at Aquora.Application.Services.AuthService.LoginAsync(LoginRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\AuthService.cs:line 172
+   at Aquora.API.Controllers.AuthController.Login(LoginRequest request)
+   at lambda_method366(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context)
+2026-07-10 17:08:33.389 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.UnauthorizedAccessException: Invalid email, username, or password/PIN.
+   at Aquora.Application.Services.AuthService.LoginAsync(LoginRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\AuthService.cs:line 172
+   at Aquora.API.Controllers.AuthController.Login(LoginRequest request)
+   at lambda_method366(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context)
+2026-07-10 17:08:53.975 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.UnauthorizedAccessException: Invalid email, username, or password/PIN.
+   at Aquora.Application.Services.AuthService.LoginAsync(LoginRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\AuthService.cs:line 172
+   at Aquora.API.Controllers.AuthController.Login(LoginRequest request)
+   at lambda_method366(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context)
+2026-07-10 17:12:49.635 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.InvalidOperationException: User already owns a company.
+   at Aquora.Application.Services.CompanyOnboardingService.OnboardCompanyAsync(Guid userId, CompanyOnboardingRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\CompanyOnboardingService.cs:line 65
+   at Aquora.API.Controllers.OnboardingController.OnboardCompany(CompanyOnboardingRequest request)
+   at lambda_method843(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context)
+2026-07-10 17:17:43.048 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.UnauthorizedAccessException: Invalid or expired refresh token.
+   at Aquora.Application.Services.AuthService.RefreshTokenAsync(RefreshTokenRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\AuthService.cs:line 220
+   at Aquora.API.Controllers.AuthController.RefreshToken(RefreshTokenRequest request)
+   at lambda_method865(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context)
+2026-07-10 17:17:43.048 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.UnauthorizedAccessException: Invalid or expired refresh token.
+   at Aquora.Application.Services.AuthService.RefreshTokenAsync(RefreshTokenRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\AuthService.cs:line 220
+   at Aquora.API.Controllers.AuthController.RefreshToken(RefreshTokenRequest request)
+   at lambda_method865(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context)
+2026-07-10 17:19:57.614 +05:30 [INF] EF Core Startup Diagnostics:
+2026-07-10 17:19:57.662 +05:30 [INF]   Host: 127.0.0.1
+2026-07-10 17:19:57.666 +05:30 [INF]   Port: 5433
+2026-07-10 17:19:57.670 +05:30 [INF]   Database: Aquora
+2026-07-10 17:19:57.670 +05:30 [INF]   Username: postgres
+2026-07-10 17:19:57.670 +05:30 [INF]   SSL Mode: "Disable"
+2026-07-10 17:19:57.673 +05:30 [INF]   Password Present: true
+2026-07-10 17:19:57.673 +05:30 [INF]   Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 17:19:57.674 +05:30 [INF]   Current Environment: Development
+2026-07-10 17:19:57.674 +05:30 [INF]   Current Configuration Source: Microsoft.Extensions.Configuration.ChainedConfigurationProvider
+2026-07-10 17:19:58.933 +05:30 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2026-07-10 17:19:59.313 +05:30 [INF] Initializing database connection. Host: 127.0.0.1, Port: 5433, Database: Aquora, Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 17:19:59.313 +05:30 [INF] Verifying database connectivity (OpenConnectionAsync)...
+2026-07-10 17:19:59.831 +05:30 [INF] Database connectivity verified successfully.
+2026-07-10 17:19:59.831 +05:30 [INF] Executing Platform Database Migrations (public schema)...
+2026-07-10 17:20:00.330 +05:30 [INF] Platform Database Migrations applied successfully.
+2026-07-10 17:20:00.336 +05:30 [INF] Starting Aquora API SaaS Foundation host...
+2026-07-10 17:20:04.499 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 17:20:04.505 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 17:20:04.506 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 17:20:04.507 +05:30 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2026-07-10 17:20:40.681 +05:30 [INF] EF Core Startup Diagnostics:
+2026-07-10 17:20:40.735 +05:30 [INF]   Host: 127.0.0.1
+2026-07-10 17:20:40.739 +05:30 [INF]   Port: 5433
+2026-07-10 17:20:40.743 +05:30 [INF]   Database: Aquora
+2026-07-10 17:20:40.743 +05:30 [INF]   Username: postgres
+2026-07-10 17:20:40.743 +05:30 [INF]   SSL Mode: "Disable"
+2026-07-10 17:20:40.746 +05:30 [INF]   Password Present: true
+2026-07-10 17:20:40.747 +05:30 [INF]   Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 17:20:40.747 +05:30 [INF]   Current Environment: Development
+2026-07-10 17:20:40.747 +05:30 [INF]   Current Configuration Source: Microsoft.Extensions.Configuration.ChainedConfigurationProvider
+2026-07-10 17:20:41.723 +05:30 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2026-07-10 17:20:41.933 +05:30 [INF] Initializing database connection. Host: 127.0.0.1, Port: 5433, Database: Aquora, Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-10 17:20:41.933 +05:30 [INF] Verifying database connectivity (OpenConnectionAsync)...
+2026-07-10 17:20:42.140 +05:30 [INF] Database connectivity verified successfully.
+2026-07-10 17:20:42.140 +05:30 [INF] Executing Platform Database Migrations (public schema)...
+2026-07-10 17:20:42.523 +05:30 [INF] Platform Database Migrations applied successfully.
+2026-07-10 17:20:42.531 +05:30 [INF] Starting Aquora API SaaS Foundation host...
+2026-07-10 17:20:46.396 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 17:20:46.403 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 17:20:46.404 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-10 17:20:46.405 +05:30 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2026-07-10 17:27:24.486 +05:30 [INF] Product Fetch: Tenant="652cfdbc-20ff-45b6-823c-18591048953b", User=aacccd00-7dc7-43a8-8a31-545c01c216b7, Count=1, QueryTimeMs=35
+2026-07-10 17:27:26.146 +05:30 [INF] Product Fetch: Tenant="652cfdbc-20ff-45b6-823c-18591048953b", User=aacccd00-7dc7-43a8-8a31-545c01c216b7, Count=1, QueryTimeMs=95
+2026-07-10 17:28:56.705 +05:30 [INF] Product Fetch: Tenant="652cfdbc-20ff-45b6-823c-18591048953b", User=aacccd00-7dc7-43a8-8a31-545c01c216b7, Count=1, QueryTimeMs=8
+2026-07-10 17:29:25.660 +05:30 [INF] Product Fetch: Tenant="652cfdbc-20ff-45b6-823c-18591048953b", User=aacccd00-7dc7-43a8-8a31-545c01c216b7, Count=1, QueryTimeMs=4
+2026-07-10 17:29:27.696 +05:30 [INF] Product Fetch: Tenant="652cfdbc-20ff-45b6-823c-18591048953b", User=aacccd00-7dc7-43a8-8a31-545c01c216b7, Count=1, QueryTimeMs=3
+2026-07-10 17:29:29.541 +05:30 [INF] Batch Creation: User=aacccd00-7dc7-43a8-8a31-545c01c216b7, Product="b955195f-98d5-41cc-9bc2-3dca65b0cb94", BatchNumber=B-20260710-001, Shift=Morning, Timestamp="2026-07-10T11:59:29.5417804Z"
+2026-07-10 17:33:09.140 +05:30 [ERR] Failed executing DbCommand (44ms) [Parameters=[@p0='375735ef-b2ae-4197-9154-3986a5586020', @p1='BAG' (Nullable = false), @p2='PREFORM' (Nullable = false), @p3='PREFORM_8.5_GM' (Nullable = false), @p4='00000000-0000-0000-0000-000000000000', @p5='1.0', @p6='2026-07-10T12:03:09.0742496Z' (DbType = DateTime), @p7='d8e57f4b-4927-49bf-ab07-13af3657c0a4' (Nullable = false), @p8='0.0', @p9=NULL (DbType = DateTime), @p10=NULL, @p11='True', @p12='False', @p13='Preform 8.5 GM' (Nullable = false), @p14='652cfdbc-20ff-45b6-823c-18591048953b', @p15='BAG' (Nullable = false), @p16=NULL (DbType = DateTime), @p17=NULL], CommandType='"Text"', CommandTimeout='30']
+INSERT INTO aquora_tenant_gangothri_aqua_pvt_ltd_3."RawMaterials" ("Id", "BaseUnit", "Category", "Code", "CompanyId", "ConversionFactor", "CreatedAt", "CreatedBy", "CurrentStock", "DeletedAt", "DeletedBy", "IsActive", "IsDeleted", "Name", "TenantId", "Unit", "UpdatedAt", "UpdatedBy")
+VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17);
+2026-07-10 17:33:09.214 +05:30 [ERR] An exception occurred in the database while saving changes for context type 'Aquora.Persistence.Context.TenantDbContext'.
+Microsoft.EntityFrameworkCore.DbUpdateException: An error occurred while saving the entity changes. See the inner exception for details.
+ ---> Npgsql.PostgresException (0x80004005): 23503: insert or update on table "RawMaterials" violates foreign key constraint "FK_RawMaterials_Companies_CompanyId"
+
+DETAIL: Detail redacted as it may contain sensitive data. Specify 'Include Error Detail' in the connection string to include this information.
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Update.ReaderModificationCommandBatch.ExecuteAsync(IRelationalConnection connection, CancellationToken cancellationToken)
+  Exception data:
+    Severity: ERROR
+    SqlState: 23503
+    MessageText: insert or update on table "RawMaterials" violates foreign key constraint "FK_RawMaterials_Companies_CompanyId"
+    Detail: Detail redacted as it may contain sensitive data. Specify 'Include Error Detail' in the connection string to include this information.
+    SchemaName: aquora_tenant_gangothri_aqua_pvt_ltd_3
+    TableName: RawMaterials
+    ConstraintName: FK_RawMaterials_Companies_CompanyId
+    File: ri_triggers.c
+    Line: 2783
+    Routine: ri_ReportViolation
+   --- End of inner exception stack trace ---
+   at Microsoft.EntityFrameworkCore.Update.ReaderModificationCommandBatch.ExecuteAsync(IRelationalConnection connection, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChangesAsync(IList`1 entries, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChangesAsync(IList`1 entriesToSave, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChangesAsync(StateManager stateManager, Boolean acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.DbContext.SaveChangesAsync(Boolean acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+Microsoft.EntityFrameworkCore.DbUpdateException: An error occurred while saving the entity changes. See the inner exception for details.
+ ---> Npgsql.PostgresException (0x80004005): 23503: insert or update on table "RawMaterials" violates foreign key constraint "FK_RawMaterials_Companies_CompanyId"
+
+DETAIL: Detail redacted as it may contain sensitive data. Specify 'Include Error Detail' in the connection string to include this information.
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Update.ReaderModificationCommandBatch.ExecuteAsync(IRelationalConnection connection, CancellationToken cancellationToken)
+  Exception data:
+    Severity: ERROR
+    SqlState: 23503
+    MessageText: insert or update on table "RawMaterials" violates foreign key constraint "FK_RawMaterials_Companies_CompanyId"
+    Detail: Detail redacted as it may contain sensitive data. Specify 'Include Error Detail' in the connection string to include this information.
+    SchemaName: aquora_tenant_gangothri_aqua_pvt_ltd_3
+    TableName: RawMaterials
+    ConstraintName: FK_RawMaterials_Companies_CompanyId
+    File: ri_triggers.c
+    Line: 2783
+    Routine: ri_ReportViolation
+   --- End of inner exception stack trace ---
+   at Microsoft.EntityFrameworkCore.Update.ReaderModificationCommandBatch.ExecuteAsync(IRelationalConnection connection, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChangesAsync(IList`1 entries, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChangesAsync(IList`1 entriesToSave, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChangesAsync(StateManager stateManager, Boolean acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.DbContext.SaveChangesAsync(Boolean acceptAllChangesOnSuccess, CancellationToken cancellationToken)

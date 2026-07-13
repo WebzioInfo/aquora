@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@theme {
+  --variant-dark: class;
+  --color-brand-primary: #1A56DB;
+  --color-brand-secondary: #1746B3;
+  --color-brand-success: #17B26A;
+  --color-brand-warning: #F79009;
+  --color-brand-danger: #F04438;
+  --color-brand-info: #2E90FA;
+
+  --color-primary: #101828;
+  --color-hydro-navy: #1A56DB;
+  --color-hydro-azure: #1746B3;
+  --color-on-background: #101828;
+  --color-background: #F7F9FC;
+  --color-surface: #FFFFFF;
+  --color-outline: #98A2B3;
+  --color-outline-variant: #E5E9F2;
+  --color-on-surface-variant: #667085;
+  --color-error: #F04438;
+  
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+:root {
+  --bg-app: #F7F9FC;
+  --bg-card: #FFFFFF;
+  --bg-sidebar: #FFFFFF;
+  --text-main: #101828;
+  --text-muted: #667085;
+  --border-ui: #E5E9F2;
+  --accent-soft: #EFF4FF;
+}
+
+:root.dark {
+  --bg-app: #F7F9FC;
+  --bg-card: #FFFFFF;
+  --bg-sidebar: #FFFFFF;
+  --text-main: #101828;
+  --text-muted: #667085;
+  --border-ui: #E5E9F2;
+  --accent-soft: #EFF4FF;
+}
+
+body {
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  transition: background-color 0.2s ease, color 0.2s ease;
+  overflow-x: hidden;
+}
+
+/* Glassmorphism glass card styling */
+.glass-panel {
+  background-color: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-ui);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+}
+
+.dark .glass-panel {
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-ui);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.login-card-shadow {
+  box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.05), 0 2px 8px -1px rgba(0, 0, 0, 0.03);
+}
+
+.input-focus-ring:focus {
+  outline: none;
+  border-color: #002b5b;
+  box-shadow: 0 0 0 1px #002b5b;
+}
+
+.water-overlay {
+  background: linear-gradient(135deg, rgba(248, 249, 255, 0.85) 0%, rgba(230, 238, 255, 0.7) 100%);
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+}

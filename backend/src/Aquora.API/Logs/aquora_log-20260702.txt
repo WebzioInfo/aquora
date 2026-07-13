@@ -1,0 +1,20 @@
+2026-07-02 15:47:38.157 +05:30 [INF] EF Core Startup Diagnostics:
+2026-07-02 15:47:38.227 +05:30 [INF]   Host: aws-1-ap-northeast-2.pooler.supabase.com
+2026-07-02 15:47:38.231 +05:30 [INF]   Port: 5432
+2026-07-02 15:47:38.235 +05:30 [INF]   Database: postgres
+2026-07-02 15:47:38.235 +05:30 [INF]   Username: postgres.lxwherkjkjuhmfqzrziw
+2026-07-02 15:47:38.236 +05:30 [INF]   SSL Mode: "Require"
+2026-07-02 15:47:38.237 +05:30 [INF]   Password Present: true
+2026-07-02 15:47:38.238 +05:30 [INF]   Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-02 15:47:38.238 +05:30 [INF]   Current Environment: Development
+2026-07-02 15:47:38.243 +05:30 [INF]   Current Configuration Source: Microsoft.Extensions.Configuration.ChainedConfigurationProvider
+2026-07-02 15:49:46.577 +05:30 [INF] EF Core Startup Diagnostics:
+2026-07-02 15:49:46.625 +05:30 [INF]   Host: aws-1-ap-northeast-2.pooler.supabase.com
+2026-07-02 15:49:46.630 +05:30 [INF]   Port: 5432
+2026-07-02 15:49:46.633 +05:30 [INF]   Database: postgres
+2026-07-02 15:49:46.633 +05:30 [INF]   Username: postgres.lxwherkjkjuhmfqzrziw
+2026-07-02 15:49:46.634 +05:30 [INF]   SSL Mode: "Require"
+2026-07-02 15:49:46.636 +05:30 [INF]   Password Present: true
+2026-07-02 15:49:46.636 +05:30 [INF]   Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-02 15:49:46.636 +05:30 [INF]   Current Environment: Development
+2026-07-02 15:49:46.636 +05:30 [INF]   Current Configuration Source: Microsoft.Extensions.Configuration.ChainedConfigurationProvider

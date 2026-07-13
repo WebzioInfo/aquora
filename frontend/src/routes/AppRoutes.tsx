@@ -1,0 +1,473 @@
+import React from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuthStore } from '../store/useAuthStore'
+import { authService } from '../services/auth'
+import AuthLayout from '../layouts/AuthLayout'
+import PlatformLayout from '../layouts/PlatformLayout'
+import CompanyLayout from '../layouts/CompanyLayout'
+import OperatorLayout from '../layouts/OperatorLayout'
+import LoginPage from '../pages/LoginPage'
+import RegisterPage from '../pages/RegisterPage'
+import OtpVerificationPage from '../pages/OtpVerificationPage'
+import CompanyOnboardingPage from '../pages/CompanyOnboardingPage'
+import InviteTeamPage from '../pages/InviteTeamPage'
+import PlatformDashboardPage from '../pages/platform/PlatformDashboardPage'
+import PlatformManagementPage from '../pages/platform/PlatformManagementPage'
+import CompanyDashboardPage from '../pages/company/CompanyDashboardPage'
+import BatchDetailsPage from '../pages/company/BatchDetailsPage'
+import OperatorDashboardPage from '../pages/operator/OperatorDashboardPage'
+import AccessDeniedPage from '../pages/AccessDeniedPage'
+
+// Helper to determine the default portal redirect for a user based on role & company association
+export const getDefaultRouteForUser = (user: any): string => {
+  const getRoute = () => {
+    if (!user) return '/login'
+    if (!user.emailVerified) {
+      return '/verify-otp'
+    }
+    const roles = user.roles || []
+    
+    if (roles.some((r: string) => ['SuperAdmin', 'PlatformAdmin', 'SupportEngineer', 'PlatformOwner'].includes(r))) {
+      return '/platform/dashboard'
+    }
+    
+    if (!user.ownsCompany && (!user.tenantId || !user.isTenantInitialized)) {
+      return '/onboarding'
+    }
+    
+    if (roles.includes('Operator')) return '/operator/dashboard'
+    if (roles.includes('Worker')) return '/worker/dashboard'
+    if (roles.some((r: string) => ['QC', 'QC Inspector', 'Quality Controller', 'QUALITY_CONTROLLER'].includes(r))) return '/qc/dashboard'
+    if (roles.includes('Maintenance')) return '/maintenance/dashboard'
+    if (roles.some((r: string) => ['Store Keeper', 'StoreKeeper', 'STORE_KEEPER'].includes(r))) return '/store/dashboard'
+    if (roles.includes('Sales')) return '/sales/dashboard'
+    if (roles.includes('HR')) return '/hr/dashboard'
+    if (roles.some((r: string) => ['Finance', 'Accountant'].includes(r))) return '/finance/dashboard'
+    
+    if (roles.includes('CompanyAdmin')) return '/company/dashboard'
+    if (roles.includes('Manager')) return '/manager/dashboard'
+    if (roles.includes('Supervisor')) return '/supervisor/dashboard'
+    if (roles.includes('Warehouse')) return '/warehouse/dashboard'
+    
+    return '/company/dashboard'
+  }
+  const targetRoute = getRoute();
+  console.log(`[REDIRECT DECISION]: Target route resolved to '${targetRoute}' for user ${user?.email} with roles: ${JSON.stringify(user?.roles)}`);
+  return targetRoute;
+}
+
+// Guest Guard (Login, Register, OTP checks)
+const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, user } = useAuthStore()
+
+  if (isAuthenticated && user) {
+    if (!user.emailVerified) {
+      if (window.location.pathname === '/verify-otp') {
+        return <>{children}</>
+      }
+      return <Navigate to="/verify-otp" replace state={{ email: user.email }} />
+    }
+    return <Navigate to={getDefaultRouteForUser(user)} replace />
+  }
+
+  return <>{children}</>
+}
+
+// Onboarding Guard
+const OnboardingRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, user } = useAuthStore()
+
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!user.emailVerified) {
+    return <Navigate to="/verify-otp" replace state={{ email: user.email }} />
+  }
+
+  if (user.ownsCompany || (user.tenantId && user.isTenantInitialized)) {
+    return <Navigate to={getDefaultRouteForUser(user)} replace />
+  }
+
+  return <>{children}</>
+}
+
+// Platform Portal Guard (SuperAdmin / PlatformAdmin / SupportEngineer)
+const PlatformRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, user } = useAuthStore()
+
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />
+  }
+
+  const roles = user.roles || []
+  const hasAccess = roles.some(role => 
+    ['SuperAdmin', 'PlatformAdmin', 'SupportEngineer', 'PlatformOwner'].includes(role)
+  )
+
+  if (!hasAccess) {
+    return <Navigate to="/access-denied" replace />
+  }
+
+  return <>{children}</>
+}
+
+// Company Portal Guard (CompanyAdmin, managers, corporate roles)
+const CompanyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, user } = useAuthStore()
+
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!user.emailVerified) {
+    return <Navigate to="/verify-otp" replace state={{ email: user.email }} />
+  }
+
+  if (!user.ownsCompany && (!user.tenantId || !user.isTenantInitialized)) {
+    return <Navigate to="/onboarding" replace />
+  }
+
+  const roles = user.roles || []
+  const hasAccess = roles.some(role => 
+    ['CompanyAdmin', 'GeneralManager', 'ProductionManager', 'InventoryManager', 'QualityManager', 'MaintenanceManager', 'FinanceManager', 'HRManager', 'Supervisor', 'Employee', 'Manager', 'Warehouse'].includes(role)
+  )
+
+  if (!hasAccess && (roles.includes('Operator') || roles.includes('QC') || roles.includes('QC Inspector') || roles.includes('Quality Controller') || roles.includes('QUALITY_CONTROLLER') || roles.includes('Maintenance') || roles.includes('Store Keeper') || roles.includes('StoreKeeper') || roles.includes('STORE_KEEPER') || roles.includes('Sales') || roles.includes('HR') || roles.includes('Finance') || roles.includes('Accountant'))) {
+    return <Navigate to={getDefaultRouteForUser(user)} replace />
+  }
+
+  if (!hasAccess) {
+    return <Navigate to="/access-denied" replace />
+  }
+
+  return <>{children}</>
+}
+
+// Operator Terminal Guard
+const OperatorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, user } = useAuthStore()
+
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!user.emailVerified) {
+    return <Navigate to="/verify-otp" replace state={{ email: user.email }} />
+  }
+
+  if (!user.ownsCompany && (!user.tenantId || !user.isTenantInitialized)) {
+    return <Navigate to="/onboarding" replace />
+  }
+
+  const roles = user.roles || []
+  const hasAccess = roles.some(role => 
+    ['Operator', 'QC Inspector', 'Machine Operator', 'QC', 'Quality Controller', 'QUALITY_CONTROLLER', 'Maintenance', 'Store Keeper', 'StoreKeeper', 'STORE_KEEPER', 'Sales', 'HR', 'Finance', 'Accountant'].includes(role)
+  )
+
+  if (!hasAccess) {
+    return <Navigate to="/access-denied" replace />
+  }
+
+  return <>{children}</>
+}
+
+export const AppRoutes: React.FC = () => {
+  const { user, token, updateUser, clearAuth } = useAuthStore()
+  const [syncing, setSyncing] = React.useState(!!token)
+
+  React.useEffect(() => {
+    const performSync = async () => {
+      if (token) {
+        try {
+          const response = await authService.getSession()
+          if (response.success && response.data) {
+            updateUser({
+              tenantId: response.data.tenantId,
+              roles: response.data.roles,
+              permissions: response.data.permissions,
+              ownsCompany: response.data.ownsCompany,
+              isTenantInitialized: response.data.isTenantInitialized,
+              tenantStatus: response.data.tenantStatus,
+              emailVerified: response.data.emailVerified,
+              assignedProductionLineId: response.data.assignedProductionLineId
+            })
+          }
+        } catch (err: any) {
+          console.error('[SESSION SYNC ERROR]:', err)
+          if (err.response?.status === 401) {
+            clearAuth()
+          }
+        } finally {
+          setSyncing(false)
+        }
+      } else {
+        setSyncing(false)
+      }
+    }
+
+    performSync()
+  }, [token, updateUser, clearAuth])
+
+  if (syncing) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#0B0F19] text-white select-none">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <div className="text-sm font-semibold tracking-wider text-slate-400 uppercase">Synchronizing Session...</div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <Routes>
+      {/* Root redirect */}
+      <Route path="/" element={<Navigate to={user ? getDefaultRouteForUser(user) : '/login'} replace />} />
+
+      {/* Guest Auth & Onboarding */}
+      <Route element={<AuthLayout />}>
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <LoginPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicRoute>
+              <RegisterPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/verify-otp"
+          element={
+            <PublicRoute>
+              <OtpVerificationPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/onboarding"
+          element={
+            <OnboardingRoute>
+              <CompanyOnboardingPage />
+            </OnboardingRoute>
+          }
+        />
+        <Route
+          path="/invite-team"
+          element={
+            <OnboardingRoute>
+              <InviteTeamPage />
+            </OnboardingRoute>
+          }
+        />
+      </Route>
+
+      {/* Access Denied */}
+      <Route path="/access-denied" element={<AccessDeniedPage />} />
+
+      {/* Operator/Worker Portals */}
+      <Route
+        path="/operator"
+        element={
+          <OperatorRoute>
+            <OperatorLayout />
+          </OperatorRoute>
+        }
+      >
+        <Route index element={<Navigate to="/operator/dashboard" replace />} />
+        <Route path="dashboard" element={<OperatorDashboardPage />} />
+      </Route>
+
+      <Route
+        path="/worker"
+        element={
+          <OperatorRoute>
+            <OperatorLayout />
+          </OperatorRoute>
+        }
+      >
+        <Route index element={<Navigate to="/worker/dashboard" replace />} />
+        <Route path="dashboard" element={<OperatorDashboardPage />} />
+      </Route>
+
+      <Route
+        path="/qc"
+        element={
+          <OperatorRoute>
+            <OperatorLayout />
+          </OperatorRoute>
+        }
+      >
+        <Route index element={<Navigate to="/qc/dashboard" replace />} />
+        <Route path="dashboard" element={<OperatorDashboardPage />} />
+      </Route>
+
+      <Route
+        path="/maintenance"
+        element={
+          <OperatorRoute>
+            <OperatorLayout />
+          </OperatorRoute>
+        }
+      >
+        <Route index element={<Navigate to="/maintenance/dashboard" replace />} />
+        <Route path="dashboard" element={<OperatorDashboardPage />} />
+      </Route>
+
+      <Route
+        path="/store"
+        element={
+          <OperatorRoute>
+            <OperatorLayout />
+          </OperatorRoute>
+        }
+      >
+        <Route index element={<Navigate to="/store/dashboard" replace />} />
+        <Route path="dashboard" element={<OperatorDashboardPage />} />
+      </Route>
+
+      <Route
+        path="/sales"
+        element={
+          <OperatorRoute>
+            <OperatorLayout />
+          </OperatorRoute>
+        }
+      >
+        <Route index element={<Navigate to="/sales/dashboard" replace />} />
+        <Route path="dashboard" element={<OperatorDashboardPage />} />
+      </Route>
+
+      <Route
+        path="/hr"
+        element={
+          <OperatorRoute>
+            <OperatorLayout />
+          </OperatorRoute>
+        }
+      >
+        <Route index element={<Navigate to="/hr/dashboard" replace />} />
+        <Route path="dashboard" element={<OperatorDashboardPage />} />
+      </Route>
+
+      <Route
+        path="/finance"
+        element={
+          <OperatorRoute>
+            <OperatorLayout />
+          </OperatorRoute>
+        }
+      >
+        <Route index element={<Navigate to="/finance/dashboard" replace />} />
+        <Route path="dashboard" element={<OperatorDashboardPage />} />
+      </Route>
+
+
+      <Route
+        path="/manager"
+        element={
+          <CompanyRoute>
+            <CompanyLayout />
+          </CompanyRoute>
+        }
+      >
+        <Route index element={<Navigate to="/manager/dashboard" replace />} />
+        <Route path="dashboard" element={<CompanyDashboardPage />} />
+        <Route path="*" element={<CompanyDashboardPage />} />
+      </Route>
+
+      <Route
+        path="/supervisor"
+        element={
+          <CompanyRoute>
+            <CompanyLayout />
+          </CompanyRoute>
+        }
+      >
+        <Route index element={<Navigate to="/supervisor/dashboard" replace />} />
+        <Route path="dashboard" element={<CompanyDashboardPage />} />
+        <Route path="*" element={<CompanyDashboardPage />} />
+      </Route>
+
+      <Route
+        path="/warehouse"
+        element={
+          <CompanyRoute>
+            <CompanyLayout />
+          </CompanyRoute>
+        }
+      >
+        <Route index element={<Navigate to="/warehouse/dashboard" replace />} />
+        <Route path="dashboard" element={<CompanyDashboardPage />} />
+        <Route path="*" element={<CompanyDashboardPage />} />
+      </Route>
+
+      {/* Platform Administration Portal */}
+      <Route
+        path="/platform"
+        element={
+          <PlatformRoute>
+            <PlatformLayout />
+          </PlatformRoute>
+        }
+      >
+        <Route index element={<Navigate to="/platform/dashboard" replace />} />
+        <Route path="dashboard" element={<PlatformDashboardPage />} />
+        <Route path="tenants" element={<PlatformManagementPage />} />
+        <Route path="users" element={<PlatformManagementPage />} />
+        <Route path="subscriptions" element={<PlatformManagementPage />} />
+        <Route path="system-health" element={<PlatformManagementPage />} />
+        <Route path="database" element={<PlatformManagementPage />} />
+        <Route path="audit" element={<PlatformManagementPage />} />
+        <Route path="settings" element={<PlatformManagementPage />} />
+      </Route>
+
+      {/* Company Administration Portal */}
+      <Route
+        path="/company"
+        element={
+          <CompanyRoute>
+            <CompanyLayout />
+          </CompanyRoute>
+        }
+      >
+        <Route index element={<Navigate to="/company/dashboard" replace />} />
+        <Route path="dashboard" element={<CompanyDashboardPage />} />
+        <Route path="production" element={<CompanyDashboardPage />} />
+        <Route path="production/batches/:batchId" element={<BatchDetailsPage />} />
+        <Route path="manufacturing" element={<CompanyDashboardPage />} />
+        <Route path="inventory" element={<CompanyDashboardPage />} />
+        <Route path="warehouse" element={<CompanyDashboardPage />} />
+        <Route path="purchase" element={<CompanyDashboardPage />} />
+        <Route path="sales" element={<CompanyDashboardPage />} />
+        <Route path="customers" element={<CompanyDashboardPage />} />
+        <Route path="suppliers" element={<CompanyDashboardPage />} />
+        <Route path="machines" element={<CompanyDashboardPage />} />
+        <Route path="maintenance" element={<CompanyDashboardPage />} />
+        <Route path="quality" element={<CompanyDashboardPage />} />
+        <Route path="employees" element={<CompanyDashboardPage />} />
+        <Route path="attendance" element={<CompanyDashboardPage />} />
+        <Route path="payroll" element={<CompanyDashboardPage />} />
+        <Route path="finance" element={<CompanyDashboardPage />} />
+        <Route path="reports" element={<CompanyDashboardPage />} />
+        <Route path="documents" element={<CompanyDashboardPage />} />
+        <Route path="analytics" element={<CompanyDashboardPage />} />
+        <Route path="notifications" element={<CompanyDashboardPage />} />
+        <Route path="ai-assistant" element={<CompanyDashboardPage />} />
+        <Route path="settings" element={<CompanyDashboardPage />} />
+      </Route>
+
+      {/* Fallback route */}
+      <Route path="*" element={<Navigate to={user ? getDefaultRouteForUser(user) : '/login'} replace />} />
+    </Routes>
+  )
+}
+
+export default AppRoutes
