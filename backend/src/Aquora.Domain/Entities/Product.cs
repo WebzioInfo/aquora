@@ -10,6 +10,7 @@ namespace Aquora.Domain.Entities
         public virtual Brand Brand { get; set; } = null!;
         public string? SKU { get; set; }
         public bool IsActive { get; set; } = true;
+        public decimal CurrentStock { get; set; } = 0;
 
         // Auditable fields
         public DateTime CreatedAt { get; set; }

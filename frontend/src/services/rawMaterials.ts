@@ -26,7 +26,6 @@ export interface UpdateRawMaterialRequest {
   unit: string
   isActive: boolean
   currentStock?: number
-  stockAdjustment?: number
 }
 
 export const rawMaterialsService = {
@@ -60,6 +59,11 @@ export const rawMaterialsService = {
 
   updateRawMaterial: async (id: string, data: UpdateRawMaterialRequest): Promise<ApiResponse<RawMaterial>> => {
     const response = await api.put<ApiResponse<RawMaterial>>(`/api/v1/rawmaterials/${id}`, data)
+    return response.data
+  },
+
+  addStock: async (id: string, data: { quantity: number; notes?: string }): Promise<ApiResponse<RawMaterial>> => {
+    const response = await api.post<ApiResponse<RawMaterial>>(`/api/v1/rawmaterials/${id}/add-stock`, data)
     return response.data
   },
 

@@ -8,6 +8,7 @@ export interface Product {
   brandName: string
   sku: string | null
   isActive: boolean
+  currentStock: number
   createdAt: string
   updatedAt: string | null
 }
@@ -32,6 +33,7 @@ export interface CreateProductRequest {
   brandId: string
   sku?: string
   isActive?: boolean
+  openingStock?: number
 }
 
 export interface UpdateProductRequest {
@@ -39,6 +41,7 @@ export interface UpdateProductRequest {
   brandId: string
   sku?: string
   isActive: boolean
+  currentStock?: number
 }
 
 export const productsService = {

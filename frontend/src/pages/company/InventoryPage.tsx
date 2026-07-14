@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../services/api'
 import { productsService } from '../../services/products'
@@ -13,23 +13,67 @@ import EnterpriseButton from '../../components/ui/EnterpriseButton'
 
 type ToastType = 'success' | 'error' | 'warning'
 
-const MOVEMENT_BADGE: Record<string, { label: string; cls: string }> = {
-  ProductionEntry:        { label: 'Production',  cls: 'bg-red-50 border-red-200 text-red-700' },
-  ProductionConsumption:  { label: 'Consumption', cls: 'bg-red-50 border-red-200 text-red-700' },
-  StockAdjustment:        { label: 'Adjustment',  cls: 'bg-purple-50 border-purple-200 text-purple-700' },
-  Purchase:               { label: 'Purchase',    cls: 'bg-green-50 border-green-200 text-green-700' },
-  OpeningStock:           { label: 'Opening',     cls: 'bg-slate-100 border-slate-300 text-slate-600' },
-  Transfer:               { label: 'Transfer',    cls: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
-  Return:                 { label: 'Return',      cls: 'bg-teal-50 border-teal-200 text-teal-700' },
-  Sales:                  { label: 'Sales',       cls: 'bg-orange-50 border-orange-200 text-orange-700' },
+const MOVEMENT_TYPE_MAP: Record<string, { label: string; cls: string; icon: string }> = {
+  productionentry:        { label: 'Used for Production',      cls: 'bg-rose-50 border-rose-200 text-rose-700',      icon: '⚙️' },
+  productionconsumption:  { label: 'Used for Production',      cls: 'bg-rose-50 border-rose-200 text-rose-700',      icon: '⚙️' },
+  production:             { label: 'Used for Production',      cls: 'bg-rose-50 border-rose-200 text-rose-700',      icon: '⚙️' },
+  
+  stockadjustment:        { label: 'Stock Corrected',          cls: 'bg-amber-50 border-amber-200 text-amber-700',  icon: '🔧' },
+  adjustment:             { label: 'Stock Corrected',          cls: 'bg-amber-50 border-amber-200 text-amber-700',  icon: '🔧' },
+  
+  purchase:               { label: 'Stock Received',           cls: 'bg-emerald-50 border-emerald-200 text-emerald-700', icon: '📥' },
+  
+  sales:                  { label: 'Sold',                     cls: 'bg-blue-50 border-blue-200 text-blue-700',      icon: '📤' },
+  sale:                   { label: 'Sold',                     cls: 'bg-blue-50 border-blue-200 text-blue-700',      icon: '📤' },
+  
+  transfer:               { label: 'Moved Between Warehouses', cls: 'bg-indigo-50 border-indigo-200 text-indigo-700', icon: '🚚' },
+  
+  return:                 { label: 'Returned to Stock',        cls: 'bg-teal-50 border-teal-200 text-teal-700',      icon: '↩️' },
+  
+  openingstock:           { label: 'Opening Stock',            cls: 'bg-slate-100 border-slate-200 text-slate-700',  icon: '📦' },
+  opening:                { label: 'Opening Stock',            cls: 'bg-slate-100 border-slate-200 text-slate-700',  icon: '📦' },
+  
+  stockadded:             { label: 'Stock Added',              cls: 'bg-emerald-50 border-emerald-200 text-emerald-700', icon: '📥' },
+  manual:                 { label: 'Manually Updated',         cls: 'bg-violet-50 border-violet-200 text-violet-700',  icon: '👤' },
+  productioncompleted:    { label: 'Production Completed',     cls: 'bg-green-50 border-green-200 text-green-700',   icon: '🏭' }
 }
-const getMovementBadge = (type: string) =>
-  MOVEMENT_BADGE[type] || { label: type, cls: 'bg-slate-100 border-slate-200 text-slate-600' }
+
+const getMovementBadge = (type: string) => {
+  const lowerType = (type || '').toLowerCase();
+  return MOVEMENT_TYPE_MAP[lowerType] || { label: type, cls: 'bg-slate-100 border-slate-200 text-slate-600', icon: '📝' };
+}
 
 interface MovementPanelProps {
   materialId: string
   currentStock: number
   unit: string
+}
+
+const getInitials = (name: string) => {
+  if (!name || name === 'Unknown User') return '??'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+const getAvatarColor = (name: string) => {
+  if (!name || name === 'Unknown User') return 'bg-slate-100 text-slate-600 border-slate-200'
+  if (name === 'System') return 'bg-purple-100 text-purple-700 border-purple-200'
+  const colors = [
+    'bg-blue-50 text-blue-700 border-blue-200',
+    'bg-emerald-50 text-emerald-700 border-emerald-200',
+    'bg-indigo-50 text-indigo-700 border-indigo-200',
+    'bg-violet-50 text-violet-700 border-violet-200',
+    'bg-pink-50 text-pink-700 border-pink-200',
+    'bg-amber-50 text-amber-700 border-amber-200',
+    'bg-sky-50 text-sky-700 border-sky-200'
+  ]
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  const index = Math.abs(hash) % colors.length
+  return colors[index]
 }
 
 const MovementPanel: React.FC<MovementPanelProps> = ({ materialId, currentStock, unit }) => {
@@ -52,33 +96,24 @@ const MovementPanel: React.FC<MovementPanelProps> = ({ materialId, currentStock,
     }
   }
   return (
-    <div className="bg-[#F8FAFC] border-t border-[#E5E7EB] px-4 py-4 space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 select-none">
-        {[
-          { label: 'Current Stock', value: currentStock, cls: currentStock <= 0 ? 'text-red-600' : 'text-slate-900' },
-          { label: 'Reserved', value: currentStock > 0 ? Math.round(currentStock * 0.15) : 0, cls: 'text-slate-900' },
-          { label: 'Available', value: currentStock > 0 ? Math.round(currentStock * 0.85) : 0, cls: 'text-green-600' },
-          { label: 'Last Movement', value: movements.length > 0 ? fmtDT(movements[0].createdAt).date : '—', cls: 'text-slate-800' },
-        ].map((c, i) => (
-          <div key={i} className="bg-white border border-[#E5E7EB] rounded-lg p-3 flex flex-col">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{c.label}</span>
-            <span className={`text-[16px] font-black mt-0.5 leading-tight ${c.cls}`}>
-              {i < 3 ? <>{c.value} <span className="text-[11px] font-semibold text-slate-500">{unit}</span></> : c.value}
-            </span>
-          </div>
-        ))}
-      </div>
-      <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
+    <div className="bg-[#F8FAFC] border-t border-[#E5E7EB] px-4 py-4">
+      <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden shadow-sm">
         <div className="px-4 py-2.5 border-b border-[#F1F5F9] flex items-center justify-between select-none">
           <p className="text-[12px] font-bold text-slate-600 uppercase tracking-widest">Movement History</p>
-          <button onClick={() => refetch()} className="h-[26px] px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded flex items-center gap-1 transition-all">
+          <button onClick={() => refetch()} className="h-[26px] px-2.5 text-[11px] font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded flex items-center gap-1 transition-all">
             <RefreshCw className="w-3 h-3" />Refresh
           </button>
         </div>
         {isLoading ? (
           <div className="py-8 text-center text-[13px] text-slate-400">Loading movement history...</div>
         ) : movements.length === 0 ? (
-          <div className="py-10 text-center text-[13px] text-slate-400 italic">No stock movements recorded for this material.</div>
+          <div className="py-12 flex flex-col items-center justify-center text-center px-4">
+            <div className="w-16 h-16 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 mb-4 animate-pulse">
+              <Package className="w-8 h-8 text-slate-300" />
+            </div>
+            <h3 className="text-[14px] font-bold text-slate-700">No stock movements recorded yet.</h3>
+            <p className="text-[12px] text-slate-400 mt-1 max-w-[280px]">Stock movements will appear here whenever inventory changes.</p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -86,8 +121,7 @@ const MovementPanel: React.FC<MovementPanelProps> = ({ materialId, currentStock,
                 <tr className="bg-[#F8FAFC] border-b border-[#E5E7EB] text-[11px] font-bold text-slate-500 uppercase tracking-wider h-[34px] select-none">
                   <th className="py-2 px-4">Date</th>
                   <th className="py-2 px-4">Time</th>
-                  <th className="py-2 px-4">Movement Type</th>
-                  <th className="py-2 px-4">Reference</th>
+                  <th className="py-2 px-4">Description</th>
                   <th className="py-2 px-4 text-right">Quantity</th>
                   <th className="py-2 px-4 text-right">Balance After</th>
                   <th className="py-2 px-4">Operator</th>
@@ -97,20 +131,175 @@ const MovementPanel: React.FC<MovementPanelProps> = ({ materialId, currentStock,
                 {movements.map((m: any, idx: number) => {
                   const badge = getMovementBadge(m.referenceType)
                   const dt = fmtDT(m.createdAt)
+                  
                   const isPos = m.quantity > 0
+                  const isNeg = m.quantity < 0
+                  let qtyText = ''
+                  let qtyCls = ''
+
+                  if (isPos) {
+                    qtyText = `+${m.quantity} ${m.unit || unit}`
+                    qtyCls = 'text-emerald-600'
+                  } else if (isNeg) {
+                    qtyText = `−${Math.abs(m.quantity)} ${m.unit || unit}`
+                    qtyCls = 'text-rose-600'
+                  } else {
+                    qtyText = `0 ${m.unit || unit}`
+                    qtyCls = 'text-slate-400 font-medium'
+                  }
+
                   return (
                     <tr key={m.id} className={`h-[36px] transition-colors hover:bg-[#F8FAFC] ${idx % 2 === 1 ? 'bg-[#FAFBFC]' : 'bg-white'}`}>
                       <td className="py-2 px-4 font-semibold text-slate-800 whitespace-nowrap">{dt.date}</td>
                       <td className="py-2 px-4 text-slate-500 whitespace-nowrap">{dt.time}</td>
                       <td className="py-2 px-4">
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded border uppercase tracking-wider ${badge.cls}`}>{badge.label}</span>
+                        <div className="flex flex-col gap-0.5">
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider w-fit ${badge.cls}`}>
+                            <span>{badge.icon}</span>
+                            <span>{badge.label}</span>
+                          </span>
+                          {m.notes && <span className="text-[11px] text-slate-400 font-medium leading-normal italic">{m.notes}</span>}
+                        </div>
                       </td>
-                      <td className="py-2 px-4 font-mono text-slate-400 text-[11px]">{m.referenceId?.slice(0,8)}...</td>
-                      <td className={`py-2 px-4 text-right font-bold tabular-nums whitespace-nowrap ${isPos ? 'text-green-600' : 'text-red-600'}`}>
-                        {isPos ? '+' : ''}{m.quantity} {m.unit}
+                      <td className={`py-2 px-4 text-right font-bold tabular-nums whitespace-nowrap ${qtyCls}`}>
+                        {qtyText}
                       </td>
-                      <td className="py-2 px-4 text-right font-bold tabular-nums text-slate-900 whitespace-nowrap">{m.balanceAfter} {m.unit}</td>
-                      <td className="py-2 px-4 text-slate-500 whitespace-nowrap">{m.createdBy}</td>
+                      <td className="py-2 px-4 text-right font-bold tabular-nums text-slate-900 whitespace-nowrap">{m.balanceAfter} {m.unit || unit}</td>
+                      <td className="py-2 px-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-[24px] h-[24px] rounded-full border flex items-center justify-center text-[9px] font-black uppercase shadow-sm select-none ${getAvatarColor(m.operatorName)}`}>
+                            {getInitials(m.operatorName)}
+                          </div>
+                          <span className="font-semibold text-slate-700">
+                            {m.operatorName === 'System' ? 'System' : m.operatorName}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {totalPages > 1 && (
+          <div className="px-4 py-2 border-t border-[#F1F5F9] flex items-center justify-between select-none">
+            <span className="text-[11px] text-slate-400 font-semibold">Page {page} of {totalPages}</span>
+            <div className="flex gap-2">
+              <button disabled={page<=1} onClick={() => setPage(p=>p-1)} className="h-[26px] px-3 text-[11px] font-bold text-slate-600 border border-[#E5E7EB] rounded hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Prev</button>
+              <button disabled={page>=totalPages} onClick={() => setPage(p=>p+1)} className="h-[26px] px-3 text-[11px] font-bold text-slate-600 border border-[#E5E7EB] rounded hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Next</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+interface ProductMovementPanelProps {
+  productId: string
+  currentStock: number
+}
+
+const ProductMovementPanel: React.FC<ProductMovementPanelProps> = ({ productId, currentStock }) => {
+  const [page, setPage] = useState(1)
+  const { data, isLoading, refetch } = useQuery<any>({
+    queryKey: ['productMovements', productId, page],
+    queryFn: async () => {
+      const res = await api.get(`/api/v1/products/${productId}/movements?pageNumber=${page}&pageSize=20`)
+      return res.data?.data || null
+    },
+    staleTime: 30_000,
+  })
+  const movements: any[] = data?.items || []
+  const totalPages: number = data?.totalPages || 1
+  const fmtDT = (d: string) => {
+    const dt = new Date(d)
+    return {
+      date: dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      time: dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+    }
+  }
+  return (
+    <div className="bg-[#F8FAFC] border-t border-[#E5E7EB] px-4 py-4">
+      <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden shadow-sm">
+        <div className="px-4 py-2.5 border-b border-[#F1F5F9] flex items-center justify-between select-none">
+          <p className="text-[12px] font-bold text-slate-600 uppercase tracking-widest">Product Movement History</p>
+          <button onClick={() => refetch()} className="h-[26px] px-2.5 text-[11px] font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded flex items-center gap-1 transition-all">
+            <RefreshCw className="w-3 h-3" />Refresh
+          </button>
+        </div>
+        {isLoading ? (
+          <div className="py-8 text-center text-[13px] text-slate-400">Loading movement history...</div>
+        ) : movements.length === 0 ? (
+          <div className="py-12 flex flex-col items-center justify-center text-center px-4">
+            <div className="w-16 h-16 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 mb-4 animate-pulse">
+              <Package className="w-8 h-8 text-slate-300" />
+            </div>
+            <h3 className="text-[14px] font-bold text-slate-700">No stock movements recorded yet.</h3>
+            <p className="text-[12px] text-slate-400 mt-1 max-w-[280px]">Product stock movements will appear here whenever production runs or adjustments are made.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#F8FAFC] border-b border-[#E5E7EB] text-[11px] font-bold text-slate-500 uppercase tracking-wider h-[34px] select-none">
+                  <th className="py-2 px-4">Date</th>
+                  <th className="py-2 px-4">Time</th>
+                  <th className="py-2 px-4">Description</th>
+                  <th className="py-2 px-4 text-right">Quantity</th>
+                  <th className="py-2 px-4 text-right">Balance After</th>
+                  <th className="py-2 px-4">Operator</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#F1F5F9] text-[13px] text-slate-700">
+                {movements.map((m: any, idx: number) => {
+                  const badge = getMovementBadge(m.referenceType)
+                  const dt = fmtDT(m.createdAt)
+                  
+                  const isPos = m.quantity > 0
+                  const isNeg = m.quantity < 0
+                  let qtyText = ''
+                  let qtyCls = ''
+
+                  if (isPos) {
+                    qtyText = `+${m.quantity} ${m.unit || 'Cases'}`
+                    qtyCls = 'text-emerald-600'
+                  } else if (isNeg) {
+                    qtyText = `−${Math.abs(m.quantity)} ${m.unit || 'Cases'}`
+                    qtyCls = 'text-rose-600'
+                  } else {
+                    qtyText = `0 ${m.unit || 'Cases'}`
+                    qtyCls = 'text-slate-400 font-medium'
+                  }
+
+                  return (
+                    <tr key={m.id} className={`h-[36px] transition-colors hover:bg-[#F8FAFC] ${idx % 2 === 1 ? 'bg-[#FAFBFC]' : 'bg-white'}`}>
+                      <td className="py-2 px-4 font-semibold text-slate-800 whitespace-nowrap">{dt.date}</td>
+                      <td className="py-2 px-4 text-slate-500 whitespace-nowrap">{dt.time}</td>
+                      <td className="py-2 px-4">
+                        <div className="flex flex-col gap-0.5">
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider w-fit ${badge.cls}`}>
+                            <span>{badge.icon}</span>
+                            <span>{badge.label}</span>
+                          </span>
+                          {m.notes && <span className="text-[11px] text-slate-400 font-medium leading-normal italic">{m.notes}</span>}
+                        </div>
+                      </td>
+                      <td className={`py-2 px-4 text-right font-bold tabular-nums whitespace-nowrap ${qtyCls}`}>
+                        {qtyText}
+                      </td>
+                      <td className="py-2 px-4 text-right font-bold tabular-nums text-slate-900 whitespace-nowrap">{m.balanceAfter} {m.unit || 'Cases'}</td>
+                      <td className="py-2 px-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-[24px] h-[24px] rounded-full border flex items-center justify-center text-[9px] font-black uppercase shadow-sm select-none ${getAvatarColor(m.operatorName)}`}>
+                            {getInitials(m.operatorName)}
+                          </div>
+                          <span className="font-semibold text-slate-700">
+                            {m.operatorName === 'System' ? 'System' : m.operatorName}
+                          </span>
+                        </div>
+                      </td>
                     </tr>
                   )
                 })}
@@ -150,6 +339,8 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
   const [productFormBrandId, setProductFormBrandId] = useState('')
   const [productFormSKU, setProductFormSKU] = useState('')
   const [productFormIsActive, setProductFormIsActive] = useState(true)
+  const [productFormOpeningStock, setProductFormOpeningStock] = useState('0')
+  const [productFormCurrentStock, setProductFormCurrentStock] = useState('0')
   const [brandsPage, setBrandsPage] = useState(1)
   const [brandsSearch, setBrandsSearch] = useState('')
   const [isAddBrandModalOpen, setIsAddBrandModalOpen] = useState(false)
@@ -163,13 +354,16 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
   const [rawMaterialsSearch, setRawMaterialsSearch] = useState('')
   const [isAddRawMaterialModalOpen, setIsAddRawMaterialModalOpen] = useState(false)
   const [isEditRawMaterialModalOpen, setIsEditRawMaterialModalOpen] = useState(false)
+  const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false)
+  const [selectedAddStockMaterialId, setSelectedAddStockMaterialId] = useState('')
+  const [addStockFormQuantity, setAddStockFormQuantity] = useState('')
+  const [addStockFormNotes, setAddStockFormNotes] = useState('')
   const [selectedRawMaterial, setSelectedRawMaterial] = useState<any | null>(null)
   const [rawMaterialFormName, setRawMaterialFormName] = useState('')
   const [rawMaterialFormCategory, setRawMaterialFormCategory] = useState('PREFORM')
   const [rawMaterialFormUnit, setRawMaterialFormUnit] = useState('PIECE')
   const [rawMaterialFormIsActive, setRawMaterialFormIsActive] = useState(true)
   const [rawMaterialFormCurrentStock, setRawMaterialFormCurrentStock] = useState('0')
-  const [rawMaterialFormStockAdjustment, setRawMaterialFormStockAdjustment] = useState('0')
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
   const toggleRow = (id: string) => setExpandedRowId(prev => prev === id ? null : id)
   const switchTab = (tab: 'products' | 'raw_materials' | 'brands') => {
@@ -225,6 +419,11 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
     onSuccess: (d) => { if (d.success) { showToast('Raw material updated.', 'success'); queryClient.invalidateQueries({ queryKey: ['rawMaterialsList'] }); queryClient.invalidateQueries({ queryKey: ['rawMaterials'] }); setIsEditRawMaterialModalOpen(false) } else showToast(d.message||'Failed.','error') },
     onError: (e: any) => showToast(e.response?.data?.message||'Error.','error')
   })
+  const addStockMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => rawMaterialsService.addStock(id, data),
+    onSuccess: (d) => { if (d.success) { showToast('Stock added successfully.', 'success'); queryClient.invalidateQueries({ queryKey: ['rawMaterialsList'] }); queryClient.invalidateQueries({ queryKey: ['rawMaterials'] }); queryClient.invalidateQueries({ queryKey: ['movements'] }); setIsAddStockModalOpen(false); setSelectedAddStockMaterialId(''); setAddStockFormQuantity(''); setAddStockFormNotes('') } else showToast(d.message||'Failed to add stock.','error') },
+    onError: (e: any) => showToast(e.response?.data?.message||'Error adding stock.','error')
+  })
   const deleteRawMaterialMutation = useMutation({
     mutationFn: rawMaterialsService.deleteRawMaterial,
     onSuccess: (d) => { if (d.success) { showToast('Raw material deleted.', 'success'); queryClient.invalidateQueries({ queryKey: ['rawMaterialsList'] }); queryClient.invalidateQueries({ queryKey: ['rawMaterials'] }) } else showToast(d.message||'Failed.','error') },
@@ -245,13 +444,26 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
     onSuccess: (d) => { if (d.success) { showToast('Brand deleted.', 'success'); queryClient.invalidateQueries({ queryKey: ['brandsPaginated'] }); queryClient.invalidateQueries({ queryKey: ['brandsDropdown'] }) } else showToast(d.message||'Failed.','error') },
     onError: (e: any) => showToast(e.response?.data?.message||'Error.','error')
   })
-  const handleCreateProductSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!productFormName.trim()) return showToast('Product Name is required.','warning'); if (!productFormBrandId) return showToast('Brand is required.','warning'); createProductMutation.mutate({ name: productFormName.trim(), brandId: productFormBrandId, sku: productFormSKU.trim()||undefined, isActive: productFormIsActive }) }
-  const handleEditProductSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!selectedProduct||!productFormName.trim()) return showToast('Product Name is required.','warning'); if (!productFormBrandId) return showToast('Brand is required.','warning'); updateProductMutation.mutate({ id: selectedProduct.id, data: { name: productFormName.trim(), brandId: productFormBrandId, sku: productFormSKU.trim()||undefined, isActive: productFormIsActive } }) }
-  const openEditProduct = (prod: any) => { setSelectedProduct(prod); setProductFormName(prod.name); setProductFormBrandId(prod.brandId); setProductFormSKU(prod.sku||''); setProductFormIsActive(prod.isActive); setIsEditProductModalOpen(true) }
+  const handleCreateProductSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!productFormName.trim()) return showToast('Product Name is required.','warning'); if (!productFormBrandId) return showToast('Brand is required.','warning'); createProductMutation.mutate({ name: productFormName.trim(), brandId: productFormBrandId, sku: productFormSKU.trim()||undefined, isActive: productFormIsActive, openingStock: parseFloat(productFormOpeningStock)||0 }) }
+  const handleEditProductSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!selectedProduct||!productFormName.trim()) return showToast('Product Name is required.','warning'); if (!productFormBrandId) return showToast('Brand is required.','warning'); updateProductMutation.mutate({ id: selectedProduct.id, data: { name: productFormName.trim(), brandId: productFormBrandId, sku: productFormSKU.trim()||undefined, isActive: productFormIsActive, currentStock: parseFloat(productFormCurrentStock)||0 } }) }
+  const openEditProduct = (prod: any) => { setSelectedProduct(prod); setProductFormName(prod.name); setProductFormBrandId(prod.brandId); setProductFormSKU(prod.sku||''); setProductFormIsActive(prod.isActive); setProductFormCurrentStock(prod.currentStock?.toString()||'0'); setIsEditProductModalOpen(true) }
   const triggerDeleteProduct = (id: string, name: string) => { if (confirm(`Delete product "${name}"?`)) deleteProductMutation.mutate(id) }
   const handleCreateRawMaterialSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!rawMaterialFormName.trim()) return showToast('Material Name is required.','warning'); createRawMaterialMutation.mutate({ name: rawMaterialFormName.trim(), category: rawMaterialFormCategory, unit: rawMaterialFormUnit, isActive: rawMaterialFormIsActive, currentStock: parseFloat(rawMaterialFormCurrentStock)||0 }) }
-  const handleEditRawMaterialSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!selectedRawMaterial||!rawMaterialFormName.trim()) return showToast('Material Name is required.','warning'); updateRawMaterialMutation.mutate({ id: selectedRawMaterial.id, data: { name: rawMaterialFormName.trim(), category: rawMaterialFormCategory, unit: rawMaterialFormUnit, isActive: rawMaterialFormIsActive, currentStock: parseFloat(rawMaterialFormCurrentStock)||0, stockAdjustment: parseFloat(rawMaterialFormStockAdjustment)||0 } }) }
-  const openEditRawMaterial = (mat: any) => { setSelectedRawMaterial(mat); setRawMaterialFormName(mat.name); setRawMaterialFormCategory(mat.category.toUpperCase()); setRawMaterialFormUnit(mat.unit.toUpperCase()); setRawMaterialFormIsActive(mat.isActive); setRawMaterialFormCurrentStock(mat.currentStock?.toString()||'0'); setRawMaterialFormStockAdjustment('0'); setIsEditRawMaterialModalOpen(true) }
+  const handleEditRawMaterialSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!selectedRawMaterial||!rawMaterialFormName.trim()) return showToast('Material Name is required.','warning'); updateRawMaterialMutation.mutate({ id: selectedRawMaterial.id, data: { name: rawMaterialFormName.trim(), category: rawMaterialFormCategory, unit: rawMaterialFormUnit, isActive: rawMaterialFormIsActive, currentStock: parseFloat(rawMaterialFormCurrentStock)||0 } }) }
+  const openEditRawMaterial = (mat: any) => { setSelectedRawMaterial(mat); setRawMaterialFormName(mat.name); setRawMaterialFormCategory(mat.category.toUpperCase()); setRawMaterialFormUnit(mat.unit.toUpperCase()); setRawMaterialFormIsActive(mat.isActive); setRawMaterialFormCurrentStock(mat.currentStock?.toString()||'0'); setIsEditRawMaterialModalOpen(true) }
+  const handleAddStockSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedAddStockMaterialId) return showToast('Please select a raw material.', 'warning')
+    const qty = parseFloat(addStockFormQuantity)
+    if (isNaN(qty) || qty <= 0) return showToast('Quantity to add must be greater than zero.', 'warning')
+    addStockMutation.mutate({
+      id: selectedAddStockMaterialId,
+      data: {
+        quantity: qty,
+        notes: addStockFormNotes.trim() || undefined
+      }
+    })
+  }
   const triggerDeleteRawMaterial = (id: string, name: string) => { if (confirm(`Delete raw material "${name}"?`)) deleteRawMaterialMutation.mutate(id) }
   const handleCreateBrandSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!brandFormName.trim()) return showToast('Brand Name is required.','warning'); createBrandMutation.mutate({ name: brandFormName.trim(), code: brandFormCode.trim()||undefined, description: brandFormDescription.trim()||undefined, isActive: brandFormIsActive }) }
   const handleEditBrandSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!selectedBrand||!brandFormName.trim()) return showToast('Brand Name is required.','warning'); updateBrandMutation.mutate({ id: selectedBrand.id, data: { name: brandFormName.trim(), code: brandFormCode.trim()||undefined, description: brandFormDescription.trim()||undefined, isActive: brandFormIsActive } }) }
@@ -279,8 +491,13 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
               onChange={e => { const v=e.target.value; setGlobalSearch(v); if(inventoryTab==='products'){setProductsSearch(v);setProductsPage(1)} if(inventoryTab==='raw_materials'){setRawMaterialsSearch(v);setRawMaterialsPage(1)} if(inventoryTab==='brands')setBrandsSearch(v) }}
               className="h-[32px] pl-8 pr-3 text-[12px] border border-[#E5E7EB] rounded-lg bg-[#F8FAFC] focus:outline-none focus:border-blue-400 w-[200px] text-slate-800" />
           </div>
-          {canWrite && inventoryTab==='products' && <button onClick={()=>{setProductFormName('');setProductFormBrandId((brands[0] as any)?.id||'');setProductFormSKU('');setProductFormIsActive(true);setIsAddProductModalOpen(true)}} className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"><Plus className="w-3.5 h-3.5"/>Product</button>}
-          {canWrite && inventoryTab==='raw_materials' && <button onClick={()=>{setRawMaterialFormName('');setRawMaterialFormCategory('PREFORM');setRawMaterialFormUnit('PIECE');setRawMaterialFormIsActive(true);setRawMaterialFormCurrentStock('0');setRawMaterialFormStockAdjustment('0');setIsAddRawMaterialModalOpen(true)}} className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"><Plus className="w-3.5 h-3.5"/>Material</button>}
+          {canWrite && inventoryTab==='products' && <button onClick={()=>{setProductFormName('');setProductFormBrandId((brands[0] as any)?.id||'');setProductFormSKU('');setProductFormIsActive(true);setProductFormOpeningStock('0');setIsAddProductModalOpen(true)}} className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"><Plus className="w-3.5 h-3.5"/>Product</button>}
+          {canWrite && inventoryTab==='raw_materials' && (
+            <div className="flex items-center gap-2">
+              <button onClick={()=>{setRawMaterialFormName('');setRawMaterialFormCategory('PREFORM');setRawMaterialFormUnit('PIECE');setRawMaterialFormIsActive(true);setRawMaterialFormCurrentStock('0');setIsAddRawMaterialModalOpen(true)}} className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"><Plus className="w-3.5 h-3.5"/>Material</button>
+              <button onClick={()=>{setSelectedAddStockMaterialId('');setAddStockFormQuantity('');setAddStockFormNotes('');setIsAddStockModalOpen(true)}} className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"><Plus className="w-3.5 h-3.5"/>Add Stock</button>
+            </div>
+          )}
           {canWrite && inventoryTab==='brands' && <button onClick={()=>setIsAddBrandModalOpen(true)} className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"><Plus className="w-3.5 h-3.5"/>Brand</button>}
         </div>
       </div>
@@ -313,22 +530,37 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                 <table className="w-full text-left border-collapse">
                   <thead><tr className="bg-[#F8FAFC] border-b border-[#E5E7EB] text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none h-[36px]">
                     <th className="py-2 px-4">Product Name</th><th className="py-2 px-4">Brand</th>
+                    <th className="py-2 px-4 text-right">Current Stock</th><th className="py-2 px-4">Unit</th>
                     <th className="py-2 px-4 text-center">Status</th><th className="py-2 px-4">Last Updated</th>
                     {canWrite && <th className="py-2 px-4 text-center">Actions</th>}
+                    <th className="py-2 px-4 text-center">Movements</th>
                   </tr></thead>
                   <tbody className="divide-y divide-[#F1F5F9] text-[13px] text-slate-700">
-                    {productsData.items.map((row: any, i: number)=>(
-                      <tr key={row.id} className={`h-[38px] transition-colors ${i%2===0?'bg-white':'bg-[#FAFBFC]'} hover:bg-blue-50/30`}>
-                        <td className="py-2 px-4 font-bold text-slate-800">{row.name}</td>
-                        <td className="py-2 px-4 text-slate-600">{row.brandName}</td>
-                        <td className="py-2 px-4 text-center"><span className={`text-[9px] font-black px-2 py-0.5 rounded-full border uppercase tracking-wider ${row.isActive?'bg-green-50 border-green-200 text-green-700':'bg-red-50 border-red-200 text-red-700'}`}>{row.isActive?'Active':'Inactive'}</span></td>
-                        <td className="py-2 px-4 text-slate-500 text-[12px]">{fmtDate(row.updatedAt||row.createdAt)}</td>
-                        {canWrite && <td className="py-2 px-4 text-center"><div className="flex items-center justify-center gap-1">
-                          <button onClick={()=>openEditProduct(row)} title="Edit" className="h-[26px] w-[26px] flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all"><Edit2 className="w-3.5 h-3.5"/></button>
-                          <button onClick={()=>triggerDeleteProduct(row.id,row.name)} title="Delete" className="h-[26px] w-[26px] flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"><Trash2 className="w-3.5 h-3.5"/></button>
-                        </div></td>}
-                      </tr>
-                    ))}
+                    {productsData.items.map((row: any, i: number)=>{
+                      const isExp = expandedRowId === row.id
+                      return (
+                        <React.Fragment key={row.id}>
+                          <tr className={`h-[38px] cursor-pointer transition-colors ${i%2===0?'bg-white':'bg-[#FAFBFC]'} hover:bg-blue-50/30`} onClick={()=>toggleRow(row.id)}>
+                            <td className="py-2 px-4 font-bold text-slate-800">{row.name}</td>
+                            <td className="py-2 px-4 text-slate-600">{row.brandName}</td>
+                            <td className="py-2 px-4 text-right font-black tabular-nums text-slate-900">{row.currentStock??0}</td>
+                            <td className="py-2 px-4 text-slate-500 text-[12px]">Cases</td>
+                            <td className="py-2 px-4 text-center"><span className={`text-[9px] font-black px-2 py-0.5 rounded-full border uppercase tracking-wider ${row.isActive?'bg-green-50 border-green-200 text-green-700':'bg-red-50 border-red-200 text-red-700'}`}>{row.isActive?'Active':'Inactive'}</span></td>
+                            <td className="py-2 px-4 text-slate-500 text-[12px]">{fmtDate(row.updatedAt||row.createdAt)}</td>
+                            {canWrite && <td className="py-2 px-4 text-center" onClick={e=>e.stopPropagation()}><div className="flex items-center justify-center gap-1">
+                              <button onClick={()=>openEditProduct(row)} title="Edit" className="h-[26px] w-[26px] flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all"><Edit2 className="w-3.5 h-3.5"/></button>
+                              <button onClick={()=>triggerDeleteProduct(row.id,row.name)} title="Delete" className="h-[26px] w-[26px] flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"><Trash2 className="w-3.5 h-3.5"/></button>
+                            </div></td>}
+                            <td className="py-2 px-4 text-center">
+                              <button onClick={e=>{e.stopPropagation();toggleRow(row.id)}} className="h-[26px] px-2.5 text-[11px] font-bold text-slate-600 hover:bg-slate-200 rounded border border-[#E5E7EB] inline-flex items-center gap-1 select-none transition-all">
+                                {isExp?<><ChevronUp className="w-3 h-3"/>Hide</>:<><ChevronDown className="w-3 h-3"/>View</>}
+                              </button>
+                            </td>
+                          </tr>
+                          {isExp && <tr><td colSpan={canWrite?8:7} className="p-0"><ProductMovementPanel productId={row.id} currentStock={row.currentStock??0}/></td></tr>}
+                        </React.Fragment>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -449,6 +681,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
           <EnterpriseInput label="Product Name" placeholder="E.g., Aquora Premium 500ml" value={productFormName} onChange={e=>setProductFormName(e.target.value)} required/>
           <EnterpriseSelect label="Brand" value={productFormBrandId} onChange={e=>setProductFormBrandId(e.target.value)} required><option value="">Select a Brand</option>{(brands as any[]).map((b:any)=><option key={b.id} value={b.id}>{b.name}</option>)}</EnterpriseSelect>
           <EnterpriseInput label="SKU (Optional)" placeholder="E.g., AQ-500ML" value={productFormSKU} onChange={e=>setProductFormSKU(e.target.value)}/>
+          <EnterpriseInput type="number" step="0.01" label="Opening Stock (Cases)" placeholder="E.g., 100" value={productFormOpeningStock} onChange={e=>setProductFormOpeningStock(e.target.value)}/>
           <div className="flex items-center gap-2"><input type="checkbox" id="addPA" checked={productFormIsActive} onChange={e=>setProductFormIsActive(e.target.checked)} className="w-4 h-4 accent-blue-600"/><label htmlFor="addPA" className="text-xs font-semibold text-slate-700 cursor-pointer select-none">Active Product</label></div>
           <div className="flex justify-end gap-2 mt-2"><EnterpriseButton type="button" onClick={()=>setIsAddProductModalOpen(false)} variant="secondary">Cancel</EnterpriseButton><EnterpriseButton type="submit" variant="primary" disabled={createProductMutation.isPending}>{createProductMutation.isPending?'Saving...':'Add Product'}</EnterpriseButton></div>
         </form>
@@ -458,6 +691,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
           <EnterpriseInput label="Product Name" value={productFormName} onChange={e=>setProductFormName(e.target.value)} required/>
           <EnterpriseSelect label="Brand" value={productFormBrandId} onChange={e=>setProductFormBrandId(e.target.value)} required><option value="">Select a Brand</option>{(brands as any[]).map((b:any)=><option key={b.id} value={b.id}>{b.name}</option>)}</EnterpriseSelect>
           <EnterpriseInput label="SKU (Optional)" value={productFormSKU} onChange={e=>setProductFormSKU(e.target.value)}/>
+          <EnterpriseInput type="number" step="0.01" label="Current Stock (Cases)" value={productFormCurrentStock} onChange={e=>setProductFormCurrentStock(e.target.value)} required/>
           <div className="flex items-center gap-2"><input type="checkbox" id="editPA" checked={productFormIsActive} onChange={e=>setProductFormIsActive(e.target.checked)} className="w-4 h-4 accent-blue-600"/><label htmlFor="editPA" className="text-xs font-semibold text-slate-700 cursor-pointer select-none">Active Product</label></div>
           <div className="flex justify-end gap-2 mt-2"><EnterpriseButton type="button" onClick={()=>setIsEditProductModalOpen(false)} variant="secondary">Cancel</EnterpriseButton><EnterpriseButton type="submit" variant="primary" disabled={updateProductMutation.isPending}>{updateProductMutation.isPending?'Saving...':'Save Changes'}</EnterpriseButton></div>
         </form>
@@ -477,12 +711,53 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
           <EnterpriseInput label="Material Name" value={rawMaterialFormName} onChange={e=>setRawMaterialFormName(e.target.value)} required/>
           <EnterpriseSelect label="Category" value={rawMaterialFormCategory} onChange={e=>setRawMaterialFormCategory(e.target.value)} required>{Object.values(RAW_MATERIAL_CATEGORIES).map(cat=><option key={cat.value} value={cat.value}>{cat.label}</option>)}</EnterpriseSelect>
           <EnterpriseSelect label="Unit" value={rawMaterialFormUnit} onChange={e=>setRawMaterialFormUnit(e.target.value)} required>{['PIECE','KG','GRAM','ROLL','BOX','BAG','LITER','ML'].map(u=><option key={u} value={u}>{u}</option>)}</EnterpriseSelect>
-          <div className="grid grid-cols-2 gap-4">
+          <div>
             <EnterpriseInput type="number" step="0.01" label="Current Stock" value={rawMaterialFormCurrentStock} onChange={e=>setRawMaterialFormCurrentStock(e.target.value)} required/>
-            <EnterpriseInput type="number" step="0.01" label="Add Stock (Receipt)" placeholder="E.g., 40" value={rawMaterialFormStockAdjustment} onChange={e=>setRawMaterialFormStockAdjustment(e.target.value)}/>
           </div>
           <div className="flex items-center gap-2"><input type="checkbox" id="editMA" checked={rawMaterialFormIsActive} onChange={e=>setRawMaterialFormIsActive(e.target.checked)} className="w-4 h-4 accent-blue-600"/><label htmlFor="editMA" className="text-xs font-semibold text-slate-700 cursor-pointer select-none">Active Material</label></div>
           <div className="flex justify-end gap-2 mt-2"><EnterpriseButton type="button" onClick={()=>setIsEditRawMaterialModalOpen(false)} variant="secondary">Cancel</EnterpriseButton><EnterpriseButton type="submit" variant="primary" disabled={updateRawMaterialMutation.isPending}>{updateRawMaterialMutation.isPending?'Saving...':'Save Changes'}</EnterpriseButton></div>
+        </form>
+      </EnterpriseModal>
+
+      <EnterpriseModal isOpen={isAddStockModalOpen} onClose={()=>setIsAddStockModalOpen(false)} title="Add Raw Material Stock" maxWidth="sm">
+        <form onSubmit={handleAddStockSubmit} className="flex flex-col gap-4">
+          <EnterpriseSelect label="Raw Material" value={selectedAddStockMaterialId} onChange={e=>setSelectedAddStockMaterialId(e.target.value)} required>
+            <option value="">Select Raw Material</option>
+            {allMats.filter(m => m.isActive).map((m: any) => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </EnterpriseSelect>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <EnterpriseInput label="Current Stock" value={selectedAddStockMaterialId ? `${allMats.find(m => m.id === selectedAddStockMaterialId)?.currentStock ?? 0} ${allMats.find(m => m.id === selectedAddStockMaterialId)?.unit ?? ''}` : '—'} disabled />
+            <EnterpriseInput type="number" step="0.01" label="Quantity to Add" placeholder="E.g., 10" value={addStockFormQuantity} onChange={e=>setAddStockFormQuantity(e.target.value)} required />
+          </div>
+
+          {selectedAddStockMaterialId && (
+            <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 select-none text-[12px] flex items-center justify-between font-bold text-slate-700">
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Current Stock</span>
+                <span className="text-[14px] mt-0.5">{(allMats.find(m => m.id === selectedAddStockMaterialId)?.currentStock ?? 0)} {(allMats.find(m => m.id === selectedAddStockMaterialId)?.unit ?? '')}</span>
+              </div>
+              <span className="text-slate-400 text-[14px]">+</span>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Added Quantity</span>
+                <span className="text-[14px] mt-0.5 text-blue-600">{(parseFloat(addStockFormQuantity) || 0)} {(allMats.find(m => m.id === selectedAddStockMaterialId)?.unit ?? '')}</span>
+              </div>
+              <span className="text-slate-400 text-[14px]">=</span>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">New Stock</span>
+                <span className="text-[14px] mt-0.5 text-emerald-600">{(allMats.find(m => m.id === selectedAddStockMaterialId)?.currentStock ?? 0) + (parseFloat(addStockFormQuantity) || 0)} {(allMats.find(m => m.id === selectedAddStockMaterialId)?.unit ?? '')}</span>
+              </div>
+            </div>
+          )}
+
+          <EnterpriseInput label="Reason / Notes (Optional)" placeholder="E.g., Purchased from Supplier" value={addStockFormNotes} onChange={e=>setAddStockFormNotes(e.target.value)} />
+          
+          <div className="flex justify-end gap-2 mt-2">
+            <EnterpriseButton type="button" onClick={()=>setIsAddStockModalOpen(false)} variant="secondary">Cancel</EnterpriseButton>
+            <EnterpriseButton type="submit" variant="primary" disabled={addStockMutation.isPending}>{addStockMutation.isPending ? 'Processing...' : 'Add Stock'}</EnterpriseButton>
+          </div>
         </form>
       </EnterpriseModal>
       <EnterpriseModal isOpen={isAddBrandModalOpen} onClose={()=>setIsAddBrandModalOpen(false)} title="Add New Brand" maxWidth="sm">

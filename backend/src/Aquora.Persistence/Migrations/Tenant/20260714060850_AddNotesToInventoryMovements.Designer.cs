@@ -3,6 +3,7 @@ using System;
 using Aquora.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Aquora.Persistence.Migrations.Tenant
 {
     [DbContext(typeof(TenantDbContext))]
-    partial class TenantDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260714060850_AddNotesToInventoryMovements")]
+    partial class AddNotesToInventoryMovements
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -247,23 +250,16 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("DeletedBy")
                         .HasColumnType("text");
 
-                    b.Property<string>("InventoryType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
                     b.Property<string>("Notes")
                         .HasColumnType("text");
 
-                    b.Property<Guid?>("ProductId")
-                        .HasColumnType("uuid");
-
                     b.Property<decimal>("Quantity")
                         .HasColumnType("numeric");
 
-                    b.Property<Guid?>("RawMaterialId")
+                    b.Property<Guid>("RawMaterialId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("ReferenceId")
@@ -287,10 +283,6 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.HasIndex("CompanyId");
 
                     b.HasIndex("CreatedAt");
-
-                    b.HasIndex("InventoryType");
-
-                    b.HasIndex("ProductId");
 
                     b.HasIndex("RawMaterialId");
 
@@ -437,9 +429,6 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<decimal>("CurrentStock")
-                        .HasColumnType("numeric");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1438,17 +1427,13 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Aquora.Domain.Entities.Product", "Product")
-                        .WithMany()
-                        .HasForeignKey("ProductId");
-
                     b.HasOne("Aquora.Domain.Entities.RawMaterial", "RawMaterial")
                         .WithMany()
-                        .HasForeignKey("RawMaterialId");
+                        .HasForeignKey("RawMaterialId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Company");
-
-                    b.Navigation("Product");
 
                     b.Navigation("RawMaterial");
                 });

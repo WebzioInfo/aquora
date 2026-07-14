@@ -127,6 +127,10 @@ namespace Aquora.Persistence.Context
             modelBuilder.Entity<InventoryMovement>()
                 .HasIndex(im => im.RawMaterialId);
             modelBuilder.Entity<InventoryMovement>()
+                .HasIndex(im => im.ProductId);
+            modelBuilder.Entity<InventoryMovement>()
+                .HasIndex(im => im.InventoryType);
+            modelBuilder.Entity<InventoryMovement>()
                 .HasIndex(im => im.CompanyId);
 
             // ProductionEntry query indexing optimizations

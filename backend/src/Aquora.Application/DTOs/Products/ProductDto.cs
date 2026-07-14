@@ -10,6 +10,7 @@ namespace Aquora.Application.DTOs.Products
         public string BrandName { get; set; } = string.Empty;
         public string? SKU { get; set; }
         public bool IsActive { get; set; }
+        public decimal CurrentStock { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }

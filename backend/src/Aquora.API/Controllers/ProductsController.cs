@@ -19,11 +19,16 @@ namespace Aquora.API.Controllers
     {
         private readonly ITenantDbContext _tenantContext;
         private readonly ICurrentUserContext _currentUserContext;
+        private readonly IPlatformDbContext _platformContext;
 
-        public ProductsController(ITenantDbContext tenantContext, ICurrentUserContext currentUserContext)
+        public ProductsController(
+            ITenantDbContext tenantContext, 
+            ICurrentUserContext currentUserContext,
+            IPlatformDbContext platformContext)
         {
             _tenantContext = tenantContext;
             _currentUserContext = currentUserContext;
+            _platformContext = platformContext;
         }
 
         private bool IsAuthorizedToWrite()
@@ -64,6 +69,7 @@ namespace Aquora.API.Controllers
                         BrandName = p.Brand.Name,
                         SKU = p.SKU,
                         IsActive = p.IsActive,
+                        CurrentStock = p.CurrentStock,
                         CreatedAt = p.CreatedAt,
                         UpdatedAt = p.UpdatedAt
                     })
@@ -100,6 +106,7 @@ namespace Aquora.API.Controllers
                     BrandName = product.Brand.Name,
                     SKU = product.SKU,
                     IsActive = product.IsActive,
+                    CurrentStock = product.CurrentStock,
                     CreatedAt = product.CreatedAt,
                     UpdatedAt = product.UpdatedAt
                 };
@@ -133,6 +140,12 @@ namespace Aquora.API.Controllers
                     return BadRequest(ApiResponse<ProductDto>.CreateFailure("Selected brand does not exist.", "Validation Error", HttpContext.TraceIdentifier));
                 }
 
+                var company = await _tenantContext.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
+                if (company == null)
+                {
+                    return BadRequest(ApiResponse<ProductDto>.CreateFailure("Active company not found.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
                 var nameExists = await _tenantContext.Products.AnyAsync(p => p.BrandId == request.BrandId && p.Name.ToLower() == request.Name.Trim().ToLower() && !p.IsDeleted);
                 if (nameExists)
                 {
@@ -154,11 +167,50 @@ namespace Aquora.API.Controllers
                     Name = request.Name.Trim(),
                     BrandId = request.BrandId,
                     SKU = string.IsNullOrWhiteSpace(request.SKU) ? null : request.SKU.Trim(),
-                    IsActive = request.IsActive
+                    IsActive = request.IsActive,
+                    CurrentStock = request.OpeningStock ?? 0
                 };
 
-                _tenantContext.Products.Add(product);
-                await _tenantContext.SaveChangesAsync();
+                var dbContext = _tenantContext as DbContext;
+                if (dbContext == null)
+                {
+                    return BadRequest(ApiResponse<ProductDto>.CreateFailure("Database context is invalid.", "Infrastructure Error", HttpContext.TraceIdentifier));
+                }
+
+                using var transaction = await dbContext.Database.BeginTransactionAsync();
+                try
+                {
+                    _tenantContext.Products.Add(product);
+                    await _tenantContext.SaveChangesAsync();
+
+                    if (request.OpeningStock.HasValue && request.OpeningStock.Value > 0)
+                    {
+                        var movement = new InventoryMovement
+                        {
+                            Id = Guid.NewGuid(),
+                            ProductId = product.Id,
+                            RawMaterialId = null,
+                            Quantity = request.OpeningStock.Value,
+                            ReferenceType = "OpeningStock",
+                            ReferenceId = product.Id,
+                            InventoryType = "FinishedProduct",
+                            Notes = "Opening Stock",
+                            TenantId = _currentUserContext.TenantId,
+                            CompanyId = company.Id,
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedBy = _currentUserContext.UserId?.ToString() ?? "System"
+                        };
+                        _tenantContext.InventoryMovements.Add(movement);
+                        await _tenantContext.SaveChangesAsync();
+                    }
+
+                    await transaction.CommitAsync();
+                }
+                catch (Exception)
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
 
                 var dto = new ProductDto
                 {
@@ -168,6 +220,7 @@ namespace Aquora.API.Controllers
                     BrandName = brand.Name,
                     SKU = product.SKU,
                     IsActive = product.IsActive,
+                    CurrentStock = product.CurrentStock,
                     CreatedAt = product.CreatedAt,
                     UpdatedAt = product.UpdatedAt
                 };
@@ -207,6 +260,12 @@ namespace Aquora.API.Controllers
                     return BadRequest(ApiResponse<ProductDto>.CreateFailure("Selected brand does not exist.", "Validation Error", HttpContext.TraceIdentifier));
                 }
 
+                var company = await _tenantContext.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
+                if (company == null)
+                {
+                    return BadRequest(ApiResponse<ProductDto>.CreateFailure("Active company not found.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
                 var nameExists = await _tenantContext.Products.AnyAsync(p => p.Id != id && p.BrandId == request.BrandId && p.Name.ToLower() == request.Name.Trim().ToLower() && !p.IsDeleted);
                 if (nameExists)
                 {
@@ -222,12 +281,51 @@ namespace Aquora.API.Controllers
                     }
                 }
 
-                product.Name = request.Name.Trim();
-                product.BrandId = request.BrandId;
-                product.SKU = string.IsNullOrWhiteSpace(request.SKU) ? null : request.SKU.Trim();
-                product.IsActive = request.IsActive;
+                var dbContext = _tenantContext as DbContext;
+                if (dbContext == null)
+                {
+                    return BadRequest(ApiResponse<ProductDto>.CreateFailure("Database context is invalid.", "Infrastructure Error", HttpContext.TraceIdentifier));
+                }
 
-                await _tenantContext.SaveChangesAsync();
+                using var transaction = await dbContext.Database.BeginTransactionAsync();
+                try
+                {
+                    product.Name = request.Name.Trim();
+                    product.BrandId = request.BrandId;
+                    product.SKU = string.IsNullOrWhiteSpace(request.SKU) ? null : request.SKU.Trim();
+                    product.IsActive = request.IsActive;
+
+                    if (request.CurrentStock.HasValue && request.CurrentStock.Value != product.CurrentStock)
+                    {
+                        decimal diff = request.CurrentStock.Value - product.CurrentStock;
+                        product.CurrentStock = request.CurrentStock.Value;
+
+                        var movement = new InventoryMovement
+                        {
+                            Id = Guid.NewGuid(),
+                            ProductId = product.Id,
+                            RawMaterialId = null,
+                            Quantity = diff,
+                            ReferenceType = "StockAdjustment",
+                            ReferenceId = product.Id,
+                            InventoryType = "FinishedProduct",
+                            Notes = "Manual Stock Correction",
+                            TenantId = _currentUserContext.TenantId,
+                            CompanyId = company.Id,
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedBy = _currentUserContext.UserId?.ToString() ?? "System"
+                        };
+                        _tenantContext.InventoryMovements.Add(movement);
+                    }
+
+                    await _tenantContext.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                }
+                catch (Exception)
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
 
                 var dto = new ProductDto
                 {
@@ -237,6 +335,7 @@ namespace Aquora.API.Controllers
                     BrandName = brand.Name,
                     SKU = product.SKU,
                     IsActive = product.IsActive,
+                    CurrentStock = product.CurrentStock,
                     CreatedAt = product.CreatedAt,
                     UpdatedAt = product.UpdatedAt
                 };
@@ -313,36 +412,100 @@ namespace Aquora.API.Controllers
                     return NotFound(ApiResponse<PagedResult<InventoryMovementDto>>.CreateFailure("Product not found.", "Not Found", HttpContext.TraceIdentifier));
                 }
 
-                // Find all production entries for this product
-                var entryIds = await _tenantContext.ProductionEntries
-                    .Where(e => e.ProductId == id && !e.IsDeleted)
-                    .Select(e => e.Id)
+                // Compute ALL movements in chronological order for running balance
+                var allMovements = await _tenantContext.InventoryMovements
+                    .Where(m => m.ProductId == id && m.InventoryType == "FinishedProduct" && !m.IsDeleted)
+                    .OrderBy(m => m.CreatedAt)
+                    .Select(m => new
+                    {
+                        m.Id,
+                        m.Quantity,
+                        m.ReferenceType,
+                        m.CreatedAt,
+                        m.CreatedBy,
+                        m.Notes
+                    })
                     .ToListAsync();
 
-                // Get all inventory movements that reference these production entries
-                var query = _tenantContext.InventoryMovements
-                    .Include(m => m.RawMaterial)
-                    .Where(m => entryIds.Contains(m.ReferenceId) && m.ReferenceType == "ProductionEntry" && !m.IsDeleted);
+                // Compute running balance prefix-sum
+                decimal runningBalance = 0;
+                var withBalance = allMovements.Select(m =>
+                {
+                    runningBalance += m.Quantity;
+                    return new
+                    {
+                        m.Id,
+                        m.Quantity,
+                        m.ReferenceType,
+                        BalanceAfter = runningBalance,
+                        m.CreatedAt,
+                        m.CreatedBy,
+                        m.Notes
+                    };
+                }).ToList();
 
-                var totalCount = await query.CountAsync();
-                var items = await query
-                    .OrderByDescending(m => m.CreatedAt)
+                // Reverse so latest movement appears first for UI display
+                withBalance.Reverse();
+
+                var totalCount = withBalance.Count;
+                var pagedItems = withBalance
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
-                    .Select(m => new InventoryMovementDto
+                    .ToList();
+
+                // Look up operator names for the paged items only to prevent N+1 queries
+                var userIds = pagedItems
+                    .Select(m => m.CreatedBy)
+                    .Where(cb => !string.IsNullOrEmpty(cb) && Guid.TryParse(cb, out _))
+                    .Select(Guid.Parse)
+                    .Distinct()
+                    .ToList();
+
+                var usersMap = await _platformContext.Users
+                    .Where(u => userIds.Contains(u.Id))
+                    .Select(u => new { u.Id, u.FirstName, u.LastName, u.Username })
+                    .ToDictionaryAsync(u => u.Id, u => {
+                        var fullName = $"{u.FirstName} {u.LastName}".Trim();
+                        return !string.IsNullOrEmpty(fullName) ? fullName : (u.Username ?? "Unknown User");
+                    });
+
+                var pagedDto = pagedItems.Select(m =>
+                {
+                    string opName = "Unknown User";
+                    if (string.IsNullOrEmpty(m.CreatedBy))
+                    {
+                        opName = "Unknown User";
+                    }
+                    else if (m.CreatedBy.Equals("System", StringComparison.OrdinalIgnoreCase))
+                    {
+                        opName = "System";
+                    }
+                    else if (Guid.TryParse(m.CreatedBy, out var userGuid))
+                    {
+                        if (!usersMap.TryGetValue(userGuid, out opName))
+                        {
+                            opName = "Unknown User";
+                        }
+                    }
+                    else
+                    {
+                        opName = m.CreatedBy;
+                    }
+
+                    return new InventoryMovementDto
                     {
                         Id = m.Id,
                         Quantity = m.Quantity,
                         ReferenceType = m.ReferenceType ?? "Unknown",
-                        ReferenceId = m.ReferenceId,
-                        BalanceAfter = 0, // Product has no physical stock tracking, we show raw material change details
+                        BalanceAfter = m.BalanceAfter,
                         CreatedAt = m.CreatedAt,
-                        CreatedBy = m.CreatedBy ?? "System",
-                        Unit = m.RawMaterial.Unit
-                    })
-                    .ToListAsync();
+                        OperatorName = opName,
+                        Unit = "Cases",
+                        Notes = m.Notes
+                    };
+                }).ToList();
 
-                var result = new PagedResult<InventoryMovementDto>(items, totalCount, pageNumber, pageSize);
+                var result = new PagedResult<InventoryMovementDto>(pagedDto, totalCount, pageNumber, pageSize);
                 return Success(result, "Product movements retrieved successfully.");
             }
             catch (Exception ex)

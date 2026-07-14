@@ -418,8 +418,8 @@ export const OperatorDashboardPage: React.FC = () => {
         return
       }
 
-      if (parseFloat(capUsage) > 0 && !selectedCapId) {
-        showToast('Cap material must be selected when usage is entered.', 'error')
+      if ((parseFloat(capUsage) > 0 || parseFloat(capWastage) > 0) && !selectedCapId) {
+        showToast('Cap material must be selected when usage or wastage is entered.', 'error')
         resolve(false)
         return
       }
@@ -835,6 +835,10 @@ export const OperatorDashboardPage: React.FC = () => {
       return
     }
 
+    if ((parseFloat(capUsage) > 0 || parseFloat(capWastage) > 0) && !selectedCapId) {
+      showToast('Cap material must be selected when usage or wastage is entered.', 'error')
+      return
+    }
 
     submitEntryMutation.mutate({
       productionLineId: selectedLine.lineId,
@@ -843,6 +847,10 @@ export const OperatorDashboardPage: React.FC = () => {
       preformMaterialId: selectedPreformId,
       preformUsage: parseFloat(preformUsage) || 0,
       preformWastage: parseFloat(preformWastage) || 0,
+
+      capMaterialId: selectedCapId || null,
+      capUsage: parseFloat(capUsage) || 0,
+      capWastage: parseFloat(capWastage) || 0,
 
       labelMaterialId: selectedLabelId,
       labelUsage: parseFloat(labelUsage) || 0,

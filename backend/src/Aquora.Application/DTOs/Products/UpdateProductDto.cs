@@ -16,5 +16,6 @@ namespace Aquora.Application.DTOs.Products
         public string? SKU { get; set; }
 
         public bool IsActive { get; set; }
+        public decimal? CurrentStock { get; set; }
     }
 }

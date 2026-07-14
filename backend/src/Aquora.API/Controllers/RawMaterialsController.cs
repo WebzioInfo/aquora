@@ -23,15 +23,18 @@ namespace Aquora.API.Controllers
         private readonly ITenantDbContext _tenantContext;
         private readonly ICurrentUserContext _currentUserContext;
         private readonly ILogger<RawMaterialsController> _logger;
+        private readonly IPlatformDbContext _platformContext;
 
         public RawMaterialsController(
             ITenantDbContext tenantContext, 
             ICurrentUserContext currentUserContext,
-            ILogger<RawMaterialsController> logger)
+            ILogger<RawMaterialsController> logger,
+            IPlatformDbContext platformContext)
         {
             _tenantContext = tenantContext;
             _currentUserContext = currentUserContext;
             _logger = logger;
+            _platformContext = platformContext;
         }
 
         private bool IsAuthorizedToWrite()
@@ -321,24 +324,7 @@ namespace Aquora.API.Controllers
                             Quantity = diff,
                             ReferenceType = "StockAdjustment",
                             ReferenceId = rawMaterial.Id,
-                            TenantId = tenantId,
-                            CompanyId = company.Id,
-                            CreatedAt = DateTime.UtcNow,
-                            CreatedBy = userIdStr
-                        };
-                        _tenantContext.InventoryMovements.Add(movement);
-                    }
-                    else if (request.StockAdjustment.HasValue && request.StockAdjustment.Value != 0)
-                    {
-                        rawMaterial.CurrentStock += request.StockAdjustment.Value;
-                        
-                        var movement = new InventoryMovement
-                        {
-                            Id = Guid.NewGuid(),
-                            RawMaterialId = rawMaterial.Id,
-                            Quantity = request.StockAdjustment.Value,
-                            ReferenceType = "StockAdjustment",
-                            ReferenceId = rawMaterial.Id,
+                            Notes = "Manual Stock Correction",
                             TenantId = tenantId,
                             CompanyId = company.Id,
                             CreatedAt = DateTime.UtcNow,
@@ -420,6 +406,81 @@ namespace Aquora.API.Controllers
             }
         }
 
+        [HttpPost("{id:guid}/add-stock")]
+        public async Task<ActionResult<ApiResponse<RawMaterialDto>>> AddStock(Guid id, [FromBody] AddStockDto request)
+        {
+            if (!IsAuthorizedToWrite())
+            {
+                return StatusCode(403, ApiResponse<RawMaterialDto>.CreateFailure("You do not have permission to perform this action.", "Forbidden", HttpContext.TraceIdentifier));
+            }
+
+            if (request.Quantity <= 0)
+            {
+                return BadRequest(ApiResponse<RawMaterialDto>.CreateFailure("Quantity to add must be greater than zero.", "Validation Error", HttpContext.TraceIdentifier));
+            }
+
+            var dbContext = _tenantContext as DbContext;
+            if (dbContext == null)
+            {
+                return BadRequest(ApiResponse<RawMaterialDto>.CreateFailure("Database context is invalid.", "Infrastructure Error", HttpContext.TraceIdentifier));
+            }
+
+            using var transaction = await dbContext.Database.BeginTransactionAsync();
+            try
+            {
+                var rawMaterial = await _tenantContext.RawMaterials.FirstOrDefaultAsync(rm => rm.Id == id && !rm.IsDeleted);
+                if (rawMaterial == null)
+                {
+                    return NotFound(ApiResponse<RawMaterialDto>.CreateFailure("Raw material not found.", "Not Found", HttpContext.TraceIdentifier));
+                }
+
+                if (!rawMaterial.IsActive)
+                {
+                    return BadRequest(ApiResponse<RawMaterialDto>.CreateFailure("Cannot add stock to an inactive raw material.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                rawMaterial.CurrentStock += request.Quantity;
+
+                var movement = new InventoryMovement
+                {
+                    Id = Guid.NewGuid(),
+                    RawMaterialId = rawMaterial.Id,
+                    Quantity = request.Quantity,
+                    ReferenceType = "StockAdded",
+                    ReferenceId = rawMaterial.Id,
+                    Notes = request.Notes?.Trim(),
+                    TenantId = _currentUserContext.TenantId,
+                    CompanyId = rawMaterial.CompanyId,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = _currentUserContext.UserId?.ToString() ?? "System"
+                };
+
+                _tenantContext.InventoryMovements.Add(movement);
+
+                await _tenantContext.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                var dto = new RawMaterialDto
+                {
+                    Id = rawMaterial.Id,
+                    Name = rawMaterial.Name,
+                    Category = rawMaterial.Category,
+                    Unit = rawMaterial.Unit,
+                    IsActive = rawMaterial.IsActive,
+                    CurrentStock = rawMaterial.CurrentStock,
+                    CreatedAt = rawMaterial.CreatedAt,
+                    UpdatedAt = rawMaterial.UpdatedAt
+                };
+
+                return Success(dto, "Stock added successfully.");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return Failure<RawMaterialDto>(ex.Message, "Failed to add stock.");
+            }
+        }
+
         /// <summary>
         /// Returns paginated inventory movements for a specific raw material,
         /// including a running stock balance computed across all movements (chronological order).
@@ -446,9 +507,9 @@ namespace Aquora.API.Controllers
                         m.Id,
                         m.Quantity,
                         m.ReferenceType,
-                        m.ReferenceId,
                         m.CreatedAt,
-                        m.CreatedBy
+                        m.CreatedBy,
+                        m.Notes
                     })
                     .ToListAsync();
 
@@ -457,16 +518,15 @@ namespace Aquora.API.Controllers
                 var withBalance = allMovements.Select(m =>
                 {
                     runningBalance += m.Quantity;
-                    return new InventoryMovementDto
+                    return new
                     {
-                        Id = m.Id,
-                        Quantity = m.Quantity,
-                        ReferenceType = m.ReferenceType ?? "Unknown",
-                        ReferenceId = m.ReferenceId,
+                        m.Id,
+                        m.Quantity,
+                        m.ReferenceType,
                         BalanceAfter = runningBalance,
-                        CreatedAt = m.CreatedAt,
-                        CreatedBy = m.CreatedBy ?? "System",
-                        Unit = material.Unit
+                        m.CreatedAt,
+                        m.CreatedBy,
+                        m.Notes
                     };
                 }).ToList();
 
@@ -474,12 +534,64 @@ namespace Aquora.API.Controllers
                 withBalance.Reverse();
 
                 var totalCount = withBalance.Count;
-                var paged = withBalance
+                var pagedItems = withBalance
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
                     .ToList();
 
-                var result = new PagedResult<InventoryMovementDto>(paged, totalCount, pageNumber, pageSize);
+                // Look up operator names for the paged items only to prevent N+1 queries
+                var userIds = pagedItems
+                    .Select(m => m.CreatedBy)
+                    .Where(cb => !string.IsNullOrEmpty(cb) && Guid.TryParse(cb, out _))
+                    .Select(Guid.Parse)
+                    .Distinct()
+                    .ToList();
+
+                var usersMap = await _platformContext.Users
+                    .Where(u => userIds.Contains(u.Id))
+                    .Select(u => new { u.Id, u.FirstName, u.LastName, u.Username })
+                    .ToDictionaryAsync(u => u.Id, u => {
+                        var fullName = $"{u.FirstName} {u.LastName}".Trim();
+                        return !string.IsNullOrEmpty(fullName) ? fullName : (u.Username ?? "Unknown User");
+                    });
+
+                var pagedDto = pagedItems.Select(m =>
+                {
+                    string opName = "Unknown User";
+                    if (string.IsNullOrEmpty(m.CreatedBy))
+                    {
+                        opName = "Unknown User";
+                    }
+                    else if (m.CreatedBy.Equals("System", StringComparison.OrdinalIgnoreCase))
+                    {
+                        opName = "System";
+                    }
+                    else if (Guid.TryParse(m.CreatedBy, out var userGuid))
+                    {
+                        if (!usersMap.TryGetValue(userGuid, out opName))
+                        {
+                            opName = "Unknown User";
+                        }
+                    }
+                    else
+                    {
+                        opName = m.CreatedBy;
+                    }
+
+                    return new InventoryMovementDto
+                    {
+                        Id = m.Id,
+                        Quantity = m.Quantity,
+                        ReferenceType = m.ReferenceType ?? "Unknown",
+                        BalanceAfter = m.BalanceAfter,
+                        CreatedAt = m.CreatedAt,
+                        OperatorName = opName,
+                        Unit = material.Unit,
+                        Notes = m.Notes
+                    };
+                }).ToList();
+
+                var result = new PagedResult<InventoryMovementDto>(pagedDto, totalCount, pageNumber, pageSize);
                 return Success(result, "Inventory movements retrieved successfully.");
             }
             catch (Exception ex)
@@ -561,11 +673,11 @@ namespace Aquora.API.Controllers
         public Guid Id { get; set; }
         public decimal Quantity { get; set; }
         public string ReferenceType { get; set; } = string.Empty;
-        public Guid ReferenceId { get; set; }
         public decimal BalanceAfter { get; set; }
         public DateTime CreatedAt { get; set; }
-        public string CreatedBy { get; set; } = string.Empty;
+        public string OperatorName { get; set; } = string.Empty;
         public string Unit { get; set; } = string.Empty;
+        public string? Notes { get; set; }
     }
 }
 

@@ -1,0 +1,1272 @@
+2026-07-14 12:49:27.470 +05:30 [INF] --------------------------------------------------
+2026-07-14 12:49:27.530 +05:30 [INF] PHASE 3: Application Startup Connection Audit Details:
+2026-07-14 12:49:27.532 +05:30 [INF]   Environment: Development
+2026-07-14 12:49:27.536 +05:30 [INF]   Database Host: aws-1-ap-northeast-2.pooler.supabase.com
+2026-07-14 12:49:27.537 +05:30 [INF]   Database Name: postgres
+2026-07-14 12:49:27.538 +05:30 [INF]   Database User: postgres.lxwherkjkjuhmfqzrziw
+2026-07-14 12:49:27.540 +05:30 [INF]   Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-14 12:49:27.542 +05:30 [INF]   Resolved Connection String (Masked): Host=aws-1-ap-northeast-2.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.lxwherkjkjuhmfqzrziw;Password=********;SSL Mode=Require;Trust Server Certificate=True;Command Timeout=120
+2026-07-14 12:49:27.545 +05:30 [INF]   Configuration Source: Microsoft.Extensions.Configuration.ChainedConfigurationProvider
+2026-07-14 12:49:27.549 +05:30 [INF]   Loaded Appsettings files: appsettings.json (true), appsettings.Development.json (true)
+2026-07-14 12:49:27.555 +05:30 [INF]   Loaded Environment Variables:
+2026-07-14 12:49:27.557 +05:30 [INF]     ASPNETCORE_ENVIRONMENT: Development
+2026-07-14 12:49:27.558 +05:30 [INF]     DOTNET_ENVIRONMENT: Not Set
+2026-07-14 12:49:27.559 +05:30 [INF]     DATABASE_URL: Not Set
+2026-07-14 12:49:27.560 +05:30 [INF]     POSTGRES_CONNECTION: Not Set
+2026-07-14 12:49:27.562 +05:30 [INF]     SUPABASE_DB: Not Set
+2026-07-14 12:49:27.564 +05:30 [INF]     SUPABASE_URL: Not Set
+2026-07-14 12:49:27.565 +05:30 [INF]     ConnectionStrings:DefaultConnection: Set (value masked)
+2026-07-14 12:49:27.566 +05:30 [INF]     ConnectionStrings:TenantConnection: Not Set
+2026-07-14 12:49:27.567 +05:30 [INF] --------------------------------------------------
+2026-07-14 12:49:29.588 +05:30 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2026-07-14 12:49:30.010 +05:30 [INF] Initializing database connection. Host: aws-1-ap-northeast-2.pooler.supabase.com, Port: 5432, Database: postgres, Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-14 12:49:30.104 +05:30 [INF] Verifying database connectivity (OpenConnectionAsync)...
+2026-07-14 12:49:32.119 +05:30 [INF] 
+--------------------------------------------------
+PHASE 4: Active Database Instance Verification:
+  Current Database (SQL): postgres
+  Current Schema (SQL): public
+  Search Path (SQL): "\$user", public, extensions
+  Postgres Version: PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit
+  Inet Server Address: 2406:da12:557:f800:2a6a:9e72:b9e4:5b46
+  Inet Server Port: 5432
+--------------------------------------------------
+2026-07-14 12:49:32.164 +05:30 [INF] Database connectivity verified successfully.
+2026-07-14 12:49:32.166 +05:30 [INF] Executing Platform Database Migrations (public schema)...
+2026-07-14 12:49:32.415 +05:30 [INF] Executed DbCommand (165ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:32.654 +05:30 [INF] Executed DbCommand (148ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:49:33.068 +05:30 [INF] Executed DbCommand (156ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:49:33.463 +05:30 [INF] Executed DbCommand (185ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE "__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:49:33.668 +05:30 [INF] Executed DbCommand (195ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:33.874 +05:30 [INF] Platform Database Migrations applied successfully.
+2026-07-14 12:49:33.876 +05:30 [INF] Executing Tenant Database Migrations for active tenants...
+2026-07-14 12:49:34.477 +05:30 [INF] Executed DbCommand (169ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy"
+FROM public."Tenants" AS t
+WHERE t."IsActive" AND NOT (t."IsDeleted")
+2026-07-14 12:49:34.630 +05:30 [INF] --- Platform Database Dump (public schema) ---
+2026-07-14 12:49:34.632 +05:30 [INF] Total Tenants found: 19
+2026-07-14 12:49:34.633 +05:30 [INF]   Tenant: ID="6d4f040f-ac0a-45be-a85e-59b8afb09da3", Name='Finished Goods Corp', Code='FINISHED_GOODS_CORP_2', Schema='aquora_tenant_finished_goods_corp_3', Created="2026-07-14T06:34:51.0003670Z"
+2026-07-14 12:49:34.635 +05:30 [INF]   Tenant: ID="492d57dd-5f94-4c12-92a1-987437ab9f74", Name='Cap Corp', Code='CAP_CORP_8', Schema='aquora_tenant_cap_corp_9', Created="2026-07-14T07:13:50.2975360Z"
+2026-07-14 12:49:34.638 +05:30 [INF]   Tenant: ID="ca0fa020-2a12-4db8-95b4-03571187e858", Name='Antigravity Industries', Code='ANTIGRAVITY_INDUSTRIES', Schema='aquora_tenant_antigravity_industries', Created="2026-07-13T09:54:12.8051130Z"
+2026-07-14 12:49:34.640 +05:30 [INF]   Tenant: ID="e5dcc38e-31e5-4226-b768-9057fdb05e76", Name='Diagnostic LLC', Code='DIAGNOSTIC_LLC_3', Schema='aquora_tenant_e5dcc38e31e54226b7689057fdb05e76', Created="2026-07-03T05:31:53.7570670Z"
+2026-07-14 12:49:34.642 +05:30 [INF]   Tenant: ID="9a251616-5f07-4e53-9061-5e6de1b8e1c9", Name='Forensic Supabase Inc', Code='FORENSIC_SUPABASE_INC', Schema='aquora_tenant_forensic_supabase_inc', Created="2026-07-11T10:35:54.9500940Z"
+2026-07-14 12:49:34.644 +05:30 [INF]   Tenant: ID="8e04ce44-9751-4b78-bb4a-3c2af9744636", Name='Test Company', Code='TEST_COMPANY', Schema='aquora_tenant_test_company', Created="2026-07-11T10:45:26.7877220Z"
+2026-07-14 12:49:34.646 +05:30 [INF]   Tenant: ID="068f2f21-6c9b-44ff-af1c-b221c483dd10", Name='Cap Corp', Code='CAP_CORP_10', Schema='aquora_tenant_cap_corp_11', Created="2026-07-14T07:17:07.7413280Z"
+2026-07-14 12:49:34.648 +05:30 [INF]   Tenant: ID="a92d6180-e6cb-45f5-9494-8dd2912c1f7c", Name='Cap Corp', Code='CAP_CORP_3', Schema='aquora_tenant_cap_corp_4', Created="2026-07-14T07:00:42.8507970Z"
+2026-07-14 12:49:34.650 +05:30 [INF]   Tenant: ID="1569cb0a-8380-4e07-83e5-85be393933fc", Name='Cap Corp', Code='CAP_CORP', Schema='aquora_tenant_cap_corp', Created="2026-07-14T06:54:19.0212220Z"
+2026-07-14 12:49:34.652 +05:30 [INF]   Tenant: ID="dc7ed213-0232-4fb7-901d-f31bc6d0ec1c", Name='Test Company', Code='TEST_COMPANY_1', Schema='aquora_tenant_test_company_2', Created="2026-07-11T11:17:26.6106360Z"
+2026-07-14 12:49:34.655 +05:30 [INF]   Tenant: ID="0be2754c-de93-408d-8af3-106d1acc0262", Name='Finished Goods Corp', Code='FINISHED_GOODS_CORP', Schema='aquora_tenant_finished_goods_corp', Created="2026-07-14T06:32:29.0971330Z"
+2026-07-14 12:49:34.657 +05:30 [INF]   Tenant: ID="45617ff1-2c90-4460-95a9-6c484c1d6b62", Name='Cap Corp', Code='CAP_CORP_6', Schema='aquora_tenant_cap_corp_7', Created="2026-07-14T07:05:54.6932930Z"
+2026-07-14 12:49:34.659 +05:30 [INF]   Tenant: ID="e3e5324c-c19f-487c-bf4e-8b5fa694bce0", Name='Finished Goods Corp', Code='FINISHED_GOODS_CORP_1', Schema='aquora_tenant_finished_goods_corp_2', Created="2026-07-14T06:33:11.1918970Z"
+2026-07-14 12:49:34.661 +05:30 [INF]   Tenant: ID="27990c9f-4264-4e14-9f18-e1c998eee3f6", Name='Cap Corp', Code='CAP_CORP_1', Schema='aquora_tenant_cap_corp_2', Created="2026-07-14T06:55:10.0812560Z"
+2026-07-14 12:49:34.663 +05:30 [INF]   Tenant: ID="aa82a45e-d6be-4caa-8fd9-ddbac5dbcafb", Name='Cap Corp', Code='CAP_CORP_4', Schema='aquora_tenant_cap_corp_5', Created="2026-07-14T07:02:34.4462970Z"
+2026-07-14 12:49:34.665 +05:30 [INF]   Tenant: ID="160b9591-038f-4197-9295-4d4c669ea62d", Name='Cap Corp', Code='CAP_CORP_9', Schema='aquora_tenant_cap_corp_10', Created="2026-07-14T07:15:32.6060570Z"
+2026-07-14 12:49:34.668 +05:30 [INF]   Tenant: ID="4e3b2ab7-1e3f-462f-a2ef-3cdecf3c11bf", Name='Cap Corp', Code='CAP_CORP_7', Schema='aquora_tenant_cap_corp_8', Created="2026-07-14T07:07:09.7465220Z"
+2026-07-14 12:49:34.672 +05:30 [INF]   Tenant: ID="c140cb5e-db19-44c3-81ce-85c9619ce3b9", Name='Cap Corp', Code='CAP_CORP_2', Schema='aquora_tenant_cap_corp_3', Created="2026-07-14T06:58:24.9212010Z"
+2026-07-14 12:49:34.682 +05:30 [INF]   Tenant: ID="fab05144-e6d5-4703-bb9e-2b6790d0ed76", Name='Cap Corp', Code='CAP_CORP_5', Schema='aquora_tenant_cap_corp_6', Created="2026-07-14T07:03:54.8814320Z"
+2026-07-14 12:49:34.844 +05:30 [INF] Executed DbCommand (141ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."AssignedProductionLineId", u."CreatedAt", u."CreatedBy", u."DeletedAt", u."DeletedBy", u."Department", u."Email", u."EmailVerified", u."EmailVerifiedAt", u."FirstName", u."IsActive", u."IsDeleted", u."IsPlatformAdmin", u."LastLoginAt", u."LastName", u."PasswordHash", u."PinHash", u."RefreshToken", u."RefreshTokenExpiryTime", u."TenantId", u."TokenVersion", u."UpdatedAt", u."UpdatedBy", u."Username"
+FROM public."Users" AS u
+WHERE NOT (u."IsDeleted")
+2026-07-14 12:49:34.943 +05:30 [INF] Total Users found: 20
+2026-07-14 12:49:34.944 +05:30 [INF]   User: ID="230a80c6-87fa-4cb9-b0be-21a78d59b2f4", Name='E2E Cap Tester', Email='test_cap_1784012292323@testcompany.com', TenantId="c140cb5e-db19-44c3-81ce-85c9619ce3b9", Created="2026-07-14T06:58:18.9476580Z"
+2026-07-14 12:49:34.946 +05:30 [INF]   User: ID="afb263d0-23fa-4832-896f-a9e8460feb4b", Name='E2E Finished Product Tester', Email='test_inv_1784010879835@testcompany.com', TenantId="6d4f040f-ac0a-45be-a85e-59b8afb09da3", Created="2026-07-14T06:34:45.6281430Z"
+2026-07-14 12:49:34.948 +05:30 [INF]   User: ID="77dea347-5267-4e92-863f-25f7c168a7f7", Name='Antigravity Test', Email='antigravity_test_1713@company.com', TenantId="ca0fa020-2a12-4db8-95b4-03571187e858", Created="2026-07-13T09:51:03.4481890Z"
+2026-07-14 12:49:34.950 +05:30 [INF]   User: ID="58345418-ad9d-4e6a-bae7-1c72de1fe6db", Name='E2E Finished Product Tester', Email='test_inv_1784010662811@testcompany.com', TenantId=null, Created="2026-07-14T06:31:10.0536800Z"
+2026-07-14 12:49:34.952 +05:30 [INF]   User: ID="31d6783b-3607-4849-9ffb-7de14e8b23b2", Name='Muhammed Sinan', Email='sinan@aquora-tenant.com', TenantId="dc7ed213-0232-4fb7-901d-f31bc6d0ec1c", Created="2026-07-11T11:38:49.1279640Z"
+2026-07-14 12:49:34.955 +05:30 [INF]   User: ID="0b0c32fc-9765-4c6b-9eb2-07966dc2f840", Name='System Administrator', Email='admin@aquora.com', TenantId=null, Created="2026-07-02T11:11:43.1468580Z"
+2026-07-14 12:49:34.957 +05:30 [INF]   User: ID="a4b2c243-96ab-4bcc-9987-9c87c15bd67a", Name='E2E Finished Product Tester', Email='test_inv_1784010737148@testcompany.com', TenantId="0be2754c-de93-408d-8af3-106d1acc0262", Created="2026-07-14T06:32:23.7247590Z"
+2026-07-14 12:49:34.959 +05:30 [INF]   User: ID="197f8c88-2634-4a7e-9a39-bb9279a8c920", Name='Sinan ', Email='test@company.com', TenantId="dc7ed213-0232-4fb7-901d-f31bc6d0ec1c", Created="2026-07-11T11:17:02.6559760Z"
+2026-07-14 12:49:34.961 +05:30 [INF]   User: ID="a9801914-27e2-403a-bd70-76194bc39871", Name='E2E Finished Product Tester', Email='test_inv_1784010780236@testcompany.com', TenantId="e3e5324c-c19f-487c-bf4e-8b5fa694bce0", Created="2026-07-14T06:33:05.8287190Z"
+2026-07-14 12:49:34.963 +05:30 [INF]   User: ID="b69f4b47-3511-45b0-a56b-ee24f8051b8b", Name='E2E Cap Tester', Email='test_cap_1784012048724@testcompany.com', TenantId="1569cb0a-8380-4e07-83e5-85be393933fc", Created="2026-07-14T06:54:14.4174430Z"
+2026-07-14 12:49:34.965 +05:30 [INF]   User: ID="60999db0-60d8-47bb-97ee-c7ca39e1d171", Name='E2E Cap Tester', Email='test_cap_1784012100285@testcompany.com', TenantId="27990c9f-4264-4e14-9f18-e1c998eee3f6", Created="2026-07-14T06:55:05.3217220Z"
+2026-07-14 12:49:34.967 +05:30 [INF]   User: ID="ff47c008-c578-4af3-b50d-4c5dc44d4c2c", Name='E2E Cap Tester', Email='test_cap_1784012432233@testcompany.com', TenantId="a92d6180-e6cb-45f5-9494-8dd2912c1f7c", Created="2026-07-14T07:00:37.2369700Z"
+2026-07-14 12:49:34.969 +05:30 [INF]   User: ID="14212c9b-2819-480e-9d93-81f79810f95c", Name='Forensic Tester', Email='forensic_user_1783766144934@supabaseinc.com', TenantId="9a251616-5f07-4e53-9061-5e6de1b8e1c9", Created="2026-07-11T10:35:47.5751520Z"
+2026-07-14 12:49:34.976 +05:30 [INF]   User: ID="ba84ab10-b1d4-47ad-a035-55893144bdd5", Name='E2E Cap Tester', Email='test_cap_1784012743170@testcompany.com', TenantId="45617ff1-2c90-4460-95a9-6c484c1d6b62", Created="2026-07-14T07:05:48.3885750Z"
+2026-07-14 12:49:34.979 +05:30 [INF]   User: ID="d353676d-ddc6-4f73-8e08-5e9f84fe2672", Name='E2E Cap Tester', Email='test_cap_1784012542871@testcompany.com', TenantId="aa82a45e-d6be-4caa-8fd9-ddbac5dbcafb", Created="2026-07-14T07:02:27.9134240Z"
+2026-07-14 12:49:34.981 +05:30 [INF]   User: ID="53ce7761-8ab6-4016-9ddc-555db38881f8", Name='E2E Cap Tester', Email='test_cap_1784012624009@testcompany.com', TenantId="fab05144-e6d5-4703-bb9e-2b6790d0ed76", Created="2026-07-14T07:03:48.7623430Z"
+2026-07-14 12:49:34.983 +05:30 [INF]   User: ID="135e9d9b-5f8f-4e29-9da4-bf95fc47c770", Name='E2E Cap Tester', Email='test_cap_1784013215910@testcompany.com', TenantId="492d57dd-5f94-4c12-92a1-987437ab9f74", Created="2026-07-14T07:13:42.6625440Z"
+2026-07-14 12:49:34.986 +05:30 [INF]   User: ID="29a31b78-afe4-440f-9b96-5cb4fe713c1e", Name='E2E Cap Tester', Email='test_cap_1784012817776@testcompany.com', TenantId="4e3b2ab7-1e3f-462f-a2ef-3cdecf3c11bf", Created="2026-07-14T07:07:02.8044160Z"
+2026-07-14 12:49:34.989 +05:30 [INF]   User: ID="0d1e6aab-29d3-4fe3-9c25-92a82285c6bd", Name='E2E Cap Tester', Email='test_cap_1784013319722@testcompany.com', TenantId="160b9591-038f-4197-9295-4d4c669ea62d", Created="2026-07-14T07:15:24.5733540Z"
+2026-07-14 12:49:34.991 +05:30 [INF]   User: ID="7670b3a7-7692-4d5c-a6b5-640dc3c38868", Name='E2E Cap Tester', Email='test_cap_1784013414400@testcompany.com', TenantId="068f2f21-6c9b-44ff-af1c-b221c483dd10", Created="2026-07-14T07:16:59.3793410Z"
+2026-07-14 12:49:34.993 +05:30 [INF] ----------------------------------------------
+2026-07-14 12:49:34.994 +05:30 [INF] Migrating tenant: Finished Goods Corp (Schema: aquora_tenant_finished_goods_corp_3)...
+2026-07-14 12:49:35.478 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:35.481 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:35.482 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:35.485 +05:30 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2026-07-14 12:49:35.718 +05:30 [INF] Executed DbCommand (147ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_finished_goods_corp_3."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:35.921 +05:30 [INF] Executed DbCommand (197ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:49:36.077 +05:30 [INF] Executed DbCommand (146ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_finished_goods_corp_3') THEN
+        CREATE SCHEMA aquora_tenant_finished_goods_corp_3;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_finished_goods_corp_3."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:49:36.362 +05:30 [INF] Executed DbCommand (140ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_finished_goods_corp_3."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:49:36.504 +05:30 [INF] Executed DbCommand (139ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_finished_goods_corp_3."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:36.842 +05:30 [INF] Executed DbCommand (155ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_finished_goods_corp_3."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:49:36.849 +05:30 [INF] Tenant Finished Goods Corp migrated successfully.
+2026-07-14 12:49:36.850 +05:30 [INF] Migrating tenant: Cap Corp (Schema: aquora_tenant_cap_corp_9)...
+2026-07-14 12:49:37.084 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:37.086 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:37.088 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:37.266 +05:30 [INF] Executed DbCommand (150ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_9."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:37.411 +05:30 [INF] Executed DbCommand (141ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:49:37.559 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_cap_corp_9') THEN
+        CREATE SCHEMA aquora_tenant_cap_corp_9;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_cap_corp_9."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:49:37.906 +05:30 [INF] Executed DbCommand (151ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_cap_corp_9."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:49:38.048 +05:30 [INF] Executed DbCommand (140ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_9."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:38.379 +05:30 [INF] Executed DbCommand (158ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_cap_corp_9."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:49:38.381 +05:30 [INF] Tenant Cap Corp migrated successfully.
+2026-07-14 12:49:38.381 +05:30 [INF] Migrating tenant: Antigravity Industries (Schema: aquora_tenant_antigravity_industries)...
+2026-07-14 12:49:38.608 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:38.609 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:38.611 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:38.844 +05:30 [INF] Executed DbCommand (143ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_antigravity_industries."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:38.990 +05:30 [INF] Executed DbCommand (144ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:49:39.141 +05:30 [INF] Executed DbCommand (144ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_antigravity_industries') THEN
+        CREATE SCHEMA aquora_tenant_antigravity_industries;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_antigravity_industries."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:49:39.504 +05:30 [INF] Executed DbCommand (200ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_antigravity_industries."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:49:39.655 +05:30 [INF] Executed DbCommand (148ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_antigravity_industries."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:39.968 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_antigravity_industries."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:49:39.970 +05:30 [INF] Tenant Antigravity Industries migrated successfully.
+2026-07-14 12:49:39.971 +05:30 [INF] Migrating tenant: Diagnostic LLC (Schema: aquora_tenant_e5dcc38e31e54226b7689057fdb05e76)...
+2026-07-14 12:49:40.090 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:40.092 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:40.093 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:40.296 +05:30 [INF] Executed DbCommand (185ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_e5dcc38e31e54226b7689057fdb05e76."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:40.438 +05:30 [INF] Executed DbCommand (140ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:49:40.631 +05:30 [INF] Executed DbCommand (185ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_e5dcc38e31e54226b7689057fdb05e76') THEN
+        CREATE SCHEMA aquora_tenant_e5dcc38e31e54226b7689057fdb05e76;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_e5dcc38e31e54226b7689057fdb05e76."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:49:41.041 +05:30 [INF] Executed DbCommand (206ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_e5dcc38e31e54226b7689057fdb05e76."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:49:41.246 +05:30 [INF] Executed DbCommand (202ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_e5dcc38e31e54226b7689057fdb05e76."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:41.617 +05:30 [INF] Executed DbCommand (156ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_e5dcc38e31e54226b7689057fdb05e76."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:49:41.620 +05:30 [INF] Tenant Diagnostic LLC migrated successfully.
+2026-07-14 12:49:41.620 +05:30 [INF] Migrating tenant: Forensic Supabase Inc (Schema: aquora_tenant_forensic_supabase_inc)...
+2026-07-14 12:49:41.746 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:41.748 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:41.750 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:41.935 +05:30 [INF] Executed DbCommand (175ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_forensic_supabase_inc."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:42.078 +05:30 [INF] Executed DbCommand (140ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:49:42.277 +05:30 [INF] Executed DbCommand (194ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_forensic_supabase_inc') THEN
+        CREATE SCHEMA aquora_tenant_forensic_supabase_inc;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_forensic_supabase_inc."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:49:42.646 +05:30 [INF] Executed DbCommand (172ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_forensic_supabase_inc."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:49:42.790 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_forensic_supabase_inc."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:43.158 +05:30 [INF] Executed DbCommand (192ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_forensic_supabase_inc."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:49:43.160 +05:30 [INF] Tenant Forensic Supabase Inc migrated successfully.
+2026-07-14 12:49:43.160 +05:30 [INF] Migrating tenant: Test Company (Schema: aquora_tenant_test_company)...
+2026-07-14 12:49:43.236 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:43.237 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:43.238 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:43.394 +05:30 [INF] Executed DbCommand (143ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_test_company."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:43.558 +05:30 [INF] Executed DbCommand (161ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:49:43.700 +05:30 [INF] Executed DbCommand (139ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_test_company') THEN
+        CREATE SCHEMA aquora_tenant_test_company;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_test_company."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:49:44.115 +05:30 [INF] Executed DbCommand (207ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_test_company."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:49:44.301 +05:30 [INF] Executed DbCommand (184ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_test_company."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:44.695 +05:30 [INF] Executed DbCommand (176ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_test_company."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:49:44.698 +05:30 [INF] Tenant Test Company migrated successfully.
+2026-07-14 12:49:44.698 +05:30 [INF] Migrating tenant: Cap Corp (Schema: aquora_tenant_cap_corp_11)...
+2026-07-14 12:49:44.750 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:44.751 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:44.752 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:44.940 +05:30 [INF] Executed DbCommand (171ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_11."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:45.137 +05:30 [INF] Executed DbCommand (194ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:49:45.342 +05:30 [INF] Executed DbCommand (201ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_cap_corp_11') THEN
+        CREATE SCHEMA aquora_tenant_cap_corp_11;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_cap_corp_11."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:49:45.734 +05:30 [INF] Executed DbCommand (188ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_cap_corp_11."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:49:45.886 +05:30 [INF] Executed DbCommand (149ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_11."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:46.230 +05:30 [INF] Executed DbCommand (192ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_cap_corp_11."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:49:46.232 +05:30 [INF] Tenant Cap Corp migrated successfully.
+2026-07-14 12:49:46.232 +05:30 [INF] Migrating tenant: Cap Corp (Schema: aquora_tenant_cap_corp_4)...
+2026-07-14 12:49:46.282 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:46.284 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:46.285 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:46.477 +05:30 [INF] Executed DbCommand (186ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_4."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:46.626 +05:30 [INF] Executed DbCommand (145ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:49:46.769 +05:30 [INF] Executed DbCommand (140ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_cap_corp_4') THEN
+        CREATE SCHEMA aquora_tenant_cap_corp_4;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_cap_corp_4."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:49:47.078 +05:30 [INF] Executed DbCommand (144ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_cap_corp_4."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:49:47.219 +05:30 [INF] Executed DbCommand (139ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_4."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:47.526 +05:30 [INF] Executed DbCommand (148ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_cap_corp_4."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:49:47.529 +05:30 [INF] Tenant Cap Corp migrated successfully.
+2026-07-14 12:49:47.529 +05:30 [INF] Migrating tenant: Cap Corp (Schema: aquora_tenant_cap_corp)...
+2026-07-14 12:49:47.583 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:47.585 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:47.586 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:47.742 +05:30 [INF] Executed DbCommand (147ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:47.886 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:49:48.039 +05:30 [INF] Executed DbCommand (150ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_cap_corp') THEN
+        CREATE SCHEMA aquora_tenant_cap_corp;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_cap_corp."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:49:48.317 +05:30 [INF] Executed DbCommand (138ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_cap_corp."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:49:48.516 +05:30 [INF] Executed DbCommand (197ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:48.830 +05:30 [INF] Executed DbCommand (145ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_cap_corp."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:49:48.832 +05:30 [INF] Tenant Cap Corp migrated successfully.
+2026-07-14 12:49:48.833 +05:30 [INF] Migrating tenant: Test Company (Schema: aquora_tenant_test_company_2)...
+2026-07-14 12:49:48.895 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:48.896 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:48.898 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:49.054 +05:30 [INF] Executed DbCommand (149ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_test_company_2."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:49.197 +05:30 [INF] Executed DbCommand (140ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:49:49.341 +05:30 [INF] Executed DbCommand (141ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_test_company_2') THEN
+        CREATE SCHEMA aquora_tenant_test_company_2;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_test_company_2."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:49:49.643 +05:30 [INF] Executed DbCommand (144ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_test_company_2."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:49:49.814 +05:30 [INF] Executed DbCommand (169ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_test_company_2."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:50.154 +05:30 [INF] Executed DbCommand (184ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_test_company_2."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:49:50.448 +05:30 [INF] Executed DbCommand (190ms) [Parameters=[@rm_Id='ebc93720-6138-4117-8e02-22be83ac223e' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_test_company_2."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 12:49:50.606 +05:30 [INF] Executed DbCommand (148ms) [Parameters=[@rm_Id='508479d2-3545-4a66-aea6-3f53a853e397' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_test_company_2."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 12:49:50.749 +05:30 [INF] Executed DbCommand (140ms) [Parameters=[@rm_Id='3627dbf4-64ae-4668-9a7b-942f2ed730f6' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_test_company_2."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 12:49:50.903 +05:30 [INF] Executed DbCommand (152ms) [Parameters=[@rm_Id='9320f114-a1d4-492a-8631-8027bd80b4ff' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_test_company_2."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 12:49:51.047 +05:30 [INF] Executed DbCommand (140ms) [Parameters=[@rm_Id='b49ac9d4-63d1-45c5-9483-84c060b29f8c' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_test_company_2."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 12:49:51.190 +05:30 [INF] Executed DbCommand (141ms) [Parameters=[@rm_Id='f61510c7-845c-49c9-8d93-2351bb6309e2' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_test_company_2."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 12:49:51.192 +05:30 [INF] Tenant Test Company migrated successfully.
+2026-07-14 12:49:51.193 +05:30 [INF] Migrating tenant: Finished Goods Corp (Schema: aquora_tenant_finished_goods_corp)...
+2026-07-14 12:49:51.276 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:51.277 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:51.279 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:51.432 +05:30 [INF] Executed DbCommand (145ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_finished_goods_corp."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:51.574 +05:30 [INF] Executed DbCommand (140ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:49:51.745 +05:30 [INF] Executed DbCommand (168ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_finished_goods_corp') THEN
+        CREATE SCHEMA aquora_tenant_finished_goods_corp;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_finished_goods_corp."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:49:52.091 +05:30 [INF] Executed DbCommand (200ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_finished_goods_corp."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:49:52.306 +05:30 [INF] Executed DbCommand (213ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_finished_goods_corp."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:52.714 +05:30 [INF] Executed DbCommand (217ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_finished_goods_corp."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:49:52.716 +05:30 [INF] Tenant Finished Goods Corp migrated successfully.
+2026-07-14 12:49:52.717 +05:30 [INF] Migrating tenant: Cap Corp (Schema: aquora_tenant_cap_corp_7)...
+2026-07-14 12:49:52.768 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:52.770 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:52.771 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:52.933 +05:30 [INF] Executed DbCommand (154ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_7."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:53.092 +05:30 [INF] Executed DbCommand (157ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:49:53.233 +05:30 [INF] Executed DbCommand (138ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_cap_corp_7') THEN
+        CREATE SCHEMA aquora_tenant_cap_corp_7;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_cap_corp_7."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:49:53.542 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_cap_corp_7."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:49:53.712 +05:30 [INF] Executed DbCommand (169ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_7."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:54.097 +05:30 [INF] Executed DbCommand (176ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_cap_corp_7."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:49:54.099 +05:30 [INF] Tenant Cap Corp migrated successfully.
+2026-07-14 12:49:54.100 +05:30 [INF] Migrating tenant: Finished Goods Corp (Schema: aquora_tenant_finished_goods_corp_2)...
+2026-07-14 12:49:54.162 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:54.164 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:54.165 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:54.365 +05:30 [INF] Executed DbCommand (193ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_finished_goods_corp_2."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:54.519 +05:30 [INF] Executed DbCommand (152ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:49:54.662 +05:30 [INF] Executed DbCommand (140ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_finished_goods_corp_2') THEN
+        CREATE SCHEMA aquora_tenant_finished_goods_corp_2;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_finished_goods_corp_2."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:49:55.031 +05:30 [INF] Executed DbCommand (182ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_finished_goods_corp_2."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:49:55.173 +05:30 [INF] Executed DbCommand (140ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_finished_goods_corp_2."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:55.549 +05:30 [INF] Executed DbCommand (191ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_finished_goods_corp_2."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:49:55.551 +05:30 [INF] Tenant Finished Goods Corp migrated successfully.
+2026-07-14 12:49:55.552 +05:30 [INF] Migrating tenant: Cap Corp (Schema: aquora_tenant_cap_corp_2)...
+2026-07-14 12:49:55.599 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:55.601 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:55.605 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:55.798 +05:30 [INF] Executed DbCommand (187ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_2."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:55.942 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:49:56.086 +05:30 [INF] Executed DbCommand (141ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_cap_corp_2') THEN
+        CREATE SCHEMA aquora_tenant_cap_corp_2;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_cap_corp_2."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:49:56.503 +05:30 [INF] Executed DbCommand (204ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_cap_corp_2."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:49:56.718 +05:30 [INF] Executed DbCommand (213ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_2."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:57.119 +05:30 [INF] Executed DbCommand (194ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_cap_corp_2."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:49:57.123 +05:30 [INF] Tenant Cap Corp migrated successfully.
+2026-07-14 12:49:57.124 +05:30 [INF] Migrating tenant: Cap Corp (Schema: aquora_tenant_cap_corp_5)...
+2026-07-14 12:49:57.177 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:57.179 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:57.181 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:57.331 +05:30 [INF] Executed DbCommand (143ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_5."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:57.528 +05:30 [INF] Executed DbCommand (194ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:49:57.717 +05:30 [INF] Executed DbCommand (185ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_cap_corp_5') THEN
+        CREATE SCHEMA aquora_tenant_cap_corp_5;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_cap_corp_5."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:49:58.027 +05:30 [INF] Executed DbCommand (139ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_cap_corp_5."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:49:58.193 +05:30 [INF] Executed DbCommand (164ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_5."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:58.552 +05:30 [INF] Executed DbCommand (203ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_cap_corp_5."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:49:58.554 +05:30 [INF] Tenant Cap Corp migrated successfully.
+2026-07-14 12:49:58.555 +05:30 [INF] Migrating tenant: Cap Corp (Schema: aquora_tenant_cap_corp_10)...
+2026-07-14 12:49:58.623 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:58.625 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:58.626 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:49:58.801 +05:30 [INF] Executed DbCommand (166ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_10."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:58.942 +05:30 [INF] Executed DbCommand (139ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:49:59.136 +05:30 [INF] Executed DbCommand (190ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_cap_corp_10') THEN
+        CREATE SCHEMA aquora_tenant_cap_corp_10;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_cap_corp_10."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:49:59.473 +05:30 [INF] Executed DbCommand (196ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_cap_corp_10."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:49:59.679 +05:30 [INF] Executed DbCommand (204ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_10."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:49:59.983 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_cap_corp_10."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:49:59.985 +05:30 [INF] Tenant Cap Corp migrated successfully.
+2026-07-14 12:49:59.986 +05:30 [INF] Migrating tenant: Cap Corp (Schema: aquora_tenant_cap_corp_8)...
+2026-07-14 12:50:00.035 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:50:00.036 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:50:00.037 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:50:00.190 +05:30 [INF] Executed DbCommand (146ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_8."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:50:00.357 +05:30 [INF] Executed DbCommand (165ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:50:00.499 +05:30 [INF] Executed DbCommand (139ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_cap_corp_8') THEN
+        CREATE SCHEMA aquora_tenant_cap_corp_8;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_cap_corp_8."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:50:00.868 +05:30 [INF] Executed DbCommand (165ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_cap_corp_8."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:50:01.009 +05:30 [INF] Executed DbCommand (140ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_8."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:50:01.349 +05:30 [INF] Executed DbCommand (157ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_cap_corp_8."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:50:01.351 +05:30 [INF] Tenant Cap Corp migrated successfully.
+2026-07-14 12:50:01.351 +05:30 [INF] Migrating tenant: Cap Corp (Schema: aquora_tenant_cap_corp_3)...
+2026-07-14 12:50:01.411 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:50:01.412 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:50:01.414 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:50:01.581 +05:30 [INF] Executed DbCommand (161ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_3."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:50:01.726 +05:30 [INF] Executed DbCommand (143ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:50:01.872 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_cap_corp_3') THEN
+        CREATE SCHEMA aquora_tenant_cap_corp_3;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_cap_corp_3."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:50:02.154 +05:30 [INF] Executed DbCommand (141ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_cap_corp_3."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:50:02.614 +05:30 [INF] Executed DbCommand (458ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_3."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:50:02.922 +05:30 [INF] Executed DbCommand (154ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_cap_corp_3."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:50:02.924 +05:30 [INF] Tenant Cap Corp migrated successfully.
+2026-07-14 12:50:02.925 +05:30 [INF] Migrating tenant: Cap Corp (Schema: aquora_tenant_cap_corp_6)...
+2026-07-14 12:50:02.965 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:50:02.967 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:50:02.968 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 12:50:03.160 +05:30 [INF] Executed DbCommand (187ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_6."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:50:03.303 +05:30 [INF] Executed DbCommand (140ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 12:50:03.467 +05:30 [INF] Executed DbCommand (161ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_cap_corp_6') THEN
+        CREATE SCHEMA aquora_tenant_cap_corp_6;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_cap_corp_6."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 12:50:03.783 +05:30 [INF] Executed DbCommand (139ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_cap_corp_6."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 12:50:03.939 +05:30 [INF] Executed DbCommand (155ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_6."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 12:50:04.286 +05:30 [INF] Executed DbCommand (194ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_cap_corp_6."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 12:50:04.288 +05:30 [INF] Tenant Cap Corp migrated successfully.
+2026-07-14 12:50:04.289 +05:30 [INF] Tenant Database Migrations completed.
+2026-07-14 12:50:04.289 +05:30 [INF] Starting Aquora API SaaS Foundation host...
+2026-07-14 12:50:04.328 +05:30 [INF] Tenant Provisioning Background Worker started.
+2026-07-14 12:50:04.417 +05:30 [ERR] Hosting failed to start
+System.IO.IOException: Failed to bind to address http://127.0.0.1:5000: address already in use.
+ ---> Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.
+ ---> System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.
+   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)
+   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)
+   at System.Net.Sockets.Socket.Bind(EndPoint localEP)
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+   --- End of inner exception stack trace ---
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.<>c__DisplayClass28_0`1.<<StartAsync>g__OnBind|0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+2026-07-14 12:50:04.439 +05:30 [INF] Tenant Provisioning Background Worker stopped.
+2026-07-14 12:50:04.441 +05:30 [FTL] Host terminated unexpectedly
+System.IO.IOException: Failed to bind to address http://127.0.0.1:5000: address already in use.
+ ---> Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.
+ ---> System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.
+   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)
+   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)
+   at System.Net.Sockets.Socket.Bind(EndPoint localEP)
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+   --- End of inner exception stack trace ---
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.<>c__DisplayClass28_0`1.<<StartAsync>g__OnBind|0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.Run(IHost host)
+   at Program.<Main>$(String[] args) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Program.cs:line 347
+2026-07-14 13:40:50.055 +05:30 [INF] --------------------------------------------------
+2026-07-14 13:40:50.144 +05:30 [INF] PHASE 3: Application Startup Connection Audit Details:
+2026-07-14 13:40:50.146 +05:30 [INF]   Environment: Development
+2026-07-14 13:40:50.151 +05:30 [INF]   Database Host: aws-1-ap-northeast-2.pooler.supabase.com
+2026-07-14 13:40:50.151 +05:30 [INF]   Database Name: postgres
+2026-07-14 13:40:50.151 +05:30 [INF]   Database User: postgres.lxwherkjkjuhmfqzrziw
+2026-07-14 13:40:50.151 +05:30 [INF]   Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-14 13:40:50.152 +05:30 [INF]   Resolved Connection String (Masked): Host=aws-1-ap-northeast-2.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.lxwherkjkjuhmfqzrziw;Password=********;SSL Mode=Require;Trust Server Certificate=True;Command Timeout=120
+2026-07-14 13:40:50.152 +05:30 [INF]   Configuration Source: Microsoft.Extensions.Configuration.ChainedConfigurationProvider
+2026-07-14 13:40:50.154 +05:30 [INF]   Loaded Appsettings files: appsettings.json (true), appsettings.Development.json (true)
+2026-07-14 13:40:50.158 +05:30 [INF]   Loaded Environment Variables:
+2026-07-14 13:40:50.158 +05:30 [INF]     ASPNETCORE_ENVIRONMENT: Development
+2026-07-14 13:40:50.158 +05:30 [INF]     DOTNET_ENVIRONMENT: Not Set
+2026-07-14 13:40:50.158 +05:30 [INF]     DATABASE_URL: Not Set
+2026-07-14 13:40:50.158 +05:30 [INF]     POSTGRES_CONNECTION: Not Set
+2026-07-14 13:40:50.158 +05:30 [INF]     SUPABASE_DB: Not Set
+2026-07-14 13:40:50.158 +05:30 [INF]     SUPABASE_URL: Not Set
+2026-07-14 13:40:50.158 +05:30 [INF]     ConnectionStrings:DefaultConnection: Set (value masked)
+2026-07-14 13:40:50.158 +05:30 [INF]     ConnectionStrings:TenantConnection: Not Set
+2026-07-14 13:40:50.158 +05:30 [INF] --------------------------------------------------
+2026-07-14 13:40:53.899 +05:30 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2026-07-14 13:40:54.311 +05:30 [INF] Initializing database connection. Host: aws-1-ap-northeast-2.pooler.supabase.com, Port: 5432, Database: postgres, Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-14 13:40:54.313 +05:30 [INF] Verifying database connectivity (OpenConnectionAsync)...
+2026-07-14 13:40:56.550 +05:30 [INF] 
+--------------------------------------------------
+PHASE 4: Active Database Instance Verification:
+  Current Database (SQL): postgres
+  Current Schema (SQL): public
+  Search Path (SQL): "\$user", public, extensions
+  Postgres Version: PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit
+  Inet Server Address: 2406:da12:557:f800:2a6a:9e72:b9e4:5b46
+  Inet Server Port: 5432
+--------------------------------------------------
+2026-07-14 13:40:56.575 +05:30 [INF] Database connectivity verified successfully.
+2026-07-14 13:40:56.575 +05:30 [INF] Executing Platform Database Migrations (public schema)...
+2026-07-14 13:40:56.806 +05:30 [INF] Executed DbCommand (158ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 13:40:57.027 +05:30 [INF] Executed DbCommand (160ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 13:40:57.472 +05:30 [INF] Executed DbCommand (156ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 13:40:57.920 +05:30 [INF] Executed DbCommand (178ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE "__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 13:40:58.067 +05:30 [INF] Executed DbCommand (145ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 13:40:58.230 +05:30 [INF] Platform Database Migrations applied successfully.
+2026-07-14 13:40:58.230 +05:30 [INF] Executing Tenant Database Migrations for active tenants...
+2026-07-14 13:40:59.441 +05:30 [INF] Executed DbCommand (190ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy"
+FROM public."Tenants" AS t
+WHERE t."IsActive" AND NOT (t."IsDeleted")
+2026-07-14 13:40:59.960 +05:30 [INF] --- Platform Database Dump (public schema) ---
+2026-07-14 13:40:59.961 +05:30 [INF] Total Tenants found: 29
+2026-07-14 13:40:59.962 +05:30 [INF]   Tenant: ID="04804ac3-955b-4aea-9a31-1220e1899319", Name='Cap Corp', Code='CAP_CORP_13', Schema='aquora_tenant_cap_corp_14', Created="2026-07-14T07:30:25.1298170Z"
+2026-07-14 13:40:59.963 +05:30 [INF]   Tenant: ID="6d4f040f-ac0a-45be-a85e-59b8afb09da3", Name='Finished Goods Corp', Code='FINISHED_GOODS_CORP_2', Schema='aquora_tenant_finished_goods_corp_3', Created="2026-07-14T06:34:51.0003670Z"
+2026-07-14 13:40:59.964 +05:30 [INF]   Tenant: ID="492d57dd-5f94-4c12-92a1-987437ab9f74", Name='Cap Corp', Code='CAP_CORP_8', Schema='aquora_tenant_cap_corp_9', Created="2026-07-14T07:13:50.2975360Z"
+2026-07-14 13:40:59.964 +05:30 [INF]   Tenant: ID="ca0fa020-2a12-4db8-95b4-03571187e858", Name='Antigravity Industries', Code='ANTIGRAVITY_INDUSTRIES', Schema='aquora_tenant_antigravity_industries', Created="2026-07-13T09:54:12.8051130Z"
+2026-07-14 13:40:59.964 +05:30 [INF]   Tenant: ID="e5dcc38e-31e5-4226-b768-9057fdb05e76", Name='Diagnostic LLC', Code='DIAGNOSTIC_LLC_3', Schema='aquora_tenant_e5dcc38e31e54226b7689057fdb05e76', Created="2026-07-03T05:31:53.7570670Z"
+2026-07-14 13:40:59.964 +05:30 [INF]   Tenant: ID="9a251616-5f07-4e53-9061-5e6de1b8e1c9", Name='Forensic Supabase Inc', Code='FORENSIC_SUPABASE_INC', Schema='aquora_tenant_forensic_supabase_inc', Created="2026-07-11T10:35:54.9500940Z"
+2026-07-14 13:40:59.964 +05:30 [INF]   Tenant: ID="8e04ce44-9751-4b78-bb4a-3c2af9744636", Name='Test Company', Code='TEST_COMPANY', Schema='aquora_tenant_test_company', Created="2026-07-11T10:45:26.7877220Z"
+2026-07-14 13:40:59.964 +05:30 [INF]   Tenant: ID="068f2f21-6c9b-44ff-af1c-b221c483dd10", Name='Cap Corp', Code='CAP_CORP_10', Schema='aquora_tenant_cap_corp_11', Created="2026-07-14T07:17:07.7413280Z"
+2026-07-14 13:40:59.964 +05:30 [INF]   Tenant: ID="a92d6180-e6cb-45f5-9494-8dd2912c1f7c", Name='Cap Corp', Code='CAP_CORP_3', Schema='aquora_tenant_cap_corp_4', Created="2026-07-14T07:00:42.8507970Z"
+2026-07-14 13:40:59.964 +05:30 [INF]   Tenant: ID="1569cb0a-8380-4e07-83e5-85be393933fc", Name='Cap Corp', Code='CAP_CORP', Schema='aquora_tenant_cap_corp', Created="2026-07-14T06:54:19.0212220Z"
+2026-07-14 13:40:59.964 +05:30 [INF]   Tenant: ID="dc7ed213-0232-4fb7-901d-f31bc6d0ec1c", Name='Test Company', Code='TEST_COMPANY_1', Schema='aquora_tenant_test_company_2', Created="2026-07-11T11:17:26.6106360Z"
+2026-07-14 13:40:59.964 +05:30 [INF]   Tenant: ID="0be2754c-de93-408d-8af3-106d1acc0262", Name='Finished Goods Corp', Code='FINISHED_GOODS_CORP', Schema='aquora_tenant_finished_goods_corp', Created="2026-07-14T06:32:29.0971330Z"
+2026-07-14 13:40:59.964 +05:30 [INF]   Tenant: ID="45617ff1-2c90-4460-95a9-6c484c1d6b62", Name='Cap Corp', Code='CAP_CORP_6', Schema='aquora_tenant_cap_corp_7', Created="2026-07-14T07:05:54.6932930Z"
+2026-07-14 13:40:59.964 +05:30 [INF]   Tenant: ID="59491ff9-d9c7-413f-a1ea-19004c2047f4", Name='Cap Corp', Code='CAP_CORP_18', Schema='aquora_tenant_cap_corp_19', Created="2026-07-14T07:45:54.7010350Z"
+2026-07-14 13:40:59.964 +05:30 [INF]   Tenant: ID="e3e5324c-c19f-487c-bf4e-8b5fa694bce0", Name='Finished Goods Corp', Code='FINISHED_GOODS_CORP_1', Schema='aquora_tenant_finished_goods_corp_2', Created="2026-07-14T06:33:11.1918970Z"
+2026-07-14 13:40:59.964 +05:30 [INF]   Tenant: ID="27990c9f-4264-4e14-9f18-e1c998eee3f6", Name='Cap Corp', Code='CAP_CORP_1', Schema='aquora_tenant_cap_corp_2', Created="2026-07-14T06:55:10.0812560Z"
+2026-07-14 13:40:59.965 +05:30 [INF]   Tenant: ID="bab0e597-4ed5-4d3c-a1cc-4fdbce1721c5", Name='Cap Corp', Code='CAP_CORP_12', Schema='aquora_tenant_cap_corp_13', Created="2026-07-14T07:28:42.4205600Z"
+2026-07-14 13:40:59.965 +05:30 [INF]   Tenant: ID="aa82a45e-d6be-4caa-8fd9-ddbac5dbcafb", Name='Cap Corp', Code='CAP_CORP_4', Schema='aquora_tenant_cap_corp_5', Created="2026-07-14T07:02:34.4462970Z"
+2026-07-14 13:40:59.965 +05:30 [INF]   Tenant: ID="160b9591-038f-4197-9295-4d4c669ea62d", Name='Cap Corp', Code='CAP_CORP_9', Schema='aquora_tenant_cap_corp_10', Created="2026-07-14T07:15:32.6060570Z"
+2026-07-14 13:40:59.965 +05:30 [INF]   Tenant: ID="4e3b2ab7-1e3f-462f-a2ef-3cdecf3c11bf", Name='Cap Corp', Code='CAP_CORP_7', Schema='aquora_tenant_cap_corp_8', Created="2026-07-14T07:07:09.7465220Z"
+2026-07-14 13:40:59.965 +05:30 [INF]   Tenant: ID="c140cb5e-db19-44c3-81ce-85c9619ce3b9", Name='Cap Corp', Code='CAP_CORP_2', Schema='aquora_tenant_cap_corp_3', Created="2026-07-14T06:58:24.9212010Z"
+2026-07-14 13:40:59.965 +05:30 [INF]   Tenant: ID="fab05144-e6d5-4703-bb9e-2b6790d0ed76", Name='Cap Corp', Code='CAP_CORP_5', Schema='aquora_tenant_cap_corp_6', Created="2026-07-14T07:03:54.8814320Z"
+2026-07-14 13:40:59.965 +05:30 [INF]   Tenant: ID="c106cb51-4377-4bec-b453-1d0ade2817e7", Name='Cap Corp', Code='CAP_CORP_11', Schema='aquora_tenant_cap_corp_12', Created="2026-07-14T07:26:49.2065450Z"
+2026-07-14 13:40:59.965 +05:30 [INF]   Tenant: ID="6ceb0679-5acf-45cb-983c-b9dcb955fd3a", Name='Cap Corp', Code='CAP_CORP_19', Schema='aquora_tenant_cap_corp_20', Created="2026-07-14T07:47:38.5623570Z"
+2026-07-14 13:41:00.076 +05:30 [INF]   Tenant: ID="276f8b0e-68a7-4188-a915-faad2db1e152", Name='Cap Corp', Code='CAP_CORP_16', Schema='aquora_tenant_cap_corp_17', Created="2026-07-14T07:36:39.7726890Z"
+2026-07-14 13:41:00.076 +05:30 [INF]   Tenant: ID="ae826dcf-c82d-4274-ad7a-0269b0b7076d", Name='Cap Corp', Code='CAP_CORP_15', Schema='aquora_tenant_cap_corp_16', Created="2026-07-14T07:34:15.0726590Z"
+2026-07-14 13:41:00.076 +05:30 [INF]   Tenant: ID="4fcfa2bd-7af7-465b-86e7-11e8bd026e5e", Name='Cap Corp', Code='CAP_CORP_14', Schema='aquora_tenant_cap_corp_15', Created="2026-07-14T07:32:27.4432740Z"
+2026-07-14 13:41:00.076 +05:30 [INF]   Tenant: ID="b39f9952-545f-4b4f-8353-eea708c81637", Name='Cap Corp', Code='CAP_CORP_17', Schema='aquora_tenant_cap_corp_18', Created="2026-07-14T07:41:33.2628820Z"
+2026-07-14 13:41:00.076 +05:30 [INF]   Tenant: ID="32b37d28-a533-4b2d-adec-3d16c9f6e044", Name='Cap Corp', Code='CAP_CORP_20', Schema='aquora_tenant_cap_corp_21', Created="2026-07-14T07:49:55.8298390Z"
+2026-07-14 13:41:00.280 +05:30 [INF] Executed DbCommand (182ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."AssignedProductionLineId", u."CreatedAt", u."CreatedBy", u."DeletedAt", u."DeletedBy", u."Department", u."Email", u."EmailVerified", u."EmailVerifiedAt", u."FirstName", u."IsActive", u."IsDeleted", u."IsPlatformAdmin", u."LastLoginAt", u."LastName", u."PasswordHash", u."PinHash", u."RefreshToken", u."RefreshTokenExpiryTime", u."TenantId", u."TokenVersion", u."UpdatedAt", u."UpdatedBy", u."Username"
+FROM public."Users" AS u
+WHERE NOT (u."IsDeleted")
+2026-07-14 13:41:00.507 +05:30 [INF] Total Users found: 30
+2026-07-14 13:41:00.508 +05:30 [INF]   User: ID="230a80c6-87fa-4cb9-b0be-21a78d59b2f4", Name='E2E Cap Tester', Email='test_cap_1784012292323@testcompany.com', TenantId="c140cb5e-db19-44c3-81ce-85c9619ce3b9", Created="2026-07-14T06:58:18.9476580Z"
+2026-07-14 13:41:00.509 +05:30 [INF]   User: ID="afb263d0-23fa-4832-896f-a9e8460feb4b", Name='E2E Finished Product Tester', Email='test_inv_1784010879835@testcompany.com', TenantId="6d4f040f-ac0a-45be-a85e-59b8afb09da3", Created="2026-07-14T06:34:45.6281430Z"
+2026-07-14 13:41:00.509 +05:30 [INF]   User: ID="77dea347-5267-4e92-863f-25f7c168a7f7", Name='Antigravity Test', Email='antigravity_test_1713@company.com', TenantId="ca0fa020-2a12-4db8-95b4-03571187e858", Created="2026-07-13T09:51:03.4481890Z"
+2026-07-14 13:41:00.509 +05:30 [INF]   User: ID="58345418-ad9d-4e6a-bae7-1c72de1fe6db", Name='E2E Finished Product Tester', Email='test_inv_1784010662811@testcompany.com', TenantId=null, Created="2026-07-14T06:31:10.0536800Z"
+2026-07-14 13:41:00.511 +05:30 [INF]   User: ID="31d6783b-3607-4849-9ffb-7de14e8b23b2", Name='Muhammed Sinan', Email='sinan@aquora-tenant.com', TenantId="dc7ed213-0232-4fb7-901d-f31bc6d0ec1c", Created="2026-07-11T11:38:49.1279640Z"
+2026-07-14 13:41:00.511 +05:30 [INF]   User: ID="0b0c32fc-9765-4c6b-9eb2-07966dc2f840", Name='System Administrator', Email='admin@aquora.com', TenantId=null, Created="2026-07-02T11:11:43.1468580Z"
+2026-07-14 13:41:00.511 +05:30 [INF]   User: ID="a4b2c243-96ab-4bcc-9987-9c87c15bd67a", Name='E2E Finished Product Tester', Email='test_inv_1784010737148@testcompany.com', TenantId="0be2754c-de93-408d-8af3-106d1acc0262", Created="2026-07-14T06:32:23.7247590Z"
+2026-07-14 13:41:00.512 +05:30 [INF]   User: ID="197f8c88-2634-4a7e-9a39-bb9279a8c920", Name='Sinan ', Email='test@company.com', TenantId="dc7ed213-0232-4fb7-901d-f31bc6d0ec1c", Created="2026-07-11T11:17:02.6559760Z"
+2026-07-14 13:41:00.512 +05:30 [INF]   User: ID="a9801914-27e2-403a-bd70-76194bc39871", Name='E2E Finished Product Tester', Email='test_inv_1784010780236@testcompany.com', TenantId="e3e5324c-c19f-487c-bf4e-8b5fa694bce0", Created="2026-07-14T06:33:05.8287190Z"
+2026-07-14 13:41:00.512 +05:30 [INF]   User: ID="b69f4b47-3511-45b0-a56b-ee24f8051b8b", Name='E2E Cap Tester', Email='test_cap_1784012048724@testcompany.com', TenantId="1569cb0a-8380-4e07-83e5-85be393933fc", Created="2026-07-14T06:54:14.4174430Z"
+2026-07-14 13:41:00.512 +05:30 [INF]   User: ID="60999db0-60d8-47bb-97ee-c7ca39e1d171", Name='E2E Cap Tester', Email='test_cap_1784012100285@testcompany.com', TenantId="27990c9f-4264-4e14-9f18-e1c998eee3f6", Created="2026-07-14T06:55:05.3217220Z"
+2026-07-14 13:41:00.512 +05:30 [INF]   User: ID="ff47c008-c578-4af3-b50d-4c5dc44d4c2c", Name='E2E Cap Tester', Email='test_cap_1784012432233@testcompany.com', TenantId="a92d6180-e6cb-45f5-9494-8dd2912c1f7c", Created="2026-07-14T07:00:37.2369700Z"
+2026-07-14 13:41:00.512 +05:30 [INF]   User: ID="14212c9b-2819-480e-9d93-81f79810f95c", Name='Forensic Tester', Email='forensic_user_1783766144934@supabaseinc.com', TenantId="9a251616-5f07-4e53-9061-5e6de1b8e1c9", Created="2026-07-11T10:35:47.5751520Z"
+2026-07-14 13:41:00.512 +05:30 [INF]   User: ID="ba84ab10-b1d4-47ad-a035-55893144bdd5", Name='E2E Cap Tester', Email='test_cap_1784012743170@testcompany.com', TenantId="45617ff1-2c90-4460-95a9-6c484c1d6b62", Created="2026-07-14T07:05:48.3885750Z"
+2026-07-14 13:41:00.512 +05:30 [INF]   User: ID="d353676d-ddc6-4f73-8e08-5e9f84fe2672", Name='E2E Cap Tester', Email='test_cap_1784012542871@testcompany.com', TenantId="aa82a45e-d6be-4caa-8fd9-ddbac5dbcafb", Created="2026-07-14T07:02:27.9134240Z"
+2026-07-14 13:41:00.512 +05:30 [INF]   User: ID="53ce7761-8ab6-4016-9ddc-555db38881f8", Name='E2E Cap Tester', Email='test_cap_1784012624009@testcompany.com', TenantId="fab05144-e6d5-4703-bb9e-2b6790d0ed76", Created="2026-07-14T07:03:48.7623430Z"
+2026-07-14 13:41:00.512 +05:30 [INF]   User: ID="135e9d9b-5f8f-4e29-9da4-bf95fc47c770", Name='E2E Cap Tester', Email='test_cap_1784013215910@testcompany.com', TenantId="492d57dd-5f94-4c12-92a1-987437ab9f74", Created="2026-07-14T07:13:42.6625440Z"
+2026-07-14 13:41:00.512 +05:30 [INF]   User: ID="29a31b78-afe4-440f-9b96-5cb4fe713c1e", Name='E2E Cap Tester', Email='test_cap_1784012817776@testcompany.com', TenantId="4e3b2ab7-1e3f-462f-a2ef-3cdecf3c11bf", Created="2026-07-14T07:07:02.8044160Z"
+2026-07-14 13:41:00.512 +05:30 [INF]   User: ID="0d1e6aab-29d3-4fe3-9c25-92a82285c6bd", Name='E2E Cap Tester', Email='test_cap_1784013319722@testcompany.com', TenantId="160b9591-038f-4197-9295-4d4c669ea62d", Created="2026-07-14T07:15:24.5733540Z"
+2026-07-14 13:41:00.512 +05:30 [INF]   User: ID="7670b3a7-7692-4d5c-a6b5-640dc3c38868", Name='E2E Cap Tester', Email='test_cap_1784013414400@testcompany.com', TenantId="068f2f21-6c9b-44ff-af1c-b221c483dd10", Created="2026-07-14T07:16:59.3793410Z"
+2026-07-14 13:41:00.666 +05:30 [INF]   User: ID="7b4bdda7-e98b-483d-8785-b31f72ec9d2e", Name='E2E Cap Tester', Email='test_cap_1784013994464@testcompany.com', TenantId="c106cb51-4377-4bec-b453-1d0ade2817e7", Created="2026-07-14T07:26:40.9924850Z"
+2026-07-14 13:41:00.667 +05:30 [INF]   User: ID="bfcb8f8d-5bc9-4035-af3e-b8b6564ed5e1", Name='E2E Cap Tester', Email='test_cap_1784014105364@testcompany.com', TenantId="bab0e597-4ed5-4d3c-a1cc-4fdbce1721c5", Created="2026-07-14T07:28:30.4491770Z"
+2026-07-14 13:41:00.667 +05:30 [INF]   User: ID="1d32ec73-ce43-41e1-b6d4-acd89c2cc991", Name='E2E Cap Tester', Email='test_cap_1784014211196@testcompany.com', TenantId="04804ac3-955b-4aea-9a31-1220e1899319", Created="2026-07-14T07:30:16.0677680Z"
+2026-07-14 13:41:00.667 +05:30 [INF]   User: ID="0ebdf0a1-232a-4ea3-9f3b-431a8df4f13d", Name='E2E Cap Tester', Email='test_cap_1784014332436@testcompany.com', TenantId="4fcfa2bd-7af7-465b-86e7-11e8bd026e5e", Created="2026-07-14T07:32:17.4350740Z"
+2026-07-14 13:41:00.667 +05:30 [INF]   User: ID="80272d2c-73b2-4bea-876d-8b00d1b6df13", Name='E2E Cap Tester', Email='test_cap_1784014439497@testcompany.com', TenantId="ae826dcf-c82d-4274-ad7a-0269b0b7076d", Created="2026-07-14T07:34:05.4870120Z"
+2026-07-14 13:41:00.667 +05:30 [INF]   User: ID="29f7a252-e2f9-4fa2-ac46-834d6c7f27e0", Name='E2E Cap Tester', Email='test_cap_1784014583805@testcompany.com', TenantId="276f8b0e-68a7-4188-a915-faad2db1e152", Created="2026-07-14T07:36:29.2263630Z"
+2026-07-14 13:41:00.667 +05:30 [INF]   User: ID="c13367e2-c24c-4f30-af1c-3ec7d3f44265", Name='E2E Cap Tester', Email='test_cap_1784014875870@testcompany.com', TenantId="b39f9952-545f-4b4f-8353-eea708c81637", Created="2026-07-14T07:41:22.1324370Z"
+2026-07-14 13:41:00.667 +05:30 [INF]   User: ID="9cabf539-e485-4f99-a1af-6d91e4d31638", Name='E2E Cap Tester', Email='test_cap_1784015138098@testcompany.com', TenantId="59491ff9-d9c7-413f-a1ea-19004c2047f4", Created="2026-07-14T07:45:43.8066260Z"
+2026-07-14 13:41:00.667 +05:30 [INF]   User: ID="6fc96cf3-d78e-41e1-8625-0a2b0cfed05e", Name='E2E Cap Tester', Email='test_cap_1784015242714@testcompany.com', TenantId="6ceb0679-5acf-45cb-983c-b9dcb955fd3a", Created="2026-07-14T07:47:28.0152700Z"
+2026-07-14 13:41:00.667 +05:30 [INF]   User: ID="51718626-324d-424a-97c2-81170a7b743b", Name='E2E Cap Tester', Email='test_cap_1784015379211@testcompany.com', TenantId="32b37d28-a533-4b2d-adec-3d16c9f6e044", Created="2026-07-14T07:49:44.1351620Z"
+2026-07-14 13:41:00.667 +05:30 [INF] ----------------------------------------------
+2026-07-14 13:41:00.667 +05:30 [INF] Migrating tenant: Cap Corp (Schema: aquora_tenant_cap_corp_14)...
+2026-07-14 13:41:01.301 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 13:41:01.303 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 13:41:01.303 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 13:41:01.304 +05:30 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2026-07-14 13:41:01.607 +05:30 [INF] Executed DbCommand (191ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_14."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 13:41:01.755 +05:30 [INF] Executed DbCommand (144ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 13:41:01.909 +05:30 [INF] Executed DbCommand (144ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_cap_corp_14') THEN
+        CREATE SCHEMA aquora_tenant_cap_corp_14;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_cap_corp_14."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 13:41:02.215 +05:30 [INF] Executed DbCommand (151ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_cap_corp_14."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 13:41:02.368 +05:30 [INF] Executed DbCommand (152ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_14."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 13:41:02.829 +05:30 [INF] Executed DbCommand (215ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_cap_corp_14."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 13:41:02.840 +05:30 [INF] Tenant Cap Corp migrated successfully.
+2026-07-14 13:41:02.840 +05:30 [INF] Migrating tenant: Finished Goods Corp (Schema: aquora_tenant_finished_goods_corp_3)...
+2026-07-14 13:41:03.253 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 13:41:03.254 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 13:41:03.254 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 13:41:03.461 +05:30 [INF] Executed DbCommand (173ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_finished_goods_corp_3."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 13:41:03.619 +05:30 [INF] Executed DbCommand (156ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 13:41:03.781 +05:30 [INF] Executed DbCommand (154ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_finished_goods_corp_3') THEN
+        CREATE SCHEMA aquora_tenant_finished_goods_corp_3;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_finished_goods_corp_3."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 13:41:04.160 +05:30 [INF] Executed DbCommand (205ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_finished_goods_corp_3."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 13:41:04.321 +05:30 [INF] Executed DbCommand (161ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_finished_goods_corp_3."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 13:41:04.700 +05:30 [INF] Executed DbCommand (184ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_finished_goods_corp_3."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 13:41:04.701 +05:30 [INF] Tenant Finished Goods Corp migrated successfully.
+2026-07-14 13:41:04.701 +05:30 [INF] Migrating tenant: Cap Corp (Schema: aquora_tenant_cap_corp_9)...
+2026-07-14 13:41:05.168 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 13:41:05.169 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 13:41:05.169 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 13:41:05.542 +05:30 [INF] Executed DbCommand (221ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_9."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 13:41:05.697 +05:30 [INF] Executed DbCommand (153ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 13:41:05.874 +05:30 [INF] Executed DbCommand (170ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_cap_corp_9') THEN
+        CREATE SCHEMA aquora_tenant_cap_corp_9;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_cap_corp_9."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 13:41:06.187 +05:30 [INF] Executed DbCommand (152ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_cap_corp_9."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 13:41:06.414 +05:30 [INF] Executed DbCommand (222ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_cap_corp_9."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 13:41:06.866 +05:30 [INF] Executed DbCommand (188ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_cap_corp_9."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 13:41:06.867 +05:30 [INF] Tenant Cap Corp migrated successfully.
+2026-07-14 13:41:06.867 +05:30 [INF] Migrating tenant: Antigravity Industries (Schema: aquora_tenant_antigravity_industries)...
+2026-07-14 13:41:07.283 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'RolePermission'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 13:41:07.283 +05:30 [WRN] Entity 'Tenant' has a global query filter defined and is the required end of a relationship with the entity 'TenantDomain'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 13:41:07.283 +05:30 [WRN] Entity 'Role' has a global query filter defined and is the required end of a relationship with the entity 'UserRole'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-07-14 13:41:07.477 +05:30 [INF] Executed DbCommand (161ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_antigravity_industries."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 13:41:07.701 +05:30 [INF] Executed DbCommand (220ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT 1
+2026-07-14 13:41:07.964 +05:30 [INF] Executed DbCommand (216ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'aquora_tenant_antigravity_industries') THEN
+        CREATE SCHEMA aquora_tenant_antigravity_industries;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS aquora_tenant_antigravity_industries."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+2026-07-14 13:41:08.314 +05:30 [INF] Executed DbCommand (183ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+LOCK TABLE aquora_tenant_antigravity_industries."__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+2026-07-14 13:41:08.466 +05:30 [INF] Executed DbCommand (151ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT "MigrationId", "ProductVersion"
+FROM aquora_tenant_antigravity_industries."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-07-14 13:41:08.994 +05:30 [INF] Executed DbCommand (149ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_antigravity_industries."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-14 13:41:09.512 +05:30 [INF] Executed DbCommand (197ms) [Parameters=[@rm_Id='2acc4613-d9e3-4132-b450-37c1b2683610' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:09.534 +05:30 [INF] [RECONCILIATION] RawMaterial 'Shrink Film' (ID: 2acc4613-d9e3-4132-b450-37c1b2683610) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=100, MovementsSum=0.0. Reconciling diff of 100.0.
+2026-07-14 13:41:09.894 +05:30 [INF] Executed DbCommand (145ms) [Parameters=[@rm_Id='3b4c1328-cf76-4a09-b613-c401ec9d226b' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:09.895 +05:30 [INF] [RECONCILIATION] RawMaterial 'Preform 30g' (ID: 3b4c1328-cf76-4a09-b613-c401ec9d226b) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=1000, MovementsSum=0.0. Reconciling diff of 1000.0.
+2026-07-14 13:41:10.054 +05:30 [INF] Executed DbCommand (156ms) [Parameters=[@rm_Id='66747f9c-bc55-4120-b2a4-d43a81f4bf40' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:10.055 +05:30 [INF] [RECONCILIATION] RawMaterial 'Label 500ml' (ID: 66747f9c-bc55-4120-b2a4-d43a81f4bf40) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=2000, MovementsSum=0.0. Reconciling diff of 2000.0.
+2026-07-14 13:41:10.298 +05:30 [INF] Executed DbCommand (241ms) [Parameters=[@rm_Id='7b4fc38d-999e-403a-a5ed-f5522a0804d4' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:10.299 +05:30 [INF] [RECONCILIATION] RawMaterial 'Cap 30mm Blue' (ID: 7b4fc38d-999e-403a-a5ed-f5522a0804d4) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=500, MovementsSum=0.0. Reconciling diff of 500.0.
+2026-07-14 13:41:10.463 +05:30 [INF] Executed DbCommand (162ms) [Parameters=[@rm_Id='5dc5dbba-452a-4418-b88f-069380baa154' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:10.465 +05:30 [INF] [RECONCILIATION] RawMaterial 'Cap b9ba44b2' (ID: 5dc5dbba-452a-4418-b88f-069380baa154) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=500, MovementsSum=0.0. Reconciling diff of 500.0.
+2026-07-14 13:41:10.650 +05:30 [INF] Executed DbCommand (174ms) [Parameters=[@rm_Id='65779b75-05ec-4cfc-be62-7d892b951db8' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:10.660 +05:30 [INF] [RECONCILIATION] RawMaterial 'Label b9ba44b2' (ID: 65779b75-05ec-4cfc-be62-7d892b951db8) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=2000, MovementsSum=0.0. Reconciling diff of 2000.0.
+2026-07-14 13:41:10.838 +05:30 [INF] Executed DbCommand (170ms) [Parameters=[@rm_Id='72d96e9c-0b4b-4a71-95ae-f3f2516cf0e6' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:10.841 +05:30 [INF] [RECONCILIATION] RawMaterial 'Shrink b9ba44b2' (ID: 72d96e9c-0b4b-4a71-95ae-f3f2516cf0e6) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=100, MovementsSum=0.0. Reconciling diff of 100.0.
+2026-07-14 13:41:11.123 +05:30 [INF] Executed DbCommand (277ms) [Parameters=[@rm_Id='8c4de826-50c0-453b-bdc2-b67789a58573' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:11.124 +05:30 [INF] [RECONCILIATION] RawMaterial 'Preform b9ba44b2' (ID: 8c4de826-50c0-453b-bdc2-b67789a58573) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=1000, MovementsSum=0.0. Reconciling diff of 1000.0.
+2026-07-14 13:41:11.298 +05:30 [INF] Executed DbCommand (171ms) [Parameters=[@rm_Id='0919152c-d4b1-44f9-96d8-3f8f1c5d6c1f' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:11.299 +05:30 [INF] [RECONCILIATION] RawMaterial 'Shrink 21f6bf02' (ID: 0919152c-d4b1-44f9-96d8-3f8f1c5d6c1f) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=100, MovementsSum=0.0. Reconciling diff of 100.0.
+2026-07-14 13:41:11.534 +05:30 [INF] Executed DbCommand (232ms) [Parameters=[@rm_Id='15935942-8baa-488a-a5b9-31241bdc7bac' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:11.534 +05:30 [INF] [RECONCILIATION] RawMaterial 'Label 21f6bf02' (ID: 15935942-8baa-488a-a5b9-31241bdc7bac) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=2000, MovementsSum=0.0. Reconciling diff of 2000.0.
+2026-07-14 13:41:11.737 +05:30 [INF] Executed DbCommand (201ms) [Parameters=[@rm_Id='1d918e8a-c695-4be8-a017-b9d109fd81b2' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:11.738 +05:30 [INF] [RECONCILIATION] RawMaterial 'Preform 21f6bf02' (ID: 1d918e8a-c695-4be8-a017-b9d109fd81b2) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=1000, MovementsSum=0.0. Reconciling diff of 1000.0.
+2026-07-14 13:41:11.942 +05:30 [INF] Executed DbCommand (203ms) [Parameters=[@rm_Id='c4182faf-8ad8-480e-ae57-dcc631f95827' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:11.943 +05:30 [INF] [RECONCILIATION] RawMaterial 'Cap 21f6bf02' (ID: c4182faf-8ad8-480e-ae57-dcc631f95827) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=500, MovementsSum=0.0. Reconciling diff of 500.0.
+2026-07-14 13:41:12.090 +05:30 [INF] Executed DbCommand (146ms) [Parameters=[@rm_Id='5b4e3c6b-9cf7-475c-9afd-8982fdc12a5e' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:12.090 +05:30 [INF] [RECONCILIATION] RawMaterial 'Cap a6c6bfb5' (ID: 5b4e3c6b-9cf7-475c-9afd-8982fdc12a5e) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=500, MovementsSum=0.0. Reconciling diff of 500.0.
+2026-07-14 13:41:12.249 +05:30 [INF] Executed DbCommand (158ms) [Parameters=[@rm_Id='75d49629-adb7-45de-912a-a66c79aebb62' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:12.250 +05:30 [INF] [RECONCILIATION] RawMaterial 'Preform a6c6bfb5' (ID: 75d49629-adb7-45de-912a-a66c79aebb62) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=989.0, MovementsSum=-11.0. Reconciling diff of 1000.0.
+2026-07-14 13:41:12.418 +05:30 [INF] Executed DbCommand (167ms) [Parameters=[@rm_Id='bf54e07a-86a9-4879-9678-aae3247ba7c9' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:12.419 +05:30 [INF] [RECONCILIATION] RawMaterial 'Label a6c6bfb5' (ID: bf54e07a-86a9-4879-9678-aae3247ba7c9) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=1989.0, MovementsSum=-11.0. Reconciling diff of 2000.0.
+2026-07-14 13:41:12.571 +05:30 [INF] Executed DbCommand (150ms) [Parameters=[@rm_Id='c72c4eff-c03e-4f35-b63d-876f5d6e4d5f' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:12.572 +05:30 [INF] [RECONCILIATION] RawMaterial 'Shrink a6c6bfb5' (ID: c72c4eff-c03e-4f35-b63d-876f5d6e4d5f) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=97.5, MovementsSum=-2.5. Reconciling diff of 100.0.
+2026-07-14 13:41:12.761 +05:30 [INF] Executed DbCommand (187ms) [Parameters=[@rm_Id='2a37ea24-0654-4e5a-b67b-9685c7bb8217' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:12.761 +05:30 [INF] [RECONCILIATION] RawMaterial 'Preform 1426e758' (ID: 2a37ea24-0654-4e5a-b67b-9685c7bb8217) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=989.0, MovementsSum=-11.0. Reconciling diff of 1000.0.
+2026-07-14 13:41:12.917 +05:30 [INF] Executed DbCommand (154ms) [Parameters=[@rm_Id='8749fad8-10ba-4873-8208-ea61f7ce4793' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:12.917 +05:30 [INF] [RECONCILIATION] RawMaterial 'Shrink 1426e758' (ID: 8749fad8-10ba-4873-8208-ea61f7ce4793) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=97.5, MovementsSum=-2.5. Reconciling diff of 100.0.
+2026-07-14 13:41:13.071 +05:30 [INF] Executed DbCommand (152ms) [Parameters=[@rm_Id='929763c2-c5f7-4250-bac1-51c8d279fd6c' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:13.071 +05:30 [INF] [RECONCILIATION] RawMaterial 'Cap 1426e758' (ID: 929763c2-c5f7-4250-bac1-51c8d279fd6c) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=450.0, MovementsSum=-50.0. Reconciling diff of 500.0.
+2026-07-14 13:41:13.272 +05:30 [INF] Executed DbCommand (198ms) [Parameters=[@rm_Id='f3633356-37b0-4aa4-a82d-43183c1b3559' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:13.273 +05:30 [INF] [RECONCILIATION] RawMaterial 'Label 1426e758' (ID: f3633356-37b0-4aa4-a82d-43183c1b3559) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=1989.0, MovementsSum=-11.0. Reconciling diff of 2000.0.
+2026-07-14 13:41:13.427 +05:30 [INF] Executed DbCommand (153ms) [Parameters=[@rm_Id='318b1bf3-246b-4955-93ad-4eb600689e8f' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:13.428 +05:30 [INF] [RECONCILIATION] RawMaterial 'Shrink 8cd68baa' (ID: 318b1bf3-246b-4955-93ad-4eb600689e8f) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=97.5, MovementsSum=-2.5. Reconciling diff of 100.0.
+2026-07-14 13:41:13.572 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[@rm_Id='432ae43c-14f2-4d2c-ac58-6ca90132b4bc' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:13.572 +05:30 [INF] [RECONCILIATION] RawMaterial 'Cap 8cd68baa' (ID: 432ae43c-14f2-4d2c-ac58-6ca90132b4bc) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=495.0, MovementsSum=-5.0. Reconciling diff of 500.0.
+2026-07-14 13:41:13.722 +05:30 [INF] Executed DbCommand (149ms) [Parameters=[@rm_Id='5125d1d9-94e2-47a3-847f-1d8874fc4787' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:13.723 +05:30 [INF] [RECONCILIATION] RawMaterial 'Label 8cd68baa' (ID: 5125d1d9-94e2-47a3-847f-1d8874fc4787) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=1989.0, MovementsSum=-11.0. Reconciling diff of 2000.0.
+2026-07-14 13:41:13.869 +05:30 [INF] Executed DbCommand (144ms) [Parameters=[@rm_Id='fc9650be-a1e4-492f-bc20-ae676973a4ee' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:13.869 +05:30 [INF] [RECONCILIATION] RawMaterial 'Preform 8cd68baa' (ID: fc9650be-a1e4-492f-bc20-ae676973a4ee) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=989.0, MovementsSum=-11.0. Reconciling diff of 1000.0.
+2026-07-14 13:41:14.017 +05:30 [INF] Executed DbCommand (146ms) [Parameters=[@rm_Id='0a5e48eb-8ff6-423a-b333-e89a908c9472' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:14.017 +05:30 [INF] [RECONCILIATION] RawMaterial 'Preform 19715c40' (ID: 0a5e48eb-8ff6-423a-b333-e89a908c9472) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=989.0, MovementsSum=-11.0. Reconciling diff of 1000.0.
+2026-07-14 13:41:14.169 +05:30 [INF] Executed DbCommand (151ms) [Parameters=[@rm_Id='1e197e78-0a28-4864-9a0b-ef7aa1ebc313' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:14.170 +05:30 [INF] [RECONCILIATION] RawMaterial 'Label 19715c40' (ID: 1e197e78-0a28-4864-9a0b-ef7aa1ebc313) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=1989.0, MovementsSum=-11.0. Reconciling diff of 2000.0.
+2026-07-14 13:41:14.363 +05:30 [INF] Executed DbCommand (191ms) [Parameters=[@rm_Id='1e41541f-e936-4d1b-adb5-ce4771eaec41' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:14.363 +05:30 [INF] [RECONCILIATION] RawMaterial 'Cap 19715c40' (ID: 1e41541f-e936-4d1b-adb5-ce4771eaec41) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=395.0, MovementsSum=-105.0. Reconciling diff of 500.0.
+2026-07-14 13:41:14.511 +05:30 [INF] Executed DbCommand (146ms) [Parameters=[@rm_Id='3b1179a4-234a-473c-9bb9-783833e967b9' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT COALESCE(sum(i."Quantity"), 0.0)
+FROM aquora_tenant_antigravity_industries."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."RawMaterialId" = @rm_Id AND NOT (i."IsDeleted")
+2026-07-14 13:41:14.512 +05:30 [INF] [RECONCILIATION] RawMaterial 'Shrink 19715c40' (ID: 3b1179a4-234a-473c-9bb9-783833e967b9) stock mismatch in 'aquora_tenant_antigravity_industries': CurrentStock=97.5, MovementsSum=-2.5. Reconciling diff of 100.0.
+2026-07-14 13:41:14.912 +05:30 [INF] Executed DbCommand (166ms) [Parameters=[@p0='0b713c10-d83f-4008-af63-e89997c2421c', @p1='b3628475-4d8c-40c7-b21e-3a8590c82e19', @p2='2026-07-14T08:11:14.6115065Z' (DbType = DateTime), @p3='System' (Nullable = false), @p4=NULL (DbType = DateTime), @p5=NULL, @p6='RawMaterial' (Nullable = false), @p7='False', @p8=NULL, @p9=NULL (DbType = Guid), @p10='500.0', @p11='5b4e3c6b-9cf7-475c-9afd-8982fdc12a5e' (Nullable = true), @p12='5b4e3c6b-9cf7-475c-9afd-8982fdc12a5e', @p13='OpeningStock' (Nullable = false), @p14='ca0fa020-2a12-4db8-95b4-03571187e858', @p15=NULL (DbType = DateTime), @p16=NULL, @p17='0eb3310a-eed4-4731-bc6c-9430e31aeb15', @p18='bf09b7ba-dc5e-498d-a5ca-94cf351beb2a', @p19='2026-07-14T08:11:14.6115078Z' (DbType = DateTime), @p20='System' (Nullable = false), @p21=NULL (DbType = DateTime), @p22=NULL, @p23='RawMaterial' (Nullable = false), @p24='False', @p25=NULL, @p26=NULL (DbType = Guid), @p27='1000.0', @p28='2a37ea24-0654-4e5a-b67b-9685c7bb8217' (Nullable = true), @p29='2a37ea24-0654-4e5a-b67b-9685c7bb8217', @p30='OpeningStock' (Nullable = false), @p31='ca0fa020-2a12-4db8-95b4-03571187e858', @p32=NULL (DbType = DateTime), @p33=NULL, @p34='1dde93de-6822-4c82-a533-80074b1bf369', @p35='b8d8b8f1-7b35-4696-8e52-3dbab1f9af04', @p36='2026-07-14T08:11:14.6115032Z' (DbType = DateTime), @p37='System' (Nullable = false), @p38=NULL (DbType = DateTime), @p39=NULL, @p40='RawMaterial' (Nullable = false), @p41='False', @p42=NULL, @p43=NULL (DbType = Guid), @p44='1000.0', @p45='3b4c1328-cf76-4a09-b613-c401ec9d226b' (Nullable = true), @p46='3b4c1328-cf76-4a09-b613-c401ec9d226b', @p47='OpeningStock' (Nullable = false), @p48='ca0fa020-2a12-4db8-95b4-03571187e858', @p49=NULL (DbType = DateTime), @p50=NULL, @p51='1ef94d6d-dc28-4526-916c-3a776f676c29', @p52='b8d8b8f1-7b35-4696-8e52-3dbab1f9af04', @p53='2026-07-14T08:11:14.6115041Z' (DbType = DateTime), @p54='System' (Nullable = false), @p55=NULL (DbType = DateTime), @p56=NULL, @p57='RawMaterial' (Nullable = false), @p58='False', @p59=NULL, @p60=NULL (DbType = Guid), @p61='500.0', @p62='7b4fc38d-999e-403a-a5ed-f5522a0804d4' (Nullable = true), @p63='7b4fc38d-999e-403a-a5ed-f5522a0804d4', @p64='OpeningStock' (Nullable = false), @p65='ca0fa020-2a12-4db8-95b4-03571187e858', @p66=NULL (DbType = DateTime), @p67=NULL, @p68='20bdcd68-6972-4056-ab7b-3f4b4c4af11a', @p69='f47129fc-f26f-4749-bd3f-ed3cdcc54709', @p70='2026-07-14T08:11:14.6115098Z' (DbType = DateTime), @p71='System' (Nullable = false), @p72=NULL (DbType = DateTime), @p73=NULL, @p74='RawMaterial' (Nullable = false), @p75='False', @p76=NULL, @p77=NULL (DbType = Guid), @p78='1000.0', @p79='fc9650be-a1e4-492f-bc20-ae676973a4ee' (Nullable = true), @p80='fc9650be-a1e4-492f-bc20-ae676973a4ee', @p81='OpeningStock' (Nullable = false), @p82='ca0fa020-2a12-4db8-95b4-03571187e858', @p83=NULL (DbType = DateTime), @p84=NULL, @p85='23bed596-4454-4ae9-b316-dde320b785c1', @p86='b8361081-23ec-4250-9e10-49f22e3b166f', @p87='2026-07-14T08:11:14.6115045Z' (DbType = DateTime), @p88='System' (Nullable = false), @p89=NULL (DbType = DateTime), @p90=NULL, @p91='RawMaterial' (Nullable = false), @p92='False', @p93=NULL, @p94=NULL (DbType = Guid), @p95='500.0', @p96='5dc5dbba-452a-4418-b88f-069380baa154' (Nullable = true), @p97='5dc5dbba-452a-4418-b88f-069380baa154', @p98='OpeningStock' (Nullable = false), @p99='ca0fa020-2a12-4db8-95b4-03571187e858', @p100=NULL (DbType = DateTime), @p101=NULL, @p102='2c04aea9-da22-4b25-9165-5dfc33ee6bee', @p103='b3628475-4d8c-40c7-b21e-3a8590c82e19', @p104='2026-07-14T08:11:14.6115072Z' (DbType = DateTime), @p105='System' (Nullable = false), @p106=NULL (DbType = DateTime), @p107=NULL, @p108='RawMaterial' (Nullable = false), @p109='False', @p110=NULL, @p111=NULL (DbType = Guid), @p112='2000.0', @p113='bf54e07a-86a9-4879-9678-aae3247ba7c9' (Nullable = true), @p114='bf54e07a-86a9-4879-9678-aae3247ba7c9', @p115='OpeningStock' (Nullable = false), @p116='ca0fa020-2a12-4db8-95b4-03571187e858', @p117=NULL (DbType = DateTime), @p118=NULL, @p119='352d054a-85d5-4029-bd75-fc677c2373ea', @p120='b8361081-23ec-4250-9e10-49f22e3b166f', @p121='2026-07-14T08:11:14.6115046Z' (DbType = DateTime), @p122='System' (Nullable = false), @p123=NULL (DbType = DateTime), @p124=NULL, @p125='RawMaterial' (Nullable = false), @p126='False', @p127=NULL, @p128=NULL (DbType = Guid), @p129='2000.0', @p130='65779b75-05ec-4cfc-be62-7d892b951db8' (Nullable = true), @p131='65779b75-05ec-4cfc-be62-7d892b951db8', @p132='OpeningStock' (Nullable = false), @p133='ca0fa020-2a12-4db8-95b4-03571187e858', @p134=NULL (DbType = DateTime), @p135=NULL, @p136='5640e775-849e-4e75-bf58-70408437e62f', @p137='b3628475-4d8c-40c7-b21e-3a8590c82e19', @p138='2026-07-14T08:11:14.6115075Z' (DbType = DateTime), @p139='System' (Nullable = false), @p140=NULL (DbType = DateTime), @p141=NULL, @p142='RawMaterial' (Nullable = false), @p143='False', @p144=NULL, @p145=NULL (DbType = Guid), @p146='100.0', @p147='c72c4eff-c03e-4f35-b63d-876f5d6e4d5f' (Nullable = true), @p148='c72c4eff-c03e-4f35-b63d-876f5d6e4d5f', @p149='OpeningStock' (Nullable = false), @p150='ca0fa020-2a12-4db8-95b4-03571187e858', @p151=NULL (DbType = DateTime), @p152=NULL, @p153='6e17b379-68a2-4ff5-a099-908728f63492', @p154='bf09b7ba-dc5e-498d-a5ca-94cf351beb2a', @p155='2026-07-14T08:11:14.6115084Z' (DbType = DateTime), @p156='System' (Nullable = false), @p157=NULL (DbType = DateTime), @p158=NULL, @p159='RawMaterial' (Nullable = false), @p160='False', @p161=NULL, @p162=NULL (DbType = Guid), @p163='500.0', @p164='929763c2-c5f7-4250-bac1-51c8d279fd6c' (Nullable = true), @p165='929763c2-c5f7-4250-bac1-51c8d279fd6c', @p166='OpeningStock' (Nullable = false), @p167='ca0fa020-2a12-4db8-95b4-03571187e858', @p168=NULL (DbType = DateTime), @p169=NULL, @p170='72978b81-a574-4053-97e6-fc9aaa276216', @p171='42b93f68-ef57-47af-b4c4-e03127411d85', @p172='2026-07-14T08:11:14.6115128Z' (DbType = DateTime), @p173='System' (Nullable = false), @p174=NULL (DbType = DateTime), @p175=NULL, @p176='RawMaterial' (Nullable = false), @p177='False', @p178=NULL, @p179=NULL (DbType = Guid), @p180='100.0', @p181='3b1179a4-234a-473c-9bb9-783833e967b9' (Nullable = true), @p182='3b1179a4-234a-473c-9bb9-783833e967b9', @p183='OpeningStock' (Nullable = false), @p184='ca0fa020-2a12-4db8-95b4-03571187e858', @p185=NULL (DbType = DateTime), @p186=NULL, @p187='73dbc582-e491-492e-90fd-a906256f8ea0', @p188='42b93f68-ef57-47af-b4c4-e03127411d85', @p189='2026-07-14T08:11:14.6115124Z' (DbType = DateTime), @p190='System' (Nullable = false), @p191=NULL (DbType = DateTime), @p192=NULL, @p193='RawMaterial' (Nullable = false), @p194='False', @p195=NULL, @p196=NULL (DbType = Guid), @p197='500.0', @p198='1e41541f-e936-4d1b-adb5-ce4771eaec41' (Nullable = true), @p199='1e41541f-e936-4d1b-adb5-ce4771eaec41', @p200='OpeningStock' (Nullable = false), @p201='ca0fa020-2a12-4db8-95b4-03571187e858', @p202=NULL (DbType = DateTime), @p203=NULL, @p204='7e6ecc65-94d4-4df3-b8a4-a82b03b69139', @p205='b8d8b8f1-7b35-4696-8e52-3dbab1f9af04', @p206='2026-07-14T08:11:14.6114549Z' (DbType = DateTime), @p207='System' (Nullable = false), @p208=NULL (DbType = DateTime), @p209=NULL, @p210='RawMaterial' (Nullable = false), @p211='False', @p212=NULL, @p213=NULL (DbType = Guid), @p214='100.0', @p215='2acc4613-d9e3-4132-b450-37c1b2683610' (Nullable = true), @p216='2acc4613-d9e3-4132-b450-37c1b2683610', @p217='OpeningStock' (Nullable = false), @p218='ca0fa020-2a12-4db8-95b4-03571187e858', @p219=NULL (DbType = DateTime), @p220=NULL, @p221='8003ea0a-e280-4477-86fb-51dcc1ad729e', @p222='f47129fc-f26f-4749-bd3f-ed3cdcc54709', @p223='2026-07-14T08:11:14.6115090Z' (DbType = DateTime), @p224='System' (Nullable = false), @p225=NULL (DbType = DateTime), @p226=NULL, @p227='RawMaterial' (Nullable = false), @p228='False', @p229=NULL, @p230=NULL (DbType = Guid), @p231='100.0', @p232='318b1bf3-246b-4955-93ad-4eb600689e8f' (Nullable = true), @p233='318b1bf3-246b-4955-93ad-4eb600689e8f', @p234='OpeningStock' (Nullable = false), @p235='ca0fa020-2a12-4db8-95b4-03571187e858', @p236=NULL (DbType = DateTime), @p237=NULL, @p238='800d3838-6350-46a0-bb8b-6c5260797bd2', @p239='b8361081-23ec-4250-9e10-49f22e3b166f', @p240='2026-07-14T08:11:14.6115052Z' (DbType = DateTime), @p241='System' (Nullable = false), @p242=NULL (DbType = DateTime), @p243=NULL, @p244='RawMaterial' (Nullable = false), @p245='False', @p246=NULL, @p247=NULL (DbType = Guid), @p248='1000.0', @p249='8c4de826-50c0-453b-bdc2-b67789a58573' (Nullable = true), @p250='8c4de826-50c0-453b-bdc2-b67789a58573', @p251='OpeningStock' (Nullable = false), @p252='ca0fa020-2a12-4db8-95b4-03571187e858', @p253=NULL (DbType = DateTime), @p254=NULL, @p255='8bd118fa-1af0-4d7b-9ebf-833052c7b2f0', @p256='b3628475-4d8c-40c7-b21e-3a8590c82e19', @p257='2026-07-14T08:11:14.6115069Z' (DbType = DateTime), @p258='System' (Nullable = false), @p259=NULL (DbType = DateTime), @p260=NULL, @p261='RawMaterial' (Nullable = false), @p262='False', @p263=NULL, @p264=NULL (DbType = Guid), @p265='1000.0', @p266='75d49629-adb7-45de-912a-a66c79aebb62' (Nullable = true), @p267='75d49629-adb7-45de-912a-a66c79aebb62', @p268='OpeningStock' (Nullable = false), @p269='ca0fa020-2a12-4db8-95b4-03571187e858', @p270=NULL (DbType = DateTime), @p271=NULL, @p272='8dcd6a76-9af1-4ad2-a3f7-507f6965922e', @p273='b8d8b8f1-7b35-4696-8e52-3dbab1f9af04', @p274='2026-07-14T08:11:14.6115037Z' (DbType = DateTime), @p275='System' (Nullable = false), @p276=NULL (DbType = DateTime), @p277=NULL, @p278='RawMaterial' (Nullable = false), @p279='False', @p280=NULL, @p281=NULL (DbType = Guid), @p282='2000.0', @p283='66747f9c-bc55-4120-b2a4-d43a81f4bf40' (Nullable = true), @p284='66747f9c-bc55-4120-b2a4-d43a81f4bf40', @p285='OpeningStock' (Nullable = false), @p286='ca0fa020-2a12-4db8-95b4-03571187e858', @p287=NULL (DbType = DateTime), @p288=NULL, @p289='93b9c579-2b28-47e9-a0e5-d6df2f9cf0bd', @p290='0f8c03f4-61fa-4da7-b9a6-4ae1c70a6110', @p291='2026-07-14T08:11:14.6115056Z' (DbType = DateTime), @p292='System' (Nullable = false), @p293=NULL (DbType = DateTime), @p294=NULL, @p295='RawMaterial' (Nullable = false), @p296='False', @p297=NULL, @p298=NULL (DbType = Guid), @p299='2000.0', @p300='15935942-8baa-488a-a5b9-31241bdc7bac' (Nullable = true), @p301='15935942-8baa-488a-a5b9-31241bdc7bac', @p302='OpeningStock' (Nullable = false), @p303='ca0fa020-2a12-4db8-95b4-03571187e858', @p304=NULL (DbType = DateTime), @p305=NULL, @p306='a97d1f2e-462d-4bff-bf98-182a6e472d94', @p307='42b93f68-ef57-47af-b4c4-e03127411d85', @p308='2026-07-14T08:11:14.6115118Z' (DbType = DateTime), @p309='System' (Nullable = false), @p310=NULL (DbType = DateTime), @p311=NULL, @p312='RawMaterial' (Nullable = false), @p313='False', @p314=NULL, @p315=NULL (DbType = Guid), @p316='1000.0', @p317='0a5e48eb-8ff6-423a-b333-e89a908c9472' (Nullable = true), @p318='0a5e48eb-8ff6-423a-b333-e89a908c9472', @p319='OpeningStock' (Nullable = false), @p320='ca0fa020-2a12-4db8-95b4-03571187e858', @p321=NULL (DbType = DateTime), @p322=NULL, @p323='abcf399c-649b-4610-9d26-a2d85ec0f40f', @p324='b8361081-23ec-4250-9e10-49f22e3b166f', @p325='2026-07-14T08:11:14.6115049Z' (DbType = DateTime), @p326='System' (Nullable = false), @p327=NULL (DbType = DateTime), @p328=NULL, @p329='RawMaterial' (Nullable = false), @p330='False', @p331=NULL, @p332=NULL (DbType = Guid), @p333='100.0', @p334='72d96e9c-0b4b-4a71-95ae-f3f2516cf0e6' (Nullable = true), @p335='72d96e9c-0b4b-4a71-95ae-f3f2516cf0e6', @p336='OpeningStock' (Nullable = false), @p337='ca0fa020-2a12-4db8-95b4-03571187e858', @p338=NULL (DbType = DateTime), @p339=NULL, @p340='b4ee1f5c-740e-4fb3-af45-aa0575f8e2e3', @p341='f47129fc-f26f-4749-bd3f-ed3cdcc54709', @p342='2026-07-14T08:11:14.6115092Z' (DbType = DateTime), @p343='System' (Nullable = false), @p344=NULL (DbType = DateTime), @p345=NULL, @p346='RawMaterial' (Nullable = false), @p347='False', @p348=NULL, @p349=NULL (DbType = Guid), @p350='500.0', @p351='432ae43c-14f2-4d2c-ac58-6ca90132b4bc' (Nullable = true), @p352='432ae43c-14f2-4d2c-ac58-6ca90132b4bc', @p353='OpeningStock' (Nullable = false), @p354='ca0fa020-2a12-4db8-95b4-03571187e858', @p355=NULL (DbType = DateTime), @p356=NULL, @p357='bbdfe713-a0c7-402d-9b02-537beade3d4e', @p358='0f8c03f4-61fa-4da7-b9a6-4ae1c70a6110', @p359='2026-07-14T08:11:14.6115054Z' (DbType = DateTime), @p360='System' (Nullable = false), @p361=NULL (DbType = DateTime), @p362=NULL, @p363='RawMaterial' (Nullable = false), @p364='False', @p365=NULL, @p366=NULL (DbType = Guid), @p367='100.0', @p368='0919152c-d4b1-44f9-96d8-3f8f1c5d6c1f' (Nullable = true), @p369='0919152c-d4b1-44f9-96d8-3f8f1c5d6c1f', @p370='OpeningStock' (Nullable = false), @p371='ca0fa020-2a12-4db8-95b4-03571187e858', @p372=NULL (DbType = DateTime), @p373=NULL, @p374='c6f911e3-1659-4a40-9ac2-c415ab681dd2', @p375='0f8c03f4-61fa-4da7-b9a6-4ae1c70a6110', @p376='2026-07-14T08:11:14.6115061Z' (DbType = DateTime), @p377='System' (Nullable = false), @p378=NULL (DbType = DateTime), @p379=NULL, @p380='RawMaterial' (Nullable = false), @p381='False', @p382=NULL, @p383=NULL (DbType = Guid), @p384='500.0', @p385='c4182faf-8ad8-480e-ae57-dcc631f95827' (Nullable = true), @p386='c4182faf-8ad8-480e-ae57-dcc631f95827', @p387='OpeningStock' (Nullable = false), @p388='ca0fa020-2a12-4db8-95b4-03571187e858', @p389=NULL (DbType = DateTime), @p390=NULL, @p391='ca3dc218-58c3-4c6f-af06-c5fcaee32420', @p392='42b93f68-ef57-47af-b4c4-e03127411d85', @p393='2026-07-14T08:11:14.6115123Z' (DbType = DateTime), @p394='System' (Nullable = false), @p395=NULL (DbType = DateTime), @p396=NULL, @p397='RawMaterial' (Nullable = false), @p398='False', @p399=NULL, @p400=NULL (DbType = Guid), @p401='2000.0', @p402='1e197e78-0a28-4864-9a0b-ef7aa1ebc313' (Nullable = true), @p403='1e197e78-0a28-4864-9a0b-ef7aa1ebc313', @p404='OpeningStock' (Nullable = false), @p405='ca0fa020-2a12-4db8-95b4-03571187e858', @p406=NULL (DbType = DateTime), @p407=NULL, @p408='cf319576-4e8b-4a99-add2-36599447b144', @p409='bf09b7ba-dc5e-498d-a5ca-94cf351beb2a', @p410='2026-07-14T08:11:14.6115087Z' (DbType = DateTime), @p411='System' (Nullable = false), @p412=NULL (DbType = DateTime), @p413=NULL, @p414='RawMaterial' (Nullable = false), @p415='False', @p416=NULL, @p417=NULL (DbType = Guid), @p418='2000.0', @p419='f3633356-37b0-4aa4-a82d-43183c1b3559' (Nullable = true), @p420='f3633356-37b0-4aa4-a82d-43183c1b3559', @p421='OpeningStock' (Nullable = false), @p422='ca0fa020-2a12-4db8-95b4-03571187e858', @p423=NULL (DbType = DateTime), @p424=NULL, @p425='cfd9c8a9-551a-4887-ace0-2eb34bd26c4e', @p426='f47129fc-f26f-4749-bd3f-ed3cdcc54709', @p427='2026-07-14T08:11:14.6115096Z' (DbType = DateTime), @p428='System' (Nullable = false), @p429=NULL (DbType = DateTime), @p430=NULL, @p431='RawMaterial' (Nullable = false), @p432='False', @p433=NULL, @p434=NULL (DbType = Guid), @p435='2000.0', @p436='5125d1d9-94e2-47a3-847f-1d8874fc4787' (Nullable = true), @p437='5125d1d9-94e2-47a3-847f-1d8874fc4787', @p438='OpeningStock' (Nullable = false), @p439='ca0fa020-2a12-4db8-95b4-03571187e858', @p440=NULL (DbType = DateTime), @p441=NULL, @p442='d3dfee58-cdca-4791-9532-2046500e2860', @p443='0f8c03f4-61fa-4da7-b9a6-4ae1c70a6110', @p444='2026-07-14T08:11:14.6115059Z' (DbType = DateTime), @p445='System' (Nullable = false), @p446=NULL (DbType = DateTime), @p447=NULL, @p448='RawMaterial' (Nullable = false), @p449='False', @p450=NULL, @p451=NULL (DbType = Guid), @p452='1000.0', @p453='1d918e8a-c695-4be8-a017-b9d109fd81b2' (Nullable = true), @p454='1d918e8a-c695-4be8-a017-b9d109fd81b2', @p455='OpeningStock' (Nullable = false), @p456='ca0fa020-2a12-4db8-95b4-03571187e858', @p457=NULL (DbType = DateTime), @p458=NULL, @p459='ead1085a-e75c-45e2-8a25-6e3043421086', @p460='bf09b7ba-dc5e-498d-a5ca-94cf351beb2a', @p461='2026-07-14T08:11:14.6115080Z' (DbType = DateTime), @p462='System' (Nullable = false), @p463=NULL (DbType = DateTime), @p464=NULL, @p465='RawMaterial' (Nullable = false), @p466='False', @p467=NULL, @p468=NULL (DbType = Guid), @p469='100.0', @p470='8749fad8-10ba-4873-8208-ea61f7ce4793' (Nullable = true), @p471='8749fad8-10ba-4873-8208-ea61f7ce4793', @p472='OpeningStock' (Nullable = false), @p473='ca0fa020-2a12-4db8-95b4-03571187e858', @p474=NULL (DbType = DateTime), @p475=NULL], CommandType='"Text"', CommandTimeout='120']
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p17, @p18, @p19, @p20, @p21, @p22, @p23, @p24, @p25, @p26, @p27, @p28, @p29, @p30, @p31, @p32, @p33);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p34, @p35, @p36, @p37, @p38, @p39, @p40, @p41, @p42, @p43, @p44, @p45, @p46, @p47, @p48, @p49, @p50);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p51, @p52, @p53, @p54, @p55, @p56, @p57, @p58, @p59, @p60, @p61, @p62, @p63, @p64, @p65, @p66, @p67);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p68, @p69, @p70, @p71, @p72, @p73, @p74, @p75, @p76, @p77, @p78, @p79, @p80, @p81, @p82, @p83, @p84);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p85, @p86, @p87, @p88, @p89, @p90, @p91, @p92, @p93, @p94, @p95, @p96, @p97, @p98, @p99, @p100, @p101);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p102, @p103, @p104, @p105, @p106, @p107, @p108, @p109, @p110, @p111, @p112, @p113, @p114, @p115, @p116, @p117, @p118);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p119, @p120, @p121, @p122, @p123, @p124, @p125, @p126, @p127, @p128, @p129, @p130, @p131, @p132, @p133, @p134, @p135);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p136, @p137, @p138, @p139, @p140, @p141, @p142, @p143, @p144, @p145, @p146, @p147, @p148, @p149, @p150, @p151, @p152);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p153, @p154, @p155, @p156, @p157, @p158, @p159, @p160, @p161, @p162, @p163, @p164, @p165, @p166, @p167, @p168, @p169);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p170, @p171, @p172, @p173, @p174, @p175, @p176, @p177, @p178, @p179, @p180, @p181, @p182, @p183, @p184, @p185, @p186);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p187, @p188, @p189, @p190, @p191, @p192, @p193, @p194, @p195, @p196, @p197, @p198, @p199, @p200, @p201, @p202, @p203);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p204, @p205, @p206, @p207, @p208, @p209, @p210, @p211, @p212, @p213, @p214, @p215, @p216, @p217, @p218, @p219, @p220);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p221, @p222, @p223, @p224, @p225, @p226, @p227, @p228, @p229, @p230, @p231, @p232, @p233, @p234, @p235, @p236, @p237);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p238, @p239, @p240, @p241, @p242, @p243, @p244, @p245, @p246, @p247, @p248, @p249, @p250, @p251, @p252, @p253, @p254);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p255, @p256, @p257, @p258, @p259, @p260, @p261, @p262, @p263, @p264, @p265, @p266, @p267, @p268, @p269, @p270, @p271);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p272, @p273, @p274, @p275, @p276, @p277, @p278, @p279, @p280, @p281, @p282, @p283, @p284, @p285, @p286, @p287, @p288);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p289, @p290, @p291, @p292, @p293, @p294, @p295, @p296, @p297, @p298, @p299, @p300, @p301, @p302, @p303, @p304, @p305);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p306, @p307, @p308, @p309, @p310, @p311, @p312, @p313, @p314, @p315, @p316, @p317, @p318, @p319, @p320, @p321, @p322);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p323, @p324, @p325, @p326, @p327, @p328, @p329, @p330, @p331, @p332, @p333, @p334, @p335, @p336, @p337, @p338, @p339);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p340, @p341, @p342, @p343, @p344, @p345, @p346, @p347, @p348, @p349, @p350, @p351, @p352, @p353, @p354, @p355, @p356);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p357, @p358, @p359, @p360, @p361, @p362, @p363, @p364, @p365, @p366, @p367, @p368, @p369, @p370, @p371, @p372, @p373);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p374, @p375, @p376, @p377, @p378, @p379, @p380, @p381, @p382, @p383, @p384, @p385, @p386, @p387, @p388, @p389, @p390);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p391, @p392, @p393, @p394, @p395, @p396, @p397, @p398, @p399, @p400, @p401, @p402, @p403, @p404, @p405, @p406, @p407);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p408, @p409, @p410, @p411, @p412, @p413, @p414, @p415, @p416, @p417, @p418, @p419, @p420, @p421, @p422, @p423, @p424);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p425, @p426, @p427, @p428, @p429, @p430, @p431, @p432, @p433, @p434, @p435, @p436, @p437, @p438, @p439, @p440, @p441);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p442, @p443, @p444, @p445, @p446, @p447, @p448, @p449, @p450, @p451, @p452, @p453, @p454, @p455, @p456, @p457, @p458);
+INSERT INTO aquora_tenant_antigravity_industries."InventoryMovements" ("Id", "CompanyId", "CreatedAt", "CreatedBy", "DeletedAt", "DeletedBy", "InventoryType", "IsDeleted", "Notes", "ProductId", "Quantity", "RawMaterialId", "ReferenceId", "ReferenceType", "TenantId", "UpdatedAt", "UpdatedBy")
+VALUES (@p459, @p460, @p461, @p462, @p463, @p464, @p465, @p466, @p467, @p468, @p469, @p470, @p471, @p472, @p473, @p474, @p475);

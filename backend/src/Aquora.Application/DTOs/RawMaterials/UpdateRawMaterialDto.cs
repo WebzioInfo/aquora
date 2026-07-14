@@ -17,6 +17,5 @@ namespace Aquora.Application.DTOs.RawMaterials
         public bool IsActive { get; set; }
 
         public decimal? CurrentStock { get; set; }
-        public decimal? StockAdjustment { get; set; }
     }
 }

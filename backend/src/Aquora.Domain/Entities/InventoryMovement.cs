@@ -5,12 +5,18 @@ namespace Aquora.Domain.Entities
 {
     public class InventoryMovement : BaseEntity, IMultiTenant, ICompanySpecific, IAuditable, ISoftDelete
     {
-        public Guid RawMaterialId { get; set; }
-        public virtual RawMaterial RawMaterial { get; set; }
+        public Guid? RawMaterialId { get; set; }
+        public virtual RawMaterial? RawMaterial { get; set; }
+
+        public Guid? ProductId { get; set; }
+        public virtual Product? Product { get; set; }
+
+        public string InventoryType { get; set; } = "RawMaterial";
 
         public decimal Quantity { get; set; } // Negative for deductions, positive for increases
         public string ReferenceType { get; set; } // E.g., "ProductionEntry"
         public Guid ReferenceId { get; set; } // The ID of the related transaction
+        public string? Notes { get; set; }
 
         // Multi-tenant mappings
         public Guid TenantId { get; set; }

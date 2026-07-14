@@ -272,14 +272,14 @@ namespace Aquora.API.Controllers
                 if (request.CapMaterialId.HasValue && request.CapMaterialId != Guid.Empty)
                 {
                     cap = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.CapMaterialId.Value && !m.IsDeleted);
-                    if (cap == null && request.CapUsage > 0)
+                    if (cap == null)
                     {
                         return Failure<object>("Selected Cap material not found.", "Validation failed");
                     }
                 }
-                else if (request.CapUsage > 0)
+                else if (request.CapUsage > 0 || request.CapWastage > 0)
                 {
-                    return Failure<object>("Cap material must be selected when usage is greater than 0.", "Validation failed");
+                    return Failure<object>("Cap material must be selected when usage or wastage is greater than 0.", "Validation failed");
                 }
 
                 var label = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.LabelMaterialId && !m.IsDeleted);
@@ -498,6 +498,26 @@ namespace Aquora.API.Controllers
                     movements.Add(movMakeup);
                     movementIds.Add(movMakeup.Id);
                 }
+
+                // 5b. Update Finished Product Stock & log movement
+                sku.CurrentStock += request.CasesProduced;
+                var finishedProductMov = new InventoryMovement
+                {
+                    Id = Guid.NewGuid(),
+                    ProductId = sku.Id,
+                    RawMaterialId = null,
+                    Quantity = request.CasesProduced,
+                    ReferenceType = "ProductionCompleted",
+                    ReferenceId = entryId,
+                    InventoryType = "FinishedProduct",
+                    Notes = "Produced in Manufacturing",
+                    TenantId = tenantId,
+                    CompanyId = line.CompanyId,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = userIdStr
+                };
+                movements.Add(finishedProductMov);
+                movementIds.Add(finishedProductMov.Id);
 
                 // Add all movements to db
                 _tenantContext.InventoryMovements.AddRange(movements);
