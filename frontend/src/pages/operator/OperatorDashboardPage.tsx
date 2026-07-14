@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useOutletContext } from 'react-router-dom'
 import { api } from '../../services/api'
@@ -117,10 +117,10 @@ export const OperatorDashboardPage: React.FC = () => {
 
   // Autofocus view transitions & route protection redirect
   const hasAutoOpenedModal = useRef(false)
-  
+
   useEffect(() => {
     if (selectedLine?.lineId) {
-       hasAutoOpenedModal.current = false
+      hasAutoOpenedModal.current = false
     }
   }, [selectedLine?.lineId])
 
@@ -353,6 +353,28 @@ export const OperatorDashboardPage: React.FC = () => {
   const [showSuccessSplash, setShowSuccessSplash] = useState(false)
   const [stockErrors, setStockErrors] = useState<{ [key: string]: string }>({})
   const [expandedEntries, setExpandedEntries] = useState<{ [key: string]: boolean }>({})
+
+  const watermarkBg = useMemo(() => {
+    if (!selectedLine?.name) return 'none'
+    const escapedName = selectedLine.name.toUpperCase()
+    const color = lineTheme?.primary || '#1A56DB'
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="260" height="180">
+      <text 
+        x="130" 
+        y="90" 
+        font-family="system-ui, -apple-system, sans-serif" 
+        font-weight="500" 
+        font-size="25" 
+        fill="${color}" 
+        opacity="0.10" 
+        text-anchor="middle" 
+        dominant-baseline="middle"
+        transform="rotate(-25 130 90)"
+        style="letter-spacing: 5px;"
+      >${escapedName}</text>
+    </svg>`
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
+  }, [selectedLine?.name, lineTheme?.primary])
 
   // Form dirty state check (ignore auto-selected IDs)
   const isDirty = (
@@ -800,7 +822,7 @@ export const OperatorDashboardPage: React.FC = () => {
       refetchSessionEntries()
       refetchActiveSession() // Increment entry counters
       if (refetchActiveBatch) refetchActiveBatch()
-      
+
       // Reset only usage fields, keep selections
       setCasesProduced('')
       setPreformUsage('')
@@ -1128,7 +1150,7 @@ export const OperatorDashboardPage: React.FC = () => {
             <div className="flex items-center justify-center gap-3">
               <h1 className="text-2xl font-black text-[#111827] tracking-tight uppercase">Production Dashboard</h1>
               {lineTheme && (
-                <span 
+                <span
                   className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase text-white tracking-widest shadow-sm select-none transition-all duration-200"
                   style={{ backgroundColor: lineTheme.primary }}
                 >
@@ -1150,7 +1172,7 @@ export const OperatorDashboardPage: React.FC = () => {
           ) : (!activeSession || !activeSession.canEnterProductionPage) ? (
 
             // --- SCENARIO A: NO BATCH ACTIVE ---
-            <div 
+            <div
               className="bg-white border border-[#E5E7EB] rounded-[12px] p-8 text-center shadow-[0_4px_12px_rgba(0,0,0,0.02)] space-y-6 transition-all duration-200"
               style={{ borderTop: `3px solid ${lineTheme?.primary || '#1A56DB'}` }}
             >
@@ -1182,7 +1204,7 @@ export const OperatorDashboardPage: React.FC = () => {
           ) : (
 
             // --- SCENARIO B: ACTIVE BATCH EXISTS ---
-            <div 
+            <div
               className="bg-white border border-[#E5E7EB] rounded-[12px] p-6 shadow-[0_4px_12px_rgba(0,0,0,0.02)] space-y-5 transition-all duration-200"
               style={{
                 borderLeft: `4px solid ${lineTheme?.primary || '#16A34A'}`,
@@ -1262,7 +1284,7 @@ export const OperatorDashboardPage: React.FC = () => {
               {/* Header */}
               <div className="flex justify-between items-center pb-4 border-b border-[#E5E7EB] mb-6">
                 <div className="flex items-center gap-2.5">
-                  <div 
+                  <div
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200"
                     style={{ backgroundColor: lineTheme?.secondary || '#E8F0FE', color: lineTheme?.primary || '#1A56DB' }}
                   >
@@ -1416,7 +1438,7 @@ export const OperatorDashboardPage: React.FC = () => {
                                   }
                                 }}
                                 className="w-full text-left px-4 py-2 border-b border-[#F4F6F9] last:border-0 transition-all duration-150 flex flex-col justify-center cursor-pointer"
-                                style={{ 
+                                style={{
                                   height: itemHeight,
                                   color: isHighlighted ? (lineTheme?.primary || '#1A56DB') : '#334155',
                                   backgroundColor: isHighlighted ? `${lineTheme?.secondary || '#E8F0FE'}c0` : isSelected ? `${lineTheme?.secondary || '#E8F0FE'}50` : '#ffffff'
@@ -1465,7 +1487,7 @@ export const OperatorDashboardPage: React.FC = () => {
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[11px] font-bold text-[#344054] flex justify-between">
                     <span>Production Start Time *</span>
-                    <span 
+                    <span
                       className="text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 select-none transition-all duration-200"
                       style={{ color: lineTheme?.primary || '#1A56DB', backgroundColor: lineTheme?.secondary || '#E8F0FE' }}
                     >
@@ -1569,7 +1591,7 @@ export const OperatorDashboardPage: React.FC = () => {
   // VIEW 3: PRODUCTION ENTRY TERMINAL (Inheriting running batch properties)
   // ==========================================
   return (
-    <div 
+    <div
       className="flex-1 w-full h-full flex flex-col min-h-0 select-none transition-all duration-200"
       style={{ '--line-color': lineTheme?.primary || '#1A56DB' } as React.CSSProperties}
     >
@@ -1593,13 +1615,24 @@ export const OperatorDashboardPage: React.FC = () => {
       `}</style>
 
       {/* DUAL WORKSPACE SPLIT PANEL */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-3 items-stretch min-h-0">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-3 items-stretch min-h-0 relative z-10">
 
         {/* LEFT PANEL: INPUT FORM (75%) */}
-        <div 
+        <div
           className="lg:col-span-3 flex flex-col min-h-0 bg-white border border-[#E5E7EB] rounded-[8px] p-3.5 relative shadow-sm transition-all duration-200"
           style={{ borderTop: `3px solid ${lineTheme?.primary || '#1A56DB'}` }}
         >
+          {/* Repeating Background Watermark Layer */}
+          {selectedLine?.name && (
+            <div
+              className="absolute inset-0 pointer-events-none select-none overflow-hidden z-0 rounded-[8px]"
+              style={{
+                backgroundImage: watermarkBg,
+                backgroundRepeat: 'repeat',
+              }}
+            />
+          )}
+
           {/* Green entry save success flash */}
           {showSuccessSplash && (
             <div className="absolute inset-0 bg-[#DCFCE7]/90 z-30 flex flex-col items-center justify-center rounded-[8px] transition-all duration-150">
@@ -1610,7 +1643,7 @@ export const OperatorDashboardPage: React.FC = () => {
             </div>
           )}
 
-          <form onSubmit={handleSaveEntrySubmit} className="flex flex-col h-full justify-between space-y-3 min-h-0">
+          <form onSubmit={handleSaveEntrySubmit} className="flex flex-col h-full justify-between space-y-3 min-h-0 relative z-10">
 
             {/* Colored Form Heading Indicator */}
             <div className="flex items-center gap-1.5 pb-1.5 border-b border-[#E5E7EB] select-none">
@@ -1659,7 +1692,7 @@ export const OperatorDashboardPage: React.FC = () => {
             <div className="flex-1 flex flex-col justify-start min-h-0">
               <h3 className="text-[10px] font-bold uppercase tracking-wider mb-1.5 select-none" style={{ color: lineTheme?.primary || '#1A56DB' }}>Raw Material Consumption</h3>
 
-              <div className="border border-[#E5E7EB] rounded-[6px] overflow-hidden flex flex-col min-h-0 bg-white">
+              <div className="border border-[#E5E7EB] rounded-[6px] overflow-hidden flex flex-col min-h-0 bg-transparent relative z-10">
                 <div className="overflow-x-auto min-h-0">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
@@ -1898,7 +1931,7 @@ export const OperatorDashboardPage: React.FC = () => {
                             onChange={(e) => setGlueUsage(e.target.value)}
                             disabled={!selectedGlueId}
                             className={`w-full h-7.5 border px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold ${!selectedGlueId ? 'bg-slate-100 cursor-not-allowed border-slate-200' :
-                                stockErrors.glue ? 'border-red-500 bg-red-50/30' : 'border-[#D0D5DD]'
+                              stockErrors.glue ? 'border-red-500 bg-red-50/30' : 'border-[#D0D5DD]'
                               }`}
                           />
                         </td>
@@ -1974,7 +2007,7 @@ export const OperatorDashboardPage: React.FC = () => {
         </div>
 
         {/* RIGHT PANEL: LOGS LEDGER (25%) */}
-        <div 
+        <div
           className="flex flex-col min-h-0 bg-white border border-[#E5E7EB] rounded-[8px] p-3 shadow-sm transition-all duration-200"
           style={{ borderTop: `3px solid ${lineTheme?.primary || '#1A56DB'}` }}
         >
@@ -2016,7 +2049,7 @@ export const OperatorDashboardPage: React.FC = () => {
                       className="p-2 cursor-pointer select-none space-y-1 hover:bg-slate-50/50"
                     >
                       <div className="flex justify-between items-center">
-                        <span 
+                        <span
                           className="font-bold px-1.5 py-0.5 rounded-[4px] text-[8px] font-mono transition-all duration-200"
                           style={{ color: lineTheme?.primary || '#1A56DB', backgroundColor: lineTheme?.secondary || '#EFF4FF' }}
                         >
