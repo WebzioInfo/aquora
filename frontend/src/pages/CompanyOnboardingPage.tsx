@@ -24,6 +24,13 @@ export const CompanyOnboardingPage: React.FC = () => {
   const { user, setAuth } = useAuthStore()
   const { showToast } = useNotificationStore()
   const [loading, setLoading] = useState(false)
+  const [step, setStep] = useState(1)
+  const [enabledStations, setEnabledStations] = useState<Record<string, boolean>>({
+    Blowing: true,
+    Filling: true,
+    Labeling: true,
+    Packing: true,
+  })
 
   const {
     register,
@@ -39,12 +46,18 @@ export const CompanyOnboardingPage: React.FC = () => {
   })
 
   const onSubmit = async (data: OnboardingFormInputs) => {
+    if (step === 1) {
+      setStep(2)
+      return
+    }
+
     setLoading(true)
     try {
       const response = await onboardingService.onboardCompany({
         companyName: data.companyName,
         employeeCount: data.employeeCount,
         howDidYouHearAboutUs: data.howDidYouHearAboutUs,
+        enabledStations: Object.keys(enabledStations).filter(k => enabledStations[k]),
       })
 
       if (response.success && response.data) {
@@ -77,6 +90,10 @@ export const CompanyOnboardingPage: React.FC = () => {
     }
   }
 
+  const handleBack = () => {
+    setStep(1)
+  }
+
   return (
     <div className="flex flex-col w-full gap-8">
       {/* Title block */}
@@ -87,53 +104,116 @@ export const CompanyOnboardingPage: React.FC = () => {
         <div className="space-y-1">
           <h1 className="text-2xl font-bold text-[#111827] dark:text-white">Company Onboarding</h1>
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">
-            Initialize tenant workspace
+            {step === 1 ? 'Initialize tenant workspace' : 'Configure production stations'}
           </p>
         </div>
       </div>
 
       {/* Form Area */}
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
-        {/* Company Name */}
-        <EnterpriseInput 
-          id="companyName"
-          label="Company Name *"
-          placeholder="Aquaflow Industrial Ltd."
-          disabled={loading}
-          error={errors.companyName?.message}
-          {...register('companyName')}
-        />
+        
+        {/* STEP 1 FIELDS */}
+        <div className={step === 2 ? 'hidden' : 'flex flex-col gap-5'}>
+          {/* Company Name */}
+          <EnterpriseInput 
+            id="companyName"
+            label="Company Name *"
+            placeholder="Aquaflow Industrial Ltd."
+            disabled={loading}
+            error={errors.companyName?.message}
+            {...register('companyName')}
+          />
 
-        {/* Employee Count */}
-        <EnterpriseInput 
-          id="employeeCount"
-          label="Employee Count *"
-          placeholder="50"
-          type="number"
-          min={1}
-          disabled={loading}
-          error={errors.employeeCount?.message}
-          {...register('employeeCount', { valueAsNumber: true })}
-        />
+          {/* Employee Count */}
+          <EnterpriseInput 
+            id="employeeCount"
+            label="Employee Count *"
+            placeholder="50"
+            type="number"
+            min={1}
+            disabled={loading}
+            error={errors.employeeCount?.message}
+            {...register('employeeCount', { valueAsNumber: true })}
+          />
 
-        {/* Referral Source */}
-        <EnterpriseInput 
-          id="howDidYouHearAboutUs"
-          label="How did you hear about Aquora? *"
-          placeholder="e.g. Search engine, colleague, trade show"
-          disabled={loading}
-          error={errors.howDidYouHearAboutUs?.message}
-          {...register('howDidYouHearAboutUs')}
-        />
+          {/* Referral Source */}
+          <EnterpriseInput 
+            id="howDidYouHearAboutUs"
+            label="How did you hear about Aquora? *"
+            placeholder="e.g. Search engine, colleague, trade show"
+            disabled={loading}
+            error={errors.howDidYouHearAboutUs?.message}
+            {...register('howDidYouHearAboutUs')}
+          />
+        </div>
 
-        {/* Onboard Button */}
-        <EnterpriseButton
-          type="submit"
-          loading={loading}
-          className="w-full mt-2"
-        >
-          Initialize Tenant Workspace
-        </EnterpriseButton>
+        {/* STEP 2 FIELDS */}
+        {step === 2 && (
+          <div className="flex flex-col gap-4 animate-fade-in">
+            <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
+              Select the active production stations for your manufacturing lines:
+            </p>
+            <div className="space-y-2.5">
+              {Object.keys(enabledStations).map((stationName) => {
+                const station = stationName as keyof typeof enabledStations
+                return (
+                  <div 
+                    key={station} 
+                    className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 border border-[#E5E7EB] dark:border-slate-800 rounded-[8px]"
+                  >
+                    <div className="text-left">
+                      <span className="text-xs font-bold text-slate-800 dark:text-white block">{station} Station</span>
+                      <span className="text-[10px] text-slate-500 block">
+                        {station === 'Blowing' && 'Manage preform materials and blowing logs'}
+                        {station === 'Filling' && 'Track cap usage and bottle/water filling'}
+                        {station === 'Labeling' && 'Track label application and wastage'}
+                        {station === 'Packing' && 'Manage shrink film, glue, ink, and makeup logs'}
+                      </span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={enabledStations[station]}
+                        onChange={(e) => setEnabledStations(prev => ({ ...prev, [station]: e.target.checked }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+                    </label>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Buttons */}
+        {step === 1 ? (
+          <EnterpriseButton
+            type="submit"
+            className="w-full mt-2"
+          >
+            Next: Configure Stations
+          </EnterpriseButton>
+        ) : (
+          <div className="flex gap-3 mt-2">
+            <EnterpriseButton
+              type="button"
+              variant="secondary"
+              onClick={handleBack}
+              disabled={loading}
+              className="w-1/3"
+            >
+              Back
+            </EnterpriseButton>
+            <EnterpriseButton
+              type="submit"
+              loading={loading}
+              className="flex-1"
+            >
+              Initialize Workspace
+            </EnterpriseButton>
+          </div>
+        )}
       </form>
 
       {/* Card Info Footer */}

@@ -21,8 +21,8 @@ namespace Aquora.Domain.Entities
         public int CasesProduced { get; set; }
 
         // Material Consumption Details
-        public Guid PreformMaterialId { get; set; }
-        public virtual RawMaterial PreformMaterial { get; set; }
+        public Guid? PreformMaterialId { get; set; }
+        public virtual RawMaterial? PreformMaterial { get; set; }
         public decimal PreformUsage { get; set; }
         public decimal PreformWastage { get; set; }
 
@@ -31,13 +31,13 @@ namespace Aquora.Domain.Entities
         public decimal CapUsage { get; set; }
         public decimal CapWastage { get; set; }
 
-        public Guid LabelMaterialId { get; set; }
-        public virtual RawMaterial LabelMaterial { get; set; }
+        public Guid? LabelMaterialId { get; set; }
+        public virtual RawMaterial? LabelMaterial { get; set; }
         public decimal LabelUsage { get; set; }
         public decimal LabelWastage { get; set; }
 
-        public Guid ShrinkMaterialId { get; set; }
-        public virtual RawMaterial ShrinkMaterial { get; set; }
+        public Guid? ShrinkMaterialId { get; set; }
+        public virtual RawMaterial? ShrinkMaterial { get; set; }
         public decimal ShrinkUsage { get; set; }
         public decimal ShrinkWastage { get; set; }
 

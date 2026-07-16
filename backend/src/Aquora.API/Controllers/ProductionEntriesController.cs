@@ -100,7 +100,6 @@ namespace Aquora.API.Controllers
                     e.Id,
                     e.OperatorName,
                     e.Shift,
-                    e.Time,
                     SkuName = e.Product?.Name ?? "Unknown Product",
                     CaseConfigurationName = "N/A",
                     e.CasesProduced,
@@ -168,7 +167,6 @@ namespace Aquora.API.Controllers
                     e.Id,
                     e.OperatorName,
                     e.Shift,
-                    e.Time,
                     SkuName = e.Product?.Name ?? "Unknown Product",
                     CaseConfigurationName = "N/A",
                     e.CasesProduced,
@@ -234,6 +232,15 @@ namespace Aquora.API.Controllers
                     var userIdStr = GetCurrentUserId();
                     var userGuid = Guid.TryParse(userIdStr, out var uGuid) ? uGuid : Guid.Empty;
 
+                    // Load tenant configurations
+                    var configs = await _platformContext.TenantProductionConfigurations
+                        .Where(c => c.TenantId == tenantId)
+                        .ToListAsync();
+                    var blowingEnabled = !configs.Any(c => c.StationName == "Blowing" && !c.IsEnabled);
+                    var fillingEnabled = !configs.Any(c => c.StationName == "Filling" && !c.IsEnabled);
+                    var labelingEnabled = !configs.Any(c => c.StationName == "Labeling" && !c.IsEnabled);
+                    var packingEnabled = !configs.Any(c => c.StationName == "Packing" && !c.IsEnabled);
+
                     // 1. Fetch related line
                     var line = await _tenantContext.ProductionLines.FirstOrDefaultAsync(l => l.Id == request.ProductionLineId && !l.IsDeleted);
                     if (line == null)
@@ -262,40 +269,67 @@ namespace Aquora.API.Controllers
                 }
 
                 // 3. Validate and load raw materials
-                var preform = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.PreformMaterialId && !m.IsDeleted);
-                if (preform == null)
+                RawMaterial? preform = null;
+                if (blowingEnabled)
                 {
-                    return Failure<object>("Selected Preform material not found.", "Validation failed");
+                    if (!request.PreformMaterialId.HasValue || request.PreformMaterialId == Guid.Empty)
+                    {
+                        return Failure<object>("Selected Preform material is required.", "Validation failed");
+                    }
+                    preform = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.PreformMaterialId.Value && !m.IsDeleted);
+                    if (preform == null)
+                    {
+                        return Failure<object>("Selected Preform material not found.", "Validation failed");
+                    }
                 }
 
                 RawMaterial? cap = null;
-                if (request.CapMaterialId.HasValue && request.CapMaterialId != Guid.Empty)
+                if (fillingEnabled)
                 {
-                    cap = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.CapMaterialId.Value && !m.IsDeleted);
-                    if (cap == null)
+                    if (request.CapMaterialId.HasValue && request.CapMaterialId != Guid.Empty)
                     {
-                        return Failure<object>("Selected Cap material not found.", "Validation failed");
+                        cap = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.CapMaterialId.Value && !m.IsDeleted);
+                        if (cap == null)
+                        {
+                            return Failure<object>("Selected Cap material not found.", "Validation failed");
+                        }
+                    }
+                    else if (request.CapUsage > 0 || request.CapWastage > 0)
+                    {
+                        return Failure<object>("Cap material must be selected when usage or wastage is greater than 0.", "Validation failed");
                     }
                 }
-                else if (request.CapUsage > 0 || request.CapWastage > 0)
+
+                RawMaterial? label = null;
+                if (labelingEnabled)
                 {
-                    return Failure<object>("Cap material must be selected when usage or wastage is greater than 0.", "Validation failed");
+                    if (!request.LabelMaterialId.HasValue || request.LabelMaterialId == Guid.Empty)
+                    {
+                        return Failure<object>("Selected Label material is required.", "Validation failed");
+                    }
+                    label = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.LabelMaterialId.Value && !m.IsDeleted);
+                    if (label == null)
+                    {
+                        return Failure<object>("Selected Label material not found.", "Validation failed");
+                    }
                 }
 
-                var label = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.LabelMaterialId && !m.IsDeleted);
-                if (label == null)
+                RawMaterial? shrink = null;
+                if (packingEnabled)
                 {
-                    return Failure<object>("Selected Label material not found.", "Validation failed");
-                }
-
-                var shrink = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.ShrinkMaterialId && !m.IsDeleted);
-                if (shrink == null)
-                {
-                    return Failure<object>("Selected Shrink Film material not found.", "Validation failed");
+                    if (!request.ShrinkMaterialId.HasValue || request.ShrinkMaterialId == Guid.Empty)
+                    {
+                        return Failure<object>("Selected Shrink Film material is required.", "Validation failed");
+                    }
+                    shrink = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.ShrinkMaterialId.Value && !m.IsDeleted);
+                    if (shrink == null)
+                    {
+                        return Failure<object>("Selected Shrink Film material not found.", "Validation failed");
+                    }
                 }
 
                 RawMaterial? glue = null;
-                if (request.GlueMaterialId.HasValue && request.GlueMaterialId != Guid.Empty)
+                if (packingEnabled && request.GlueMaterialId.HasValue && request.GlueMaterialId != Guid.Empty)
                 {
                     glue = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.GlueMaterialId.Value && !m.IsDeleted);
                     if (glue == null)
@@ -305,7 +339,7 @@ namespace Aquora.API.Controllers
                 }
 
                 RawMaterial? ink = null;
-                if (request.InkUsed)
+                if (packingEnabled && request.InkUsed)
                 {
                     var inkId = await GetDefaultInkMaterialIdAsync(line.CompanyId);
                     if (!inkId.HasValue)
@@ -320,7 +354,7 @@ namespace Aquora.API.Controllers
                 }
 
                 RawMaterial? makeup = null;
-                if (request.MakeupUsed)
+                if (packingEnabled && request.MakeupUsed)
                 {
                     var makeupId = await GetDefaultMakeupMaterialIdAsync(line.CompanyId);
                     if (!makeupId.HasValue)
@@ -335,29 +369,36 @@ namespace Aquora.API.Controllers
                 }
 
                 // 4. Stock validation checks & conversions
-                // a. Preforms
-                decimal preformDeduction = (request.PreformUsage * preform.ConversionFactor) + request.PreformWastage;
-                if (preformDeduction < 0) return Failure<object>("Preform usage and wastage cannot be negative.", "Validation failed");
+                decimal preformDeduction = 0;
+                if (blowingEnabled && preform != null)
+                {
+                    preformDeduction = (request.PreformUsage * preform.ConversionFactor) + request.PreformWastage;
+                    if (preformDeduction < 0) return Failure<object>("Preform usage and wastage cannot be negative.", "Validation failed");
+                }
 
-                // a2. Caps
                 decimal capDeduction = 0;
-                if (cap != null)
+                if (fillingEnabled && cap != null)
                 {
                     capDeduction = (request.CapUsage * cap.ConversionFactor) + request.CapWastage;
                     if (capDeduction < 0) return Failure<object>("Cap usage and wastage cannot be negative.", "Validation failed");
                 }
 
-                // b. Labels
-                decimal labelDeduction = (request.LabelUsage * label.ConversionFactor) + request.LabelWastage;
-                if (labelDeduction < 0) return Failure<object>("Label usage and wastage cannot be negative.", "Validation failed");
+                decimal labelDeduction = 0;
+                if (labelingEnabled && label != null)
+                {
+                    labelDeduction = (request.LabelUsage * label.ConversionFactor) + request.LabelWastage;
+                    if (labelDeduction < 0) return Failure<object>("Label usage and wastage cannot be negative.", "Validation failed");
+                }
 
-                // c. Shrink
-                decimal shrinkDeduction = (request.ShrinkUsage * shrink.ConversionFactor) + request.ShrinkWastage;
-                if (shrinkDeduction < 0) return Failure<object>("Shrink Film usage and wastage cannot be negative.", "Validation failed");
+                decimal shrinkDeduction = 0;
+                if (packingEnabled && shrink != null)
+                {
+                    shrinkDeduction = (request.ShrinkUsage * shrink.ConversionFactor) + request.ShrinkWastage;
+                    if (shrinkDeduction < 0) return Failure<object>("Shrink Film usage and wastage cannot be negative.", "Validation failed");
+                }
 
-                // d. Glue (Optional)
                 decimal glueDeduction = 0;
-                if (glue != null && request.GlueUsage.HasValue)
+                if (packingEnabled && glue != null && request.GlueUsage.HasValue)
                 {
                     glueDeduction = request.GlueUsage.Value * glue.ConversionFactor;
                     if (glueDeduction < 0) return Failure<object>("Glue usage cannot be negative.", "Validation failed");
@@ -369,24 +410,27 @@ namespace Aquora.API.Controllers
                 var entryId = Guid.NewGuid();
 
                 // a. Preforms
-                preform.CurrentStock -= preformDeduction;
-                var movPreform = new InventoryMovement
+                if (blowingEnabled && preform != null)
                 {
-                    Id = Guid.NewGuid(),
-                    RawMaterialId = preform.Id,
-                    Quantity = -preformDeduction,
-                    ReferenceType = "ProductionEntry",
-                    ReferenceId = entryId,
-                    TenantId = tenantId,
-                    CompanyId = line.CompanyId,
-                    CreatedAt = DateTime.UtcNow,
-                    CreatedBy = userIdStr
-                };
-                movements.Add(movPreform);
-                movementIds.Add(movPreform.Id);
+                    preform.CurrentStock -= preformDeduction;
+                    var movPreform = new InventoryMovement
+                    {
+                        Id = Guid.NewGuid(),
+                        RawMaterialId = preform.Id,
+                        Quantity = -preformDeduction,
+                        ReferenceType = "ProductionEntry",
+                        ReferenceId = entryId,
+                        TenantId = tenantId,
+                        CompanyId = line.CompanyId,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = userIdStr
+                    };
+                    movements.Add(movPreform);
+                    movementIds.Add(movPreform.Id);
+                }
 
                 // a2. Caps
-                if (cap != null && capDeduction > 0)
+                if (fillingEnabled && cap != null && capDeduction > 0)
                 {
                     cap.CurrentStock -= capDeduction;
                     var movCap = new InventoryMovement
@@ -406,41 +450,47 @@ namespace Aquora.API.Controllers
                 }
 
                 // b. Labels
-                label.CurrentStock -= labelDeduction;
-                var movLabel = new InventoryMovement
+                if (labelingEnabled && label != null)
                 {
-                    Id = Guid.NewGuid(),
-                    RawMaterialId = label.Id,
-                    Quantity = -labelDeduction,
-                    ReferenceType = "ProductionEntry",
-                    ReferenceId = entryId,
-                    TenantId = tenantId,
-                    CompanyId = line.CompanyId,
-                    CreatedAt = DateTime.UtcNow,
-                    CreatedBy = userIdStr
-                };
-                movements.Add(movLabel);
-                movementIds.Add(movLabel.Id);
+                    label.CurrentStock -= labelDeduction;
+                    var movLabel = new InventoryMovement
+                    {
+                        Id = Guid.NewGuid(),
+                        RawMaterialId = label.Id,
+                        Quantity = -labelDeduction,
+                        ReferenceType = "ProductionEntry",
+                        ReferenceId = entryId,
+                        TenantId = tenantId,
+                        CompanyId = line.CompanyId,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = userIdStr
+                    };
+                    movements.Add(movLabel);
+                    movementIds.Add(movLabel.Id);
+                }
 
                 // c. Shrink
-                shrink.CurrentStock -= shrinkDeduction;
-                var movShrink = new InventoryMovement
+                if (packingEnabled && shrink != null)
                 {
-                    Id = Guid.NewGuid(),
-                    RawMaterialId = shrink.Id,
-                    Quantity = -shrinkDeduction,
-                    ReferenceType = "ProductionEntry",
-                    ReferenceId = entryId,
-                    TenantId = tenantId,
-                    CompanyId = line.CompanyId,
-                    CreatedAt = DateTime.UtcNow,
-                    CreatedBy = userIdStr
-                };
-                movements.Add(movShrink);
-                movementIds.Add(movShrink.Id);
+                    shrink.CurrentStock -= shrinkDeduction;
+                    var movShrink = new InventoryMovement
+                    {
+                        Id = Guid.NewGuid(),
+                        RawMaterialId = shrink.Id,
+                        Quantity = -shrinkDeduction,
+                        ReferenceType = "ProductionEntry",
+                        ReferenceId = entryId,
+                        TenantId = tenantId,
+                        CompanyId = line.CompanyId,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = userIdStr
+                    };
+                    movements.Add(movShrink);
+                    movementIds.Add(movShrink.Id);
+                }
 
                 // d. Glue
-                if (glue != null && glueDeduction > 0)
+                if (packingEnabled && glue != null && glueDeduction > 0)
                 {
                     glue.CurrentStock -= glueDeduction;
                     var movGlue = new InventoryMovement
@@ -460,7 +510,7 @@ namespace Aquora.API.Controllers
                 }
 
                 // e. Ink
-                if (request.InkUsed && ink != null)
+                if (packingEnabled && request.InkUsed && ink != null)
                 {
                     ink.CurrentStock -= 1.0m;
                     var movInk = new InventoryMovement
@@ -480,7 +530,7 @@ namespace Aquora.API.Controllers
                 }
 
                 // f. Makeup
-                if (request.MakeupUsed && makeup != null)
+                if (packingEnabled && request.MakeupUsed && makeup != null)
                 {
                     makeup.CurrentStock -= 1.0m;
                     var movMakeup = new InventoryMovement
@@ -531,25 +581,25 @@ namespace Aquora.API.Controllers
                     ProductionLineId = line.Id,
                     Shift = activeSession.Shift,
                     Date = DateTime.UtcNow.Date,
-                    Time = DateTime.UtcNow.ToString("hh:mm tt"), // 12-hour format e.g. "10:42 AM"
+                    Time = DateTime.UtcNow.ToString("O"), // Store as ISO-8601 UTC
                     ProductId = sku.Id,
                     CasesProduced = request.CasesProduced,
-                    PreformMaterialId = preform.Id,
-                    PreformUsage = request.PreformUsage,
-                    PreformWastage = request.PreformWastage,
-                    CapMaterialId = cap?.Id,
-                    CapUsage = request.CapUsage,
-                    CapWastage = request.CapWastage,
-                    LabelMaterialId = label.Id,
-                    LabelUsage = request.LabelUsage,
-                    LabelWastage = request.LabelWastage,
-                    ShrinkMaterialId = shrink.Id,
-                    ShrinkUsage = request.ShrinkUsage,
-                    ShrinkWastage = request.ShrinkWastage,
-                    GlueMaterialId = glue?.Id,
-                    GlueUsage = request.GlueUsage,
-                    InkUsed = request.InkUsed,
-                    MakeupUsed = request.MakeupUsed,
+                    PreformMaterialId = blowingEnabled ? preform?.Id : null,
+                    PreformUsage = blowingEnabled ? request.PreformUsage : 0,
+                    PreformWastage = blowingEnabled ? request.PreformWastage : 0,
+                    CapMaterialId = (fillingEnabled && cap != null) ? cap.Id : null,
+                    CapUsage = fillingEnabled ? request.CapUsage : 0,
+                    CapWastage = fillingEnabled ? request.CapWastage : 0,
+                    LabelMaterialId = labelingEnabled ? label?.Id : null,
+                    LabelUsage = labelingEnabled ? request.LabelUsage : 0,
+                    LabelWastage = labelingEnabled ? request.LabelWastage : 0,
+                    ShrinkMaterialId = packingEnabled ? shrink?.Id : null,
+                    ShrinkUsage = packingEnabled ? request.ShrinkUsage : 0,
+                    ShrinkWastage = packingEnabled ? request.ShrinkWastage : 0,
+                    GlueMaterialId = (packingEnabled && glue != null) ? glue.Id : null,
+                    GlueUsage = packingEnabled ? request.GlueUsage : null,
+                    InkUsed = packingEnabled ? request.InkUsed : false,
+                    MakeupUsed = packingEnabled ? request.MakeupUsed : false,
                     InventoryMovementIds = string.Join(",", movementIds.Select(id => id.ToString())),
                     ProductionSessionId = activeSession.Id,
                     TenantId = tenantId,
@@ -1471,7 +1521,7 @@ namespace Aquora.API.Controllers
         public Guid? SkuProductId { get; set; }
         public int CasesProduced { get; set; }
 
-        public Guid PreformMaterialId { get; set; }
+        public Guid? PreformMaterialId { get; set; }
         public decimal PreformUsage { get; set; }
         public decimal PreformWastage { get; set; }
 
@@ -1479,11 +1529,11 @@ namespace Aquora.API.Controllers
         public decimal CapUsage { get; set; }
         public decimal CapWastage { get; set; }
 
-        public Guid LabelMaterialId { get; set; }
+        public Guid? LabelMaterialId { get; set; }
         public decimal LabelUsage { get; set; }
         public decimal LabelWastage { get; set; }
 
-        public Guid ShrinkMaterialId { get; set; }
+        public Guid? ShrinkMaterialId { get; set; }
         public decimal ShrinkUsage { get; set; }
         public decimal ShrinkWastage { get; set; }
 

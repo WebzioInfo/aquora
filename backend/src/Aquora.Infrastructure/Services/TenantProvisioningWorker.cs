@@ -75,6 +75,7 @@ namespace Aquora.Infrastructure.Services
                         job.CompanyName,
                         job.CompanyCode,
                         job.OwnerUserId,
+                        job.EnabledStations,
                         async (progress, step, status) =>
                         {
                             await UpdateProgressAsync(job.TenantId, progress, step, status);

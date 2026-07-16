@@ -113,7 +113,8 @@ namespace Aquora.Application.Services
                 SchemaName = schemaName,
                 CompanyName = request.CompanyName.Trim(),
                 CompanyCode = companyCode,
-                OwnerUserId = user.Id
+                OwnerUserId = user.Id,
+                EnabledStations = request.EnabledStations
             });
 
             // 3. Generate dynamic token with default role and permission claims during provisioning

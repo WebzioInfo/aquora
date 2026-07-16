@@ -5,6 +5,7 @@ export interface CompanyOnboardingRequest {
   companyName: string
   employeeCount: number
   howDidYouHearAboutUs: string
+  enabledStations?: string[]
 }
 
 export interface CompanyOnboardingResponse {

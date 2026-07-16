@@ -11,6 +11,7 @@ namespace Aquora.Application.Interfaces.Services
         public string CompanyName { get; set; } = string.Empty;
         public string CompanyCode { get; set; } = string.Empty;
         public Guid OwnerUserId { get; set; }
+        public System.Collections.Generic.List<string>? EnabledStations { get; set; }
     }
 
     public interface ITenantProvisioningQueue

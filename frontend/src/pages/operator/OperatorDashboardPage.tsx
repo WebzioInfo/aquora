@@ -114,7 +114,16 @@ export const OperatorDashboardPage: React.FC = () => {
       return res.data?.data || null
     }
   })
-
+  // --- QUERY: Enabled Production Stations ---
+  const { data: enabledStations = ['Blowing', 'Filling', 'Labeling', 'Packing'] } = useQuery<string[]>({
+    queryKey: ['enabledProductionStations'],
+    queryFn: async () => {
+      const res = await api.get('/api/v1/production-configuration')
+      return res.data?.data || []
+    },
+    staleTime: Infinity,
+    gcTime: Infinity
+  } as any)
   // Autofocus view transitions & route protection redirect
   const hasAutoOpenedModal = useRef(false)
 
@@ -434,47 +443,62 @@ export const OperatorDashboardPage: React.FC = () => {
         resolve(false)
         return
       }
-      if (!selectedPreformId || !selectedLabelId || !selectedShrinkId) {
-        showToast('Material selections are required.', 'error')
+
+      const blowingEnabled = enabledStations.includes('Blowing')
+      const fillingEnabled = enabledStations.includes('Filling')
+      const labelingEnabled = enabledStations.includes('Labeling')
+      const packingEnabled = enabledStations.includes('Packing')
+
+      if (blowingEnabled && !selectedPreformId) {
+        showToast('Preform material selection is required.', 'error')
+        resolve(false)
+        return
+      }
+      if (labelingEnabled && !selectedLabelId) {
+        showToast('Label material selection is required.', 'error')
+        resolve(false)
+        return
+      }
+      if (packingEnabled && !selectedShrinkId) {
+        showToast('Shrink Film material selection is required.', 'error')
         resolve(false)
         return
       }
 
-      if ((parseFloat(capUsage) > 0 || parseFloat(capWastage) > 0) && !selectedCapId) {
+      if (fillingEnabled && (parseFloat(capUsage) > 0 || parseFloat(capWastage) > 0) && !selectedCapId) {
         showToast('Cap material must be selected when usage or wastage is entered.', 'error')
         resolve(false)
         return
       }
 
-
       submitEntryMutation.mutate({
         productionLineId: selectedLine.lineId,
         casesProduced: parseInt(casesProduced),
 
-        preformMaterialId: selectedPreformId,
-        preformUsage: parseFloat(preformUsage) || 0,
-        preformWastage: parseFloat(preformWastage) || 0,
+        preformMaterialId: blowingEnabled ? selectedPreformId : null,
+        preformUsage: blowingEnabled ? (parseFloat(preformUsage) || 0) : 0,
+        preformWastage: blowingEnabled ? (parseFloat(preformWastage) || 0) : 0,
 
-        capMaterialId: selectedCapId || null,
-        capUsage: parseFloat(capUsage) || 0,
-        capWastage: parseFloat(capWastage) || 0,
+        capMaterialId: (fillingEnabled && selectedCapId) ? selectedCapId : null,
+        capUsage: fillingEnabled ? (parseFloat(capUsage) || 0) : 0,
+        capWastage: fillingEnabled ? (parseFloat(capWastage) || 0) : 0,
 
-        labelMaterialId: selectedLabelId,
-        labelUsage: parseFloat(labelUsage) || 0,
-        labelWastage: parseFloat(labelWastage) || 0,
+        labelMaterialId: labelingEnabled ? selectedLabelId : null,
+        labelUsage: labelingEnabled ? (parseFloat(labelUsage) || 0) : 0,
+        labelWastage: labelingEnabled ? (parseFloat(labelWastage) || 0) : 0,
 
-        shrinkMaterialId: selectedShrinkId,
-        shrinkUsage: parseFloat(shrinkUsage) || 0,
-        shrinkWastage: parseFloat(shrinkWastage) || 0,
+        shrinkMaterialId: packingEnabled ? selectedShrinkId : null,
+        shrinkUsage: packingEnabled ? (parseFloat(shrinkUsage) || 0) : 0,
+        shrinkWastage: packingEnabled ? (parseFloat(shrinkWastage) || 0) : 0,
 
-        glueMaterialId: selectedGlueId || null,
-        glueUsage: selectedGlueId && glueUsage ? parseFloat(glueUsage) : null,
+        glueMaterialId: (packingEnabled && selectedGlueId) ? selectedGlueId : null,
+        glueUsage: (packingEnabled && selectedGlueId && glueUsage) ? parseFloat(glueUsage) : null,
 
-        inkMaterialId: selectedInkId || null,
-        inkUsed: inkUsed,
+        inkMaterialId: (packingEnabled && selectedInkId) ? selectedInkId : null,
+        inkUsed: packingEnabled ? inkUsed : false,
 
-        makeupMaterialId: selectedMakeupId || null,
-        makeupUsed: makeupUsed
+        makeupMaterialId: (packingEnabled && selectedMakeupId) ? selectedMakeupId : null,
+        makeupUsed: packingEnabled ? makeupUsed : false
       }, {
         onSuccess: () => {
           resolve(true)
@@ -852,12 +876,26 @@ export const OperatorDashboardPage: React.FC = () => {
       showToast('Cases Produced must be a positive integer.', 'error')
       return
     }
-    if (!selectedPreformId || !selectedLabelId || !selectedShrinkId) {
-      showToast('Material selections are required.', 'error')
+
+    const blowingEnabled = enabledStations.includes('Blowing')
+    const fillingEnabled = enabledStations.includes('Filling')
+    const labelingEnabled = enabledStations.includes('Labeling')
+    const packingEnabled = enabledStations.includes('Packing')
+
+    if (blowingEnabled && !selectedPreformId) {
+      showToast('Preform material selection is required.', 'error')
+      return
+    }
+    if (labelingEnabled && !selectedLabelId) {
+      showToast('Label material selection is required.', 'error')
+      return
+    }
+    if (packingEnabled && !selectedShrinkId) {
+      showToast('Shrink Film material selection is required.', 'error')
       return
     }
 
-    if ((parseFloat(capUsage) > 0 || parseFloat(capWastage) > 0) && !selectedCapId) {
+    if (fillingEnabled && (parseFloat(capUsage) > 0 || parseFloat(capWastage) > 0) && !selectedCapId) {
       showToast('Cap material must be selected when usage or wastage is entered.', 'error')
       return
     }
@@ -866,27 +904,27 @@ export const OperatorDashboardPage: React.FC = () => {
       productionLineId: selectedLine.lineId,
       casesProduced: parseInt(casesProduced),
 
-      preformMaterialId: selectedPreformId,
-      preformUsage: parseFloat(preformUsage) || 0,
-      preformWastage: parseFloat(preformWastage) || 0,
+      preformMaterialId: blowingEnabled ? selectedPreformId : null,
+      preformUsage: blowingEnabled ? (parseFloat(preformUsage) || 0) : 0,
+      preformWastage: blowingEnabled ? (parseFloat(preformWastage) || 0) : 0,
 
-      capMaterialId: selectedCapId || null,
-      capUsage: parseFloat(capUsage) || 0,
-      capWastage: parseFloat(capWastage) || 0,
+      capMaterialId: (fillingEnabled && selectedCapId) ? selectedCapId : null,
+      capUsage: fillingEnabled ? (parseFloat(capUsage) || 0) : 0,
+      capWastage: fillingEnabled ? (parseFloat(capWastage) || 0) : 0,
 
-      labelMaterialId: selectedLabelId,
-      labelUsage: parseFloat(labelUsage) || 0,
-      labelWastage: parseFloat(labelWastage) || 0,
+      labelMaterialId: labelingEnabled ? selectedLabelId : null,
+      labelUsage: labelingEnabled ? (parseFloat(labelUsage) || 0) : 0,
+      labelWastage: labelingEnabled ? (parseFloat(labelWastage) || 0) : 0,
 
-      shrinkMaterialId: selectedShrinkId,
-      shrinkUsage: parseFloat(shrinkUsage) || 0,
-      shrinkWastage: parseFloat(shrinkWastage) || 0,
+      shrinkMaterialId: packingEnabled ? selectedShrinkId : null,
+      shrinkUsage: packingEnabled ? (parseFloat(shrinkUsage) || 0) : 0,
+      shrinkWastage: packingEnabled ? (parseFloat(shrinkWastage) || 0) : 0,
 
-      glueMaterialId: selectedGlueId || null,
-      glueUsage: selectedGlueId && glueUsage ? parseFloat(glueUsage) : null,
+      glueMaterialId: (packingEnabled && selectedGlueId) ? selectedGlueId : null,
+      glueUsage: (packingEnabled && selectedGlueId && glueUsage) ? parseFloat(glueUsage) : null,
 
-      inkUsed: inkUsed,
-      makeupUsed: makeupUsed
+      inkUsed: packingEnabled ? inkUsed : false,
+      makeupUsed: packingEnabled ? makeupUsed : false
     })
   }
 
@@ -1707,237 +1745,247 @@ export const OperatorDashboardPage: React.FC = () => {
                     <tbody className="divide-y divide-[#E5E7EB] text-[11px]">
 
                       {/* PREFORM ROW */}
-                      <tr className="hover:bg-slate-50/50">
-                        <td className="px-3 py-1 font-bold text-slate-800 select-none">Preform</td>
-                        <td className="px-3 py-1">
-                          <select
-                            value={selectedPreformId}
-                            onChange={(e) => setSelectedPreformId(e.target.value)}
-                            className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs bg-white focus:outline-none focus-line-theme text-slate-800 font-semibold"
-                          >
-                            {preforms.length > 0 ? (
-                              <>
-                                <option value="">Select Material</option>
-                                {preforms.map(p => (
-                                  <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
-                              </>
-                            ) : (
-                              <option value="">No active materials available</option>
-                            )}
-                          </select>
-                        </td>
-                        <td className="px-3 py-1">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="Usage"
-                            value={preformUsage}
-                            onChange={(e) => setPreformUsage(e.target.value)}
-                            className={`w-full h-7.5 border px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold ${stockErrors.preform ? 'border-red-500 bg-red-50/30' : 'border-[#D0D5DD]'
-                              }`}
-                          />
-                        </td>
-                        <td className="px-3 py-1">
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            placeholder="Waste"
-                            value={preformWastage}
-                            onChange={(e) => {
-                              const val = e.target.value
-                              if (val === '' || /^\d+$/.test(val)) setPreformWastage(val)
-                            }}
-                            className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
-                          />
-                        </td>
-                        <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">Bag</td>
-                      </tr>
+                      {enabledStations.includes('Blowing') && (
+                        <tr className="hover:bg-slate-50/50">
+                          <td className="px-3 py-1 font-bold text-slate-800 select-none">Preform</td>
+                          <td className="px-3 py-1">
+                            <select
+                              value={selectedPreformId}
+                              onChange={(e) => setSelectedPreformId(e.target.value)}
+                              className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs bg-white focus:outline-none focus-line-theme text-slate-800 font-semibold"
+                            >
+                              {preforms.length > 0 ? (
+                                <>
+                                  <option value="">Select Material</option>
+                                  {preforms.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                  ))}
+                                </>
+                              ) : (
+                                <option value="">No active materials available</option>
+                              )}
+                            </select>
+                          </td>
+                          <td className="px-3 py-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="Usage"
+                              value={preformUsage}
+                              onChange={(e) => setPreformUsage(e.target.value)}
+                              className={`w-full h-7.5 border px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold ${stockErrors.preform ? 'border-red-500 bg-red-50/30' : 'border-[#D0D5DD]'
+                                }`}
+                            />
+                          </td>
+                          <td className="px-3 py-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              placeholder="Waste"
+                              value={preformWastage}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                if (val === '' || /^\d+$/.test(val)) setPreformWastage(val)
+                              }}
+                              className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
+                            />
+                          </td>
+                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">Bag</td>
+                        </tr>
+                      )}
 
                       {/* CAP ROW */}
-                      <tr className="hover:bg-slate-50/50">
-                        <td className="px-3 py-1 font-bold text-slate-800 select-none">Cap</td>
-                        <td className="px-3 py-1">
-                          <select
-                            value={selectedCapId}
-                            onChange={(e) => setSelectedCapId(e.target.value)}
-                            className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs bg-white focus:outline-none focus-line-theme text-slate-800 font-semibold"
-                          >
-                            {caps.length > 0 ? (
-                              <>
-                                <option value="">Select Material</option>
-                                {caps.map(p => (
-                                  <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
-                              </>
-                            ) : (
-                              <option value="">No active materials available</option>
-                            )}
-                          </select>
-                        </td>
-                        <td className="px-3 py-1">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="Usage"
-                            value={capUsage}
-                            onChange={(e) => setCapUsage(e.target.value)}
-                            className={`w-full h-7.5 border px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold ${stockErrors.cap ? 'border-red-500 bg-red-50/30' : 'border-[#D0D5DD]'
-                              }`}
-                          />
-                        </td>
-                        <td className="px-3 py-1">
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            placeholder="Waste"
-                            value={capWastage}
-                            onChange={(e) => {
-                              const val = e.target.value
-                              if (val === '' || /^\d+$/.test(val)) setCapWastage(val)
-                            }}
-                            className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
-                          />
-                        </td>
-                        <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">BOX</td>
-                      </tr>
+                      {enabledStations.includes('Filling') && (
+                        <tr className="hover:bg-slate-50/50">
+                          <td className="px-3 py-1 font-bold text-slate-800 select-none">Cap</td>
+                          <td className="px-3 py-1">
+                            <select
+                              value={selectedCapId}
+                              onChange={(e) => setSelectedCapId(e.target.value)}
+                              className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs bg-white focus:outline-none focus-line-theme text-slate-800 font-semibold"
+                            >
+                              {caps.length > 0 ? (
+                                <>
+                                  <option value="">Select Material</option>
+                                  {caps.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                  ))}
+                                </>
+                              ) : (
+                                <option value="">No active materials available</option>
+                              )}
+                            </select>
+                          </td>
+                          <td className="px-3 py-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="Usage"
+                              value={capUsage}
+                              onChange={(e) => setCapUsage(e.target.value)}
+                              className={`w-full h-7.5 border px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold ${stockErrors.cap ? 'border-red-500 bg-red-50/30' : 'border-[#D0D5DD]'
+                                }`}
+                            />
+                          </td>
+                          <td className="px-3 py-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              placeholder="Waste"
+                              value={capWastage}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                if (val === '' || /^\d+$/.test(val)) setCapWastage(val)
+                              }}
+                              className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
+                            />
+                          </td>
+                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">BOX</td>
+                        </tr>
+                      )}
 
                       {/* LABEL ROW */}
-                      <tr className="hover:bg-slate-50/50">
-                        <td className="px-3 py-1 font-bold text-slate-800 select-none">Label</td>
-                        <td className="px-3 py-1">
-                          <select
-                            value={selectedLabelId}
-                            onChange={(e) => setSelectedLabelId(e.target.value)}
-                            className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs bg-white focus:outline-none focus-line-theme text-slate-800 font-semibold"
-                          >
-                            {labels.length > 0 ? (
-                              <>
-                                <option value="">Select Material</option>
-                                {labels.map(l => (
-                                  <option key={l.id} value={l.id}>{l.name}</option>
-                                ))}
-                              </>
-                            ) : (
-                              <option value="">No active materials available</option>
-                            )}
-                          </select>
-                        </td>
-                        <td className="px-3 py-1">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="Usage"
-                            value={labelUsage}
-                            onChange={(e) => setLabelUsage(e.target.value)}
-                            className={`w-full h-7.5 border px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold ${stockErrors.label ? 'border-red-500 bg-red-50/30' : 'border-[#D0D5DD]'
-                              }`}
-                          />
-                        </td>
-                        <td className="px-3 py-1">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="Waste"
-                            value={labelWastage}
-                            onChange={(e) => setLabelWastage(e.target.value)}
-                            className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
-                          />
-                        </td>
-                        <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">{getSelectedLabelUnit()}</td>
-                      </tr>
+                      {enabledStations.includes('Labeling') && (
+                        <tr className="hover:bg-slate-50/50">
+                          <td className="px-3 py-1 font-bold text-slate-800 select-none">Label</td>
+                          <td className="px-3 py-1">
+                            <select
+                              value={selectedLabelId}
+                              onChange={(e) => setSelectedLabelId(e.target.value)}
+                              className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs bg-white focus:outline-none focus-line-theme text-slate-800 font-semibold"
+                            >
+                              {labels.length > 0 ? (
+                                <>
+                                  <option value="">Select Material</option>
+                                  {labels.map(l => (
+                                    <option key={l.id} value={l.id}>{l.name}</option>
+                                  ))}
+                                </>
+                              ) : (
+                                <option value="">No active materials available</option>
+                              )}
+                            </select>
+                          </td>
+                          <td className="px-3 py-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="Usage"
+                              value={labelUsage}
+                              onChange={(e) => setLabelUsage(e.target.value)}
+                              className={`w-full h-7.5 border px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold ${stockErrors.label ? 'border-red-500 bg-red-50/30' : 'border-[#D0D5DD]'
+                                }`}
+                            />
+                          </td>
+                          <td className="px-3 py-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="Waste"
+                              value={labelWastage}
+                              onChange={(e) => setLabelWastage(e.target.value)}
+                              className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
+                            />
+                          </td>
+                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">{getSelectedLabelUnit()}</td>
+                        </tr>
+                      )}
 
                       {/* SHRINK FILM ROW */}
-                      <tr className="hover:bg-slate-50/50">
-                        <td className="px-3 py-1 font-bold text-slate-800 select-none">Shrink Film</td>
-                        <td className="px-3 py-1">
-                          <select
-                            value={selectedShrinkId}
-                            onChange={(e) => setSelectedShrinkId(e.target.value)}
-                            className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs bg-white focus:outline-none focus-line-theme text-slate-800 font-semibold"
-                          >
-                            {shrinks.length > 0 ? (
-                              <>
-                                <option value="">Select Material</option>
-                                {shrinks.map(s => (
-                                  <option key={s.id} value={s.id}>{s.name}</option>
-                                ))}
-                              </>
-                            ) : (
-                              <option value="">No active materials available</option>
-                            )}
-                          </select>
-                        </td>
-                        <td className="px-3 py-1">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="Usage"
-                            value={shrinkUsage}
-                            onChange={(e) => setShrinkUsage(e.target.value)}
-                            className={`w-full h-7.5 border px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold ${stockErrors.shrink ? 'border-red-500 bg-red-50/30' : 'border-[#D0D5DD]'
-                              }`}
-                          />
-                        </td>
-                        <td className="px-3 py-1">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="Waste"
-                            value={shrinkWastage}
-                            onChange={(e) => setShrinkWastage(e.target.value)}
-                            className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
-                          />
-                        </td>
-                        <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">KG</td>
-                      </tr>
+                      {enabledStations.includes('Packing') && (
+                        <tr className="hover:bg-slate-50/50">
+                          <td className="px-3 py-1 font-bold text-slate-800 select-none">Shrink Film</td>
+                          <td className="px-3 py-1">
+                            <select
+                              value={selectedShrinkId}
+                              onChange={(e) => setSelectedShrinkId(e.target.value)}
+                              className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs bg-white focus:outline-none focus-line-theme text-slate-800 font-semibold"
+                            >
+                              {shrinks.length > 0 ? (
+                                <>
+                                  <option value="">Select Material</option>
+                                  {shrinks.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                  ))}
+                                </>
+                              ) : (
+                                <option value="">No active materials available</option>
+                              )}
+                            </select>
+                          </td>
+                          <td className="px-3 py-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="Usage"
+                              value={shrinkUsage}
+                              onChange={(e) => setShrinkUsage(e.target.value)}
+                              className={`w-full h-7.5 border px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold ${stockErrors.shrink ? 'border-red-500 bg-red-50/30' : 'border-[#D0D5DD]'
+                                }`}
+                            />
+                          </td>
+                          <td className="px-3 py-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="Waste"
+                              value={shrinkWastage}
+                              onChange={(e) => setShrinkWastage(e.target.value)}
+                              className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
+                            />
+                          </td>
+                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">KG</td>
+                        </tr>
+                      )}
 
                       {/* GLUE ROW */}
-                      <tr className="hover:bg-slate-50/50">
-                        <td className="px-3 py-1 font-bold text-slate-800 select-none">Glue (Opt)</td>
-                        <td className="px-3 py-1">
-                          <select
-                            value={selectedGlueId}
-                            onChange={(e) => setSelectedGlueId(e.target.value)}
-                            className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs bg-white focus:outline-none focus-line-theme text-slate-800 font-semibold"
-                          >
-                            {glues.length > 0 ? (
-                              <>
-                                <option value="">Select Material (Optional)</option>
-                                {glues.map(g => (
-                                  <option key={g.id} value={g.id}>{g.name}</option>
-                                ))}
-                              </>
-                            ) : (
-                              <option value="">No active materials available</option>
-                            )}
-                          </select>
-                        </td>
-                        <td className="px-3 py-1">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="Usage"
-                            value={glueUsage}
-                            onChange={(e) => setGlueUsage(e.target.value)}
-                            disabled={!selectedGlueId}
-                            className={`w-full h-7.5 border px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold ${!selectedGlueId ? 'bg-slate-100 cursor-not-allowed border-slate-200' :
-                              stockErrors.glue ? 'border-red-500 bg-red-50/30' : 'border-[#D0D5DD]'
-                              }`}
-                          />
-                        </td>
-                        <td className="px-3 py-1 text-center text-[#9CA3AF] select-none font-extrabold">-</td>
-                        <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">KG</td>
-                      </tr>
+                      {enabledStations.includes('Packing') && (
+                        <tr className="hover:bg-slate-50/50">
+                          <td className="px-3 py-1 font-bold text-slate-800 select-none">Glue (Opt)</td>
+                          <td className="px-3 py-1">
+                            <select
+                              value={selectedGlueId}
+                              onChange={(e) => setSelectedGlueId(e.target.value)}
+                              className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs bg-white focus:outline-none focus-line-theme text-slate-800 font-semibold"
+                            >
+                              {glues.length > 0 ? (
+                                <>
+                                  <option value="">Select Material (Optional)</option>
+                                  {glues.map(g => (
+                                    <option key={g.id} value={g.id}>{g.name}</option>
+                                  ))}
+                                </>
+                              ) : (
+                                <option value="">No active materials available</option>
+                              )}
+                            </select>
+                          </td>
+                          <td className="px-3 py-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="Usage"
+                              value={glueUsage}
+                              onChange={(e) => setGlueUsage(e.target.value)}
+                              disabled={!selectedGlueId}
+                              className={`w-full h-7.5 border px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold ${!selectedGlueId ? 'bg-slate-100 cursor-not-allowed border-slate-200' :
+                                stockErrors.glue ? 'border-red-500 bg-red-50/30' : 'border-[#D0D5DD]'
+                                }`}
+                            />
+                          </td>
+                          <td className="px-3 py-1 text-center text-[#9CA3AF] select-none font-extrabold">-</td>
+                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">KG</td>
+                        </tr>
+                      )}
 
                     </tbody>
                   </table>
@@ -1946,41 +1994,43 @@ export const OperatorDashboardPage: React.FC = () => {
             </div>
 
             {/* Toggle sliders: Ink and Makeup */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-0.5 select-none">
-              <div className="flex items-center justify-between p-2 bg-slate-50 border border-[#E5E7EB] rounded-[6px]">
-                <div className="flex items-center gap-2">
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={inkUsed}
-                      onChange={(e) => setInkUsed(e.target.checked)}
-                      className="sr-only peer peer-checked-line-theme"
-                    />
-                    <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all"></div>
-                  </label>
-                  <div className="text-left leading-none">
-                    <span className="text-[11px] font-bold text-slate-800 block">Ink Used</span>
+            {enabledStations.includes('Packing') && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-0.5 select-none">
+                <div className="flex items-center justify-between p-2 bg-slate-50 border border-[#E5E7EB] rounded-[6px]">
+                  <div className="flex items-center gap-2">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={inkUsed}
+                        onChange={(e) => setInkUsed(e.target.checked)}
+                        className="sr-only peer peer-checked-line-theme"
+                      />
+                      <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all"></div>
+                    </label>
+                    <div className="text-left leading-none">
+                      <span className="text-[11px] font-bold text-slate-800 block">Ink Used</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-between p-2 bg-slate-50 border border-[#E5E7EB] rounded-[6px]">
-                <div className="flex items-center gap-2">
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={makeupUsed}
-                      onChange={(e) => setMakeupUsed(e.target.checked)}
-                      className="sr-only peer peer-checked-line-theme"
-                    />
-                    <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all"></div>
-                  </label>
-                  <div className="text-left leading-none">
-                    <span className="text-[11px] font-bold text-slate-800 block">Makeup Used</span>
+                <div className="flex items-center justify-between p-2 bg-slate-50 border border-[#E5E7EB] rounded-[6px]">
+                  <div className="flex items-center gap-2">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={makeupUsed}
+                        onChange={(e) => setMakeupUsed(e.target.checked)}
+                        className="sr-only peer peer-checked-line-theme"
+                      />
+                      <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all"></div>
+                    </label>
+                    <div className="text-left leading-none">
+                      <span className="text-[11px] font-bold text-slate-800 block">Makeup Used</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* SAVE BUTTON SECTION ONLY */}
             <div className="border-t border-[#E5E7EB] pt-3 flex flex-col items-end gap-2 select-none">
@@ -2053,7 +2103,7 @@ export const OperatorDashboardPage: React.FC = () => {
                           className="font-bold px-1.5 py-0.5 rounded-[4px] text-[8px] font-mono transition-all duration-200"
                           style={{ color: lineTheme?.primary || '#1A56DB', backgroundColor: lineTheme?.secondary || '#EFF4FF' }}
                         >
-                          {entry.time}
+                          {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         <span className="text-[8px] font-bold text-[#16A34A] flex items-center gap-0.5">
                           <Check className="w-3 h-3 text-[#16A34A] stroke-[3]" /> Logged
@@ -2069,9 +2119,9 @@ export const OperatorDashboardPage: React.FC = () => {
                       </div>
 
                       <div className="text-[8px] font-bold text-[#344054] grid grid-cols-2 gap-x-2 gap-y-0.5 pt-1 border-t border-[#F1F5F9]">
-                        <div>Preform: {entry.preformUsage} {entry.preformUnit}</div>
-                        {entry.capUsage > 0 && <div>Cap: {entry.capUsage} {entry.capUnit}</div>}
-                        <div>Label: {entry.labelUsage} {entry.labelUnit}</div>
+                        {enabledStations.includes('Blowing') && <div>Preform: {entry.preformUsage} {entry.preformUnit}</div>}
+                        {enabledStations.includes('Filling') && entry.capUsage > 0 && <div>Cap: {entry.capUsage} {entry.capUnit}</div>}
+                        {enabledStations.includes('Labeling') && <div>Label: {entry.labelUsage} {entry.labelUnit}</div>}
                       </div>
                     </div>
 
@@ -2083,26 +2133,32 @@ export const OperatorDashboardPage: React.FC = () => {
                         </div>
 
                         <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 font-semibold">
-                          <div className="col-span-2">
-                            <span className="text-[#6B7280]">Preform:</span> {entry.preformName} ({entry.preformUsage} Bag, Waste: {entry.preformWastage} PCS)
-                          </div>
-                          {entry.capUsage > 0 && (
+                          {enabledStations.includes('Blowing') && entry.preformName && (
+                            <div className="col-span-2">
+                              <span className="text-[#6B7280]">Preform:</span> {entry.preformName} ({entry.preformUsage} Bag, Waste: {entry.preformWastage} PCS)
+                            </div>
+                          )}
+                          {enabledStations.includes('Filling') && entry.capUsage > 0 && entry.capName && (
                             <div className="col-span-2">
                               <span className="text-[#6B7280]">Cap:</span> {entry.capName} ({entry.capUsage} {entry.capUnit}, Waste: {entry.capWastage})
                             </div>
                           )}
-                          <div className="col-span-2">
-                            <span className="text-[#6B7280]">Label:</span> {entry.labelName} ({entry.labelUsage} {entry.labelUnit}, Waste: {entry.labelWastage})
-                          </div>
-                          <div className="col-span-2">
-                            <span className="text-[#6B7280]">Shrink Film:</span> {entry.shrinkName} ({entry.shrinkUsage} KG, Waste: {entry.shrinkWastage})
-                          </div>
-                          {entry.glueUsage > 0 && (
+                          {enabledStations.includes('Labeling') && entry.labelName && (
+                            <div className="col-span-2">
+                              <span className="text-[#6B7280]">Label:</span> {entry.labelName} ({entry.labelUsage} {entry.labelUnit}, Waste: {entry.labelWastage})
+                            </div>
+                          )}
+                          {enabledStations.includes('Packing') && entry.shrinkName && (
+                            <div className="col-span-2">
+                              <span className="text-[#6B7280]">Shrink Film:</span> {entry.shrinkName} ({entry.shrinkUsage} KG, Waste: {entry.shrinkWastage})
+                            </div>
+                          )}
+                          {enabledStations.includes('Packing') && entry.glueUsage > 0 && entry.glueName && (
                             <div className="col-span-2">
                               <span className="text-[#6B7280]">Glue:</span> {entry.glueName} ({entry.glueUsage} KG)
                             </div>
                           )}
-                          {(entry.inkUsed || entry.makeupUsed) && (
+                          {enabledStations.includes('Packing') && (entry.inkUsed || entry.makeupUsed) && (
                             <div className="col-span-2 flex gap-2 font-bold text-[#16A34A] pt-0.5">
                               {entry.inkUsed && <span>Ink Used</span>}
                               {entry.makeupUsed && <span>Makeup Used</span>}
@@ -2185,26 +2241,34 @@ export const OperatorDashboardPage: React.FC = () => {
                         <span className="text-[#6B7280] text-[8px] uppercase block font-bold mb-0.5">Logs Count</span>
                         <span className="text-base font-extrabold text-slate-800">{sessionSummary.entriesCount}</span>
                       </div>
-                      <div className="bg-white p-2 rounded border border-blue-50">
-                        <span className="text-[#6B7280] text-[8px] uppercase block font-bold mb-0.5">Preforms Used</span>
-                        <span className="text-sm font-bold text-slate-800 block">{sessionSummary.preformUsed} Bag</span>
-                        <span className="text-[9px] text-[#DC2626] font-bold block mt-0.5">Waste: {sessionSummary.preformWaste}</span>
-                      </div>
-                      <div className="bg-white p-2 rounded border border-blue-50">
-                        <span className="text-[#6B7280] text-[8px] uppercase block font-bold mb-0.5">Caps Used</span>
-                        <span className="text-sm font-bold text-slate-800 block">{sessionSummary.capUsed} BOX</span>
-                        <span className="text-[9px] text-[#DC2626] font-bold block mt-0.5">Waste: {sessionSummary.capWaste}</span>
-                      </div>
-                      <div className="bg-white p-2 rounded border border-blue-50">
-                        <span className="text-[#6B7280] text-[8px] uppercase block font-bold mb-0.5">Labels Used</span>
-                        <span className="text-sm font-bold text-slate-800 block">{sessionSummary.labelUsed} {getSelectedLabelUnit()}</span>
-                        <span className="text-[9px] text-[#DC2626] font-bold block mt-0.5">Waste: {sessionSummary.labelWaste}</span>
-                      </div>
-                      <div className="bg-white p-2 rounded border border-blue-50">
-                        <span className="text-[#6B7280] text-[8px] uppercase block font-bold mb-0.5">Shrink Film</span>
-                        <span className="text-sm font-bold text-slate-800 block">{sessionSummary.shrinkUsed} KG</span>
-                        <span className="text-[9px] text-[#DC2626] font-bold block mt-0.5">Waste: {sessionSummary.shrinkWaste}</span>
-                      </div>
+                      {enabledStations.includes('Blowing') && (
+                        <div className="bg-white p-2 rounded border border-blue-50">
+                          <span className="text-[#6B7280] text-[8px] uppercase block font-bold mb-0.5">Preforms Used</span>
+                          <span className="text-sm font-bold text-slate-800 block">{sessionSummary.preformUsed} Bag</span>
+                          <span className="text-[9px] text-[#DC2626] font-bold block mt-0.5">Waste: {sessionSummary.preformWaste}</span>
+                        </div>
+                      )}
+                      {enabledStations.includes('Filling') && (
+                        <div className="bg-white p-2 rounded border border-blue-50">
+                          <span className="text-[#6B7280] text-[8px] uppercase block font-bold mb-0.5">Caps Used</span>
+                          <span className="text-sm font-bold text-slate-800 block">{sessionSummary.capUsed} BOX</span>
+                          <span className="text-[9px] text-[#DC2626] font-bold block mt-0.5">Waste: {sessionSummary.capWaste}</span>
+                        </div>
+                      )}
+                      {enabledStations.includes('Labeling') && (
+                        <div className="bg-white p-2 rounded border border-blue-50">
+                          <span className="text-[#6B7280] text-[8px] uppercase block font-bold mb-0.5">Labels Used</span>
+                          <span className="text-sm font-bold text-slate-800 block">{sessionSummary.labelUsed} {getSelectedLabelUnit()}</span>
+                          <span className="text-[9px] text-[#DC2626] font-bold block mt-0.5">Waste: {sessionSummary.labelWaste}</span>
+                        </div>
+                      )}
+                      {enabledStations.includes('Packing') && (
+                        <div className="bg-white p-2 rounded border border-blue-50">
+                          <span className="text-[#6B7280] text-[8px] uppercase block font-bold mb-0.5">Shrink Film</span>
+                          <span className="text-sm font-bold text-slate-800 block">{sessionSummary.shrinkUsed} KG</span>
+                          <span className="text-[9px] text-[#DC2626] font-bold block mt-0.5">Waste: {sessionSummary.shrinkWaste}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 

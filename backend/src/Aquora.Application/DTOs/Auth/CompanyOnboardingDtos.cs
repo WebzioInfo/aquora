@@ -7,6 +7,7 @@ namespace Aquora.Application.DTOs.Auth
         public string CompanyName { get; set; }
         public int EmployeeCount { get; set; }
         public string HowDidYouHearAboutUs { get; set; }
+        public System.Collections.Generic.List<string>? EnabledStations { get; set; }
     }
 
     public class CompanyOnboardingResponse

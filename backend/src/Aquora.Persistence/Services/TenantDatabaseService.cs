@@ -68,6 +68,7 @@ namespace Aquora.Persistence.Services
             string companyName,
             string companyCode,
             Guid ownerUserId,
+            System.Collections.Generic.List<string>? enabledStations = null,
             Func<int, string, string, Task>? onProgress = null)
         {
             var result = new TenantProvisioningResult();
@@ -215,6 +216,24 @@ namespace Aquora.Persistence.Services
                         tenantContext.AuditLogs.Add(auditLog);
 
                         await tenantContext.SaveChangesAsync();
+                        
+                        // Seed default station configurations in public schema
+                        var allStations = new[] { "Blowing", "Filling", "Labeling", "Packing" };
+                        foreach (var station in allStations)
+                        {
+                            var isEnabled = enabledStations == null || enabledStations.Contains(station, StringComparer.OrdinalIgnoreCase);
+                            var config = new TenantProductionConfiguration
+                            {
+                                Id = Guid.NewGuid(),
+                                TenantId = tenantId,
+                                StationName = station,
+                                IsEnabled = isEnabled,
+                                CreatedAt = DateTime.UtcNow,
+                                CreatedBy = "System Onboarding"
+                            };
+                            _platformContext.TenantProductionConfigurations.Add(config);
+                        }
+                        await _platformContext.SaveChangesAsync();
                         
                         if (onProgress != null)
                         {

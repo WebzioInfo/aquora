@@ -20,6 +20,7 @@ namespace Aquora.Persistence.Context
         public DbSet<PlatformAuditLog> PlatformAuditLogs => Set<PlatformAuditLog>();
         public DbSet<UserMembership> UserMemberships => Set<UserMembership>();
         public DbSet<TenantInvitation> TenantInvitations => Set<TenantInvitation>();
+        public DbSet<TenantProductionConfiguration> TenantProductionConfigurations => Set<TenantProductionConfiguration>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -57,6 +58,10 @@ namespace Aquora.Persistence.Context
 
             modelBuilder.Entity<TenantInvitation>()
                 .HasIndex(ti => new { ti.TenantId, ti.Email, ti.Status });
+
+            modelBuilder.Entity<TenantProductionConfiguration>()
+                .HasIndex(tc => new { tc.TenantId, tc.StationName })
+                .IsUnique();
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

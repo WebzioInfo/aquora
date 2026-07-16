@@ -25,6 +25,7 @@ namespace Aquora.Application.Interfaces
             string companyName,
             string companyCode,
             Guid ownerUserId,
+            System.Collections.Generic.List<string>? enabledStations = null,
             Func<int, string, string, Task>? onProgress = null);
 
         Task DropTenantSchemaAsync(string schemaName);

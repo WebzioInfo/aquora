@@ -15,6 +15,7 @@ namespace Aquora.Application.Interfaces
         DbSet<PlatformAuditLog> PlatformAuditLogs { get; }
         DbSet<UserMembership> UserMemberships { get; }
         DbSet<TenantInvitation> TenantInvitations { get; }
+        DbSet<TenantProductionConfiguration> TenantProductionConfigurations { get; }
 
         DatabaseFacade Database { get; }
 
