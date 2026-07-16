@@ -19,6 +19,7 @@ namespace Aquora.Application
             services.AddScoped<ICompanyOnboardingService, CompanyOnboardingService>();
             services.AddScoped<IHierarchyService, HierarchyService>();
             services.AddScoped<ISchemaNameGenerator, SchemaNameGenerator>();
+            services.AddScoped<IInventoryMovementService, InventoryMovementService>();
 
             return services;
         }

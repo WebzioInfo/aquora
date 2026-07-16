@@ -17,6 +17,8 @@ export interface User {
   onboardingProgress?: number
   onboardingStep?: string | null
   onboardingFailureReason?: string | null
+  fullName?: string
+  tenantName?: string
 }
 
 interface AuthState {

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react'
+import React, { useState } from 'react'
 import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -26,6 +26,8 @@ import EnterpriseEmptyState from '../../components/ui/EnterpriseEmptyState'
 import EnterpriseLoading from '../../components/ui/EnterpriseLoading'
 import EnterpriseButton from '../../components/ui/EnterpriseButton'
 import { InventoryPage } from './InventoryPage'
+import { CustomersPage } from './CustomersPage'
+import { SalesPage } from './SalesPage'
 
 export const CompanyDashboardPage: React.FC = () => {
   const location = useLocation()
@@ -35,6 +37,44 @@ export const CompanyDashboardPage: React.FC = () => {
   const queryClient = useQueryClient()
   const { showToast } = useNotificationStore()
   const { user } = useAuthStore()
+
+  // --- DASHBOARD QUICK ACTION STATES & HANDLERS ---
+  const [isDashboardAddInventoryOpen, setIsDashboardAddInventoryOpen] = useState(false)
+  const [dashboardAdjustMatId, setDashboardAdjustMatId] = useState('')
+  const [dashboardAdjustQty, setDashboardAdjustQty] = useState('')
+  const [dashboardAdjustNotes, setDashboardAdjustNotes] = useState('Admin Dashboard Adjustment')
+
+  const [isDashboardSalesOrderOpen, setIsDashboardSalesOrderOpen] = useState(false)
+  const [dashboardSalesClient, setDashboardSalesClient] = useState('Apex Distributors')
+  const [dashboardSalesProduct, setDashboardSalesProduct] = useState('')
+  const [dashboardSalesQty, setDashboardSalesQty] = useState('')
+  const [dashboardSalesAmount, setDashboardSalesAmount] = useState('')
+
+  const adjustStockMutation = useMutation({
+    mutationFn: async ({ id, quantity, notes }: { id: string; quantity: number; notes?: string }) => {
+      const res = await rawMaterialsService.addStock(id, { quantity, notes })
+      return res.data
+    },
+    onSuccess: (data) => {
+      showToast('Stock adjusted successfully.', 'success')
+      queryClient.invalidateQueries({ queryKey: ['dashboardRawMaterials'] })
+      setIsDashboardAddInventoryOpen(false)
+      setDashboardAdjustMatId('')
+      setDashboardAdjustQty('')
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || 'Failed to adjust stock.'
+      showToast(msg, 'error')
+    }
+  })
+
+  // Live clock state
+  const [currentTime, setCurrentTime] = useState(new Date())
+  useEffect(() => {
+    if (!isDashboardView) return
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [isDashboardView])
 
   // Onboarding polling state
   const [onboarding, setOnboarding] = useState({
@@ -81,81 +121,7 @@ export const CompanyDashboardPage: React.FC = () => {
     return () => clearInterval(intervalId)
   }, [user?.tenantStatus, showToast])
 
-  // Onboarding progress view
-  if (user?.tenantStatus === 'Provisioning' || onboarding.status === 'Provisioning') {
-    return (
-      <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-center items-center p-6 font-sans">
-        <div className="max-w-md w-full bg-slate-900/90 border border-slate-800 backdrop-blur-xl rounded-2xl p-8 shadow-2xl text-center space-y-6">
-          <div className="flex justify-center">
-            <div className="relative flex items-center justify-center">
-              <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-xl animate-pulse"></div>
-              <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg relative">
-                <Factory className="w-8 h-8 text-white animate-bounce" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold tracking-tight text-slate-100 font-display">Setting up your Workspace</h2>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Please wait while we initialize your secure tenant database and seed roles/permissions.
-            </p>
-          </div>
 
-          <div className="space-y-3">
-            <div className="flex justify-between text-[11px] font-semibold text-slate-400 px-1">
-              <span>{onboarding.step}</span>
-              <span>{onboarding.progress}%</span>
-            </div>
-            <div className="w-full bg-slate-850 rounded-full h-3.5 overflow-hidden p-0.5 border border-slate-850">
-              <div 
-                className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all duration-500 ease-out shadow-inner"
-                style={{ width: `${onboarding.progress}%` }}
-              ></div>
-            </div>
-          </div>
-
-          <div className="text-[10px] text-slate-500 tracking-wider uppercase font-mono">
-            Status: <span className="text-blue-400 font-semibold">{onboarding.status}</span>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Onboarding failure view
-  if (onboarding.status === 'Failed') {
-    return (
-      <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-center items-center p-6 font-sans">
-        <div className="max-w-md w-full bg-slate-900 border border-red-500/30 rounded-2xl p-8 shadow-2xl text-center space-y-6">
-          <div className="w-16 h-16 bg-red-900/30 border border-red-500/30 rounded-2xl flex items-center justify-center shadow-lg mx-auto">
-            <Wrench className="w-8 h-8 text-red-500" />
-          </div>
-          
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold tracking-tight text-red-400 font-display">Setup Failed</h2>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              An error occurred while provisioning your workspace.
-            </p>
-          </div>
-
-          <div className="bg-red-950/40 border border-red-900/50 rounded-lg p-3 text-xs text-red-300 text-left font-mono max-h-40 overflow-y-auto break-all">
-            {onboarding.failureReason || 'Unknown error code.'}
-          </div>
-
-          <EnterpriseButton 
-            variant="primary" 
-            className="w-full bg-red-650 hover:bg-red-700 text-white"
-            onClick={() => window.location.reload()}
-          >
-            Retry Provisioning
-          </EnterpriseButton>
-        </div>
-      </div>
-    )
-  }
-
-  const [selectedMachine, setSelectedMachine] = useState('Filler-A')
 
   // Search & Filter state for Employee List
   const [searchQuery, setSearchQuery] = useState('')
@@ -764,13 +730,10 @@ export const CompanyDashboardPage: React.FC = () => {
   // Render content depending on active routing path
   const isProductionView = path.includes('/production')
   const isInventoryView = path.includes('/inventory')
-  const isWarehouseView = path.includes('/warehouse')
-  const isQualityView = path.includes('/quality')
-  const isMaintenanceView = path.includes('/maintenance')
-  const isMachinesView = path.includes('/machines')
-  const isEmployeesView = path.includes('/employees') || path.includes('/attendance') || path.includes('/payroll')
-  const isFinanceView = path.includes('/finance') || path.includes('/reports')
+  const isEmployeesView = path.includes('/employees')
   const isSettingsView = path.includes('/settings')
+  const isCustomersView = path.includes('/customers')
+  const isSalesView = path.includes('/sales')
 
   // Fetch Employees List
   const { data: employees = [], isLoading: employeesLoading } = useQuery<any[]>({
@@ -937,6 +900,22 @@ export const CompanyDashboardPage: React.FC = () => {
     queryFn: async () => {
       const res = await productsService.getProducts(1, 100)
       return res.data?.items || []
+    },
+    enabled: isDashboardView
+  })
+
+  // Fetch Sales Dashboard Metrics
+  const { data: salesDashboard } = useQuery({
+    queryKey: ['salesDashboard'],
+    queryFn: async () => {
+      const res = await api.get('/api/v1/sales/dashboard')
+      return res.data?.data || {
+        todaySalesCases: 0,
+        todayReturns: 0,
+        todayDamage: 0,
+        totalDispatch: 0,
+        monthlyDispatch: 0
+      }
     },
     enabled: isDashboardView
   })
@@ -1280,6 +1259,80 @@ export const CompanyDashboardPage: React.FC = () => {
       default:
         return 'gray'
     }
+  }
+
+  // Onboarding progress view
+  if (user?.tenantStatus === 'Provisioning' || onboarding.status === 'Provisioning') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-center items-center p-6 font-sans">
+        <div className="max-w-md w-full bg-slate-900/90 border border-slate-800 backdrop-blur-xl rounded-2xl p-8 shadow-2xl text-center space-y-6">
+          <div className="flex justify-center">
+            <div className="relative flex items-center justify-center">
+              <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-xl animate-pulse"></div>
+              <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg relative">
+                <Factory className="w-8 h-8 text-white animate-bounce" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-100 font-display">Setting up your Workspace</h2>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Please wait while we initialize your secure tenant database and seed roles/permissions.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex justify-between text-[11px] font-semibold text-slate-400 px-1">
+              <span>{onboarding.step}</span>
+              <span>{onboarding.progress}%</span>
+            </div>
+            <div className="w-full bg-slate-850 rounded-full h-3.5 overflow-hidden p-0.5 border border-slate-850">
+              <div 
+                className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all duration-500 ease-out shadow-inner"
+                style={{ width: `${onboarding.progress}%` }}
+              ></div>
+            </div>
+          </div>
+
+          <div className="text-[10px] text-slate-500 tracking-wider uppercase font-mono">
+            Status: <span className="text-blue-400 font-semibold">{onboarding.status}</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Onboarding failure view
+  if (onboarding.status === 'Failed') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-center items-center p-6 font-sans">
+        <div className="max-w-md w-full bg-slate-900 border border-red-500/30 rounded-2xl p-8 shadow-2xl text-center space-y-6">
+          <div className="w-16 h-16 bg-red-900/30 border border-red-500/30 rounded-2xl flex items-center justify-center shadow-lg mx-auto">
+            <Wrench className="w-8 h-8 text-red-500" />
+          </div>
+          
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold tracking-tight text-red-400 font-display">Setup Failed</h2>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              An error occurred while provisioning your workspace.
+            </p>
+          </div>
+
+          <div className="bg-red-950/40 border border-red-900/50 rounded-lg p-3 text-xs text-red-300 text-left font-mono max-h-40 overflow-y-auto break-all">
+            {onboarding.failureReason || 'Unknown error code.'}
+          </div>
+
+          <EnterpriseButton 
+            variant="primary" 
+            className="w-full bg-red-650 hover:bg-red-700 text-white"
+            onClick={() => window.location.reload()}
+          >
+            Retry Provisioning
+          </EnterpriseButton>
+        </div>
+      </div>
+    )
   }
 
   if (isSettingsView) {
@@ -1831,92 +1884,21 @@ export const CompanyDashboardPage: React.FC = () => {
     )
   }
 
-  if (isInventoryView || isWarehouseView) {
+  if (isSalesView) {
+    return (
+      <SalesPage canWrite={canWrite} showToast={showToast} />
+    )
+  }
+
+  if (isCustomersView) {
+    return (
+      <CustomersPage />
+    )
+  }
+
+  if (isInventoryView) {
     return (
       <InventoryPage canWrite={canWrite} showToast={showToast} />
-    )
-  }
-
-
-
-  if (isQualityView) {
-    return (
-      <div className="flex flex-col gap-6">
-        <EnterpriseHeader title="Quality Assurance Panel" />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <EnterpriseCard title="Pending Quality Alerts">
-            <div className="p-3 bg-red-50 dark:bg-red-955/20 border border-red-100 dark:border-red-900/30 text-xs text-error mb-2 rounded-sm">
-              <strong>pH Level Warning</strong>: Tank 4 pH reading of 8.2 is slightly above ideal range (6.5 - 7.5).
-            </div>
-            <div className="p-3 bg-green-50 dark:bg-green-955/20 border border-green-100 dark:border-green-900/30 text-xs text-green-600 rounded-sm">
-              <strong>Turbidity Test Pass</strong>: Filtration line B turbidity index at 0.1 NTU.
-            </div>
-          </EnterpriseCard>
-
-          <EnterpriseCard title="QA Standards Compliance">
-            <ul className="text-xs space-y-3">
-              <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
-                <span>US EPA Drinking Water Standards certified</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
-                <span>ISO 9001:2015 Manufacturing Quality certification active</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
-                <span>FDA Packaging Approval (Code Title 21 CFR) active</span>
-              </li>
-            </ul>
-          </EnterpriseCard>
-        </div>
-      </div>
-    )
-  }
-
-  if (isMaintenanceView || isMachinesView) {
-    return (
-      <div className="flex flex-col gap-6">
-        <EnterpriseHeader title="Asset Maintenance & Diagnostics" />
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {['Filler-A', 'Filter-B', 'Pump-C', 'Purifier-D'].map((mac) => (
-            <button key={mac} onClick={() => setSelectedMachine(mac)} className={`p-4 border text-left cursor-pointer transition-all rounded-sm ${selectedMachine === mac ? 'bg-hydro-navy dark:bg-hydro-azure text-white border-transparent' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-850'
-              }`}>
-              <span className="text-[10px] font-bold uppercase tracking-wider block">{mac} Device</span>
-              <span className="text-xs font-black block mt-1">Uptime: 99.2%</span>
-            </button>
-          ))}
-        </div>
-
-        <EnterpriseCard title={`Device Status: ${selectedMachine}`}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3 text-xs">
-              <div className="flex justify-between border-b border-slate-100 dark:border-slate-850 pb-1.5">
-                <span className="text-slate-400 font-bold uppercase">Device Model</span>
-                <span>Aquaflow-Sys-{selectedMachine}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 dark:border-slate-850 pb-1.5">
-                <span className="text-slate-400 font-bold uppercase">Last Service Date</span>
-                <span>2026-06-15</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 dark:border-slate-850 pb-1.5">
-                <span className="text-slate-400 font-bold uppercase">Next Service Date</span>
-                <span>2026-09-15</span>
-              </div>
-            </div>
-
-            <div className="bg-slate-50 dark:bg-slate-855 p-4 border border-slate-100 dark:border-slate-800 text-xs rounded-sm">
-              <span className="font-bold text-hydro-navy dark:text-white uppercase tracking-wider block mb-2">Live Telemetry Diagnostics</span>
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 bg-green-500 rounded-full animate-ping shrink-0" />
-                <span>Vibration levels and sensor temperature are inside normal operating envelopes.</span>
-              </div>
-            </div>
-          </div>
-        </EnterpriseCard>
-      </div>
     )
   }
 
@@ -2292,82 +2274,9 @@ export const CompanyDashboardPage: React.FC = () => {
     )
   }
 
-  if (isFinanceView) {
-    const financeColumns = [
-      { key: 'ref', title: 'Reference ID', render: (row: any) => <span className="font-semibold text-hydro-navy dark:text-white">{row.ref}</span> },
-      { key: 'client', title: 'Client' },
-      { key: 'sum', title: 'Sum' },
-      { key: 'class', title: 'Class', render: (row: any) => <EnterpriseBadge variant={row.class === 'Expenditure' ? 'danger' : 'success'}>{row.class}</EnterpriseBadge> }
-    ]
 
-    const financeData = [
-      { id: 1, ref: 'PO_2849_2026', client: 'Apex Industrial Supplies', sum: '$8,400', class: 'Expenditure' },
-      { id: 2, ref: 'SO_4201_2026', client: 'Beverage Distributing Corp', sum: '$15,000', class: 'Receivable' }
-    ]
 
-    return (
-      <div className="flex flex-col gap-6">
-        <EnterpriseHeader title="Financial & Analytics Reports" />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <EnterpriseCard title="Monthly Income">
-            <span className="text-2xl font-black text-green-600 block mt-1">+$42,500</span>
-          </EnterpriseCard>
-          <EnterpriseCard title="Monthly Expenditures">
-            <span className="text-2xl font-black text-red-500 block mt-1">-$12,400</span>
-          </EnterpriseCard>
-          <EnterpriseCard title="Net Operating Profit">
-            <span className="text-2xl font-black text-hydro-navy dark:text-white block mt-1">+$30,100</span>
-          </EnterpriseCard>
-        </div>
-
-        <EnterpriseCard title="Purchase Ledger">
-          <EnterpriseTable columns={financeColumns} data={financeData} />
-        </EnterpriseCard>
-      </div>
-    )
-  }
-
-  // --- DASHBOARD QUICK ACTION STATES & HANDLERS ---
-  const [isDashboardAddInventoryOpen, setIsDashboardAddInventoryOpen] = useState(false)
-  const [dashboardAdjustMatId, setDashboardAdjustMatId] = useState('')
-  const [dashboardAdjustQty, setDashboardAdjustQty] = useState('')
-  const [dashboardAdjustNotes, setDashboardAdjustNotes] = useState('Admin Dashboard Adjustment')
-
-  const [isDashboardMaintenanceOpen, setIsDashboardMaintenanceOpen] = useState(false)
-  const [dashboardMaintenanceMachine, setDashboardMaintenanceMachine] = useState('Filler-A')
-  const [dashboardMaintenanceType, setDashboardMaintenanceType] = useState('Routine Calibration')
-  const [dashboardMaintenanceNotes, setDashboardMaintenanceNotes] = useState('')
-
-  const [isDashboardQualityOpen, setIsDashboardQualityOpen] = useState(false)
-  const [dashboardQualityLine, setDashboardQualityLine] = useState('LINE_A')
-  const [dashboardQualityPh, setDashboardQualityPh] = useState('7.2')
-  const [dashboardQualityTurbidity, setDashboardQualityTurbidity] = useState('0.15')
-  const [dashboardQualityNotes, setDashboardQualityNotes] = useState('')
-
-  const [isDashboardSalesOrderOpen, setIsDashboardSalesOrderOpen] = useState(false)
-  const [dashboardSalesClient, setDashboardSalesClient] = useState('Apex Distributors')
-  const [dashboardSalesProduct, setDashboardSalesProduct] = useState('')
-  const [dashboardSalesQty, setDashboardSalesQty] = useState('')
-  const [dashboardSalesAmount, setDashboardSalesAmount] = useState('')
-
-  const adjustStockMutation = useMutation({
-    mutationFn: async ({ id, quantity, notes }: { id: string; quantity: number; notes?: string }) => {
-      const res = await rawMaterialsService.addStock(id, { quantity, notes })
-      return res.data
-    },
-    onSuccess: (data) => {
-      showToast('Stock adjusted successfully.', 'success')
-      queryClient.invalidateQueries({ queryKey: ['dashboardRawMaterials'] })
-      setIsDashboardAddInventoryOpen(false)
-      setDashboardAdjustMatId('')
-      setDashboardAdjustQty('')
-    },
-    onError: (err: any) => {
-      const msg = err.response?.data?.message || 'Failed to adjust stock.'
-      showToast(msg, 'error')
-    }
-  })
 
   const handleAdjustStockSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -2387,19 +2296,9 @@ export const CompanyDashboardPage: React.FC = () => {
     })
   }
 
-  const handleMaintenanceSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    showToast(`Maintenance logged successfully for ${dashboardMaintenanceMachine}.`, 'success')
-    setIsDashboardMaintenanceOpen(false)
-    setDashboardMaintenanceNotes('')
-  }
 
-  const handleQualitySubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    showToast('Quality log saved successfully. All values inside normal envelope.', 'success')
-    setIsDashboardQualityOpen(false)
-    setDashboardQualityNotes('')
-  }
+
+
 
   const handleSalesOrderSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -2409,13 +2308,7 @@ export const CompanyDashboardPage: React.FC = () => {
     setDashboardSalesAmount('')
   }
 
-  // Live clock state
-  const [currentTime, setCurrentTime] = useState(new Date())
-  useEffect(() => {
-    if (!isDashboardView) return
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-    return () => clearInterval(timer)
-  }, [isDashboardView])
+
 
   const getShiftName = (date: Date) => {
     const hour = date.getHours()
@@ -2519,7 +2412,7 @@ export const CompanyDashboardPage: React.FC = () => {
   const totalTarget = displayBatches.reduce((acc, b) => acc + (b.targetQuantity || 1), 0)
   const todayProgressPercent = Math.min(100, Math.round((totalAchieved / totalTarget) * 100))
 
-  const activeAlertsCount = (stockLabels < 40000 ? 1 : 0) + (stockPreforms < 50000 ? 1 : 0) + 1 // Add 1 mock machine alert
+  const activeAlertsCount = (stockLabels < 40000 ? 1 : 0) + (stockPreforms < 50000 ? 1 : 0)
 
   const factoryStatus = getFactoryStatus()
   // Greeting based on time of day
@@ -2586,14 +2479,14 @@ export const CompanyDashboardPage: React.FC = () => {
           <div>
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">This Month</p>
             <p className="text-[32px] font-semibold tracking-tight text-gray-900 leading-tight tabular-nums mt-1">
-              {totalAchieved > 0 ? Math.round(totalAchieved * 22).toLocaleString() : 'â€”'}
+              {totalAchieved > 0 ? Math.round(totalAchieved * 22).toLocaleString() : '—'}
             </p>
             <p className="text-xs text-gray-400 mt-0.5">cases</p>
           </div>
           <div>
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Today's Sales</p>
             <p className="text-[32px] font-semibold tracking-tight text-gray-900 leading-tight tabular-nums mt-1">
-              â‚¹{totalAchieved > 0 ? ((totalAchieved * 12.5 * 83) / 100000).toFixed(1) : '0'}L
+              ₹{totalAchieved > 0 ? ((totalAchieved * 12.5 * 83) / 100000).toFixed(1) : '0'}L
             </p>
             <p className="text-xs text-gray-400 mt-0.5">estimated revenue</p>
           </div>
@@ -2603,6 +2496,48 @@ export const CompanyDashboardPage: React.FC = () => {
               18
             </p>
             <p className="text-xs text-amber-600 font-medium mt-0.5">2 high priority</p>
+          </div>
+        </section>
+
+        {/* Sales & Dispatch Metrics Section */}
+        <section className="bg-slate-50/50 border border-slate-100 rounded-2xl p-6">
+          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-5">Sales & Dispatch Ledger</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-8 gap-y-6">
+            <div>
+              <p className="text-xs font-medium text-gray-550">Today's Dispatched Cases</p>
+              <p className="text-[28px] font-black tracking-tight text-slate-800 leading-tight tabular-nums mt-1.5">
+                {(salesDashboard?.todaySalesCases || 0).toLocaleString()}
+              </p>
+              <p className="text-[10px] text-blue-600 font-semibold mt-0.5">Finished Goods Released</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-550">Today's Returns</p>
+              <p className="text-[28px] font-black tracking-tight text-emerald-600 leading-tight tabular-nums mt-1.5">
+                {(salesDashboard?.todayReturns || 0).toLocaleString()}
+              </p>
+              <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">Stock Restored</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-550">Today's Damages</p>
+              <p className="text-[28px] font-black tracking-tight text-rose-500 leading-tight tabular-nums mt-1.5">
+                {(salesDashboard?.todayDamage || 0).toLocaleString()}
+              </p>
+              <p className="text-[10px] text-rose-500 font-semibold mt-0.5">Inventory Deducted</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-550">Month-to-Date Releases</p>
+              <p className="text-[28px] font-black tracking-tight text-slate-800 leading-tight tabular-nums mt-1.5">
+                {(salesDashboard?.monthlyDispatch || 0).toLocaleString()}
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Cases Dispatched</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-550">Total Releases (All-Time)</p>
+              <p className="text-[28px] font-black tracking-tight text-slate-800 leading-tight tabular-nums mt-1.5">
+                {(salesDashboard?.totalDispatch || 0).toLocaleString()}
+              </p>
+              <p className="text-[10px] text-slate-405 mt-0.5">Log Release Aggregate</p>
+            </div>
           </div>
         </section>
 
@@ -2756,14 +2691,6 @@ export const CompanyDashboardPage: React.FC = () => {
                   Add Inventory
                 </button>
                 <span className="text-gray-300">&middot;</span>
-                <button onClick={() => setIsDashboardMaintenanceOpen(true)} className="text-blue-600 hover:text-blue-800 font-medium cursor-pointer px-1">
-                  Log Maintenance
-                </button>
-                <span className="text-gray-300">&middot;</span>
-                <button onClick={() => setIsDashboardQualityOpen(true)} className="text-blue-600 hover:text-blue-800 font-medium cursor-pointer px-1">
-                  QA Inspection
-                </button>
-                <span className="text-gray-300">&middot;</span>
                 <button onClick={() => setIsDashboardSalesOrderOpen(true)} className="text-blue-600 hover:text-blue-800 font-medium cursor-pointer px-1">
                   Sales Order
                 </button>
@@ -2781,13 +2708,6 @@ export const CompanyDashboardPage: React.FC = () => {
                   Alerts <span className="text-red-500 font-bold">{activeAlertsCount}</span>
                 </h2>
                 <div className="space-y-3">
-                  <div className="flex gap-3 items-start text-[13px]">
-                    <span className="w-2 h-2 rounded-full bg-red-500 mt-1.5 shrink-0" />
-                    <div>
-                      <p className="font-medium text-gray-900">Filler-A calibration drift</p>
-                      <p className="text-gray-500 text-xs mt-0.5">LINE_A &bull; Maintenance required</p>
-                    </div>
-                  </div>
                   {stockLabels < 40000 && (
                     <div className="flex gap-3 items-start text-[13px]">
                       <span className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 shrink-0" />
@@ -2847,11 +2767,7 @@ export const CompanyDashboardPage: React.FC = () => {
               <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Pending Work</h2>
               <div className="space-y-2.5">
                 {[
-                  { task: 'Calibrate Filler-A', type: 'Maintenance' },
-                  { task: 'Batch B-2026-A1 pH inspection', type: 'Quality' },
-                  { task: 'Approve PET preform purchase order', type: 'Purchase' },
-                  { task: '18 orders awaiting dispatch', type: 'Dispatch' },
-                  { task: 'Reconcile Shift B timesheets', type: 'Payroll' }
+                  { task: '18 orders awaiting dispatch', type: 'Dispatch' }
                 ].map(item => (
                   <label key={item.task} className="flex gap-3 items-start cursor-pointer group py-0.5">
                     <input type="checkbox" className="mt-1 h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
@@ -2907,48 +2823,8 @@ export const CompanyDashboardPage: React.FC = () => {
         </form>
       </EnterpriseModal>
 
-      {/* Log Maintenance */}
-      <EnterpriseModal isOpen={isDashboardMaintenanceOpen} onClose={() => setIsDashboardMaintenanceOpen(false)} title="Log Maintenance">
-        <form onSubmit={handleMaintenanceSubmit} className="flex flex-col gap-4">
-          <EnterpriseSelect label="Machine *" value={dashboardMaintenanceMachine} onChange={(e) => setDashboardMaintenanceMachine(e.target.value)} required>
-            {['Filler-A', 'Filter-B', 'Pump-C', 'Purifier-D', 'Labeler-A', 'Packer-B'].map(m => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </EnterpriseSelect>
-          <EnterpriseSelect label="Type *" value={dashboardMaintenanceType} onChange={(e) => setDashboardMaintenanceType(e.target.value)} required>
-            <option value="Routine Calibration">Routine Calibration</option>
-            <option value="Filter Swap">Filter Swap</option>
-            <option value="Nozzle Clear Out">Nozzle Clear Out</option>
-            <option value="Conveyor Realignment">Conveyor Realignment</option>
-            <option value="Emergency Repair">Emergency Repair</option>
-          </EnterpriseSelect>
-          <EnterpriseInput label="Notes *" placeholder="Describe the work performed" value={dashboardMaintenanceNotes} onChange={(e) => setDashboardMaintenanceNotes(e.target.value)} required />
-          <div className="flex gap-2 justify-end mt-2">
-            <EnterpriseButton type="button" onClick={() => setIsDashboardMaintenanceOpen(false)} variant="secondary">Cancel</EnterpriseButton>
-            <EnterpriseButton type="submit">Log Maintenance</EnterpriseButton>
-          </div>
-        </form>
-      </EnterpriseModal>
 
-      {/* QA Inspection */}
-      <EnterpriseModal isOpen={isDashboardQualityOpen} onClose={() => setIsDashboardQualityOpen(false)} title="QA Inspection">
-        <form onSubmit={handleQualitySubmit} className="flex flex-col gap-4">
-          <EnterpriseSelect label="Production Line *" value={dashboardQualityLine} onChange={(e) => setDashboardQualityLine(e.target.value)} required>
-            {displayLines.map((line: any) => (
-              <option key={line.lineId} value={line.code}>{line.name}</option>
-            ))}
-          </EnterpriseSelect>
-          <div className="grid grid-cols-2 gap-4">
-            <EnterpriseInput label="pH (6.5â€“7.5) *" type="text" value={dashboardQualityPh} onChange={(e) => setDashboardQualityPh(e.target.value)} required />
-            <EnterpriseInput label="Turbidity (NTU) *" type="text" value={dashboardQualityTurbidity} onChange={(e) => setDashboardQualityTurbidity(e.target.value)} required />
-          </div>
-          <EnterpriseInput label="Notes" placeholder="Inspection notes" value={dashboardQualityNotes} onChange={(e) => setDashboardQualityNotes(e.target.value)} />
-          <div className="flex gap-2 justify-end mt-2">
-            <EnterpriseButton type="button" onClick={() => setIsDashboardQualityOpen(false)} variant="secondary">Cancel</EnterpriseButton>
-            <EnterpriseButton type="submit">Submit QA Log</EnterpriseButton>
-          </div>
-        </form>
-      </EnterpriseModal>
+
 
       {/* Sales Order */}
       <EnterpriseModal isOpen={isDashboardSalesOrderOpen} onClose={() => setIsDashboardSalesOrderOpen(false)} title="Create Sales Order">

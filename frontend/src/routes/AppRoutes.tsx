@@ -37,17 +37,12 @@ export const getDefaultRouteForUser = (user: any): string => {
     
     if (roles.includes('Operator')) return '/operator/dashboard'
     if (roles.includes('Worker')) return '/worker/dashboard'
-    if (roles.some((r: string) => ['QC', 'QC Inspector', 'Quality Controller', 'QUALITY_CONTROLLER'].includes(r))) return '/qc/dashboard'
-    if (roles.includes('Maintenance')) return '/maintenance/dashboard'
     if (roles.some((r: string) => ['Store Keeper', 'StoreKeeper', 'STORE_KEEPER'].includes(r))) return '/store/dashboard'
     if (roles.includes('Sales')) return '/sales/dashboard'
-    if (roles.includes('HR')) return '/hr/dashboard'
-    if (roles.some((r: string) => ['Finance', 'Accountant'].includes(r))) return '/finance/dashboard'
     
     if (roles.includes('CompanyAdmin')) return '/company/dashboard'
     if (roles.includes('Manager')) return '/manager/dashboard'
     if (roles.includes('Supervisor')) return '/supervisor/dashboard'
-    if (roles.includes('Warehouse')) return '/warehouse/dashboard'
     
     return '/company/dashboard'
   }
@@ -130,10 +125,10 @@ const CompanyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
   const roles = user.roles || []
   const hasAccess = roles.some(role => 
-    ['CompanyAdmin', 'GeneralManager', 'ProductionManager', 'InventoryManager', 'QualityManager', 'MaintenanceManager', 'FinanceManager', 'HRManager', 'Supervisor', 'Employee', 'Manager', 'Warehouse'].includes(role)
+    ['CompanyAdmin', 'GeneralManager', 'ProductionManager', 'InventoryManager', 'HRManager', 'Supervisor', 'Employee', 'Manager'].includes(role)
   )
 
-  if (!hasAccess && (roles.includes('Operator') || roles.includes('QC') || roles.includes('QC Inspector') || roles.includes('Quality Controller') || roles.includes('QUALITY_CONTROLLER') || roles.includes('Maintenance') || roles.includes('Store Keeper') || roles.includes('StoreKeeper') || roles.includes('STORE_KEEPER') || roles.includes('Sales') || roles.includes('HR') || roles.includes('Finance') || roles.includes('Accountant'))) {
+  if (!hasAccess && (roles.includes('Operator') || roles.some((r: string) => ['Store Keeper', 'StoreKeeper', 'STORE_KEEPER'].includes(r)) || roles.includes('Sales') || roles.includes('HR'))) {
     return <Navigate to={getDefaultRouteForUser(user)} replace />
   }
 
@@ -162,7 +157,7 @@ const OperatorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   const roles = user.roles || []
   const hasAccess = roles.some(role => 
-    ['Operator', 'QC Inspector', 'Machine Operator', 'QC', 'Quality Controller', 'QUALITY_CONTROLLER', 'Maintenance', 'Store Keeper', 'StoreKeeper', 'STORE_KEEPER', 'Sales', 'HR', 'Finance', 'Accountant'].includes(role)
+    ['Operator', 'Store Keeper', 'StoreKeeper', 'STORE_KEEPER', 'Sales', 'HR'].includes(role)
   )
 
   if (!hasAccess) {
@@ -297,29 +292,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="dashboard" element={<OperatorDashboardPage />} />
       </Route>
 
-      <Route
-        path="/qc"
-        element={
-          <OperatorRoute>
-            <OperatorLayout />
-          </OperatorRoute>
-        }
-      >
-        <Route index element={<Navigate to="/qc/dashboard" replace />} />
-        <Route path="dashboard" element={<OperatorDashboardPage />} />
-      </Route>
 
-      <Route
-        path="/maintenance"
-        element={
-          <OperatorRoute>
-            <OperatorLayout />
-          </OperatorRoute>
-        }
-      >
-        <Route index element={<Navigate to="/maintenance/dashboard" replace />} />
-        <Route path="dashboard" element={<OperatorDashboardPage />} />
-      </Route>
 
       <Route
         path="/store"
@@ -345,29 +318,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="dashboard" element={<OperatorDashboardPage />} />
       </Route>
 
-      <Route
-        path="/hr"
-        element={
-          <OperatorRoute>
-            <OperatorLayout />
-          </OperatorRoute>
-        }
-      >
-        <Route index element={<Navigate to="/hr/dashboard" replace />} />
-        <Route path="dashboard" element={<OperatorDashboardPage />} />
-      </Route>
 
-      <Route
-        path="/finance"
-        element={
-          <OperatorRoute>
-            <OperatorLayout />
-          </OperatorRoute>
-        }
-      >
-        <Route index element={<Navigate to="/finance/dashboard" replace />} />
-        <Route path="dashboard" element={<OperatorDashboardPage />} />
-      </Route>
 
 
       <Route
@@ -396,18 +347,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="*" element={<CompanyDashboardPage />} />
       </Route>
 
-      <Route
-        path="/warehouse"
-        element={
-          <CompanyRoute>
-            <CompanyLayout />
-          </CompanyRoute>
-        }
-      >
-        <Route index element={<Navigate to="/warehouse/dashboard" replace />} />
-        <Route path="dashboard" element={<CompanyDashboardPage />} />
-        <Route path="*" element={<CompanyDashboardPage />} />
-      </Route>
+
 
       {/* Platform Administration Portal */}
       <Route
@@ -442,25 +382,12 @@ export const AppRoutes: React.FC = () => {
         <Route path="dashboard" element={<CompanyDashboardPage />} />
         <Route path="production" element={<CompanyDashboardPage />} />
         <Route path="production/batches/:batchId" element={<BatchDetailsPage />} />
-        <Route path="manufacturing" element={<CompanyDashboardPage />} />
         <Route path="inventory" element={<CompanyDashboardPage />} />
-        <Route path="warehouse" element={<CompanyDashboardPage />} />
-        <Route path="purchase" element={<CompanyDashboardPage />} />
         <Route path="sales" element={<CompanyDashboardPage />} />
         <Route path="customers" element={<CompanyDashboardPage />} />
+        <Route path="customers/profile/:customerId" element={<CompanyDashboardPage />} />
         <Route path="suppliers" element={<CompanyDashboardPage />} />
-        <Route path="machines" element={<CompanyDashboardPage />} />
-        <Route path="maintenance" element={<CompanyDashboardPage />} />
-        <Route path="quality" element={<CompanyDashboardPage />} />
         <Route path="employees" element={<CompanyDashboardPage />} />
-        <Route path="attendance" element={<CompanyDashboardPage />} />
-        <Route path="payroll" element={<CompanyDashboardPage />} />
-        <Route path="finance" element={<CompanyDashboardPage />} />
-        <Route path="reports" element={<CompanyDashboardPage />} />
-        <Route path="documents" element={<CompanyDashboardPage />} />
-        <Route path="analytics" element={<CompanyDashboardPage />} />
-        <Route path="notifications" element={<CompanyDashboardPage />} />
-        <Route path="ai-assistant" element={<CompanyDashboardPage />} />
         <Route path="settings" element={<CompanyDashboardPage />} />
       </Route>
 

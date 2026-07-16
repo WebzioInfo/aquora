@@ -10,7 +10,6 @@ namespace Aquora.Application.Interfaces
         DbSet<Company> Companies { get; }
         DbSet<ProductionLine> ProductionLines { get; }
         DbSet<Station> Stations { get; }
-        DbSet<Machine> Machines { get; }
         DbSet<Role> Roles { get; }
         DbSet<Permission> Permissions { get; }
         DbSet<UserRole> UserRoles { get; }
@@ -27,6 +26,8 @@ namespace Aquora.Application.Interfaces
         DbSet<Brand> Brands { get; }
         DbSet<Product> Products { get; }
         DbSet<OperatorContextLog> OperatorContextLogs { get; }
+        DbSet<Customer> Customers { get; }
+        DbSet<SalesTransaction> SalesTransactions { get; }
 
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }

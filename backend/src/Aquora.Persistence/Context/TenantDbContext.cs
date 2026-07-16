@@ -30,7 +30,6 @@ namespace Aquora.Persistence.Context
         public DbSet<Company> Companies => Set<Company>();
         public DbSet<ProductionLine> ProductionLines => Set<ProductionLine>();
         public DbSet<Station> Stations => Set<Station>();
-        public DbSet<Machine> Machines => Set<Machine>();
         public DbSet<Role> Roles => Set<Role>();
         public DbSet<Permission> Permissions => Set<Permission>();
         public DbSet<UserRole> UserRoles => Set<UserRole>();
@@ -47,6 +46,8 @@ namespace Aquora.Persistence.Context
         public DbSet<Brand> Brands => Set<Brand>();
         public DbSet<Product> Products => Set<Product>();
         public DbSet<OperatorContextLog> OperatorContextLogs => Set<OperatorContextLog>();
+        public DbSet<Customer> Customers => Set<Customer>();
+        public DbSet<SalesTransaction> SalesTransactions => Set<SalesTransaction>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -138,6 +139,89 @@ namespace Aquora.Persistence.Context
                 .HasIndex(pe => pe.ProductId);
             modelBuilder.Entity<ProductionEntry>()
                 .HasIndex(pe => pe.ProductionSessionId);
+
+            // Customer configuration
+            modelBuilder.Entity<Customer>()
+                .Property(c => c.CustomerCode)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            modelBuilder.Entity<Customer>()
+                .Property(c => c.CustomerName)
+                .HasMaxLength(150)
+                .IsRequired();
+
+            modelBuilder.Entity<Customer>()
+                .Property(c => c.Phone)
+                .HasMaxLength(20)
+                .IsRequired();
+
+            // Unique constraints per tenant (multi-tenancy) for active (non-deleted) customers
+            modelBuilder.Entity<Customer>()
+                .HasIndex(c => new { c.TenantId, c.Phone })
+                .IsUnique()
+                .HasFilter("\"IsDeleted\" = false");
+
+            modelBuilder.Entity<Customer>()
+                .HasIndex(c => new { c.TenantId, c.CustomerCode })
+                .IsUnique()
+                .HasFilter("\"IsDeleted\" = false");
+
+            modelBuilder.Entity<Customer>()
+                .HasIndex(c => new { c.TenantId, c.GSTNumber })
+                .IsUnique()
+                .HasFilter("\"IsDeleted\" = false AND \"GSTNumber\" IS NOT NULL");
+
+            // Regular index optimizations
+            modelBuilder.Entity<Customer>()
+                .HasIndex(c => c.CustomerName);
+
+            modelBuilder.Entity<Customer>()
+                .HasIndex(c => c.BusinessName);
+
+            modelBuilder.Entity<Customer>()
+                .HasIndex(c => c.CustomerType);
+
+            modelBuilder.Entity<Customer>()
+                .HasIndex(c => c.City);
+
+            modelBuilder.Entity<Customer>()
+                .HasIndex(c => c.State);
+
+            modelBuilder.Entity<Customer>()
+                .HasIndex(c => c.Status);
+
+            modelBuilder.Entity<Customer>()
+                .HasIndex(c => c.CompanyId);
+
+            // SalesTransaction configuration
+            modelBuilder.Entity<SalesTransaction>()
+                .Property(t => t.TransactionNumber)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            modelBuilder.Entity<SalesTransaction>()
+                .Property(t => t.TransactionType)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            modelBuilder.Entity<SalesTransaction>()
+                .HasIndex(t => t.TransactionDate);
+
+            modelBuilder.Entity<SalesTransaction>()
+                .HasIndex(t => t.CustomerId);
+
+            modelBuilder.Entity<SalesTransaction>()
+                .HasIndex(t => t.ProductId);
+
+            modelBuilder.Entity<SalesTransaction>()
+                .HasIndex(t => t.TransactionType);
+
+            modelBuilder.Entity<SalesTransaction>()
+                .HasIndex(t => t.CreatedAt);
+
+            modelBuilder.Entity<SalesTransaction>()
+                .HasIndex(t => t.CompanyId);
 
             // Apply soft delete query filters
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())

@@ -140,8 +140,8 @@ namespace Aquora.Persistence.Services
 
                         var roleNames = new[]
                         {
-                            "CompanyAdmin", "Admin", "Manager", "Supervisor", "Operator", "Quality Controller",
-                            "Maintenance", "Store Keeper", "Purchase", "Sales", "Accountant", "HR"
+                            "CompanyAdmin", "Admin", "Manager", "Supervisor", "Operator",
+                            "Store Keeper", "Sales", "HR"
                         };
                         Console.WriteLine($"[ROLE SEEDING]: Seeding roles: {string.Join(", ", roleNames)} inside schema '{schemaName}'.");
 

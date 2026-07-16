@@ -72,8 +72,8 @@ export const EnterpriseTopbar: React.FC<EnterpriseTopbarProps> = ({
                   <span className="text-[10px] text-slate-400 block mt-0.5">Line A processed 12,500 L</span>
                 </div>
                 <div className="p-3 hover:bg-[#EFF4FF] cursor-pointer">
-                  <span className="font-semibold block text-slate-800">Valve #4 Maintenance</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">Valve seal checked and verified</span>
+                  <span className="font-semibold block text-slate-800">Sales order finalized</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">1,200 cases dispatched to Apex</span>
                 </div>
               </div>
             </div>

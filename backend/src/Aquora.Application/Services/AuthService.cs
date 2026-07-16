@@ -350,14 +350,6 @@ namespace Aquora.Application.Services
             {
                 dashboard = "/worker/dashboard";
             }
-            else if (roles.Contains("QC") || roles.Contains("QC Inspector") || roles.Contains("Quality Controller") || roles.Contains("QUALITY_CONTROLLER"))
-            {
-                dashboard = "/qc/dashboard";
-            }
-            else if (roles.Contains("Maintenance"))
-            {
-                dashboard = "/maintenance/dashboard";
-            }
             else if (roles.Contains("Store Keeper") || roles.Contains("StoreKeeper") || roles.Contains("STORE_KEEPER"))
             {
                 dashboard = "/store/dashboard";
@@ -370,10 +362,6 @@ namespace Aquora.Application.Services
             {
                 dashboard = "/hr/dashboard";
             }
-            else if (roles.Contains("Finance") || roles.Contains("Accountant"))
-            {
-                dashboard = "/finance/dashboard";
-            }
             else if (roles.Contains("CompanyAdmin"))
             {
                 dashboard = "/company/dashboard";
@@ -385,10 +373,6 @@ namespace Aquora.Application.Services
             else if (roles.Contains("Supervisor"))
             {
                 dashboard = "/supervisor/dashboard";
-            }
-            else if (roles.Contains("Warehouse"))
-            {
-                dashboard = "/warehouse/dashboard";
             }
 
             // Temporary Logging as requested by prompt

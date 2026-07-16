@@ -514,13 +514,8 @@ namespace Aquora.API.Controllers
                 {
                     "Operations",
                     "Production",
-                    "Quality Control",
-                    "Maintenance",
-                    "Warehouse",
-                    "Finance",
                     "HR",
-                    "Sales",
-                    "Purchasing"
+                    "Sales"
                 };
 
                 return Success(dbDepartments, "Departments loaded successfully.");

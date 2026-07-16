@@ -10,6 +10,8 @@ using Aquora.Application.DTOs.Products;
 using Aquora.Domain.Entities;
 using Aquora.Shared.Models;
 
+using Aquora.Application.Interfaces.Services;
+
 namespace Aquora.API.Controllers
 {
     [Authorize]
@@ -20,15 +22,18 @@ namespace Aquora.API.Controllers
         private readonly ITenantDbContext _tenantContext;
         private readonly ICurrentUserContext _currentUserContext;
         private readonly IPlatformDbContext _platformContext;
+        private readonly IInventoryMovementService _inventoryMovementService;
 
         public ProductsController(
             ITenantDbContext tenantContext, 
             ICurrentUserContext currentUserContext,
-            IPlatformDbContext platformContext)
+            IPlatformDbContext platformContext,
+            IInventoryMovementService inventoryMovementService)
         {
             _tenantContext = tenantContext;
             _currentUserContext = currentUserContext;
             _platformContext = platformContext;
+            _inventoryMovementService = inventoryMovementService;
         }
 
         private bool IsAuthorizedToWrite()
@@ -185,22 +190,16 @@ namespace Aquora.API.Controllers
 
                     if (request.OpeningStock.HasValue && request.OpeningStock.Value > 0)
                     {
-                        var movement = new InventoryMovement
-                        {
-                            Id = Guid.NewGuid(),
-                            ProductId = product.Id,
-                            RawMaterialId = null,
-                            Quantity = request.OpeningStock.Value,
-                            ReferenceType = "OpeningStock",
-                            ReferenceId = product.Id,
-                            InventoryType = "FinishedProduct",
-                            Notes = "Opening Stock",
-                            TenantId = _currentUserContext.TenantId,
-                            CompanyId = company.Id,
-                            CreatedAt = DateTime.UtcNow,
-                            CreatedBy = _currentUserContext.UserId?.ToString() ?? "System"
-                        };
-                        _tenantContext.InventoryMovements.Add(movement);
+                        await _inventoryMovementService.RecordProductMovementAsync(
+                            _tenantContext,
+                            product.Id,
+                            request.OpeningStock.Value,
+                            "OpeningStock",
+                            product.Id,
+                            "Opening Stock",
+                            _currentUserContext.TenantId,
+                            company.Id,
+                            _currentUserContext.UserId?.ToString() ?? "System");
                         await _tenantContext.SaveChangesAsync();
                     }
 
@@ -298,24 +297,16 @@ namespace Aquora.API.Controllers
                     if (request.CurrentStock.HasValue && request.CurrentStock.Value != product.CurrentStock)
                     {
                         decimal diff = request.CurrentStock.Value - product.CurrentStock;
-                        product.CurrentStock = request.CurrentStock.Value;
-
-                        var movement = new InventoryMovement
-                        {
-                            Id = Guid.NewGuid(),
-                            ProductId = product.Id,
-                            RawMaterialId = null,
-                            Quantity = diff,
-                            ReferenceType = "StockAdjustment",
-                            ReferenceId = product.Id,
-                            InventoryType = "FinishedProduct",
-                            Notes = "Manual Stock Correction",
-                            TenantId = _currentUserContext.TenantId,
-                            CompanyId = company.Id,
-                            CreatedAt = DateTime.UtcNow,
-                            CreatedBy = _currentUserContext.UserId?.ToString() ?? "System"
-                        };
-                        _tenantContext.InventoryMovements.Add(movement);
+                        await _inventoryMovementService.RecordProductMovementAsync(
+                            _tenantContext,
+                            product.Id,
+                            diff,
+                            "StockAdjustment",
+                            product.Id,
+                            "Manual Stock Correction",
+                            _currentUserContext.TenantId,
+                            company.Id,
+                            _currentUserContext.UserId?.ToString() ?? "System");
                     }
 
                     await _tenantContext.SaveChangesAsync();

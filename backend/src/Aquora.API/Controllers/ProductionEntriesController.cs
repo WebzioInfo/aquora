@@ -9,6 +9,7 @@ using Aquora.API.Controllers;
 using Aquora.Application.Interfaces;
 using Aquora.Domain.Entities;
 using Aquora.Shared.Models;
+using Aquora.Application.Interfaces.Services;
 
 namespace Aquora.API.Controllers
 {
@@ -20,15 +21,18 @@ namespace Aquora.API.Controllers
         private readonly ITenantDbContext _tenantContext;
         private readonly IPlatformDbContext _platformContext;
         private readonly Microsoft.Extensions.Logging.ILogger<ProductionEntriesController> _logger;
+        private readonly IInventoryMovementService _inventoryMovementService;
 
         public ProductionEntriesController(
             ITenantDbContext tenantContext,
             IPlatformDbContext platformContext,
-            Microsoft.Extensions.Logging.ILogger<ProductionEntriesController> logger)
+            Microsoft.Extensions.Logging.ILogger<ProductionEntriesController> logger,
+            IInventoryMovementService inventoryMovementService)
         {
             _tenantContext = tenantContext;
             _platformContext = platformContext;
             _logger = logger;
+            _inventoryMovementService = inventoryMovementService;
         }
 
         private Guid GetTenantId()
@@ -405,172 +409,133 @@ namespace Aquora.API.Controllers
                 }
 
                 // 5. Apply stock deductions & build audit movements
-                var movements = new List<InventoryMovement>();
                 var movementIds = new List<Guid>();
                 var entryId = Guid.NewGuid();
 
                 // a. Preforms
                 if (blowingEnabled && preform != null)
                 {
-                    preform.CurrentStock -= preformDeduction;
-                    var movPreform = new InventoryMovement
-                    {
-                        Id = Guid.NewGuid(),
-                        RawMaterialId = preform.Id,
-                        Quantity = -preformDeduction,
-                        ReferenceType = "ProductionEntry",
-                        ReferenceId = entryId,
-                        TenantId = tenantId,
-                        CompanyId = line.CompanyId,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = userIdStr
-                    };
-                    movements.Add(movPreform);
-                    movementIds.Add(movPreform.Id);
+                    var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                        _tenantContext,
+                        preform.Id,
+                        -preformDeduction,
+                        "ProductionEntry",
+                        entryId,
+                        null,
+                        tenantId,
+                        line.CompanyId,
+                        userIdStr);
+                    movementIds.Add(mov.Id);
                 }
 
                 // a2. Caps
                 if (fillingEnabled && cap != null && capDeduction > 0)
                 {
-                    cap.CurrentStock -= capDeduction;
-                    var movCap = new InventoryMovement
-                    {
-                        Id = Guid.NewGuid(),
-                        RawMaterialId = cap.Id,
-                        Quantity = -capDeduction,
-                        ReferenceType = "ProductionEntry",
-                        ReferenceId = entryId,
-                        TenantId = tenantId,
-                        CompanyId = line.CompanyId,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = userIdStr
-                    };
-                    movements.Add(movCap);
-                    movementIds.Add(movCap.Id);
+                    var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                        _tenantContext,
+                        cap.Id,
+                        -capDeduction,
+                        "ProductionEntry",
+                        entryId,
+                        null,
+                        tenantId,
+                        line.CompanyId,
+                        userIdStr);
+                    movementIds.Add(mov.Id);
                 }
 
                 // b. Labels
                 if (labelingEnabled && label != null)
                 {
-                    label.CurrentStock -= labelDeduction;
-                    var movLabel = new InventoryMovement
-                    {
-                        Id = Guid.NewGuid(),
-                        RawMaterialId = label.Id,
-                        Quantity = -labelDeduction,
-                        ReferenceType = "ProductionEntry",
-                        ReferenceId = entryId,
-                        TenantId = tenantId,
-                        CompanyId = line.CompanyId,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = userIdStr
-                    };
-                    movements.Add(movLabel);
-                    movementIds.Add(movLabel.Id);
+                    var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                        _tenantContext,
+                        label.Id,
+                        -labelDeduction,
+                        "ProductionEntry",
+                        entryId,
+                        null,
+                        tenantId,
+                        line.CompanyId,
+                        userIdStr);
+                    movementIds.Add(mov.Id);
                 }
 
                 // c. Shrink
                 if (packingEnabled && shrink != null)
                 {
-                    shrink.CurrentStock -= shrinkDeduction;
-                    var movShrink = new InventoryMovement
-                    {
-                        Id = Guid.NewGuid(),
-                        RawMaterialId = shrink.Id,
-                        Quantity = -shrinkDeduction,
-                        ReferenceType = "ProductionEntry",
-                        ReferenceId = entryId,
-                        TenantId = tenantId,
-                        CompanyId = line.CompanyId,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = userIdStr
-                    };
-                    movements.Add(movShrink);
-                    movementIds.Add(movShrink.Id);
+                    var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                        _tenantContext,
+                        shrink.Id,
+                        -shrinkDeduction,
+                        "ProductionEntry",
+                        entryId,
+                        null,
+                        tenantId,
+                        line.CompanyId,
+                        userIdStr);
+                    movementIds.Add(mov.Id);
                 }
 
                 // d. Glue
                 if (packingEnabled && glue != null && glueDeduction > 0)
                 {
-                    glue.CurrentStock -= glueDeduction;
-                    var movGlue = new InventoryMovement
-                    {
-                        Id = Guid.NewGuid(),
-                        RawMaterialId = glue.Id,
-                        Quantity = -glueDeduction,
-                        ReferenceType = "ProductionEntry",
-                        ReferenceId = entryId,
-                        TenantId = tenantId,
-                        CompanyId = line.CompanyId,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = userIdStr
-                    };
-                    movements.Add(movGlue);
-                    movementIds.Add(movGlue.Id);
+                    var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                        _tenantContext,
+                        glue.Id,
+                        -glueDeduction,
+                        "ProductionEntry",
+                        entryId,
+                        null,
+                        tenantId,
+                        line.CompanyId,
+                        userIdStr);
+                    movementIds.Add(mov.Id);
                 }
 
                 // e. Ink
                 if (packingEnabled && request.InkUsed && ink != null)
                 {
-                    ink.CurrentStock -= 1.0m;
-                    var movInk = new InventoryMovement
-                    {
-                        Id = Guid.NewGuid(),
-                        RawMaterialId = ink.Id,
-                        Quantity = -1.0m,
-                        ReferenceType = "ProductionEntry",
-                        ReferenceId = entryId,
-                        TenantId = tenantId,
-                        CompanyId = line.CompanyId,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = userIdStr
-                    };
-                    movements.Add(movInk);
-                    movementIds.Add(movInk.Id);
+                    var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                        _tenantContext,
+                        ink.Id,
+                        -1.0m,
+                        "ProductionEntry",
+                        entryId,
+                        null,
+                        tenantId,
+                        line.CompanyId,
+                        userIdStr);
+                    movementIds.Add(mov.Id);
                 }
 
                 // f. Makeup
                 if (packingEnabled && request.MakeupUsed && makeup != null)
                 {
-                    makeup.CurrentStock -= 1.0m;
-                    var movMakeup = new InventoryMovement
-                    {
-                        Id = Guid.NewGuid(),
-                        RawMaterialId = makeup.Id,
-                        Quantity = -1.0m,
-                        ReferenceType = "ProductionEntry",
-                        ReferenceId = entryId,
-                        TenantId = tenantId,
-                        CompanyId = line.CompanyId,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = userIdStr
-                    };
-                    movements.Add(movMakeup);
-                    movementIds.Add(movMakeup.Id);
+                    var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                        _tenantContext,
+                        makeup.Id,
+                        -1.0m,
+                        "ProductionEntry",
+                        entryId,
+                        null,
+                        tenantId,
+                        line.CompanyId,
+                        userIdStr);
+                    movementIds.Add(mov.Id);
                 }
 
                 // 5b. Update Finished Product Stock & log movement
-                sku.CurrentStock += request.CasesProduced;
-                var finishedProductMov = new InventoryMovement
-                {
-                    Id = Guid.NewGuid(),
-                    ProductId = sku.Id,
-                    RawMaterialId = null,
-                    Quantity = request.CasesProduced,
-                    ReferenceType = "ProductionCompleted",
-                    ReferenceId = entryId,
-                    InventoryType = "FinishedProduct",
-                    Notes = "Produced in Manufacturing",
-                    TenantId = tenantId,
-                    CompanyId = line.CompanyId,
-                    CreatedAt = DateTime.UtcNow,
-                    CreatedBy = userIdStr
-                };
-                movements.Add(finishedProductMov);
+                var finishedProductMov = await _inventoryMovementService.RecordProductMovementAsync(
+                    _tenantContext,
+                    sku.Id,
+                    request.CasesProduced,
+                    "ProductionCompleted",
+                    entryId,
+                    "Produced in Manufacturing",
+                    tenantId,
+                    line.CompanyId,
+                    userIdStr);
                 movementIds.Add(finishedProductMov.Id);
-
-                // Add all movements to db
-                _tenantContext.InventoryMovements.AddRange(movements);
 
                 // Create the production entry
                 var entry = new ProductionEntry

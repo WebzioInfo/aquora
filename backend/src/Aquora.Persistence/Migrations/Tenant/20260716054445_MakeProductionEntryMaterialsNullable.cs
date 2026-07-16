@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Aquora.Persistence.Context;
 
 #nullable disable
 
@@ -8,27 +9,29 @@ namespace Aquora.Persistence.Migrations.Tenant
     /// <inheritdoc />
     public partial class MakeProductionEntryMaterialsNullable : Migration
     {
+        private readonly string _schema = TenantSchemaResolver.CurrentSchemaName ?? "public";
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(
                 name: "FK_ProductionEntries_RawMaterials_LabelMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionEntries");
 
             migrationBuilder.DropForeignKey(
                 name: "FK_ProductionEntries_RawMaterials_PreformMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionEntries");
 
             migrationBuilder.DropForeignKey(
                 name: "FK_ProductionEntries_RawMaterials_ShrinkMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionEntries");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "ShrinkMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionEntries",
                 type: "uuid",
                 nullable: true,
@@ -37,7 +40,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "PreformMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionEntries",
                 type: "uuid",
                 nullable: true,
@@ -46,7 +49,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "LabelMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionEntries",
                 type: "uuid",
                 nullable: true,
@@ -55,28 +58,28 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddForeignKey(
                 name: "FK_ProductionEntries_RawMaterials_LabelMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionEntries",
                 column: "LabelMaterialId",
-                principalSchema: "public",
+                principalSchema: _schema,
                 principalTable: "RawMaterials",
                 principalColumn: "Id");
 
             migrationBuilder.AddForeignKey(
                 name: "FK_ProductionEntries_RawMaterials_PreformMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionEntries",
                 column: "PreformMaterialId",
-                principalSchema: "public",
+                principalSchema: _schema,
                 principalTable: "RawMaterials",
                 principalColumn: "Id");
 
             migrationBuilder.AddForeignKey(
                 name: "FK_ProductionEntries_RawMaterials_ShrinkMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionEntries",
                 column: "ShrinkMaterialId",
-                principalSchema: "public",
+                principalSchema: _schema,
                 principalTable: "RawMaterials",
                 principalColumn: "Id");
         }
@@ -86,22 +89,22 @@ namespace Aquora.Persistence.Migrations.Tenant
         {
             migrationBuilder.DropForeignKey(
                 name: "FK_ProductionEntries_RawMaterials_LabelMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionEntries");
 
             migrationBuilder.DropForeignKey(
                 name: "FK_ProductionEntries_RawMaterials_PreformMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionEntries");
 
             migrationBuilder.DropForeignKey(
                 name: "FK_ProductionEntries_RawMaterials_ShrinkMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionEntries");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "ShrinkMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionEntries",
                 type: "uuid",
                 nullable: false,
@@ -112,7 +115,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "PreformMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionEntries",
                 type: "uuid",
                 nullable: false,
@@ -123,7 +126,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "LabelMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionEntries",
                 type: "uuid",
                 nullable: false,
@@ -134,30 +137,30 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddForeignKey(
                 name: "FK_ProductionEntries_RawMaterials_LabelMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionEntries",
                 column: "LabelMaterialId",
-                principalSchema: "public",
+                principalSchema: _schema,
                 principalTable: "RawMaterials",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_ProductionEntries_RawMaterials_PreformMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionEntries",
                 column: "PreformMaterialId",
-                principalSchema: "public",
+                principalSchema: _schema,
                 principalTable: "RawMaterials",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_ProductionEntries_RawMaterials_ShrinkMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionEntries",
                 column: "ShrinkMaterialId",
-                principalSchema: "public",
+                principalSchema: _schema,
                 principalTable: "RawMaterials",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);

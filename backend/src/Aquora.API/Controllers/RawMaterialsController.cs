@@ -13,6 +13,8 @@ using Aquora.Shared.Models;
 
 using Microsoft.Extensions.Logging;
 
+using Aquora.Application.Interfaces.Services;
+
 namespace Aquora.API.Controllers
 {
     [Authorize]
@@ -24,17 +26,20 @@ namespace Aquora.API.Controllers
         private readonly ICurrentUserContext _currentUserContext;
         private readonly ILogger<RawMaterialsController> _logger;
         private readonly IPlatformDbContext _platformContext;
+        private readonly IInventoryMovementService _inventoryMovementService;
 
         public RawMaterialsController(
             ITenantDbContext tenantContext, 
             ICurrentUserContext currentUserContext,
             ILogger<RawMaterialsController> logger,
-            IPlatformDbContext platformContext)
+            IPlatformDbContext platformContext,
+            IInventoryMovementService inventoryMovementService)
         {
             _tenantContext = tenantContext;
             _currentUserContext = currentUserContext;
             _logger = logger;
             _platformContext = platformContext;
+            _inventoryMovementService = inventoryMovementService;
         }
 
         private bool IsAuthorizedToWrite()
@@ -188,19 +193,16 @@ namespace Aquora.API.Controllers
                     _tenantContext.RawMaterials.Add(rawMaterial);
 
                     // Every stock modification must create one ledger entry
-                    var movement = new InventoryMovement
-                    {
-                        Id = Guid.NewGuid(),
-                        RawMaterialId = rawMaterial.Id,
-                        Quantity = request.CurrentStock,
-                        ReferenceType = "OpeningStock",
-                        ReferenceId = rawMaterial.Id,
-                        TenantId = _currentUserContext.TenantId,
-                        CompanyId = company.Id,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = _currentUserContext.UserId?.ToString() ?? "System"
-                    };
-                    _tenantContext.InventoryMovements.Add(movement);
+                    await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                        _tenantContext,
+                        rawMaterial.Id,
+                        request.CurrentStock,
+                        "OpeningStock",
+                        rawMaterial.Id,
+                        "Opening Stock",
+                        _currentUserContext.TenantId,
+                        company.Id,
+                        _currentUserContext.UserId?.ToString() ?? "System");
 
                     await _tenantContext.SaveChangesAsync();
                     await transaction.CommitAsync();
@@ -315,22 +317,16 @@ namespace Aquora.API.Controllers
                     if (request.CurrentStock.HasValue && request.CurrentStock.Value != rawMaterial.CurrentStock)
                     {
                         decimal diff = request.CurrentStock.Value - rawMaterial.CurrentStock;
-                        rawMaterial.CurrentStock = request.CurrentStock.Value;
-                        
-                        var movement = new InventoryMovement
-                        {
-                            Id = Guid.NewGuid(),
-                            RawMaterialId = rawMaterial.Id,
-                            Quantity = diff,
-                            ReferenceType = "StockAdjustment",
-                            ReferenceId = rawMaterial.Id,
-                            Notes = "Manual Stock Correction",
-                            TenantId = tenantId,
-                            CompanyId = company.Id,
-                            CreatedAt = DateTime.UtcNow,
-                            CreatedBy = userIdStr
-                        };
-                        _tenantContext.InventoryMovements.Add(movement);
+                        await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                            _tenantContext,
+                            rawMaterial.Id,
+                            diff,
+                            "StockAdjustment",
+                            rawMaterial.Id,
+                            "Manual Stock Correction",
+                            tenantId,
+                            company.Id,
+                            userIdStr);
                     }
 
                     await _tenantContext.SaveChangesAsync();
@@ -439,23 +435,16 @@ namespace Aquora.API.Controllers
                     return BadRequest(ApiResponse<RawMaterialDto>.CreateFailure("Cannot add stock to an inactive raw material.", "Validation Error", HttpContext.TraceIdentifier));
                 }
 
-                rawMaterial.CurrentStock += request.Quantity;
-
-                var movement = new InventoryMovement
-                {
-                    Id = Guid.NewGuid(),
-                    RawMaterialId = rawMaterial.Id,
-                    Quantity = request.Quantity,
-                    ReferenceType = "StockAdded",
-                    ReferenceId = rawMaterial.Id,
-                    Notes = request.Notes?.Trim(),
-                    TenantId = _currentUserContext.TenantId,
-                    CompanyId = rawMaterial.CompanyId,
-                    CreatedAt = DateTime.UtcNow,
-                    CreatedBy = _currentUserContext.UserId?.ToString() ?? "System"
-                };
-
-                _tenantContext.InventoryMovements.Add(movement);
+                await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                    _tenantContext,
+                    rawMaterial.Id,
+                    request.Quantity,
+                    "StockAdded",
+                    rawMaterial.Id,
+                    request.Notes?.Trim(),
+                    _currentUserContext.TenantId,
+                    rawMaterial.CompanyId,
+                    _currentUserContext.UserId?.ToString() ?? "System");
 
                 await _tenantContext.SaveChangesAsync();
                 await transaction.CommitAsync();

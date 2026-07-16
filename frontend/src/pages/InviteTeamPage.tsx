@@ -35,9 +35,7 @@ export const InviteTeamPage: React.FC = () => {
     { label: 'Owner', value: 'Owner' },
     { label: 'Admin', value: 'Admin' },
     { label: 'Manager', value: 'Manager' },
-    { label: 'QC', value: 'QC' },
     { label: 'Operator', value: 'Operator' },
-    { label: 'Maintenance', value: 'Maintenance' },
     { label: 'Inventory', value: 'Inventory' },
   ]
 

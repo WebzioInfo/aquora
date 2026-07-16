@@ -29,18 +29,6 @@ namespace Aquora.Application.Services
             var companies = await _context.Companies.Where(c => !c.IsDeleted).ToListAsync();
             var lines = await _context.ProductionLines.Where(l => !l.IsDeleted).ToListAsync();
             var stations = await _context.Stations.Where(s => !s.IsDeleted).ToListAsync();
-            var machines = await _context.Machines.Where(m => !m.IsDeleted).ToListAsync();
-
-            // Project to DTOs
-            var machineDtos = machines.Select(m => new HierarchyNodeDto
-            {
-                Id = m.Id,
-                Name = m.Name,
-                Code = m.Code,
-                Type = "Machine",
-                ParentId = m.StationId,
-                IsActive = m.IsActive
-            }).ToList();
 
             var stationDtos = stations.Select(s => new HierarchyNodeDto
             {
@@ -50,7 +38,7 @@ namespace Aquora.Application.Services
                 Type = "Station",
                 ParentId = s.ProductionLineId,
                 IsActive = s.IsActive,
-                Children = machineDtos.Where(m => m.ParentId == s.Id).ToList()
+                Children = new List<HierarchyNodeDto>()
             }).ToList();
 
             var lineDtos = lines.Select(l => new HierarchyNodeDto
@@ -132,23 +120,7 @@ namespace Aquora.Application.Services
                     nodeDto.Id = station.Id;
                     break;
 
-                case "machine":
-                    if (nodeDto.ParentId == null) throw new ArgumentException("Parent Station ID is required.");
-                    var parentStation = await _context.Stations.FindAsync(nodeDto.ParentId.Value);
-                    if (parentStation == null) throw new KeyNotFoundException("Station not found.");
-                    var machine = new Machine
-                    {
-                        Name = nodeDto.Name,
-                        Code = nodeDto.Code,
-                        IsActive = nodeDto.IsActive,
-                        StationId = nodeDto.ParentId.Value,
-                        CompanyId = parentStation.CompanyId,
-                        TenantId = tenantId
-                    };
-                    _context.Machines.Add(machine);
-                    await _context.SaveChangesAsync();
-                    nodeDto.Id = machine.Id;
-                    break;
+
 
                 default:
                     throw new ArgumentException("Invalid node type.");
@@ -185,13 +157,7 @@ namespace Aquora.Application.Services
                     station.IsActive = nodeDto.IsActive;
                     break;
 
-                case "machine":
-                    var machine = await _context.Machines.FindAsync(id);
-                    if (machine == null) throw new KeyNotFoundException();
-                    machine.Name = nodeDto.Name;
-                    machine.Code = nodeDto.Code;
-                    machine.IsActive = nodeDto.IsActive;
-                    break;
+
 
                 default:
                     throw new ArgumentException("Invalid node type.");
@@ -223,11 +189,7 @@ namespace Aquora.Application.Services
                     _context.Stations.Remove(station);
                     break;
 
-                case "machine":
-                    var machine = await _context.Machines.FindAsync(id);
-                    if (machine == null) return false;
-                    _context.Machines.Remove(machine);
-                    break;
+
 
                 default:
                     return false;

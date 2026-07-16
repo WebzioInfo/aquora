@@ -5,9 +5,8 @@ import { useThemeStore } from '../store/useThemeStore'
 import { useNotificationStore } from '../store/useNotificationStore'
 import ToastContainer from '../components/ui/ToastContainer'
 import { 
-  LayoutDashboard, Factory, Package, TrendingUp, ShoppingBag, Users, Truck, 
-  Warehouse, ShieldCheck, Wrench, Settings, ChevronRight, ClipboardList, 
-  Bot, DollarSign, FileText, Bell, Clock, CreditCard, Play, Plus
+  LayoutDashboard, Factory, Package, TrendingUp, Users, Truck, 
+  Settings, ChevronRight, Play, Plus
 } from 'lucide-react'
 import EnterpriseSidebar from '../components/ui/EnterpriseSidebar'
 import EnterpriseTopbar from '../components/ui/EnterpriseTopbar'
@@ -35,29 +34,14 @@ export const CompanyLayout: React.FC = () => {
     navigate('/login')
   }
 
-  // Sidebar items
   const sidebarItems = [
     { label: 'Dashboard', path: '/company/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
     { label: 'Production', path: '/company/production', icon: <Factory className="w-5 h-5" /> },
-    { label: 'Manufacturing', path: '/company/manufacturing', icon: <Factory className="w-5 h-5" /> },
     { label: 'Inventory', path: '/company/inventory', icon: <Package className="w-5 h-5" /> },
-    { label: 'Warehouse', path: '/company/warehouse', icon: <Warehouse className="w-5 h-5" /> },
-    { label: 'Purchase', path: '/company/purchase', icon: <ShoppingBag className="w-5 h-5" /> },
     { label: 'Sales', path: '/company/sales', icon: <TrendingUp className="w-5 h-5" /> },
     { label: 'Customers', path: '/company/customers', icon: <Users className="w-5 h-5" /> },
     { label: 'Suppliers', path: '/company/suppliers', icon: <Truck className="w-5 h-5" /> },
-    { label: 'Machines', path: '/company/machines', icon: <Settings className="w-5 h-5" /> },
-    { label: 'Maintenance', path: '/company/maintenance', icon: <Wrench className="w-5 h-5" /> },
-    { label: 'Quality', path: '/company/quality', icon: <ShieldCheck className="w-5 h-5" /> },
     { label: 'Employees', path: '/company/employees', icon: <Users className="w-5 h-5" /> },
-    { label: 'Attendance', path: '/company/attendance', icon: <Clock className="w-5 h-5" /> },
-    { label: 'Payroll', path: '/company/payroll', icon: <CreditCard className="w-5 h-5" /> },
-    { label: 'Finance', path: '/company/finance', icon: <DollarSign className="w-5 h-5" /> },
-    { label: 'Reports', path: '/company/reports', icon: <FileText className="w-5 h-5" /> },
-    { label: 'Documents', path: '/company/documents', icon: <ClipboardList className="w-5 h-5" /> },
-    { label: 'Analytics', path: '/company/analytics', icon: <TrendingUp className="w-5 h-5" /> },
-    { label: 'Notifications', path: '/company/notifications', icon: <Bell className="w-5 h-5" /> },
-    { label: 'AI Assistant', path: '/company/ai-assistant', icon: <Bot className="w-5 h-5" /> },
     { label: 'Company Settings', path: '/company/settings', icon: <Settings className="w-5 h-5" /> },
   ]
 
@@ -169,13 +153,6 @@ export const CompanyLayout: React.FC = () => {
             <div className="flex flex-col">
               <span className="text-xs font-bold text-hydro-navy dark:text-white">Receive Stock</span>
               <span className="text-[10px] text-slate-400">Accept raw materials</span>
-            </div>
-          </button>
-          <button onClick={() => triggerQuickAction('Schedule Maintenance')} className="p-3 bg-slate-50 dark:bg-slate-855 hover:bg-hydro-navy/5 dark:hover:bg-hydro-azure/10 text-left border border-slate-200 dark:border-slate-800 flex items-center gap-3 cursor-pointer rounded-sm">
-            <Wrench className="w-5 h-5 text-hydro-navy dark:text-hydro-azure" />
-            <div className="flex flex-col">
-              <span className="text-xs font-bold text-hydro-navy dark:text-white">Schedule Service</span>
-              <span className="text-[10px] text-slate-400">Maintain active machinery</span>
             </div>
           </button>
         </div>
