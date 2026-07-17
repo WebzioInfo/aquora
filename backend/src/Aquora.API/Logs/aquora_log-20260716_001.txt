@@ -2986,3 +2986,778 @@ WHERE NOT (r."IsDeleted")
 2026-07-16 17:38:13.390 +05:30 [INF] Executed DbCommand (165ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
 SELECT u."Id", u."CreatedAt", u."CreatedBy", u."RoleId", u."TenantId", u."UpdatedAt", u."UpdatedBy", u."UserId"
 FROM aquora_tenant_test_company_2."UserRoles" AS u
+2026-07-16 19:46:08.637 +05:30 [ERR] An error occurred using the connection to database 'postgres' on server 'tcp://aws-1-ap-northeast-2.pooler.supabase.com:5432'.
+2026-07-16 19:46:08.720 +05:30 [ERR] An exception occurred while iterating over the results of a query for context type 'Aquora.Persistence.Context.PlatformDbContext'.
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+2026-07-16 19:46:08.747 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\TenantResolutionMiddleware.cs:line 57
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\ExceptionHandlingMiddleware.cs:line 27
+2026-07-16 19:46:08.997 +05:30 [ERR] An error occurred using the connection to database 'postgres' on server 'tcp://aws-1-ap-northeast-2.pooler.supabase.com:5432'.
+2026-07-16 19:46:09.000 +05:30 [ERR] An exception occurred while iterating over the results of a query for context type 'Aquora.Persistence.Context.PlatformDbContext'.
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+2026-07-16 19:46:09.010 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\TenantResolutionMiddleware.cs:line 57
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\ExceptionHandlingMiddleware.cs:line 27
+2026-07-16 19:46:09.175 +05:30 [ERR] An error occurred using the connection to database 'postgres' on server 'tcp://aws-1-ap-northeast-2.pooler.supabase.com:5432'.
+2026-07-16 19:46:09.176 +05:30 [ERR] An error occurred using the connection to database 'postgres' on server 'tcp://aws-1-ap-northeast-2.pooler.supabase.com:5432'.
+2026-07-16 19:46:09.190 +05:30 [ERR] An error occurred using the connection to database 'postgres' on server 'tcp://aws-1-ap-northeast-2.pooler.supabase.com:5432'.
+2026-07-16 19:46:09.194 +05:30 [ERR] An exception occurred while iterating over the results of a query for context type 'Aquora.Persistence.Context.PlatformDbContext'.
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+2026-07-16 19:46:09.194 +05:30 [ERR] An exception occurred while iterating over the results of a query for context type 'Aquora.Persistence.Context.PlatformDbContext'.
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+2026-07-16 19:46:09.196 +05:30 [ERR] An exception occurred while iterating over the results of a query for context type 'Aquora.Persistence.Context.PlatformDbContext'.
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+2026-07-16 19:46:09.209 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\TenantResolutionMiddleware.cs:line 57
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\ExceptionHandlingMiddleware.cs:line 27
+2026-07-16 19:46:09.220 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\TenantResolutionMiddleware.cs:line 57
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\ExceptionHandlingMiddleware.cs:line 27
+2026-07-16 19:46:09.232 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\TenantResolutionMiddleware.cs:line 57
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\ExceptionHandlingMiddleware.cs:line 27
+2026-07-16 19:46:10.280 +05:30 [ERR] An error occurred using the connection to database 'postgres' on server 'tcp://aws-1-ap-northeast-2.pooler.supabase.com:5432'.
+2026-07-16 19:46:10.282 +05:30 [ERR] An exception occurred while iterating over the results of a query for context type 'Aquora.Persistence.Context.PlatformDbContext'.
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+2026-07-16 19:46:10.291 +05:30 [ERR] An error occurred using the connection to database 'postgres' on server 'tcp://aws-1-ap-northeast-2.pooler.supabase.com:5432'.
+2026-07-16 19:46:10.292 +05:30 [ERR] An error occurred using the connection to database 'postgres' on server 'tcp://aws-1-ap-northeast-2.pooler.supabase.com:5432'.
+2026-07-16 19:46:10.319 +05:30 [ERR] An exception occurred while iterating over the results of a query for context type 'Aquora.Persistence.Context.PlatformDbContext'.
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+2026-07-16 19:46:10.319 +05:30 [ERR] An exception occurred while iterating over the results of a query for context type 'Aquora.Persistence.Context.PlatformDbContext'.
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+2026-07-16 19:46:10.320 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\TenantResolutionMiddleware.cs:line 57
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\ExceptionHandlingMiddleware.cs:line 27
+2026-07-16 19:46:10.350 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\TenantResolutionMiddleware.cs:line 57
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\ExceptionHandlingMiddleware.cs:line 27
+2026-07-16 19:46:10.371 +05:30 [ERR] An unhandled exception occurred in the API pipeline.
+System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
+ ---> Npgsql.NpgsqlException (0x80004005): No such host is known.
+ ---> System.Net.Sockets.SocketException (11001): No such host is known.
+   at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+   at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+--- End of stack trace from previous location ---
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternalAsync(Boolean errorsExpected, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenAsync(CancellationToken cancellationToken, Boolean errorsExpected)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
+   at Aquora.API.Middleware.TenantResolutionMiddleware.InvokeAsync(HttpContext context, ITenantProvider tenantProvider, PlatformDbContext platformContext) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\TenantResolutionMiddleware.cs:line 57
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Aquora.API.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.API\Middleware\ExceptionHandlingMiddleware.cs:line 27
+2026-07-16 20:42:34.096 +05:30 [INF] Executed DbCommand (182ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-16 20:42:34.096 +05:30 [INF] Executed DbCommand (182ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-16 20:42:34.096 +05:30 [INF] Executed DbCommand (182ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-16 20:42:34.264 +05:30 [INF] Executed DbCommand (147ms) [Parameters=[@p='dc7ed213-0232-4fb7-901d-f31bc6d0ec1c' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-16 20:42:34.264 +05:30 [INF] Executed DbCommand (147ms) [Parameters=[@p='dc7ed213-0232-4fb7-901d-f31bc6d0ec1c' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-16 20:42:34.264 +05:30 [INF] Executed DbCommand (148ms) [Parameters=[@p='dc7ed213-0232-4fb7-901d-f31bc6d0ec1c' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-16 20:42:34.487 +05:30 [INF] Executed DbCommand (144ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-16 20:42:34.929 +05:30 [INF] Executed DbCommand (148ms) [Parameters=[@inputIdentifier='test@company.com'], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."AssignedProductionLineId", u."CreatedAt", u."CreatedBy", u."DeletedAt", u."DeletedBy", u."Department", u."Email", u."EmailVerified", u."EmailVerifiedAt", u."FirstName", u."IsActive", u."IsDeleted", u."IsPlatformAdmin", u."LastLoginAt", u."LastName", u."PasswordHash", u."PinHash", u."RefreshToken", u."RefreshTokenExpiryTime", u."TenantId", u."TokenVersion", u."UpdatedAt", u."UpdatedBy", u."Username"
+FROM public."Users" AS u
+WHERE (lower(u."Email") = @inputIdentifier OR (u."Username" IS NOT NULL AND lower(u."Username") = @inputIdentifier)) AND NOT (u."IsDeleted")
+LIMIT 1
+2026-07-16 20:42:35.082 +05:30 [INF] Executed DbCommand (146ms) [Parameters=[@p='dc7ed213-0232-4fb7-901d-f31bc6d0ec1c' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-16 20:42:35.282 +05:30 [INF] Executed DbCommand (173ms) [Parameters=[@user_Id='197f8c88-2634-4a7e-9a39-bb9279a8c920'], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."CreatedAt", u."CreatedBy", u."RoleId", u."TenantId", u."UpdatedAt", u."UpdatedBy", u."UserId", r0."Id", r0."Code", r0."CreatedAt", r0."CreatedBy", r0."DeletedAt", r0."DeletedBy", r0."IsDeleted", r0."Name", r0."TenantId", r0."UpdatedAt", r0."UpdatedBy"
+FROM aquora_tenant_test_company_2."UserRoles" AS u
+INNER JOIN (
+    SELECT r."Id", r."Code", r."CreatedAt", r."CreatedBy", r."DeletedAt", r."DeletedBy", r."IsDeleted", r."Name", r."TenantId", r."UpdatedAt", r."UpdatedBy"
+    FROM aquora_tenant_test_company_2."Roles" AS r
+    WHERE NOT (r."IsDeleted")
+) AS r0 ON u."RoleId" = r0."Id"
+WHERE u."UserId" = @user_Id
+2026-07-16 20:42:35.465 +05:30 [INF] Executed DbCommand (170ms) [Parameters=[@ur_RoleId='77243c8a-549b-4bae-905e-9154f3d22238'], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."CreatedAt", r."CreatedBy", r."PermissionId", r."RoleId", r."TenantId", r."UpdatedAt", r."UpdatedBy", p."Id", p."Code", p."CreatedAt", p."CreatedBy", p."Name", p."UpdatedAt", p."UpdatedBy"
+FROM aquora_tenant_test_company_2."RolePermissions" AS r
+INNER JOIN aquora_tenant_test_company_2."Permissions" AS p ON r."PermissionId" = p."Id"
+WHERE r."RoleId" = @ur_RoleId
+2026-07-16 20:42:35.859 +05:30 [INF] Executed DbCommand (199ms) [Parameters=[@p3='197f8c88-2634-4a7e-9a39-bb9279a8c920', @p0='1LRePhtgbnYYRix7iEyPXWVx8uM8/jjW5dOGJtL+KDiwMISxGTZzFACyXxfou/C6xAF2aFXoBkGOCXiahdqY2A==', @p1='2026-07-23T15:12:35.5249653Z' (Nullable = true) (DbType = DateTime), @p2='2026-07-16T15:12:35.6442372Z' (Nullable = true) (DbType = DateTime)], CommandType='"Text"', CommandTimeout='120']
+UPDATE public."Users" SET "RefreshToken" = @p0, "RefreshTokenExpiryTime" = @p1, "UpdatedAt" = @p2
+WHERE "Id" = @p3;
+2026-07-16 20:42:36.106 +05:30 [INF] Executed DbCommand (184ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-16 20:42:36.106 +05:30 [INF] Executed DbCommand (185ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-16 20:42:36.106 +05:30 [INF] Executed DbCommand (184ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-16 20:42:36.266 +05:30 [INF] Executed DbCommand (159ms) [Parameters=[@p='dc7ed213-0232-4fb7-901d-f31bc6d0ec1c' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-16 20:42:36.266 +05:30 [INF] Executed DbCommand (159ms) [Parameters=[@p='dc7ed213-0232-4fb7-901d-f31bc6d0ec1c' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-16 20:42:36.269 +05:30 [INF] Executed DbCommand (162ms) [Parameters=[@p='dc7ed213-0232-4fb7-901d-f31bc6d0ec1c' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-16 20:42:36.422 +05:30 [INF] Executed DbCommand (155ms) [Parameters=[@guidId='197f8c88-2634-4a7e-9a39-bb9279a8c920'], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."AssignedProductionLineId", u."CreatedAt", u."CreatedBy", u."DeletedAt", u."DeletedBy", u."Department", u."Email", u."EmailVerified", u."EmailVerifiedAt", u."FirstName", u."IsActive", u."IsDeleted", u."IsPlatformAdmin", u."LastLoginAt", u."LastName", u."PasswordHash", u."PinHash", u."RefreshToken", u."RefreshTokenExpiryTime", u."TenantId", u."TokenVersion", u."UpdatedAt", u."UpdatedBy", u."Username"
+FROM public."Users" AS u
+WHERE u."Id" = @guidId AND NOT (u."IsDeleted")
+LIMIT 1
+2026-07-16 20:42:36.432 +05:30 [INF] Executed DbCommand (161ms) [Parameters=[@tenantId='dc7ed213-0232-4fb7-901d-f31bc6d0ec1c' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."AssignedProductionLineId", u."CreatedAt", u."CreatedBy", u."DeletedAt", u."DeletedBy", u."Department", u."Email", u."EmailVerified", u."EmailVerifiedAt", u."FirstName", u."IsActive", u."IsDeleted", u."IsPlatformAdmin", u."LastLoginAt", u."LastName", u."PasswordHash", u."PinHash", u."RefreshToken", u."RefreshTokenExpiryTime", u."TenantId", u."TokenVersion", u."UpdatedAt", u."UpdatedBy", u."Username"
+FROM public."Users" AS u
+WHERE u."TenantId" = @tenantId AND NOT (u."IsDeleted")
+ORDER BY u."CreatedAt" DESC
+2026-07-16 20:42:36.434 +05:30 [INF] Executed DbCommand (161ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."Code", r."CreatedAt", r."CreatedBy", r."DeletedAt", r."DeletedBy", r."IsDeleted", r."Name", r."TenantId", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_test_company_2."Roles" AS r
+WHERE NOT (r."IsDeleted")
+ORDER BY r."Name"
+2026-07-16 20:42:36.579 +05:30 [INF] Executed DbCommand (155ms) [Parameters=[@user_TenantId_Value='dc7ed213-0232-4fb7-901d-f31bc6d0ec1c'], CommandType='"Text"', CommandTimeout='120']
+SELECT EXISTS (
+    SELECT 1
+    FROM public."Tenants" AS t
+    WHERE t."Id" = @user_TenantId_Value AND NOT (t."IsDeleted"))
+2026-07-16 20:42:36.618 +05:30 [INF] Executed DbCommand (186ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."Code", r."CreatedAt", r."CreatedBy", r."DeletedAt", r."DeletedBy", r."IsDeleted", r."Name", r."TenantId", r."UpdatedAt", r."UpdatedBy"
+FROM aquora_tenant_test_company_2."Roles" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-16 20:42:36.739 +05:30 [INF] Executed DbCommand (158ms) [Parameters=[@user_Id='197f8c88-2634-4a7e-9a39-bb9279a8c920'], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."CreatedAt", u."CreatedBy", u."RoleId", u."TenantId", u."UpdatedAt", u."UpdatedBy", u."UserId", r0."Id", r0."Code", r0."CreatedAt", r0."CreatedBy", r0."DeletedAt", r0."DeletedBy", r0."IsDeleted", r0."Name", r0."TenantId", r0."UpdatedAt", r0."UpdatedBy"
+FROM aquora_tenant_test_company_2."UserRoles" AS u
+INNER JOIN (
+    SELECT r."Id", r."Code", r."CreatedAt", r."CreatedBy", r."DeletedAt", r."DeletedBy", r."IsDeleted", r."Name", r."TenantId", r."UpdatedAt", r."UpdatedBy"
+    FROM aquora_tenant_test_company_2."Roles" AS r
+    WHERE NOT (r."IsDeleted")
+) AS r0 ON u."RoleId" = r0."Id"
+WHERE u."UserId" = @user_Id
+2026-07-16 20:42:36.791 +05:30 [INF] Executed DbCommand (172ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."CreatedAt", u."CreatedBy", u."RoleId", u."TenantId", u."UpdatedAt", u."UpdatedBy", u."UserId"
+FROM aquora_tenant_test_company_2."UserRoles" AS u
+2026-07-16 20:42:36.897 +05:30 [INF] Executed DbCommand (157ms) [Parameters=[@ur_RoleId='77243c8a-549b-4bae-905e-9154f3d22238'], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."CreatedAt", r."CreatedBy", r."PermissionId", r."RoleId", r."TenantId", r."UpdatedAt", r."UpdatedBy", p."Id", p."Code", p."CreatedAt", p."CreatedBy", p."Name", p."UpdatedAt", p."UpdatedBy"
+FROM aquora_tenant_test_company_2."RolePermissions" AS r
+INNER JOIN aquora_tenant_test_company_2."Permissions" AS p ON r."PermissionId" = p."Id"
+WHERE r."RoleId" = @ur_RoleId
+2026-07-16 20:42:37.120 +05:30 [INF] Executed DbCommand (169ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-16 20:42:37.304 +05:30 [INF] Executed DbCommand (182ms) [Parameters=[@p='dc7ed213-0232-4fb7-901d-f31bc6d0ec1c' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
