@@ -243,75 +243,105 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
       {/* 4. ACTIVE VIEW RENDERING */}
       <div className="min-h-[400px]">
         {activeTab === 'overview' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* Card 1: Basic Information */}
-            <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
-              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2.5 mb-4 flex items-center gap-1.5">
-                <User className="w-4 h-4 text-slate-400" /> Basic Information
+            <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
+              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2.5 flex items-center gap-1.5">
+                <User className="w-4 h-4 text-slate-400" /> Basic Details
               </h4>
-              <div className="space-y-3.5 text-xs">
+              <div className="space-y-3.5 text-xs text-left">
                 <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Customer Code</span>
-                  <span className="font-mono font-bold text-slate-800">{customer.customerCode}</span>
+                  <span className="text-slate-400 font-medium">Partner Code</span>
+                  <span className="font-mono font-bold text-[#1A56DB]">{customer.customerCode}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Customer Type</span>
+                  <span className="text-slate-400 font-medium">Partner Type</span>
                   <span className="font-bold text-slate-800">{customer.customerType}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Customer Name</span>
+                  <span className="text-slate-400 font-medium">Partner Name</span>
                   <span className="font-bold text-slate-800">{customer.customerName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Business Name</span>
-                  <span className="font-bold text-slate-800">{customer.businessName || 'N/A'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400 font-medium">Contact Person</span>
                   <span className="font-bold text-slate-800">{customer.contactPerson || 'None listed'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Account Status</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                    customer.isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                  }`}>
-                    {customer.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 2: Contact Information */}
-            <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
-              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2.5 mb-4 flex items-center gap-1.5">
-                <Phone className="w-4 h-4 text-slate-400" /> Contact Information
-              </h4>
-              <div className="space-y-3.5 text-xs">
-                <div className="flex justify-between">
                   <span className="text-slate-400 font-medium">Primary Phone</span>
                   <span className="font-mono font-bold text-slate-800">{customer.phone}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Alternate Phone</span>
-                  <span className="font-mono font-bold text-slate-800">{customer.alternatePhone || 'None listed'}</span>
+                  <span className="text-slate-400 font-medium">WhatsApp Phone</span>
+                  <span className="font-mono font-bold text-slate-800">{customer.whatsApp || 'None listed'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400 font-medium">Email Address</span>
                   <span className="font-bold text-slate-800">{customer.email || 'None listed'}</span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Website</span>
+                  <span className="font-bold text-slate-800 text-blue-600 truncate max-w-[180px]">{customer.website || 'None listed'}</span>
+                </div>
               </div>
             </div>
 
-            {/* Card 3: Address & Location */}
-            <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
-              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2.5 mb-4 flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 text-slate-400" /> Address Details
+            {/* Card 2: Financial Setup & Accounting */}
+            <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
+              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2.5 flex items-center gap-1.5">
+                <Landmark className="w-4 h-4 text-slate-400" /> Financial Settings
               </h4>
-              <div className="space-y-3 text-xs">
+              <div className="space-y-3.5 text-xs text-left">
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">GSTIN</span>
+                  <span className="font-mono font-bold text-slate-800">{customer.gstNumber || 'N/A (B2C)'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">PAN Number</span>
+                  <span className="font-mono font-bold text-slate-800">{customer.panNumber || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Trade License</span>
+                  <span className="font-bold text-slate-800">{customer.tradeLicense || 'None listed'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Tax Status</span>
+                  <span className={`font-bold ${customer.taxExempt ? 'text-green-600' : 'text-slate-800'}`}>
+                    {customer.taxExempt ? 'Tax Exempt' : 'Taxable'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Credit Limit</span>
+                  <span className="font-mono font-bold text-slate-800">₹{customer.creditLimit?.toLocaleString('en-IN') || '0.00'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Payment Terms</span>
+                  <span className="font-bold text-slate-800">{customer.paymentTerms}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Price List Code</span>
+                  <span className="font-mono font-semibold text-slate-800">{customer.priceList || 'Default List'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Discount Group</span>
+                  <span className="font-semibold text-slate-800">{customer.discountGroup || 'Standard'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Account Code</span>
+                  <span className="font-mono text-slate-800">{customer.ledgerPlaceholder || 'None'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Billing & Locations */}
+            <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
+              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2.5 flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-slate-400" /> Primary Address & Branches
+              </h4>
+              <div className="space-y-3.5 text-xs text-left">
                 <div>
-                  <span className="text-slate-400 font-medium block mb-1">Billing Address</span>
-                  <p className="font-bold text-slate-800 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                  <span className="text-slate-400 font-medium block mb-1">Billing & Shipping Address</span>
+                  <p className="font-semibold text-slate-800 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                     {customer.addressLine1}
                     {customer.addressLine2 ? `, ${customer.addressLine2}` : ''}
                     <br />
@@ -320,77 +350,115 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
                     <span className="text-[10px] text-slate-400 uppercase tracking-wider">{customer.country}</span>
                   </p>
                 </div>
-                <div>
-                  <span className="text-slate-400 font-medium block mb-1">Shipping Address</span>
-                  <p className="text-slate-400 italic text-[11px]">Same as Billing Address</p>
-                </div>
+                {customer.addressesJson && customer.addressesJson !== '[]' && (
+                  <div>
+                    <span className="text-slate-400 font-medium block mb-1">Secondary Branches/Warehouses</span>
+                    <div className="max-h-[80px] overflow-y-auto text-[11px] font-medium text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                      {customer.addressesJson}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Card 4: Business Information (shown for B2B) */}
-            {isB2B && (
-              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
-                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2.5 mb-4 flex items-center gap-1.5">
-                  <Landmark className="w-4 h-4 text-slate-400" /> Business Details
-                </h4>
-                <div className="space-y-3.5 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-medium">GSTIN/GST Number</span>
-                    <span className="font-mono font-bold text-slate-800">{customer.gstNumber}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-medium">PAN Number</span>
-                    <span className="font-mono font-bold text-slate-800">{customer.panNumber}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-medium">Business Type</span>
-                    <span className="font-bold text-slate-800">{customer.businessType || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-medium">GST Registered State</span>
-                    <span className="font-bold text-slate-800">{customer.gstState || 'N/A'}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Card 5: Financial Information */}
-            <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
-              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2.5 mb-4 flex items-center gap-1.5">
-                <Coins className="w-4 h-4 text-slate-400" /> Financial Settings
+            {/* Card 4: Logistics & Distributor Profile */}
+            <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm lg:col-span-2 space-y-4">
+              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2.5 flex items-center gap-1.5">
+                <Truck className="w-4 h-4 text-slate-400" /> Logistics & Distributor Configuration
               </h4>
-              <div className="space-y-3.5 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Opening Balance</span>
-                  <span className="font-mono font-bold text-slate-800">₹{customer.openingBalance.toLocaleString('en-IN')}</span>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-xs text-left">
+                {customer.customerType === 'Distributor' && (
+                  <>
+                    <div className="flex justify-between border-b border-slate-50 pb-1">
+                      <span className="text-slate-400">Distributor Profile</span>
+                      <span className="font-bold text-slate-800">{customer.distributorType || 'Standard'}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-50 pb-1">
+                      <span className="text-slate-400">Commission Rate</span>
+                      <span className="font-bold text-slate-800">{customer.commissionPercentage}%</span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-50 pb-1">
+                      <span className="text-slate-400">Base Salary</span>
+                      <span className="font-bold text-slate-800">₹{customer.monthlySalary?.toLocaleString('en-IN') || '0.00'}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-50 pb-1">
+                      <span className="text-slate-400">Security Deposit</span>
+                      <span className="font-bold text-slate-800">₹{customer.securityDeposit?.toLocaleString('en-IN') || '0.00'}</span>
+                    </div>
+                  </>
+                )}
+                <div className="flex justify-between border-b border-slate-50 pb-1">
+                  <span className="text-slate-400">Assigned Route</span>
+                  <span className="font-bold text-slate-850">{customer.assignedRoute || 'No route assigned'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Balance Type</span>
-                  <span className="font-bold text-slate-800">{customer.balanceType}</span>
+                <div className="flex justify-between border-b border-slate-50 pb-1">
+                  <span className="text-slate-400">Assigned Vehicle</span>
+                  <span className="font-bold text-slate-850">{customer.assignedVehicle || 'No vehicle assigned'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Credit Limit</span>
-                  <span className="font-mono font-bold text-slate-800">₹{customer.creditLimit.toLocaleString('en-IN')}</span>
+                <div className="flex justify-between border-b border-slate-50 pb-1">
+                  <span className="text-slate-400">Assigned Driver</span>
+                  <span className="font-bold text-slate-800">{customer.assignedDriver || 'N/A'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Payment Terms</span>
-                  <span className="font-bold text-slate-800">{customer.paymentTerms}</span>
+                <div className="flex justify-between border-b border-slate-50 pb-1">
+                  <span className="text-slate-400">Assigned Sales Exec</span>
+                  <span className="font-bold text-slate-800">{customer.assignedSalesExecutive || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-50 pb-1 col-span-2">
+                  <span className="text-slate-400">Working Coverage Area & Days</span>
+                  <span className="font-semibold text-slate-800">{customer.workingArea || 'N/A'} {customer.workingDays ? `(${customer.workingDays})` : ''}</span>
                 </div>
               </div>
             </div>
 
-            {/* Card 6: Internal Remarks */}
+            {/* Card 5: 20L Jar Plant Settings */}
+            <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
+              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2.5 flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-slate-400" /> 20L Water Jar Parameters
+              </h4>
+              <div className="space-y-3.5 text-xs text-left">
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Jar Deposit Price</span>
+                  <span className="font-bold text-slate-800">₹{customer.jarDeposit || '0'} / jar</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Max Jar Inventory Limit</span>
+                  <span className="font-bold text-slate-800">{customer.maxJarLimit || '0'} jars</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Outstanding Jars</span>
+                  <span className="font-mono font-bold text-blue-600">{customer.outstandingJars || '0'} jars</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Preferred Brand</span>
+                  <span className="font-semibold text-slate-800">{customer.preferredJarBrand || 'Default (Aquora)'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Cap Material</span>
+                  <span className="font-semibold text-slate-800">{customer.preferredCapMaterial || 'Standard cap'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Seal Check Required</span>
+                  <span className="font-semibold text-slate-850">{customer.sealRequired ? 'Double seal check' : 'Standard'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Delivery Schedule</span>
+                  <span className="font-semibold text-slate-850">{customer.deliveryFrequency || 'Daily'} ({customer.preferredDeliveryTime || 'Morning'})</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 6: Remarks */}
             <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm col-span-1 md:col-span-2 lg:col-span-3">
               <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2.5 mb-4 flex items-center gap-1.5">
                 <FileText className="w-4 h-4 text-slate-400" /> Internal Notes & Remarks
               </h4>
-              <div className="bg-slate-50 border border-slate-100 p-4 rounded-lg min-h-[80px]">
+              <div className="bg-slate-50 border border-slate-100 p-4 rounded-lg min-h-[80px] text-left">
                 {customer.remarks ? (
-                  <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed select-text">
+                  <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed select-text font-semibold">
                     {customer.remarks}
                   </p>
                 ) : (
-                  <p className="text-xs text-slate-400 italic">No notes or remarks listed for this customer record.</p>
+                  <p className="text-xs text-slate-400 italic">No notes or remarks listed for this partner record.</p>
                 )}
               </div>
             </div>

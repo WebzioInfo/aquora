@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
@@ -37,7 +37,24 @@ namespace Aquora.Infrastructure.Services
 
         public IEnumerable<string> Permissions => HttpContext?.User?.FindAll("permission").Select(c => c.Value) ?? Enumerable.Empty<string>();
 
-        public string IpAddress => HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+        public string IpAddress
+        {
+            get
+            {
+                if (HttpContext?.Request?.Headers != null)
+                {
+                    if (HttpContext.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor) && !string.IsNullOrEmpty(forwardedFor))
+                    {
+                        return forwardedFor.ToString().Split(',')[0].Trim();
+                    }
+                    if (HttpContext.Request.Headers.TryGetValue("X-Real-IP", out var realIp) && !string.IsNullOrEmpty(realIp))
+                    {
+                        return realIp.ToString().Trim();
+                    }
+                }
+                return HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+            }
+        }
 
         public string UserAgent => HttpContext?.Request?.Headers["User-Agent"].ToString() ?? "Unknown";
 

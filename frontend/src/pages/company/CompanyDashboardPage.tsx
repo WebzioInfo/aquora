@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { HubConnectionBuilder, HubConnection, HttpTransportType } from '@microsoft/signalr'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../services/api'
 import { useNotificationStore } from '../../store/useNotificationStore'
@@ -13,7 +14,7 @@ import { RAW_MATERIAL_CATEGORIES } from '../../utils/rawMaterialCategories'
 import {
   Factory, ShieldCheck, Wrench, CheckCircle,
   ArrowUpRight, CloudSun, Play, Search, Plus, Eye, Key, Trash2, Edit2, ToggleLeft, ToggleRight,
-  Pause, ExternalLink, Clock, Users, TrendingUp, Package, Settings
+  Pause, ExternalLink, Clock, Users, TrendingUp, Package, Settings, X
 } from 'lucide-react'
 import EnterpriseHeader from '../../components/ui/EnterpriseHeader'
 import EnterpriseCard from '../../components/ui/EnterpriseCard'
@@ -25,7 +26,7 @@ import EnterpriseSelect from '../../components/ui/EnterpriseSelect'
 import EnterpriseEmptyState from '../../components/ui/EnterpriseEmptyState'
 import EnterpriseLoading from '../../components/ui/EnterpriseLoading'
 import EnterpriseButton from '../../components/ui/EnterpriseButton'
-import { InventoryPage } from './InventoryPage'
+import { InventoryPage } from '../../modules/inventory/InventoryPage'
 import { CustomersPage } from './CustomersPage'
 import { SalesPage } from './SalesPage'
 
@@ -37,6 +38,7 @@ export const CompanyDashboardPage: React.FC = () => {
   const queryClient = useQueryClient()
   const { showToast } = useNotificationStore()
   const { user } = useAuthStore()
+  const isCompanyAdmin = user?.roles?.includes('CompanyAdmin')
 
   // --- DASHBOARD QUICK ACTION STATES & HANDLERS ---
   const [isDashboardAddInventoryOpen, setIsDashboardAddInventoryOpen] = useState(false)
@@ -76,7 +78,7 @@ export const CompanyDashboardPage: React.FC = () => {
     return () => clearInterval(timer)
   }, [isDashboardView])
 
-  // Onboarding polling state
+  // Onboarding polling / SignalR state
   const [onboarding, setOnboarding] = useState({
     progress: user?.onboardingProgress ?? 10,
     step: user?.onboardingStep ?? 'Queueing provisioning',
@@ -84,13 +86,50 @@ export const CompanyDashboardPage: React.FC = () => {
     failureReason: user?.onboardingFailureReason ?? ''
   })
 
+  // Estimated remaining time computation (visual only)
+  const getEstimatedRemainingTime = (progress: number) => {
+    if (progress >= 100) return '0s'
+    if (progress >= 95) return '2s'
+    if (progress >= 85) return '5s'
+    if (progress >= 75) return '8s'
+    if (progress >= 65) return '12s'
+    if (progress >= 50) return '15s'
+    if (progress >= 35) return '18s'
+    if (progress >= 20) return '22s'
+    return '25s'
+  }
+
+  // Handle completion transitions (autoredirect, auth refresh, success toast)
+  const handleOnboardingComplete = async (sessionData?: any) => {
+    try {
+      const data = sessionData || (await authService.getSession()).data
+      if (data) {
+        useAuthStore.getState().updateUser({
+          tenantStatus: 'Ready',
+          isTenantInitialized: true,
+          roles: data.roles,
+          permissions: data.permissions,
+          tenantId: data.tenantId,
+          ownsCompany: true
+        })
+        showToast('Workspace provisioned successfully! Welcome to Aquora.', 'success')
+      }
+    } catch (e) {
+      console.error('Error refreshing session on onboarding complete:', e)
+    }
+  }
+
   useEffect(() => {
     if (user?.tenantStatus !== 'Provisioning') return
 
-    const intervalId = setInterval(async () => {
+    let isMounted = true
+    let connection: HubConnection | null = null
+    let pollIntervalId: any = null
+
+    const fetchLatestStatus = async () => {
       try {
         const res = await authService.getSession()
-        if (res.success && res.data) {
+        if (res.success && res.data && isMounted) {
           const data = res.data
           setOnboarding({
             progress: data.onboardingProgress,
@@ -100,25 +139,72 @@ export const CompanyDashboardPage: React.FC = () => {
           })
 
           if (data.tenantStatus === 'Ready' || data.tenantStatus === 'Completed' || data.isTenantInitialized) {
-            useAuthStore.getState().updateUser({
-              tenantStatus: 'Ready',
-              isTenantInitialized: true,
-              roles: data.roles,
-              permissions: data.permissions
-            })
-            clearInterval(intervalId)
-            showToast('Workspace provisioned successfully! Welcome to Aquora.', 'success')
+            handleOnboardingComplete(data)
           } else if (data.tenantStatus === 'Failed') {
-            clearInterval(intervalId)
-            showToast('Provisioning failed. Please check details.', 'error')
+            setOnboarding(prev => ({ ...prev, status: 'Failed', failureReason: data.onboardingFailureReason || 'Provisioning failed' }))
           }
         }
       } catch (err) {
-        console.error('Error polling onboarding status:', err)
+        console.error('Error fetching onboarding status:', err)
       }
-    }, 2000)
+    }
 
-    return () => clearInterval(intervalId)
+    // Try starting SignalR connection
+    const token = useAuthStore.getState().token
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+    const hubUrl = `${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}/hub/provisioning`
+    
+    connection = new HubConnectionBuilder()
+      .withUrl(hubUrl, {
+        accessTokenFactory: () => token || '',
+      })
+      .withAutomaticReconnect()
+      .build()
+
+    connection.on('ProvisionProgressUpdated', (data: { progress: number; stage: string; message: string; status: string; failureReason?: string }) => {
+      if (!isMounted) return
+      console.log('[SIGNALR EVENT]: Received progress update:', data)
+      setOnboarding({
+        progress: data.progress,
+        step: data.message || data.stage,
+        status: data.status,
+        failureReason: data.failureReason || ''
+      })
+
+      if (data.status === 'Ready' || data.progress === 100) {
+        handleOnboardingComplete()
+      }
+    })
+
+    const startHub = async () => {
+      try {
+        await connection!.start()
+        console.log('[SIGNALR CONNECTED]: Provisioning Hub connection established.')
+        // Initial sync when connected
+        await fetchLatestStatus()
+      } catch (err) {
+        console.warn('[SIGNALR ERROR]: Failed to start connection, falling back to polling.', err)
+        // Fallback to polling
+        await fetchLatestStatus()
+        pollIntervalId = setInterval(fetchLatestStatus, 4000)
+      }
+    }
+
+    startHub()
+
+    // Handle connection state changes
+    connection.onreconnected(() => {
+      console.log('[SIGNALR RECONNECTED]: Recovering latest progress...')
+      fetchLatestStatus()
+    })
+
+    return () => {
+      isMounted = false
+      if (pollIntervalId) clearInterval(pollIntervalId)
+      if (connection) {
+        connection.stop()
+      }
+    }
   }, [user?.tenantStatus, showToast])
 
 
@@ -135,6 +221,20 @@ export const CompanyDashboardPage: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isResetModalOpen, setIsResetModalOpen] = useState(false)
   const [selectedEmployeeForView, setSelectedEmployeeForView] = useState<any | null>(null)
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedEmployeeForView(null)
+      }
+    }
+    if (selectedEmployeeForView) {
+      window.addEventListener('keydown', handleKeyDown)
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [selectedEmployeeForView])
 
   // Add Employee Form States
   const [addFullName, setAddFullName] = useState('')
@@ -154,6 +254,26 @@ export const CompanyDashboardPage: React.FC = () => {
   const [resetEmployeeId, setResetEmployeeId] = useState('')
   const [resetEmployeeName, setResetEmployeeName] = useState('')
   const [resetPasswordOrPin, setResetPasswordOrPin] = useState('')
+
+  // Company Secret PIN states
+  const [securityPin, setSecurityPin] = useState('')
+  const [confirmSecurityPin, setConfirmSecurityPin] = useState('')
+  const [isSavingSecurityPin, setIsSavingSecurityPin] = useState(false)
+
+  // PIN Verification and custom credential protection states
+  const [isPinVerifyModalOpen, setIsPinVerifyModalOpen] = useState(false)
+  const [pinVerifyValue, setPinVerifyValue] = useState('')
+  const [pinVerifyAction, setPinVerifyAction] = useState<'view' | 'change'>('view')
+  const [decryptedPassword, setDecryptedPassword] = useState<string | null>(null)
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false)
+  const [isPinVerifying, setIsPinVerifying] = useState(false)
+  const [verifiedPinForChange, setVerifiedPinForChange] = useState('')
+
+  // Custom Change Password form states
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false)
+  const [newPasswordVal, setNewPasswordVal] = useState('')
+  const [confirmPasswordVal, setConfirmPasswordVal] = useState('')
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false)
 
   // Production lines state
   const [productionTab, setProductionTab] = useState<'batches' | 'lines'>('batches')
@@ -235,7 +355,7 @@ export const CompanyDashboardPage: React.FC = () => {
       const res = await productsService.getProducts(productsPage, 5, productsSearch)
       return res.data
     },
-    enabled: path.includes('/inventory') && inventoryTab === 'products'
+    enabled: path.includes('/inventory') && inventoryTab === 'products' && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
 
   // Fetch Paginated Brands List for Brands Tab
@@ -245,7 +365,7 @@ export const CompanyDashboardPage: React.FC = () => {
       const res = await brandService.getBrands(brandsPage, 5, brandsSearch)
       return res.data
     },
-    enabled: path.includes('/inventory') && inventoryTab === 'brands'
+    enabled: path.includes('/inventory') && inventoryTab === 'brands' && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
 
   // Fetch Brands List for dropdown
@@ -255,7 +375,7 @@ export const CompanyDashboardPage: React.FC = () => {
       const res = await brandService.getBrands(1, 1000)
       return res.data?.items || []
     },
-    enabled: path.includes('/inventory')
+    enabled: path.includes('/inventory') && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
 
   // Create Brand Mutation
@@ -326,7 +446,7 @@ export const CompanyDashboardPage: React.FC = () => {
       const res = await rawMaterialsService.getRawMaterials(rawMaterialsPage, 5, rawMaterialsSearch)
       return res.data
     },
-    enabled: path.includes('/inventory') && inventoryTab === 'raw_materials'
+    enabled: path.includes('/inventory') && inventoryTab === 'raw_materials' && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
 
   // --- INVENTORY SETTINGS FOR DEFAULT INK/MAKEUP ---
@@ -339,7 +459,7 @@ export const CompanyDashboardPage: React.FC = () => {
       const res = await api.get('/api/v1/rawmaterials/settings')
       return res.data?.data || null
     },
-    enabled: path.includes('/settings')
+    enabled: path.includes('/settings') && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
 
   const { data: allMaterials = [] } = useQuery<any[]>({
@@ -348,7 +468,7 @@ export const CompanyDashboardPage: React.FC = () => {
       const res = await api.get('/api/v1/production-entries/materials')
       return res.data?.data || []
     },
-    enabled: path.includes('/settings')
+    enabled: path.includes('/settings') && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
 
   // --- PRODUCTION STATIONS CONFIGURATION ---
@@ -365,7 +485,7 @@ export const CompanyDashboardPage: React.FC = () => {
       const res = await api.get('/api/v1/production-configuration/all')
       return res.data?.data || []
     },
-    enabled: path.includes('/settings')
+    enabled: path.includes('/settings') && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
 
   useEffect(() => {
@@ -433,6 +553,129 @@ export const CompanyDashboardPage: React.FC = () => {
       defaultInkMaterialId: defaultInkId || null,
       defaultMakeupMaterialId: defaultMakeupId || null
     })
+  }
+
+  const handleSaveSecurityPin = async () => {
+    if (!securityPin || !confirmSecurityPin) {
+      showToast('PIN and Confirm PIN are required.', 'warning')
+      return
+    }
+    if (securityPin.length < 4) {
+      showToast('PIN must be at least 4 digits.', 'warning')
+      return
+    }
+    if (securityPin !== confirmSecurityPin) {
+      showToast('PIN and Confirm PIN do not match.', 'warning')
+      return
+    }
+    setIsSavingSecurityPin(true)
+    try {
+      const response = await api.post('/api/v1/employees/security-pin', {
+        pin: securityPin,
+        confirmPin: confirmSecurityPin
+      })
+      if (response.data.success) {
+        showToast('Company Secret PIN updated successfully.', 'success')
+        setSecurityPin('')
+        setConfirmSecurityPin('')
+      } else {
+        showToast(response.data.message || 'Failed to save security PIN.', 'error')
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Error saving security PIN.'
+      showToast(msg, 'error')
+    } finally {
+      setIsSavingSecurityPin(false)
+    }
+  }
+
+  const handleVerifyPinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!pinVerifyValue) {
+      showToast('PIN is required.', 'warning')
+      return
+    }
+    setIsPinVerifying(true)
+    try {
+      if (pinVerifyAction === 'view') {
+        const response = await api.post('/api/v1/employees/reveal-password', {
+          employeeId: selectedEmployeeForView.id,
+          pin: pinVerifyValue
+        })
+        if (response.data.success) {
+          setDecryptedPassword(response.data.data)
+          setIsPasswordVisible(true)
+          showToast('Password decrypted successfully.', 'success')
+          setIsPinVerifyModalOpen(false)
+          setPinVerifyValue('')
+          
+          // Auto hide after 30 seconds
+          setTimeout(() => {
+            setIsPasswordVisible(false)
+            setDecryptedPassword(null)
+          }, 30000)
+        } else {
+          showToast('Invalid Company Secret PIN.', 'error')
+        }
+      } else {
+        const response = await api.post('/api/v1/employees/security-pin/verify', {
+          pin: pinVerifyValue
+        })
+        if (response.data.success && response.data.data === true) {
+          setVerifiedPinForChange(pinVerifyValue)
+          setIsPinVerifyModalOpen(false)
+          setPinVerifyValue('')
+          setNewPasswordVal('')
+          setConfirmPasswordVal('')
+          setIsChangePasswordModalOpen(true)
+        } else {
+          showToast('Invalid Company Secret PIN.', 'error')
+        }
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Invalid Company Secret PIN.'
+      showToast(msg, 'error')
+    } finally {
+      setIsPinVerifying(false)
+    }
+  }
+
+  const handleUpdatePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newPasswordVal || !confirmPasswordVal) {
+      showToast('All fields are required.', 'warning')
+      return
+    }
+    if (newPasswordVal.length < 8) {
+      showToast('New password must be at least 8 characters.', 'warning')
+      return
+    }
+    if (newPasswordVal !== confirmPasswordVal) {
+      showToast('Passwords do not match.', 'warning')
+      return
+    }
+    setIsUpdatingPassword(true)
+    try {
+      const response = await api.put('/api/v1/employees/reset-password', {
+        employeeId: selectedEmployeeForView.id,
+        passwordOrPin: newPasswordVal,
+        pin: verifiedPinForChange
+      })
+      if (response.data.success) {
+        showToast('Password updated successfully.', 'success')
+        setIsChangePasswordModalOpen(false)
+        setVerifiedPinForChange('')
+        setNewPasswordVal('')
+        setConfirmPasswordVal('')
+      } else {
+        showToast(response.data.message || 'Failed to update password.', 'error')
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Failed to update password.'
+      showToast(msg, 'error')
+    } finally {
+      setIsUpdatingPassword(false)
+    }
   }
 
   // Create Product Mutation
@@ -742,7 +985,7 @@ export const CompanyDashboardPage: React.FC = () => {
       const res = await api.get('/api/v1/employees')
       return res.data?.data || []
     },
-    enabled: isEmployeesView
+    enabled: isEmployeesView && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
 
   // Fetch Roles
@@ -752,7 +995,7 @@ export const CompanyDashboardPage: React.FC = () => {
       const res = await api.get('/api/v1/employees/roles')
       return res.data?.data || []
     },
-    enabled: isEmployeesView
+    enabled: isEmployeesView && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
 
   // Fetch Departments
@@ -762,7 +1005,7 @@ export const CompanyDashboardPage: React.FC = () => {
       const res = await api.get('/api/v1/employees/departments')
       return res.data?.data || []
     },
-    enabled: isEmployeesView
+    enabled: isEmployeesView && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
 
   // Create Employee Mutation
@@ -860,17 +1103,17 @@ export const CompanyDashboardPage: React.FC = () => {
       const res = await api.get('/api/v1/production/lines?includeInactive=true')
       return res.data?.data || []
     },
-    enabled: isProductionView || isDashboardView
+    enabled: (isProductionView || isDashboardView) && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
 
   // Fetch all catalog products for batch starting dropdown
-  const { data: allCatalogProducts = [] } = useQuery<any[]>({
+  const { data: allCatalogProducts = [], isLoading: productsCatalogLoading } = useQuery<any[]>({
     queryKey: ['allCatalogProductsList'],
     queryFn: async () => {
       const res = await productsService.getProducts(1, 100, '')
       return res.data?.items || []
     },
-    enabled: isProductionView || isDashboardView
+    enabled: (isProductionView || isDashboardView) && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
 
   // Fetch active production batches
@@ -880,32 +1123,32 @@ export const CompanyDashboardPage: React.FC = () => {
       const res = await api.get('/api/v1/production/batches/active')
       return res.data?.data || []
     },
-    enabled: isProductionView || isDashboardView,
+    enabled: (isProductionView || isDashboardView) && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized,
     refetchInterval: 2000
   })
 
   // Fetch Raw Materials for Dashboard Inventory Health
-  const { data: dashboardRawMaterials = [] } = useQuery<any[]>({
+  const { data: dashboardRawMaterials = [], isLoading: dashboardRawMaterialsLoading } = useQuery<any[]>({
     queryKey: ['dashboardRawMaterials'],
     queryFn: async () => {
       const res = await rawMaterialsService.getRawMaterials(1, 100)
       return res.data?.items || []
     },
-    enabled: isDashboardView
+    enabled: isDashboardView && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
 
   // Fetch Products for Dashboard Finished Goods Stock
-  const { data: dashboardProducts = [] } = useQuery<any[]>({
+  const { data: dashboardProducts = [], isLoading: dashboardProductsLoading } = useQuery<any[]>({
     queryKey: ['dashboardProducts'],
     queryFn: async () => {
       const res = await productsService.getProducts(1, 100)
       return res.data?.items || []
     },
-    enabled: isDashboardView
+    enabled: isDashboardView && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
 
   // Fetch Sales Dashboard Metrics
-  const { data: salesDashboard } = useQuery({
+  const { data: salesDashboard, isLoading: salesLoading } = useQuery({
     queryKey: ['salesDashboard'],
     queryFn: async () => {
       const res = await api.get('/api/v1/sales/dashboard')
@@ -917,7 +1160,24 @@ export const CompanyDashboardPage: React.FC = () => {
         monthlyDispatch: 0
       }
     },
-    enabled: isDashboardView
+    enabled: isDashboardView && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
+  })
+
+  // Fetch Production Dashboard Metrics
+  const { data: productionDashboard, isLoading: productionDashboardLoading } = useQuery({
+    queryKey: ['productionDashboard'],
+    queryFn: async () => {
+      const res = await api.get('/api/v1/production/dashboard')
+      return res.data?.data || {
+        todayProduction: 0,
+        todayTarget: 0,
+        weeklyProduction: 0,
+        monthlyProduction: 0,
+        pendingDispatch: 0,
+        pendingDispatchHighPriority: 0
+      }
+    },
+    enabled: isDashboardView && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
 
   // Start Batch Mutation
@@ -1263,40 +1523,111 @@ export const CompanyDashboardPage: React.FC = () => {
 
   // Onboarding progress view
   if (user?.tenantStatus === 'Provisioning' || onboarding.status === 'Provisioning') {
+    const checklistItems = [
+      { percentage: 10, label: 'Workspace Registered' },
+      { percentage: 20, label: 'Tenant Database Mapped' },
+      { percentage: 50, label: 'Core Schema Migrations' },
+      { percentage: 65, label: 'Security Roles Seeded' },
+      { percentage: 75, label: 'Dynamic Permissions Seeding' },
+      { percentage: 85, label: 'Enterprise Administrator Mapped' },
+      { percentage: 95, label: 'Production Stations Initialized' },
+      { percentage: 100, label: 'Workspace Complete & Ready' }
+    ]
+
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-center items-center p-6 font-sans">
-        <div className="max-w-md w-full bg-slate-900/90 border border-slate-800 backdrop-blur-xl rounded-2xl p-8 shadow-2xl text-center space-y-6">
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-center items-center p-6 font-sans relative overflow-hidden">
+        {/* Futuristic Background Glows */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[100px] animate-pulse"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-[100px] animate-pulse"></div>
+
+        <div className="max-w-md w-full bg-slate-900/80 border border-slate-800/80 backdrop-blur-2xl rounded-3xl p-8 shadow-[0_0_50px_rgba(37,99,235,0.15)] text-center space-y-8 relative z-10 animate-fade-in">
+          
+          {/* Top Logo / Spinner */}
           <div className="flex justify-center">
             <div className="relative flex items-center justify-center">
-              <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-xl animate-pulse"></div>
-              <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg relative">
-                <Factory className="w-8 h-8 text-white animate-bounce" />
-              </div>
+              <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-2xl animate-pulse"></div>
+              {onboarding.progress >= 100 ? (
+                <div className="w-20 h-20 bg-green-500/10 border border-green-500/30 rounded-full flex items-center justify-center shadow-lg relative animate-scale-in">
+                  <CheckCircle className="w-10 h-10 text-green-400" />
+                </div>
+              ) : (
+                <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center shadow-lg relative">
+                  <Factory className="w-10 h-10 text-white animate-bounce" />
+                  <div className="absolute inset-0 border-4 border-blue-400/30 border-t-blue-400 rounded-3xl animate-spin"></div>
+                </div>
+              )}
             </div>
           </div>
           
+          {/* Header Title & Stage */}
           <div className="space-y-2">
-            <h2 className="text-2xl font-bold tracking-tight text-slate-100 font-display">Setting up your Workspace</h2>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Please wait while we initialize your secure tenant database and seed roles/permissions.
+            <h2 className="text-2xl font-black tracking-tight text-white font-display">
+              {onboarding.progress >= 100 ? 'Workspace Ready!' : 'Initializing Tenant Environment'}
+            </h2>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+              Establishing isolated Postgres schema credentials and provisioning company assets.
             </p>
           </div>
 
+          {/* Large Animated Progress Section */}
           <div className="space-y-3">
-            <div className="flex justify-between text-[11px] font-semibold text-slate-400 px-1">
-              <span>{onboarding.step}</span>
-              <span>{onboarding.progress}%</span>
+            <div className="flex justify-between text-xs font-mono font-bold text-slate-400 px-1">
+              <span className="text-blue-400 animate-pulse">{onboarding.step}</span>
+              <span className="text-white">{onboarding.progress}%</span>
             </div>
-            <div className="w-full bg-slate-850 rounded-full h-3.5 overflow-hidden p-0.5 border border-slate-850">
+            
+            <div className="w-full bg-slate-950 rounded-full h-4 overflow-hidden p-1 border border-slate-800">
               <div 
-                className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all duration-500 ease-out shadow-inner"
+                className="bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-400 h-full rounded-full transition-all duration-700 ease-out shadow-[0_0_15px_rgba(59,130,246,0.5)]"
                 style={{ width: `${onboarding.progress}%` }}
               ></div>
             </div>
+
+            {/* Estimated Remaining Time */}
+            {onboarding.progress < 100 && (
+              <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 font-mono">
+                <Clock className="w-3.5 h-3.5 text-slate-500" />
+                <span>Estimated remaining time: <strong className="text-slate-350">{getEstimatedRemainingTime(onboarding.progress)}</strong></span>
+              </div>
+            )}
           </div>
 
-          <div className="text-[10px] text-slate-500 tracking-wider uppercase font-mono">
-            Status: <span className="text-blue-400 font-semibold">{onboarding.status}</span>
+          {/* Completed Checklist */}
+          <div className="border-t border-slate-850 pt-5 text-left space-y-2.5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 px-1">Setup Progress Checklist</h3>
+            <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+              {checklistItems.map((item, idx) => {
+                const isCompleted = onboarding.progress >= item.percentage
+                const isCurrent = onboarding.progress < item.percentage && (idx === 0 || onboarding.progress >= checklistItems[idx - 1].percentage)
+                
+                return (
+                  <div 
+                    key={item.percentage} 
+                    className={`flex items-center justify-between p-2.5 rounded-lg border transition-all duration-300 ${
+                      isCompleted 
+                        ? 'bg-green-950/20 border-green-500/20 text-green-300' 
+                        : isCurrent
+                          ? 'bg-blue-950/30 border-blue-500/30 text-blue-300 animate-pulse'
+                          : 'bg-slate-900/50 border-slate-850 text-slate-650'
+                    }`}
+                  >
+                    <span className="text-[11px] font-semibold">{item.label}</span>
+                    {isCompleted ? (
+                      <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                    ) : isCurrent ? (
+                      <div className="w-3.5 h-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+                    ) : (
+                      <Clock className="w-3.5 h-3.5 text-slate-700 flex-shrink-0" />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="text-[10px] text-slate-500 tracking-wider uppercase font-mono border-t border-slate-850 pt-4 flex justify-between items-center px-1">
+            <span>Protocol: <strong className="text-indigo-400">SignalR Core</strong></span>
+            <span>Status: <span className="text-blue-400 font-semibold">{onboarding.status}</span></span>
           </div>
         </div>
       </div>
@@ -1305,31 +1636,50 @@ export const CompanyDashboardPage: React.FC = () => {
 
   // Onboarding failure view
   if (onboarding.status === 'Failed') {
+    const handleRetry = () => {
+      useAuthStore.getState().updateUser({
+        tenantStatus: null,
+        tenantId: null,
+        isTenantInitialized: false
+      })
+      navigate('/onboarding')
+    }
+
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-center items-center p-6 font-sans">
-        <div className="max-w-md w-full bg-slate-900 border border-red-500/30 rounded-2xl p-8 shadow-2xl text-center space-y-6">
-          <div className="w-16 h-16 bg-red-900/30 border border-red-500/30 rounded-2xl flex items-center justify-center shadow-lg mx-auto">
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-center items-center p-6 font-sans relative overflow-hidden">
+        {/* Red Glow Background */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-red-650/5 rounded-full blur-[120px]"></div>
+
+        <div className="max-w-md w-full bg-slate-900 border border-red-500/20 backdrop-blur-2xl rounded-3xl p-8 shadow-2xl text-center space-y-6 relative z-10 animate-scale-in">
+          <div className="w-16 h-16 bg-red-950/30 border border-red-500/30 rounded-2xl flex items-center justify-center shadow-lg mx-auto animate-pulse">
             <Wrench className="w-8 h-8 text-red-500" />
           </div>
           
           <div className="space-y-2">
-            <h2 className="text-2xl font-bold tracking-tight text-red-400 font-display">Setup Failed</h2>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              An error occurred while provisioning your workspace.
+            <h2 className="text-2xl font-black tracking-tight text-red-400 font-display">Provisioning Failed</h2>
+            <p className="text-xs text-slate-400 leading-relaxed max-w-sm mx-auto">
+              An exception occurred at step: <strong className="text-slate-200">"{onboarding.step}"</strong>. Schema rollback was successfully triggered.
             </p>
           </div>
 
-          <div className="bg-red-950/40 border border-red-900/50 rounded-lg p-3 text-xs text-red-300 text-left font-mono max-h-40 overflow-y-auto break-all">
-            {onboarding.failureReason || 'Unknown error code.'}
+          <div className="bg-slate-950/80 border border-slate-850 rounded-xl p-4 text-[11px] text-red-300 text-left font-mono max-h-36 overflow-y-auto break-words leading-relaxed select-all">
+            {onboarding.failureReason || 'Error Code: EXEC_ROLLBACK_ONBOARDING'}
           </div>
 
-          <EnterpriseButton 
-            variant="primary" 
-            className="w-full bg-red-650 hover:bg-red-700 text-white"
-            onClick={() => window.location.reload()}
-          >
-            Retry Provisioning
-          </EnterpriseButton>
+          <div className="pt-2 flex flex-col gap-3">
+            <EnterpriseButton 
+              variant="primary" 
+              className="w-full bg-red-600 hover:bg-red-500 border-none font-bold text-white transition-all shadow-[0_4px_12px_rgba(220,38,38,0.2)]"
+              onClick={handleRetry}
+            >
+              Retry Onboarding Setup
+            </EnterpriseButton>
+            
+            <div className="text-[10px] text-slate-500 text-center leading-relaxed">
+              If the problem persists, contact our platform Support: <br />
+              <strong className="text-slate-350 select-all">support@aquora.com</strong>
+            </div>
+          </div>
         </div>
       </div>
     )
@@ -1349,6 +1699,44 @@ export const CompanyDashboardPage: React.FC = () => {
             <EnterpriseInput label="Primary Admin Email" defaultValue="admin@aquaflow.industrial" />
           </div>
           <EnterpriseButton>Save Preferences</EnterpriseButton>
+        </EnterpriseCard>
+
+        <EnterpriseCard title="Security">
+          <div className="flex flex-col gap-2">
+            <h3 className="text-sm font-semibold text-[#111827]">Company Secret PIN</h3>
+            <p className="text-xs text-[#6B7280]">
+              Configure the Company Secret PIN required to view or change employee access credentials. Only Company Admins can manage this setting.
+            </p>
+            {!isCompanyAdmin ? (
+              <div className="mt-4 p-3 bg-[#FEF3C7] text-[#92400E] rounded-[8px] text-xs font-semibold select-none">
+                You do not have administrative permissions to view or update the Company Secret PIN.
+              </div>
+            ) : (
+              <div className="mt-4 flex flex-col gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <EnterpriseInput
+                    label="Company Secret PIN"
+                    type="password"
+                    placeholder="Enter 4+ digit PIN"
+                    value={securityPin}
+                    onChange={(e) => setSecurityPin(e.target.value)}
+                  />
+                  <EnterpriseInput
+                    label="Confirm Company Secret PIN"
+                    type="password"
+                    placeholder="Confirm PIN"
+                    value={confirmSecurityPin}
+                    onChange={(e) => setConfirmSecurityPin(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <EnterpriseButton onClick={handleSaveSecurityPin} loading={isSavingSecurityPin}>
+                    Save Security PIN
+                  </EnterpriseButton>
+                </div>
+              </div>
+            )}
+          </div>
         </EnterpriseCard>
 
         <EnterpriseCard title="Inventory settings">
@@ -1519,19 +1907,22 @@ export const CompanyDashboardPage: React.FC = () => {
     const currentShiftVal = activeBatches[0]?.shift || 'Morning'
 
     const getStatusBadge = (status: string) => {
-      switch (status) {
-        case 'Active':
-          return { label: 'Running', cls: 'bg-green-50 border-green-200 text-green-700' }
-        case 'Paused':
-          return { label: 'Paused', cls: 'bg-orange-50 border-orange-200 text-orange-700' }
-        case 'Completed':
-          return { label: 'Completed', cls: 'bg-blue-50 border-blue-200 text-blue-700' }
-        case 'Cancelled':
-          return { label: 'Cancelled', cls: 'bg-red-50 border-red-200 text-red-700' }
+      switch (status?.toUpperCase()) {
+        case 'ACTIVE':
+          return { label: 'RUNNING', cls: 'bg-green-50 border-green-200 text-green-700' }
+        case 'PAUSED':
+          return { label: 'PAUSED', cls: 'bg-orange-50 border-orange-200 text-orange-700' }
+        case 'COMPLETED':
+          return { label: 'COMPLETED', cls: 'bg-blue-50 border-blue-200 text-blue-700' }
+        case 'CANCELLED':
+          return { label: 'CANCELLED', cls: 'bg-red-50 border-red-200 text-red-700' }
+        case 'STOPPED':
+          return { label: 'STOPPED', cls: 'bg-red-50 border-red-200 text-red-700' }
         default:
-          return { label: status, cls: 'bg-slate-50 border-slate-200 text-slate-600' }
+          return { label: status?.toUpperCase() || 'UNKNOWN', cls: 'bg-slate-50 border-slate-200 text-slate-600' }
       }
     }
+
 
     return (
       <div className="flex flex-col gap-3 font-sans text-slate-800 bg-[#F8FAFC] min-h-screen p-4">
@@ -1686,39 +2077,40 @@ export const CompanyDashboardPage: React.FC = () => {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
                 {filteredBatches.map((batch: any) => {
                   const { label, cls } = getStatusBadge(batch.status)
+                  const createdDateObj = new Date(batch.createdAt || batch.startedAt)
+                  const formattedDate = createdDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                  const formattedTime = createdDateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                  
                   return (
                     <div
                       key={batch.id}
                       onClick={() => navigate(`/company/production/batches/${batch.id}`)}
-                      className="bg-white border border-[#E5E7EB] rounded-xl p-3 shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-150 cursor-pointer flex flex-col justify-between gap-2 group"
+                      className="bg-white border border-[#E5E7EB] rounded-xl p-4 shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-150 cursor-pointer flex flex-col items-center justify-center text-center gap-2 group min-h-[140px]"
                       title={`Open ${batch.batchNumber}`}
                     >
                       {/* Batch Number */}
-                      <span className="text-[12px] font-black text-slate-900 tracking-tight truncate">
+                      <span className="text-[20px] font-black text-slate-900 tracking-tight truncate w-full">
                         {batch.batchNumber}
                       </span>
+                      
+                      {/* Created Date */}
+                      <div className="text-[11px] font-medium text-[#6B7280] leading-tight">
+                        <div>{formattedDate}</div>
+                        <div>{formattedTime}</div>
+                      </div>
 
                       {/* Status Badge */}
-                      <span className={`self-start text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${cls}`}>
+                      <span className={`mt-1 text-[9px] font-black uppercase px-2 py-0.5 rounded border ${cls}`}>
                         {label}
                       </span>
-
-                      {/* View Indicator */}
-                      <div className="flex justify-end">
-                        <span className="text-[10px] font-bold text-slate-400 group-hover:text-blue-500 transition-colors">
-                          View Ã¢â€ â€™
-                        </span>
-                      </div>
                     </div>
                   )
                 })}
               </div>
             ) : (
-              <div className="bg-white border border-[#E5E7EB] rounded-xl p-10 text-center shadow-sm">
-                <p className="text-[13px] font-semibold text-slate-500">
-                  {batchSearch || batchLineFilter || batchStatusFilter !== 'All'
-                    ? 'No batches match your filters. Try adjusting your search.'
-                    : 'No active production batches found. Create a batch to get started.'}
+              <div className="bg-white border border-[#E5E7EB] rounded-xl p-10 text-center shadow-sm flex flex-col items-center justify-center">
+                <p className="text-[14px] font-semibold text-slate-600">
+                  No production batches found.
                 </p>
                 {!batchSearch && !batchLineFilter && batchStatusFilter === 'All' && (
                   <button
@@ -1909,31 +2301,39 @@ export const CompanyDashboardPage: React.FC = () => {
         title: 'Employee',
         render: (row: any) => (
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-sm bg-hydro-navy/10 text-hydro-navy dark:text-hydro-azure font-extrabold flex items-center justify-center uppercase text-xs">
+            <div className="w-8 h-8 rounded-sm bg-[#EFF4FF] text-[#1A56DB] font-extrabold flex items-center justify-center uppercase text-xs">
               {row.fullName.charAt(0)}
             </div>
-            <span className="font-semibold">{row.fullName}</span>
+            <span className="font-semibold text-[#111827]">{row.fullName}</span>
           </div>
         )
       },
       {
         key: 'username',
         title: 'Username',
-        render: (row: any) => <span className="font-mono text-slate-500 dark:text-slate-400">{row.username}</span>
+        render: (row: any) => <span className="font-mono text-[#6B7280]">{row.username}</span>
       },
       {
         key: 'roleName',
         title: 'Role',
-        render: (row: any) => (
-          <EnterpriseBadge variant={getRoleBadgeVariant(row.roleCode)}>
-            {row.roleName}
-          </EnterpriseBadge>
-        )
+        render: (row: any) => {
+          let badgeClass = "bg-slate-100 text-[#374151]"
+          const code = row.roleCode.toUpperCase()
+          if (code === 'COMPANYADMIN') badgeClass = "bg-[#EFF4FF] text-[#1D4ED8]"
+          else if (code === 'OPERATOR') badgeClass = "bg-[#FEF3C7] text-[#B45309]"
+          else if (code === 'SUPERVISOR') badgeClass = "bg-[#F3E8FF] text-[#6B21A8]"
+          else if (code === 'MANAGER') badgeClass = "bg-[#D1FAE5] text-[#047857]"
+          return (
+            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold select-none ${badgeClass}`}>
+              {row.roleName}
+            </span>
+          )
+        }
       },
       {
         key: 'department',
         title: 'Department',
-        className: 'font-medium text-slate-600 dark:text-slate-300'
+        className: 'font-medium text-[#374151]'
       },
       {
         key: 'isActive',
@@ -1953,74 +2353,83 @@ export const CompanyDashboardPage: React.FC = () => {
       {
         key: 'createdAt',
         title: 'Created Date',
-        render: (row: any) => new Date(row.createdAt).toLocaleDateString()
+        render: (row: any) => <span className="text-[#374151]">{new Date(row.createdAt).toLocaleDateString()}</span>
       },
       {
         key: 'lastLogin',
         title: 'Last Login',
-        render: (row: any) => row.lastLogin ? new Date(row.lastLogin).toLocaleDateString() : 'Never'
+        render: (row: any) => <span className="text-[#374151]">{row.lastLogin ? new Date(row.lastLogin).toLocaleDateString() : 'Never'}</span>
       },
       {
         key: 'actions',
         title: 'Actions',
         className: 'text-right',
         render: (row: any) => (
-          <div className="flex gap-2 justify-end">
-            <button onClick={() => setSelectedEmployeeForView(row)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-hydro-navy dark:hover:text-white rounded-sm cursor-pointer" title="View details"><Eye className="w-3.5 h-3.5" /></button>
-            <button onClick={() => openEditModal(row)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-hydro-navy dark:hover:text-white rounded-sm cursor-pointer" title="Edit Profile"><Edit2 className="w-3.5 h-3.5" /></button>
-            <button onClick={() => openResetModal(row)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-amber-500 rounded-sm cursor-pointer" title="Reset Password/PIN"><Key className="w-3.5 h-3.5" /></button>
-            <button onClick={() => triggerDelete(row.id, row.fullName)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-error rounded-sm cursor-pointer" title="Delete User"><Trash2 className="w-3.5 h-3.5" /></button>
+          <div className="flex gap-1 justify-end">
+            <button onClick={() => setSelectedEmployeeForView(row)} className="p-2 text-[#6B7280] hover:bg-[#F3F4F6] rounded-full cursor-pointer transition-colors" title="View details"><Eye className="w-3.5 h-3.5" /></button>
+            <button onClick={() => openEditModal(row)} className="p-2 text-[#2563EB] hover:bg-[#F3F4F6] rounded-full cursor-pointer transition-colors" title="Edit Profile"><Edit2 className="w-3.5 h-3.5" /></button>
+            <button onClick={() => openResetModal(row)} className="p-2 text-[#D97706] hover:bg-[#F3F4F6] rounded-full cursor-pointer transition-colors" title="Reset Password/PIN"><Key className="w-3.5 h-3.5" /></button>
+            <button onClick={() => triggerDelete(row.id, row.fullName)} className="p-2 text-[#EF4444] hover:bg-[#F3F4F6] rounded-full cursor-pointer transition-colors" title="Delete User"><Trash2 className="w-3.5 h-3.5" /></button>
           </div>
         )
       }
     ]
 
     return (
-      <div className="flex flex-col gap-6">
-        <EnterpriseHeader
-          title="User Directory & Employees"
-          description="Provision operator credentials and configure RBAC authorization roles."
-          actions={
-            <EnterpriseButton onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2">
+      <div className="flex flex-col gap-6 bg-[#F8FAFC] min-h-screen">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-[#E5E7EB] select-none">
+          <div>
+            <h1 className="text-2xl font-bold text-[#111827]">
+              Employee Directory & Employees
+            </h1>
+            <p className="text-sm text-[#6B7280] mt-1 font-normal">
+              Provision operator credentials and configure RBAC authorization roles.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <EnterpriseButton 
+              onClick={() => setIsAddModalOpen(true)} 
+              className="flex items-center gap-2 !bg-[#2563EB] hover:!bg-[#1D4ED8] text-white !rounded-[10px] !h-[42px]"
+            >
               <Plus className="w-4 h-4" />
               <span>Add Employee</span>
             </EnterpriseButton>
-          }
-        />
+          </div>
+        </div>
 
         {/* Filters and Search Toolbar */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 p-4 flex flex-col md:flex-row gap-4 select-none">
+        <div className="bg-white border border-[#E5E7EB] p-4 flex flex-col md:flex-row gap-4 select-none rounded-[12px] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
           <div className="flex-1 relative">
             <input
               type="text"
               placeholder="Search by name, username, department..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full border border-slate-200 dark:border-slate-700 bg-transparent text-xs pl-9 pr-4 py-2.5 rounded-sm focus:outline-none focus:border-hydro-navy"
+              className="w-full h-[44px] border border-[#D1D5DB] bg-white text-[#111827] placeholder-[#9CA3AF] text-xs pl-9 pr-4 rounded-[10px] focus:outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] transition-all"
             />
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+            <Search className="w-4 h-4 text-[#9CA3AF] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
 
           <div className="flex gap-3">
             <EnterpriseSelect
               value={roleFilter}
               onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }}
-              className="!py-2"
+              className="!py-2 !bg-white !border-[#D1D5DB] !text-[#111827] hover:!bg-[#F9FAFB]"
             >
-              <option value="">All Roles</option>
+              <option value="" className="bg-white text-[#111827]">All Roles</option>
               {roles.map((r: any) => (
-                <option key={r.id} value={r.code}>{r.name}</option>
+                <option key={r.id} value={r.code} className="bg-white text-[#111827]">{r.name}</option>
               ))}
             </EnterpriseSelect>
 
             <EnterpriseSelect
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-              className="!py-2"
+              className="!py-2 !bg-white !border-[#D1D5DB] !text-[#111827] hover:!bg-[#F9FAFB]"
             >
-              <option value="">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="" className="bg-white text-[#111827]">All Statuses</option>
+              <option value="active" className="bg-white text-[#111827]">Active</option>
+              <option value="inactive" className="bg-white text-[#111827]">Inactive</option>
             </EnterpriseSelect>
           </div>
         </div>
@@ -2037,8 +2446,8 @@ export const CompanyDashboardPage: React.FC = () => {
             />
             {/* Pagination Footer */}
             {totalPages > 1 && (
-              <div className="p-4 border border-slate-200 dark:border-slate-855 bg-white dark:bg-slate-900 rounded-sm flex justify-between items-center text-xs select-none">
-                <span className="text-slate-400 font-semibold">Page {currentPage} of {totalPages}</span>
+              <div className="p-4 border border-[#E5E7EB] bg-white rounded-[12px] shadow-[0_1px_3px_rgba(0,0,0,0.05)] flex justify-between items-center text-xs select-none">
+                <span className="text-[#6B7280] font-semibold">Page {currentPage} of {totalPages}</span>
                 <div className="flex gap-2">
                   <EnterpriseButton
                     disabled={currentPage === 1}
@@ -2071,55 +2480,316 @@ export const CompanyDashboardPage: React.FC = () => {
 
         {/* 1. View Employee Modal card */}
         {selectedEmployeeForView && (
-          <EnterpriseModal
-            isOpen={!!selectedEmployeeForView}
-            onClose={() => setSelectedEmployeeForView(null)}
-            title="Employee Profile Details"
-            maxWidth="sm"
-          >
-            <div className="flex flex-col gap-4 select-none">
-              <div className="flex items-center gap-4 mt-2">
-                <div className="w-12 h-12 rounded bg-hydro-navy text-white flex items-center justify-center font-bold text-lg uppercase shrink-0">
-                  {selectedEmployeeForView.fullName.charAt(0)}
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Inline stylesheet for transition animations */}
+            <style dangerouslySetInnerHTML={{__html: `
+              @keyframes modalFadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+              }
+              @keyframes modalScaleIn {
+                from { transform: scale(0.96); }
+                to { transform: scale(1); }
+              }
+              .animate-modal-backdrop {
+                animation: modalFadeIn 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+              }
+              .animate-modal-container {
+                animation: modalFadeIn 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards,
+                           modalScaleIn 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+              }
+            `}} />
+
+            {/* Backdrop */}
+            <div 
+              onClick={() => setSelectedEmployeeForView(null)}
+              className="fixed inset-0 bg-[#0F172A]/35 backdrop-blur-[4px] animate-modal-backdrop" 
+            />
+
+            {/* Dialog Body Container */}
+            <div 
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="modal-title"
+              className="relative w-full max-w-[620px] max-h-[90vh] overflow-y-auto bg-white border border-[#E5E7EB] p-[28px] rounded-[16px] shadow-[0_20px_50px_rgba(0,0,0,0.12)] flex flex-col gap-6 animate-modal-container z-10 select-none"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between pb-5 border-b border-[#E5E7EB]">
+                <div className="flex items-center gap-4">
+                  {/* Circular Avatar */}
+                  <div className="w-[56px] h-[56px] rounded-full bg-[#DBEAFE] text-[#2563EB] flex items-center justify-center font-bold text-[22px] uppercase shrink-0">
+                    {selectedEmployeeForView.fullName.charAt(0)}
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <h4 id="modal-title" className="font-semibold text-[20px] text-[#111827] leading-tight">
+                      {selectedEmployeeForView.fullName}
+                    </h4>
+                    <span className="text-[14px] text-[#6B7280] font-normal mt-1 leading-none">
+                      {selectedEmployeeForView.department}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-bold text-slate-850 dark:text-white leading-tight">{selectedEmployeeForView.fullName}</h4>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mt-1">{selectedEmployeeForView.department}</span>
-                </div>
+                {/* Circular Close Button */}
+                <button 
+                  onClick={() => setSelectedEmployeeForView(null)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#111827] transition-all cursor-pointer"
+                  aria-label="Close modal"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="text-xs space-y-3.5 mt-3">
-                <div className="flex justify-between border-b border-slate-105 dark:border-slate-850 pb-1.5">
-                  <span className="text-slate-400 font-bold uppercase text-[9px]">Username</span>
-                  <span className="font-mono">{selectedEmployeeForView.username}</span>
+              {/* Grid Information Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                {/* Authorization Role */}
+                <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[10px] p-[14px] flex flex-col gap-1.5 items-start">
+                  <span className="text-[12px] font-medium text-[#6B7280] leading-none">Authorization Role</span>
+                  {(() => {
+                    let badgeClass = "bg-slate-100 text-[#374151]"
+                    const code = selectedEmployeeForView.roleCode.toUpperCase()
+                    if (code === 'COMPANYADMIN') badgeClass = "bg-[#EFF4FF] text-[#1A56DB]"
+                    else if (code === 'OPERATOR') badgeClass = "bg-[#FEF3C7] text-[#92400E]"
+                    else if (code === 'SUPERVISOR') badgeClass = "bg-[#F3E8FF] text-[#6B21A8]"
+                    else if (code === 'MANAGER') badgeClass = "bg-[#D1FAE5] text-[#065F46]"
+                    return (
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold select-none ${badgeClass} leading-tight`}>
+                        {selectedEmployeeForView.roleName}
+                      </span>
+                    )
+                  })()}
                 </div>
-                <div className="flex justify-between border-b border-slate-105 dark:border-slate-850 pb-1.5">
-                  <span className="text-slate-400 font-bold uppercase text-[9px]">Authorization Role</span>
-                  <span className="font-bold text-hydro-navy dark:text-hydro-azure">{selectedEmployeeForView.roleName}</span>
+
+                {/* Department */}
+                <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[10px] p-[14px] flex flex-col gap-1.5">
+                  <span className="text-[12px] font-medium text-[#6B7280] leading-none">Department</span>
+                  <span className="text-[15px] font-semibold text-[#111827] leading-tight">
+                    {selectedEmployeeForView.department}
+                  </span>
                 </div>
-                <div className="flex justify-between border-b border-slate-105 dark:border-slate-850 pb-1.5">
-                  <span className="text-slate-400 font-bold uppercase text-[9px]">Account Status</span>
-                  <span className={selectedEmployeeForView.isActive ? 'text-green-600 font-bold' : 'text-error font-bold'}>
+
+                {/* Status */}
+                <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[10px] p-[14px] flex flex-col gap-1.5 items-start">
+                  <span className="text-[12px] font-medium text-[#6B7280] leading-none">Status</span>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold select-none leading-none ${
+                    selectedEmployeeForView.isActive 
+                      ? 'bg-[#DCFCE7] text-[#166534]' 
+                      : 'bg-[#FEE2E2] text-[#991B1B]'
+                  }`}>
                     {selectedEmployeeForView.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </div>
-                <div className="flex justify-between border-b border-slate-105 dark:border-slate-850 pb-1.5">
-                  <span className="text-slate-400 font-bold uppercase text-[9px]">Record GUID</span>
-                  <span className="font-mono text-[10px] text-slate-400 truncate max-w-[150px]">{selectedEmployeeForView.id}</span>
+
+                {/* Created Date */}
+                <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[10px] p-[14px] flex flex-col gap-1.5">
+                  <span className="text-[12px] font-medium text-[#6B7280] leading-none">Created Date</span>
+                  <span className="text-[15px] font-semibold text-[#111827] leading-tight">
+                    {new Date(selectedEmployeeForView.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                </div>
+
+                {/* Last Login */}
+                <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[10px] p-[14px] flex flex-col gap-1.5">
+                  <span className="text-[12px] font-medium text-[#6B7280] leading-none">Last Login</span>
+                  <span className="text-[15px] font-semibold text-[#111827] leading-tight">
+                    {selectedEmployeeForView.lastLogin 
+                      ? new Date(selectedEmployeeForView.lastLogin).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+                      : 'Never'}
+                  </span>
+                </div>
+
+                {/* Record ID */}
+                <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[10px] p-[14px] flex flex-col gap-2">
+                  <span className="text-[12px] font-medium text-[#6B7280] leading-none">Record ID</span>
+                  <div className="flex items-center justify-between gap-3">
+                    <span style={{ fontFamily: 'SF Mono, monospace' }} className="text-[13px] bg-[#F3F4F6] text-[#111827] px-2.5 py-1 rounded-[8px] select-all truncate flex-1 text-left leading-normal border border-[#E5E7EB]">
+                      {selectedEmployeeForView.id}
+                    </span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedEmployeeForView.id);
+                        showToast('Record ID copied to clipboard.', 'success');
+                      }}
+                      className="px-3 py-1 text-xs font-semibold text-[#2563EB] hover:bg-[#EFF4FF] rounded-[8px] cursor-pointer transition-colors shrink-0"
+                      title="Copy to clipboard"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+
+                {/* Login Credentials Section */}
+                <div className="md:col-span-2 border-t border-[#E5E7EB] pt-4 mt-2">
+                  <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-4 select-none">Login Credentials</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Username */}
+                    <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[10px] p-[14px] flex flex-col gap-1.5">
+                      <span className="text-[12px] font-medium text-[#6B7280] leading-none">Username</span>
+                      <span className="text-[15px] font-semibold text-[#111827] font-mono leading-tight">
+                        {selectedEmployeeForView.username}
+                      </span>
+                    </div>
+
+                    {/* Password */}
+                    <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[10px] p-[14px] flex flex-col gap-1.5">
+                      <span className="text-[12px] font-medium text-[#6B7280] leading-none">Password</span>
+                      <div className="flex items-center justify-between gap-2 h-7">
+                        <span className="text-[15px] font-semibold text-[#111827] font-mono leading-tight">
+                          {isPasswordVisible && decryptedPassword ? decryptedPassword : '••••••••••'}
+                        </span>
+                        {isPasswordVisible && decryptedPassword && (
+                          <div className="flex gap-2 shrink-0">
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(decryptedPassword);
+                                showToast('Password copied to clipboard.', 'success');
+                              }}
+                              className="px-2.5 py-1 text-xs font-semibold text-[#2563EB] hover:bg-[#EFF4FF] rounded-[8px] cursor-pointer transition-colors"
+                            >
+                              Copy
+                            </button>
+                            <button
+                              onClick={() => {
+                                setIsPasswordVisible(false);
+                                setDecryptedPassword(null);
+                              }}
+                              className="px-2.5 py-1 text-xs font-semibold text-[#6B7280] hover:bg-[#F3F4F6] rounded-[8px] cursor-pointer transition-colors"
+                            >
+                              Hide
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Admin Actions */}
+                    {isCompanyAdmin && (
+                      <div className="md:col-span-2 flex gap-3 mt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPinVerifyAction('view');
+                            setPinVerifyValue('');
+                            setIsPinVerifyModalOpen(true);
+                          }}
+                          className="px-4 py-2 text-xs font-semibold bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-[8px] cursor-pointer transition-colors flex-1"
+                        >
+                          View Password
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPinVerifyAction('change');
+                            setPinVerifyValue('');
+                            setIsPinVerifyModalOpen(true);
+                          }}
+                          className="px-4 py-2 text-xs font-semibold border border-[#D1D5DB] text-[#374151] hover:bg-[#F9FAFB] rounded-[8px] cursor-pointer transition-colors flex-1"
+                        >
+                          Change Password
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex justify-end mt-4">
-                <EnterpriseButton
+              {/* Footer */}
+              <div className="flex justify-end pt-4 border-t border-[#E5E7EB] mt-2">
+                <button
                   onClick={() => setSelectedEmployeeForView(null)}
-                  variant="secondary"
+                  className="px-6 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-medium text-sm rounded-[10px] h-[42px] cursor-pointer transition-all active:scale-[0.98]"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Company Secret PIN Verification Modal */}
+        <EnterpriseModal
+          isOpen={isPinVerifyModalOpen}
+          onClose={() => setIsPinVerifyModalOpen(false)}
+          title="Verify Company Secret PIN"
+          maxWidth="sm"
+        >
+          <form onSubmit={handleVerifyPinSubmit} className="flex flex-col gap-4">
+            <p className="text-[11px] text-[#6B7280]">
+              To perform this action, please verify your administrative access by entering the Company Secret PIN.
+            </p>
+            <EnterpriseInput
+              label="Company Secret PIN"
+              type="password"
+              placeholder="Enter PIN"
+              value={pinVerifyValue}
+              onChange={(e) => setPinVerifyValue(e.target.value)}
+              required
+            />
+            <div className="flex gap-2 justify-end mt-4">
+              <EnterpriseButton type="button" onClick={() => setIsPinVerifyModalOpen(false)} variant="secondary">
+                Cancel
+              </EnterpriseButton>
+              <EnterpriseButton type="submit" loading={isPinVerifying}>
+                Verify
+              </EnterpriseButton>
+            </div>
+          </form>
+        </EnterpriseModal>
+
+        {/* Change Employee Password Modal */}
+        <EnterpriseModal
+          isOpen={isChangePasswordModalOpen}
+          onClose={() => setIsChangePasswordModalOpen(false)}
+          title="Change Employee Password"
+          maxWidth="sm"
+        >
+          <form onSubmit={handleUpdatePasswordSubmit} className="flex flex-col gap-4">
+            <p className="text-[11px] text-[#6B7280]">
+              Enter a new secure password for the employee account. Minimum 8 characters required.
+            </p>
+            <EnterpriseInput
+              label="New Password"
+              type="password"
+              placeholder="Enter new password"
+              value={newPasswordVal}
+              onChange={(e) => setNewPasswordVal(e.target.value)}
+              required
+            />
+            <EnterpriseInput
+              label="Confirm Password"
+              type="password"
+              placeholder="Confirm new password"
+              value={confirmPasswordVal}
+              onChange={(e) => setConfirmPasswordVal(e.target.value)}
+              required
+            />
+            <div className="flex justify-between items-center mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
+                  let pass = ''
+                  for (let i = 0; i < 12; i++) {
+                    pass += chars.charAt(Math.floor(Math.random() * chars.length))
+                  }
+                  setNewPasswordVal(pass)
+                  setConfirmPasswordVal(pass)
+                  showToast('Secure password generated.', 'success')
+                }}
+                className="px-3 py-1.5 text-xs font-semibold text-[#2563EB] hover:bg-[#EFF4FF] rounded-[8px] cursor-pointer transition-colors"
+              >
+                Generate Password
+              </button>
+              <div className="flex gap-2">
+                <EnterpriseButton type="button" onClick={() => setIsChangePasswordModalOpen(false)} variant="secondary">
+                  Cancel
+                </EnterpriseButton>
+                <EnterpriseButton type="submit" loading={isUpdatingPassword}>
+                  Update Password
                 </EnterpriseButton>
               </div>
             </div>
-          </EnterpriseModal>
-        )}
+          </form>
+        </EnterpriseModal>
 
         {/* 2. Add Employee dialog */}
         <EnterpriseModal
@@ -2230,7 +2900,7 @@ export const CompanyDashboardPage: React.FC = () => {
                   <ToggleLeft className="w-9 h-9 text-slate-400 fill-slate-50" />
                 )}
               </button>
-              <span className="text-xs font-semibold text-slate-800 dark:text-white">Account Active Status</span>
+              <span className="text-xs font-semibold text-[#374151]">Account Active Status</span>
             </div>
 
             <div className="flex gap-2 justify-end mt-4">
@@ -2251,7 +2921,7 @@ export const CompanyDashboardPage: React.FC = () => {
           title="Reset Credentials"
         >
           <form onSubmit={handleResetPasswordSubmit} className="flex flex-col gap-4">
-            <p className="text-[11px] text-slate-400 select-none">Resetting access credentials for: <strong>{resetEmployeeName}</strong>.</p>
+            <p className="text-[11px] text-[#6B7280] select-none">Resetting access credentials for: <strong className="text-[#111827]">{resetEmployeeName}</strong>.</p>
             <EnterpriseInput
               label="New Password or PIN *"
               type="password"
@@ -2318,42 +2988,8 @@ export const CompanyDashboardPage: React.FC = () => {
   }
 
   // Fallbacks for display to avoid blank dashboards
-  const displayLines = productionLines.length > 0 ? productionLines : [
-    { lineId: '1', code: 'LINE_A', name: 'Bottling Line A', isActive: true },
-    { lineId: '2', code: 'LINE_B', name: 'Bottling Line B', isActive: true },
-    { lineId: '3', code: 'LINE_C', name: 'Bottling Line C', isActive: false }
-  ]
-
-  const displayBatches = activeBatches.length > 0 ? activeBatches : [
-    {
-      id: 'mock-b1',
-      batchNumber: 'LOT-2026-A1',
-      productionLineId: '1',
-      productionLineName: 'Bottling Line A',
-      productionLineCode: 'LINE_A',
-      product: 'Premium Sparkling Water 500ml',
-      shift: 'Morning',
-      targetQuantity: 5000,
-      producedQuantity: 4250,
-      operatorName: 'Vance R.',
-      status: 'Active',
-      startedAt: new Date(Date.now() - 4 * 3600 * 1000).toISOString()
-    },
-    {
-      id: 'mock-b2',
-      batchNumber: 'LOT-2026-B4',
-      productionLineId: '2',
-      productionLineName: 'Bottling Line B',
-      productionLineCode: 'LINE_B',
-      product: 'Still Pure Water 1.5L',
-      shift: 'Morning',
-      targetQuantity: 3000,
-      producedQuantity: 1200,
-      operatorName: 'Marcus T.',
-      status: 'Paused',
-      startedAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString()
-    }
-  ]
+  const displayLines = productionLines || []
+  const displayBatches = activeBatches || []
 
   // Inventory logic using actual database stats + safe fallback levels
   const getMaterialStock = (category: string, fallback: number) => {
@@ -2366,11 +3002,11 @@ export const CompanyDashboardPage: React.FC = () => {
     return total > 0 ? total : fallback
   }
 
-  const stockPreforms = getMaterialStock('PREFORM', 42500)
-  const stockCaps = getMaterialStock('CAP', 112000)
-  const stockLabels = getMaterialStock('LABEL', 18500)
-  const stockShrinkRolls = getMaterialStock('SHRINK_FILM', 6400)
-  const stockFinishedGoods = getProductStockSum(15400)
+  const stockPreforms = getMaterialStock('PREFORM', 0)
+  const stockCaps = getMaterialStock('CAP', 0)
+  const stockLabels = getMaterialStock('LABEL', 0)
+  const stockShrinkRolls = getMaterialStock('SHRINK_FILM', 0)
+  const stockFinishedGoods = getProductStockSum(0)
 
   const getStockStatus = (current: number, safe: number) => {
     if (current <= safe * 0.4) {
@@ -2407,12 +3043,57 @@ export const CompanyDashboardPage: React.FC = () => {
     }
   }
 
-  // Aggregated KPIs
-  const totalAchieved = displayBatches.reduce((acc, b) => acc + (b.producedQuantity || 0), 0)
-  const totalTarget = displayBatches.reduce((acc, b) => acc + (b.targetQuantity || 1), 0)
-  const todayProgressPercent = Math.min(100, Math.round((totalAchieved / totalTarget) * 100))
+  // Aggregated KPIs from database-driven endpoint
+  const stats = productionDashboard || {
+    todayProduction: 0,
+    todayTarget: 0,
+    weeklyProduction: 0,
+    monthlyProduction: 0,
+    pendingDispatch: 0,
+    pendingDispatchHighPriority: 0
+  }
 
-  const activeAlertsCount = (stockLabels < 40000 ? 1 : 0) + (stockPreforms < 50000 ? 1 : 0)
+  const totalAchieved = stats.todayProduction
+  const totalTarget = stats.todayTarget
+  const todayProgressPercent = totalTarget > 0 ? Math.min(100, Math.round((totalAchieved / totalTarget) * 100)) : 0
+
+  // Dynamic alerts generation based on true material levels
+  const alerts: { title: string; desc: string }[] = []
+  if (stockPreforms < 50000) {
+    alerts.push({ title: 'Preforms stock low', desc: `${stockPreforms.toLocaleString()} units • Below safe level` })
+  }
+  if (stockCaps < 100000) {
+    alerts.push({ title: 'Caps stock low', desc: `${stockCaps.toLocaleString()} units • Below safe level` })
+  }
+  if (stockLabels < 40000) {
+    alerts.push({ title: 'Labels stock low', desc: `${stockLabels.toLocaleString()} units • Below safe level` })
+  }
+  if (stockShrinkRolls < 5000) {
+    alerts.push({ title: 'Shrink Film stock low', desc: `${stockShrinkRolls.toLocaleString()} units • Below safe level` })
+  }
+  if (stockFinishedGoods < 10000) {
+    alerts.push({ title: 'Finished Goods stock low', desc: `${stockFinishedGoods.toLocaleString()} cases • Below safe level` })
+  }
+
+  const activeAlertsCount = alerts.length
+
+  // Build Recent Activity from active batches dynamically
+  const getActivities = () => {
+    const items: { time: string; timestamp: number; text: string }[] = []
+    displayBatches.forEach((batch: any) => {
+      if (batch.startedAt) {
+        const date = new Date(batch.startedAt)
+        items.push({
+          time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          timestamp: date.getTime(),
+          text: `Production batch ${batch.batchNumber} is ${batch.status.toLowerCase()}`
+        })
+      }
+    })
+    return items.sort((a, b) => b.timestamp - a.timestamp).slice(0, 6)
+  }
+
+  const activities = getActivities()
 
   const factoryStatus = getFactoryStatus()
   // Greeting based on time of day
@@ -2421,6 +3102,78 @@ export const CompanyDashboardPage: React.FC = () => {
     if (h < 12) return 'Good Morning'
     if (h < 17) return 'Good Afternoon'
     return 'Good Evening'
+  }
+
+  const isDashboardLoading = 
+    linesLoading || 
+    batchesLoading || 
+    salesLoading || 
+    dashboardRawMaterialsLoading || 
+    dashboardProductsLoading || 
+    productionDashboardLoading
+
+  if (isDashboardView && isDashboardLoading) {
+    return (
+      <div className="min-h-screen bg-white font-sans antialiased">
+        <div className="max-w-[1400px] mx-auto px-6 py-8 space-y-10">
+          {/* Header Skeleton */}
+          <div className="flex justify-between items-center pb-6 border-b border-gray-100 animate-pulse">
+            <div className="space-y-2">
+              <div className="h-8 bg-gray-200 rounded w-64"></div>
+              <div className="h-4 bg-gray-100 rounded w-48"></div>
+            </div>
+            <div className="h-8 bg-gray-200 rounded w-32"></div>
+          </div>
+
+          {/* KPIs Skeleton */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-8 gap-y-6 animate-pulse">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-3 bg-gray-200 rounded w-20"></div>
+                <div className="h-9 bg-gray-200 rounded w-28"></div>
+                <div className="h-3 bg-gray-100 rounded w-16"></div>
+              </div>
+            ))}
+          </div>
+
+          {/* Ledger Skeleton */}
+          <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-6 animate-pulse space-y-4">
+            <div className="h-4 bg-gray-200 rounded w-36"></div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-8 gap-y-6">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="space-y-2">
+                  <div className="h-3 bg-gray-200 rounded w-24"></div>
+                  <div className="h-8 bg-gray-200 rounded w-20"></div>
+                  <div className="h-3 bg-gray-100 rounded w-16"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Grid Skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 animate-pulse">
+            <div className="lg:col-span-2 space-y-10">
+              <div className="space-y-4">
+                <div className="h-4 bg-gray-200 rounded w-32"></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="border border-gray-100 rounded-xl p-4 space-y-3 h-32"></div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="space-y-10">
+              <div className="space-y-4">
+                <div className="h-4 bg-gray-200 rounded w-24"></div>
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="h-16 bg-gray-100 rounded-xl"></div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   // DEFAULT VIEW â€” Clean Executive Dashboard
@@ -2449,19 +3202,19 @@ export const CompanyDashboardPage: React.FC = () => {
           </div>
         </header>
 
-        {/* â”€â”€ Today's KPIs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* —— Today's KPIs —————————————————————————————————————— */}
         <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-8 gap-y-6">
           <div>
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Today's Production</p>
             <p className="text-[32px] font-semibold tracking-tight text-gray-900 leading-tight tabular-nums mt-1">
-              {totalAchieved > 0 ? totalAchieved.toLocaleString() : 'â€”'}
+              {totalAchieved.toLocaleString()}
             </p>
             <p className="text-xs text-gray-400 mt-0.5">cases produced</p>
           </div>
           <div>
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Target</p>
             <p className="text-[32px] font-semibold tracking-tight text-gray-900 leading-tight tabular-nums mt-1">
-              {totalTarget > 1 ? totalTarget.toLocaleString() : 'â€”'}
+              {totalTarget.toLocaleString()}
             </p>
             <p className="text-xs mt-0.5">
               <span className={`font-medium ${todayProgressPercent >= 80 ? 'text-green-600' : todayProgressPercent >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
@@ -2472,30 +3225,32 @@ export const CompanyDashboardPage: React.FC = () => {
           <div>
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">This Week</p>
             <p className="text-[32px] font-semibold tracking-tight text-gray-900 leading-tight tabular-nums mt-1">
-              {totalAchieved > 0 ? Math.round(totalAchieved * 5.2).toLocaleString() : 'â€”'}
+              {stats.weeklyProduction.toLocaleString()}
             </p>
             <p className="text-xs text-gray-400 mt-0.5">cases</p>
           </div>
           <div>
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">This Month</p>
             <p className="text-[32px] font-semibold tracking-tight text-gray-900 leading-tight tabular-nums mt-1">
-              {totalAchieved > 0 ? Math.round(totalAchieved * 22).toLocaleString() : '—'}
+              {stats.monthlyProduction.toLocaleString()}
             </p>
             <p className="text-xs text-gray-400 mt-0.5">cases</p>
           </div>
           <div>
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Today's Sales</p>
             <p className="text-[32px] font-semibold tracking-tight text-gray-900 leading-tight tabular-nums mt-1">
-              ₹{totalAchieved > 0 ? ((totalAchieved * 12.5 * 83) / 100000).toFixed(1) : '0'}L
+              ₹{salesDashboard?.todaySalesCases ? ((salesDashboard.todaySalesCases * 12.5 * 83) / 100000).toFixed(1) : '0'}L
             </p>
             <p className="text-xs text-gray-400 mt-0.5">estimated revenue</p>
           </div>
           <div>
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Pending Dispatch</p>
             <p className="text-[32px] font-semibold tracking-tight text-gray-900 leading-tight tabular-nums mt-1">
-              18
+              {stats.pendingDispatch}
             </p>
-            <p className="text-xs text-amber-600 font-medium mt-0.5">2 high priority</p>
+            <p className={`text-xs font-medium mt-0.5 ${stats.pendingDispatchHighPriority > 0 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
+              {stats.pendingDispatchHighPriority} high priority
+            </p>
           </div>
         </section>
 
@@ -2541,76 +3296,83 @@ export const CompanyDashboardPage: React.FC = () => {
           </div>
         </section>
 
-        {/* â”€â”€ Main Grid: Left (2/3) + Right (1/3) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* —————————————————————————————————————————————————————————————————————— */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
 
           {/* Left Column */}
           <div className="lg:col-span-2 space-y-10">
 
-            {/* â”€â”€ Production Lines â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+            {/* Production Lines */}
             <section>
               <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-5">Production Lines</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {displayLines.map((line: any) => {
-                  const batch = displayBatches.find((b: any) => b.productionLineId === line.lineId)
-                  const isRunning = line.isActive && batch?.status === 'Active'
-                  const isPaused = line.isActive && batch?.status === 'Paused'
-                  const statusDot = isRunning ? 'bg-green-500' : isPaused ? 'bg-amber-500' : 'bg-gray-300'
-                  const statusText = isRunning ? 'Running' : isPaused ? 'Paused' : 'Idle'
-                  const produced = batch?.producedQuantity || 0
-                  const target = batch?.targetQuantity || 0
-                  const pct = target > 0 ? Math.round((produced / target) * 100) : 0
+              {displayLines.length === 0 ? (
+                <div className="border border-dashed border-gray-150 rounded-xl p-8 text-center text-gray-500">
+                  <p className="text-sm font-medium">No Production Lines Configured</p>
+                  <p className="text-xs text-gray-400 mt-1">Configure production lines in Settings</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {displayLines.map((line: any) => {
+                    const batch = displayBatches.find((b: any) => b.productionLineId === line.lineId)
+                    const isRunning = line.isActive && batch?.status === 'Active'
+                    const isPaused = line.isActive && batch?.status === 'Paused'
+                    const statusDot = isRunning ? 'bg-green-500' : isPaused ? 'bg-amber-500' : 'bg-gray-300'
+                    const statusText = isRunning ? 'Running' : isPaused ? 'Paused' : 'Idle'
+                    const produced = batch?.producedQuantity || 0
+                    const target = batch?.targetQuantity || 0
+                    const pct = target > 0 ? Math.round((produced / target) * 100) : 0
 
-                  return (
-                    <div key={line.lineId} className="border border-gray-100 rounded-xl p-4 space-y-3 hover:border-gray-200 transition-colors">
-                      {/* Line header */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${statusDot}`} />
-                          <span className="text-sm font-semibold text-gray-900">{line.name}</span>
+                    return (
+                      <div key={line.lineId} className="border border-gray-100 rounded-xl p-4 space-y-3 hover:border-gray-200 transition-colors">
+                        {/* Line header */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${statusDot}`} />
+                            <span className="text-sm font-semibold text-gray-900">{line.name}</span>
+                          </div>
+                          <span className="text-[11px] font-medium text-gray-400">{statusText}</span>
                         </div>
-                        <span className="text-[11px] font-medium text-gray-400">{statusText}</span>
-                      </div>
 
-                      {batch ? (
-                        <>
-                          {/* Batch details */}
-                          <div className="grid grid-cols-2 gap-y-2 text-[12px]">
-                            <div>
-                              <span className="text-gray-400">Batch</span>
-                              <p className="font-mono font-semibold text-gray-800">{batch.batchNumber}</p>
+                        {batch ? (
+                          <>
+                            {/* Batch details */}
+                            <div className="grid grid-cols-2 gap-y-2 text-[12px]">
+                              <div>
+                                <span className="text-gray-400">Batch</span>
+                                <p className="font-mono font-semibold text-gray-800">{batch.batchNumber}</p>
+                              </div>
+                              <div>
+                                <span className="text-gray-400">Operator</span>
+                                <p className="font-medium text-gray-800">{batch.operatorName || '—'}</p>
+                              </div>
+                              <div>
+                                <span className="text-gray-400">Product</span>
+                                <p className="font-medium text-gray-800 truncate pr-2">{batch.product || '—'}</p>
+                              </div>
+                              <div>
+                                <span className="text-gray-400">ETA</span>
+                                <p className="font-medium text-gray-800">{isRunning ? '~2h' : '—'}</p>
+                              </div>
                             </div>
-                            <div>
-                              <span className="text-gray-400">Operator</span>
-                              <p className="font-medium text-gray-800">{batch.operatorName || 'â€”'}</p>
+                            {/* Progress */}
+                            <div className="space-y-1.5">
+                              <div className="flex justify-between text-[11px]">
+                                <span className="text-gray-500 tabular-nums">{produced.toLocaleString()} / {target.toLocaleString()} cases</span>
+                                <span className="font-semibold text-gray-700 tabular-nums">{pct}%</span>
+                              </div>
+                              <div className="w-full bg-gray-100 rounded-full h-1.5">
+                                <div className={`h-1.5 rounded-full ${isRunning ? 'bg-blue-500' : 'bg-amber-400'}`} style={{ width: `${pct}%` }} />
+                              </div>
                             </div>
-                            <div>
-                              <span className="text-gray-400">Product</span>
-                              <p className="font-medium text-gray-800 truncate pr-2">{batch.product || 'â€”'}</p>
-                            </div>
-                            <div>
-                              <span className="text-gray-400">ETA</span>
-                              <p className="font-medium text-gray-800">{isRunning ? '~2h' : 'â€”'}</p>
-                            </div>
-                          </div>
-                          {/* Progress */}
-                          <div className="space-y-1.5">
-                            <div className="flex justify-between text-[11px]">
-                              <span className="text-gray-500 tabular-nums">{produced.toLocaleString()} / {target.toLocaleString()} cases</span>
-                              <span className="font-semibold text-gray-700 tabular-nums">{pct}%</span>
-                            </div>
-                            <div className="w-full bg-gray-100 rounded-full h-1.5">
-                              <div className={`h-1.5 rounded-full ${isRunning ? 'bg-blue-500' : 'bg-amber-400'}`} style={{ width: `${pct}%` }} />
-                            </div>
-                          </div>
-                        </>
-                      ) : (
-                        <p className="text-xs text-gray-400 py-3">No active batch</p>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
+                          </>
+                        ) : (
+                          <p className="text-xs text-gray-400 py-3">No active batch</p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </section>
 
             {/* â”€â”€ Today's Batches â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
@@ -2630,37 +3392,45 @@ export const CompanyDashboardPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {displayBatches.map((batch: any) => {
-                      const pct = Math.round((batch.producedQuantity / batch.targetQuantity) * 100)
-                      return (
-                        <tr key={batch.id} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="py-3 px-4 font-mono font-semibold text-gray-900">{batch.batchNumber}</td>
-                          <td className="py-3 px-4 text-gray-600 truncate max-w-[160px]">{batch.product}</td>
-                          <td className="py-3 px-4 text-gray-600">{batch.productionLineName}</td>
-                          <td className="py-3 px-4 font-mono text-gray-500 text-[12px]">
-                            {new Date(batch.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-2">
-                              <div className="w-16 bg-gray-100 rounded-full h-1.5">
-                                <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
+                    {displayBatches.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-8 text-center text-gray-400 text-xs">
+                          No Production Today
+                        </td>
+                      </tr>
+                    ) : (
+                      displayBatches.map((batch: any) => {
+                        const pct = Math.round((batch.producedQuantity / batch.targetQuantity) * 100)
+                        return (
+                          <tr key={batch.id} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="py-3 px-4 font-mono font-semibold text-gray-900">{batch.batchNumber}</td>
+                            <td className="py-3 px-4 text-gray-600 truncate max-w-[160px]">{batch.product}</td>
+                            <td className="py-3 px-4 text-gray-600">{batch.productionLineName}</td>
+                            <td className="py-3 px-4 font-mono text-gray-500 text-[12px]">
+                              {new Date(batch.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                <div className="w-16 bg-gray-100 rounded-full h-1.5">
+                                  <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
+                                </div>
+                                <span className="font-mono text-[11px] font-semibold text-gray-500 tabular-nums">{pct}%</span>
                               </div>
-                              <span className="font-mono text-[11px] font-semibold text-gray-500 tabular-nums">{pct}%</span>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4 text-gray-600">{batch.operatorName || 'â€”'}</td>
-                          <td className="py-3 px-4 text-center">
-                            <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
-                              batch.status === 'Active'
-                                ? 'bg-green-50 text-green-700'
-                                : 'bg-amber-50 text-amber-700'
-                            }`}>
-                              {batch.status}
-                            </span>
-                          </td>
-                        </tr>
-                      )
-                    })}
+                            </td>
+                            <td className="py-3 px-4 text-gray-600">{batch.operatorName || '—'}</td>
+                            <td className="py-3 px-4 text-center">
+                              <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                                batch.status === 'Active'
+                                  ? 'bg-green-50 text-green-700'
+                                  : 'bg-amber-50 text-amber-700'
+                              }`}>
+                                {batch.status}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -2701,36 +3471,29 @@ export const CompanyDashboardPage: React.FC = () => {
           {/* Right Column */}
           <div className="space-y-10">
 
-            {/* â”€â”€ Alerts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-            {activeAlertsCount > 0 && (
-              <section>
-                <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">
-                  Alerts <span className="text-red-500 font-bold">{activeAlertsCount}</span>
-                </h2>
+            {/* Alerts */}
+            <section>
+              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">
+                Alerts {alerts.length > 0 && <span className="text-red-500 font-bold">{alerts.length}</span>}
+              </h2>
+              {alerts.length > 0 ? (
                 <div className="space-y-3">
-                  {stockLabels < 40000 && (
-                    <div className="flex gap-3 items-start text-[13px]">
+                  {alerts.map((alert, idx) => (
+                    <div key={idx} className="flex gap-3 items-start text-[13px]">
                       <span className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 shrink-0" />
                       <div>
-                        <p className="font-medium text-gray-900">Labels stock low</p>
-                        <p className="text-gray-500 text-xs mt-0.5">{stockLabels.toLocaleString()} units &bull; Below safe level</p>
+                        <p className="font-medium text-gray-900">{alert.title}</p>
+                        <p className="text-gray-500 text-xs mt-0.5">{alert.desc}</p>
                       </div>
                     </div>
-                  )}
-                  {stockPreforms < 50000 && (
-                    <div className="flex gap-3 items-start text-[13px]">
-                      <span className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 shrink-0" />
-                      <div>
-                        <p className="font-medium text-gray-900">Preforms stock low</p>
-                        <p className="text-gray-500 text-xs mt-0.5">{stockPreforms.toLocaleString()} units &bull; Below safe level</p>
-                      </div>
-                    </div>
-                  )}
+                  ))}
                 </div>
-              </section>
-            )}
+              ) : (
+                <p className="text-xs text-gray-400">No Alerts</p>
+              )}
+            </section>
 
-            {/* â”€â”€ Inventory Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+            {/* Inventory Health */}
             <section>
               <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Raw Material Health</h2>
               <div className="space-y-4">
@@ -2762,42 +3525,41 @@ export const CompanyDashboardPage: React.FC = () => {
               </div>
             </section>
 
-            {/* â”€â”€ Pending Work â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+            {/* Pending Work */}
             <section>
               <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Pending Work</h2>
-              <div className="space-y-2.5">
-                {[
-                  { task: '18 orders awaiting dispatch', type: 'Dispatch' }
-                ].map(item => (
-                  <label key={item.task} className="flex gap-3 items-start cursor-pointer group py-0.5">
+              {stats.pendingDispatch > 0 ? (
+                <div className="space-y-2.5">
+                  <label className="flex gap-3 items-start cursor-pointer group py-0.5">
                     <input type="checkbox" className="mt-1 h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
                     <div>
-                      <p className="text-[13px] font-medium text-gray-700 group-hover:text-gray-900 leading-snug">{item.task}</p>
-                      <p className="text-[11px] text-gray-400 font-medium">{item.type}</p>
+                      <p className="text-[13px] font-medium text-gray-700 group-hover:text-gray-900 leading-snug">
+                        {stats.pendingDispatch} orders awaiting dispatch
+                      </p>
+                      <p className="text-[11px] text-gray-400 font-medium">Dispatch</p>
                     </div>
                   </label>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400">No Pending Dispatch</p>
+              )}
             </section>
 
-            {/* â”€â”€ Recent Activity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+            {/* Recent Activity */}
             <section>
               <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Recent Activity</h2>
-              <div className="space-y-3">
-                {[
-                  { time: '09:22', text: 'Production started â€” Batch B-2026-A1' },
-                  { time: '09:10', text: 'Purchase order received â€” PET Preforms' },
-                  { time: '08:45', text: 'Maintenance completed â€” Labeler-B' },
-                  { time: '08:20', text: 'Inventory updated â€” Caps restocked' },
-                  { time: '08:00', text: 'Quality approved â€” Batch B-2025-C3' },
-                  { time: '07:30', text: 'Dispatch completed â€” 1,200 cases to Apex' }
-                ].map((item, i) => (
-                  <div key={i} className="flex gap-3 items-baseline text-[13px]">
-                    <span className="text-[11px] font-mono text-gray-400 tabular-nums w-10 shrink-0">{item.time}</span>
-                    <span className="text-gray-600">{item.text}</span>
-                  </div>
-                ))}
-              </div>
+              {activities.length > 0 ? (
+                <div className="space-y-3">
+                  {activities.map((item, i) => (
+                    <div key={i} className="flex gap-3 items-baseline text-[13px]">
+                      <span className="text-[11px] font-mono text-gray-400 tabular-nums w-10 shrink-0">{item.time}</span>
+                      <span className="text-gray-600">{item.text}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400">No recent activity</p>
+              )}
             </section>
 
           </div>

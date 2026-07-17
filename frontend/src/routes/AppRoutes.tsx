@@ -17,21 +17,27 @@ import CompanyDashboardPage from '../pages/company/CompanyDashboardPage'
 import BatchDetailsPage from '../pages/company/BatchDetailsPage'
 import OperatorDashboardPage from '../pages/operator/OperatorDashboardPage'
 import AccessDeniedPage from '../pages/AccessDeniedPage'
+import OperationsPage from '../pages/company/OperationsPage'
+import ProvisioningPage from '../pages/ProvisioningPage'
 
-// Helper to determine the default portal redirect for a user based on role & company association
 export const getDefaultRouteForUser = (user: any): string => {
   const getRoute = () => {
     if (!user) return '/login'
     if (!user.emailVerified) {
       return '/verify-otp'
     }
+
+    if (user.tenantId && !user.isTenantInitialized) {
+      return '/account-setup'
+    }
+
     const roles = user.roles || []
     
     if (roles.some((r: string) => ['SuperAdmin', 'PlatformAdmin', 'SupportEngineer', 'PlatformOwner'].includes(r))) {
       return '/platform/dashboard'
     }
     
-    if (!user.ownsCompany && (!user.tenantId || !user.isTenantInitialized)) {
+    if (!user.tenantId) {
       return '/onboarding'
     }
     
@@ -80,8 +86,17 @@ const OnboardingRoute: React.FC<{ children: React.ReactNode }> = ({ children }) 
     return <Navigate to="/verify-otp" replace state={{ email: user.email }} />
   }
 
-  if (user.ownsCompany || (user.tenantId && user.isTenantInitialized)) {
+  if (user.isTenantInitialized) {
     return <Navigate to={getDefaultRouteForUser(user)} replace />
+  }
+
+  const path = window.location.pathname
+  if (user.tenantId && !user.isTenantInitialized && path !== '/account-setup') {
+    return <Navigate to="/account-setup" replace />
+  }
+
+  if (!user.tenantId && path === '/account-setup') {
+    return <Navigate to="/onboarding" replace />
   }
 
   return <>{children}</>
@@ -119,7 +134,11 @@ const CompanyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     return <Navigate to="/verify-otp" replace state={{ email: user.email }} />
   }
 
-  if (!user.ownsCompany && (!user.tenantId || !user.isTenantInitialized)) {
+  if (user.tenantId && !user.isTenantInitialized) {
+    return <Navigate to="/account-setup" replace />
+  }
+
+  if (!user.tenantId || !user.isTenantInitialized) {
     return <Navigate to="/onboarding" replace />
   }
 
@@ -151,7 +170,11 @@ const OperatorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     return <Navigate to="/verify-otp" replace state={{ email: user.email }} />
   }
 
-  if (!user.ownsCompany && (!user.tenantId || !user.isTenantInitialized)) {
+  if (user.tenantId && !user.isTenantInitialized) {
+    return <Navigate to="/account-setup" replace />
+  }
+
+  if (!user.tenantId || !user.isTenantInitialized) {
     return <Navigate to="/onboarding" replace />
   }
 
@@ -259,6 +282,14 @@ export const AppRoutes: React.FC = () => {
           element={
             <OnboardingRoute>
               <InviteTeamPage />
+            </OnboardingRoute>
+          }
+        />
+        <Route
+          path="/account-setup"
+          element={
+            <OnboardingRoute>
+              <ProvisioningPage />
             </OnboardingRoute>
           }
         />
@@ -389,6 +420,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="suppliers" element={<CompanyDashboardPage />} />
         <Route path="employees" element={<CompanyDashboardPage />} />
         <Route path="settings" element={<CompanyDashboardPage />} />
+        <Route path="operations" element={<OperationsPage />} />
       </Route>
 
       {/* Fallback route */}

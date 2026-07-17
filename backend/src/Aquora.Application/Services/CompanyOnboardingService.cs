@@ -151,6 +151,144 @@ namespace Aquora.Application.Services
             };
         }
 
+        public async Task<CompanyOnboardingResponse> RetryOnboardingAsync(Guid userId)
+        {
+            if (userId == Guid.Empty)
+            {
+                throw new UnauthorizedAccessException("Invalid user.");
+            }
+
+            var user = await _platformContext.Users
+                .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted && u.IsActive);
+            if (user == null)
+            {
+                throw new UnauthorizedAccessException("User not found.");
+            }
+
+            if (!user.TenantId.HasValue)
+            {
+                throw new InvalidOperationException("No company associated with this account. Please initialize first.");
+            }
+
+            var tenant = await _platformContext.Tenants.FirstOrDefaultAsync(t => t.Id == user.TenantId.Value);
+            if (tenant == null)
+            {
+                throw new InvalidOperationException("Associated company details not found.");
+            }
+
+            if (tenant.Status != "Failed")
+            {
+                throw new InvalidOperationException($"Cannot retry onboarding. Current status is '{tenant.Status}'.");
+            }
+
+            // Load previously enabled stations
+            var enabledStations = await _platformContext.TenantProductionConfigurations
+                .Where(c => c.TenantId == tenant.Id && c.IsEnabled)
+                .Select(c => c.StationName)
+                .ToListAsync();
+
+            // Reset user tenant ID mapping in case it got cleared
+            user.TenantId = tenant.Id;
+
+            // Reset tenant status in platform DB
+            tenant.Status = "Provisioning";
+            tenant.Progress = 5;
+            tenant.CurrentStep = "Workspace Created";
+            tenant.FailureReason = null;
+            tenant.StartedAt = DateTime.UtcNow;
+
+            await _platformContext.SaveChangesAsync();
+
+            // Queue Background Tenant Provisioning
+            _queue.QueueProvisioning(new TenantProvisioningJob
+            {
+                TenantId = tenant.Id,
+                SchemaName = tenant.SchemaName,
+                CompanyName = tenant.Name,
+                CompanyCode = tenant.Code,
+                OwnerUserId = user.Id,
+                EnabledStations = enabledStations
+            });
+
+            // Generate dynamic token
+            var roles = new System.Collections.Generic.List<string> { "CompanyAdmin" };
+            var permissions = new System.Collections.Generic.List<string>
+            {
+                Permissions.TenantRead, Permissions.TenantWrite,
+                Permissions.UsersRead, Permissions.UsersWrite,
+                Permissions.RolesRead, Permissions.RolesWrite,
+                Permissions.AuditRead,
+                Permissions.HierarchyRead, Permissions.HierarchyWrite,
+                Permissions.DashboardRead
+            };
+
+            var accessToken = _tokenService.GenerateAccessToken(user, roles, permissions);
+            var refreshToken = _tokenService.GenerateRefreshToken();
+
+            user.RefreshToken = refreshToken;
+            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+            await _platformContext.SaveChangesAsync();
+
+            return new CompanyOnboardingResponse
+            {
+                TenantId = tenant.Id,
+                CompanyId = Guid.Empty,
+                CompanyName = tenant.Name,
+                SchemaName = tenant.SchemaName,
+                OwnerRole = "CompanyAdmin",
+                ProvisioningStatus = "Provisioning",
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                ExpiresIn = 3600,
+                Permissions = permissions
+            };
+        }
+
+        public async Task<object> GetProvisioningStatusAsync(Guid userId)
+        {
+            if (userId == Guid.Empty)
+                throw new UnauthorizedAccessException("Invalid user.");
+
+            var user = await _platformContext.Users
+                .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+            if (user == null)
+                throw new UnauthorizedAccessException("User not found.");
+
+            if (!user.TenantId.HasValue)
+            {
+                return new
+                {
+                    Status = "Pending",
+                    Progress = 0,
+                    Step = (string?)null,
+                    Message = "No workspace created yet.",
+                    FailureReason = (string?)null
+                };
+            }
+
+            var tenant = await _platformContext.Tenants.FindAsync(user.TenantId.Value);
+            if (tenant == null)
+            {
+                return new
+                {
+                    Status = "Pending",
+                    Progress = 0,
+                    Step = (string?)null,
+                    Message = "Workspace record not found.",
+                    FailureReason = (string?)null
+                };
+            }
+
+            return new
+            {
+                Status = tenant.IsInitialized ? "Completed" : tenant.Status ?? "Provisioning",
+                Progress = tenant.IsInitialized ? 100 : tenant.Progress,
+                Step = tenant.CurrentStep,
+                Message = tenant.IsInitialized ? "Your workspace is ready!" : (tenant.FailureReason ?? $"{tenant.CurrentStep}..."),
+                FailureReason = tenant.FailureReason
+            };
+        }
+
         private static void Validate(CompanyOnboardingRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.CompanyName))

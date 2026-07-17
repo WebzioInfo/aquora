@@ -17,19 +17,25 @@ namespace Aquora.Application.Services
         private readonly ITokenService _tokenService;
         private readonly ITenantDatabaseService _tenantDatabaseService;
         private readonly ISchemaNameGenerator _schemaNameGenerator;
+        private readonly Aquora.Application.Interfaces.Services.IEmailService _emailService;
+        private readonly IBackgroundTaskQueue _taskQueue;
 
         public TenantService(
             IPlatformDbContext platformContext,
             IPasswordHasher passwordHasher,
             ITokenService tokenService,
             ITenantDatabaseService tenantDatabaseService,
-            ISchemaNameGenerator schemaNameGenerator)
+            ISchemaNameGenerator schemaNameGenerator,
+            Aquora.Application.Interfaces.Services.IEmailService emailService,
+            IBackgroundTaskQueue taskQueue)
         {
             _platformContext = platformContext;
             _passwordHasher = passwordHasher;
             _tokenService = tokenService;
             _tenantDatabaseService = tenantDatabaseService;
             _schemaNameGenerator = schemaNameGenerator;
+            _emailService = emailService;
+            _taskQueue = taskQueue;
         }
 
         public async Task<bool> SendOtpAsync(string email)
@@ -43,9 +49,9 @@ namespace Aquora.Application.Services
                 throw new InvalidOperationException("ALREADY_VERIFIED");
             }
 
-            // 1. Generate 6-digit random code
-            var random = new Random();
-            var code = random.Next(100000, 999999).ToString();
+            // 1. Generate 6-digit secure random code
+            var code = System.Security.Cryptography.RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
+            var otpHash = _passwordHasher.HashPassword(code);
 
             // 2. Check if a code already exists for this email
             var existing = await _platformContext.OTPVerifications
@@ -53,7 +59,7 @@ namespace Aquora.Application.Services
 
             if (existing != null)
             {
-                existing.Code = code;
+                existing.OtpHash = otpHash;
                 existing.ExpiryTime = DateTime.UtcNow.AddMinutes(10);
                 existing.Attempts = 0;
                 existing.CreatedAt = DateTime.UtcNow;
@@ -63,18 +69,19 @@ namespace Aquora.Application.Services
                 var otp = new OTPVerification
                 {
                     Email = email.ToLower(),
-                    Code = code,
+                    OtpHash = otpHash,
                     ExpiryTime = DateTime.UtcNow.AddMinutes(10),
                     Attempts = 0,
-                    IsVerified = false
+                    IsVerified = false,
+                    RequestId = Guid.NewGuid().ToString()
                 };
                 _platformContext.OTPVerifications.Add(otp);
             }
 
             await _platformContext.SaveChangesAsync();
 
-            // Log OTP code to console/debug for local verification
-            Console.WriteLine($"[OTP VERIFICATION] Generated OTP code '{code}' for email '{email}' (expires in 10 minutes)");
+            // Queue the OTP email in background worker
+            _taskQueue.QueueOtpJob(email, code, 10);
             
             return true;
         }
@@ -108,7 +115,7 @@ namespace Aquora.Application.Services
                 throw new InvalidOperationException("Maximum verification attempts exceeded. Please request a new OTP.");
             }
 
-            if (otp.Code != request.Code)
+            if (!_passwordHasher.VerifyPassword(request.Code, otp.OtpHash))
             {
                 otp.Attempts++;
                 await _platformContext.SaveChangesAsync();

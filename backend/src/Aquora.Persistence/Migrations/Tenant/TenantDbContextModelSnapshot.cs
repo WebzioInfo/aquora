@@ -90,6 +90,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -119,6 +122,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
@@ -146,6 +152,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -169,6 +178,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpdatedByIP")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -195,6 +207,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -220,6 +235,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.ToTable("Companies", "public");
@@ -231,6 +249,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AccountingPlaceholder")
+                        .HasColumnType("text");
+
                     b.Property<string>("AddressLine1")
                         .IsRequired()
                         .HasColumnType("text");
@@ -238,14 +259,35 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("AddressLine2")
                         .HasColumnType("text");
 
+                    b.Property<string>("AddressesJson")
+                        .HasColumnType("text");
+
                     b.Property<string>("AlternatePhone")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AssignedDriver")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AssignedRoute")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AssignedSalesExecutive")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AssignedVehicle")
                         .HasColumnType("text");
 
                     b.Property<string>("BalanceType")
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("BusinessCategory")
+                        .HasColumnType("text");
+
                     b.Property<string>("BusinessName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("BusinessRegistration")
                         .HasColumnType("text");
 
                     b.Property<string>("BusinessType")
@@ -255,10 +297,16 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<decimal>("CommissionPercentage")
+                        .HasColumnType("numeric");
+
                     b.Property<Guid>("CompanyId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("ContactPerson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContactsJson")
                         .HasColumnType("text");
 
                     b.Property<string>("Country")
@@ -270,6 +318,9 @@ namespace Aquora.Persistence.Migrations.Tenant
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByIP")
                         .HasColumnType("text");
 
                     b.Property<decimal>("CreditLimit")
@@ -289,23 +340,44 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("DefaultDeliveryPriority")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("DeletedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("DeliveryFrequency")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DiscountGroup")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DistributorType")
+                        .HasColumnType("text");
+
                     b.Property<string>("District")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DocumentsJson")
                         .HasColumnType("text");
 
                     b.Property<string>("Email")
                         .HasColumnType("text");
 
+                    b.Property<bool>("EmergencyDelivery")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("GSTNumber")
                         .HasColumnType("text");
 
                     b.Property<string>("GSTState")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Industry")
                         .HasColumnType("text");
 
                     b.Property<bool>("IsActive")
@@ -314,7 +386,25 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<decimal>("JarDeposit")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("LedgerPlaceholder")
+                        .HasColumnType("text");
+
+                    b.Property<int>("MaxJarLimit")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("MonthlySalary")
+                        .HasColumnType("numeric");
+
                     b.Property<decimal>("OpeningBalance")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("OutstandingJars")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("OutstandingPlaceholder")
                         .HasColumnType("numeric");
 
                     b.Property<string>("PANNumber")
@@ -329,12 +419,42 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<string>("PhotoUrl")
+                        .HasColumnType("text");
+
                     b.Property<string>("PinCode")
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("PreferredCapMaterial")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PreferredDeliveryTime")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PreferredDeliveryWindow")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PreferredJarBrand")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PreferredProductsJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PriceList")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("PriorityCustomer")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Remarks")
                         .HasColumnType("text");
+
+                    b.Property<bool>("SealRequired")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("SecurityDeposit")
+                        .HasColumnType("numeric");
 
                     b.Property<string>("State")
                         .IsRequired()
@@ -344,13 +464,37 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("TaxCategory")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("TaxExempt")
+                        .HasColumnType("boolean");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("TradeLicense")
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Website")
+                        .HasColumnType("text");
+
+                    b.Property<string>("WhatsApp")
+                        .HasColumnType("text");
+
+                    b.Property<string>("WorkingArea")
+                        .HasColumnType("text");
+
+                    b.Property<string>("WorkingDays")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -400,6 +544,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -441,6 +588,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
@@ -456,6 +606,465 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.HasIndex("ReferenceType", "ReferenceId");
 
                     b.ToTable("InventoryMovements", "public");
+                });
+
+            modelBuilder.Entity("Aquora.Domain.Entities.OperationsFillingQueue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BrandId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CompletedQuantity")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("DistributorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("RemainingQuantity")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RequestedQuantity")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("VisitId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BrandId");
+
+                    b.HasIndex("DistributorId");
+
+                    b.HasIndex("Priority");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("VisitId");
+
+                    b.ToTable("OperationsFillingQueues", "public");
+                });
+
+            modelBuilder.Entity("Aquora.Domain.Entities.OperationsJarCondition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConditionType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DamageLocation")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Responsibility")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("VisitId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConditionType");
+
+                    b.HasIndex("VisitId");
+
+                    b.ToTable("OperationsJarConditions", "public");
+                });
+
+            modelBuilder.Entity("Aquora.Domain.Entities.OperationsLoading", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BatchNumber")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("BrandId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CapMaterialId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LoadedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("LoadingTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("QuantityLoaded")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("SealMaterialId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("SealRequired")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
+                    b.Property<string>("VehicleNumber")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("VisitId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BatchNumber");
+
+                    b.HasIndex("BrandId");
+
+                    b.HasIndex("CapMaterialId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("SealMaterialId");
+
+                    b.HasIndex("VisitId");
+
+                    b.ToTable("OperationsLoadings", "public");
+                });
+
+            modelBuilder.Entity("Aquora.Domain.Entities.OperationsQuarantine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("HoldDurationHours")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("VisitId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("VisitId");
+
+                    b.ToTable("OperationsQuarantines", "public");
+                });
+
+            modelBuilder.Entity("Aquora.Domain.Entities.OperationsUnloading", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BrandId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("ImmediateRequirement")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("LaterRequirement")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ReturnedEmptyCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("ScheduledDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ScheduledRequirement")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("VisitId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BrandId");
+
+                    b.HasIndex("VisitId");
+
+                    b.ToTable("OperationsUnloadings", "public");
+                });
+
+            modelBuilder.Entity("Aquora.Domain.Entities.OperationsVisit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ArrivalTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("DistributorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DriverName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ExpectedCollectionTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
+                    b.Property<string>("VehicleNumber")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArrivalTime");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("DistributorId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("OperationsVisits", "public");
                 });
 
             modelBuilder.Entity("Aquora.Domain.Entities.OperatorContextLog", b =>
@@ -509,6 +1118,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
@@ -517,6 +1129,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpdatedByIP")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -538,6 +1153,9 @@ namespace Aquora.Persistence.Migrations.Tenant
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByIP")
                         .HasColumnType("text");
 
                     b.Property<decimal>("CurrentStock")
@@ -566,6 +1184,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpdatedByIP")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -603,6 +1224,9 @@ namespace Aquora.Persistence.Migrations.Tenant
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByIP")
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("DeletedAt")
@@ -654,6 +1278,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ProductionLineId");
@@ -687,6 +1314,9 @@ namespace Aquora.Persistence.Migrations.Tenant
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByIP")
                         .HasColumnType("text");
 
                     b.Property<DateTime>("Date")
@@ -777,6 +1407,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CapMaterialId");
@@ -820,6 +1453,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -848,6 +1484,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
@@ -873,6 +1512,9 @@ namespace Aquora.Persistence.Migrations.Tenant
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByIP")
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("DeletedAt")
@@ -926,6 +1568,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
@@ -954,6 +1599,9 @@ namespace Aquora.Persistence.Migrations.Tenant
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByIP")
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("DeletedAt")
@@ -997,6 +1645,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
                     b.Property<int>("WastageQty")
                         .HasColumnType("integer");
 
@@ -1038,6 +1689,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
                     b.Property<decimal>("CurrentStock")
                         .HasColumnType("numeric");
 
@@ -1070,6 +1724,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Category");
@@ -1099,6 +1756,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1121,6 +1781,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.ToTable("Roles", "public");
@@ -1139,6 +1802,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
                     b.Property<Guid>("PermissionId")
                         .HasColumnType("uuid");
 
@@ -1152,6 +1818,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpdatedByIP")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -1180,6 +1849,9 @@ namespace Aquora.Persistence.Migrations.Tenant
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByIP")
                         .HasColumnType("text");
 
                     b.Property<Guid>("CustomerId")
@@ -1229,6 +1901,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
@@ -1266,6 +1941,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1289,6 +1967,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpdatedByIP")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -1316,6 +1997,9 @@ namespace Aquora.Persistence.Migrations.Tenant
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByIP")
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("DeletedAt")
@@ -1346,6 +2030,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
@@ -1373,6 +2060,9 @@ namespace Aquora.Persistence.Migrations.Tenant
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByIP")
                         .HasColumnType("text");
 
                     b.Property<string>("CurrentStep")
@@ -1439,6 +2129,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.ToTable("Tenants", "public", t =>
@@ -1490,6 +2183,9 @@ namespace Aquora.Persistence.Migrations.Tenant
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByIP")
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("DeletedAt")
@@ -1554,6 +2250,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
+
                     b.Property<string>("Username")
                         .HasColumnType("text");
 
@@ -1580,6 +2279,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
                     b.Property<Guid>("RoleId")
                         .HasColumnType("uuid");
 
@@ -1590,6 +2292,9 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpdatedByIP")
                         .HasColumnType("text");
 
                     b.Property<Guid>("UserId")
@@ -1647,6 +2352,130 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Navigation("Product");
 
                     b.Navigation("RawMaterial");
+                });
+
+            modelBuilder.Entity("Aquora.Domain.Entities.OperationsFillingQueue", b =>
+                {
+                    b.HasOne("Aquora.Domain.Entities.Brand", "Brand")
+                        .WithMany()
+                        .HasForeignKey("BrandId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Aquora.Domain.Entities.Customer", "Distributor")
+                        .WithMany()
+                        .HasForeignKey("DistributorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Aquora.Domain.Entities.OperationsVisit", "Visit")
+                        .WithMany()
+                        .HasForeignKey("VisitId");
+
+                    b.Navigation("Brand");
+
+                    b.Navigation("Distributor");
+
+                    b.Navigation("Visit");
+                });
+
+            modelBuilder.Entity("Aquora.Domain.Entities.OperationsJarCondition", b =>
+                {
+                    b.HasOne("Aquora.Domain.Entities.OperationsVisit", "Visit")
+                        .WithMany("JarConditions")
+                        .HasForeignKey("VisitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Visit");
+                });
+
+            modelBuilder.Entity("Aquora.Domain.Entities.OperationsLoading", b =>
+                {
+                    b.HasOne("Aquora.Domain.Entities.Brand", "Brand")
+                        .WithMany()
+                        .HasForeignKey("BrandId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Aquora.Domain.Entities.RawMaterial", "CapMaterial")
+                        .WithMany()
+                        .HasForeignKey("CapMaterialId");
+
+                    b.HasOne("Aquora.Domain.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Aquora.Domain.Entities.RawMaterial", "SealMaterial")
+                        .WithMany()
+                        .HasForeignKey("SealMaterialId");
+
+                    b.HasOne("Aquora.Domain.Entities.OperationsVisit", "Visit")
+                        .WithMany("Loadings")
+                        .HasForeignKey("VisitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Brand");
+
+                    b.Navigation("CapMaterial");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("SealMaterial");
+
+                    b.Navigation("Visit");
+                });
+
+            modelBuilder.Entity("Aquora.Domain.Entities.OperationsQuarantine", b =>
+                {
+                    b.HasOne("Aquora.Domain.Entities.OperationsVisit", "Visit")
+                        .WithMany("Quarantines")
+                        .HasForeignKey("VisitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Visit");
+                });
+
+            modelBuilder.Entity("Aquora.Domain.Entities.OperationsUnloading", b =>
+                {
+                    b.HasOne("Aquora.Domain.Entities.Brand", "Brand")
+                        .WithMany()
+                        .HasForeignKey("BrandId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Aquora.Domain.Entities.OperationsVisit", "Visit")
+                        .WithMany("Unloadings")
+                        .HasForeignKey("VisitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Brand");
+
+                    b.Navigation("Visit");
+                });
+
+            modelBuilder.Entity("Aquora.Domain.Entities.OperationsVisit", b =>
+                {
+                    b.HasOne("Aquora.Domain.Entities.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Aquora.Domain.Entities.Customer", "Distributor")
+                        .WithMany()
+                        .HasForeignKey("DistributorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Company");
+
+                    b.Navigation("Distributor");
                 });
 
             modelBuilder.Entity("Aquora.Domain.Entities.Product", b =>
@@ -1899,6 +2728,17 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .IsRequired();
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("Aquora.Domain.Entities.OperationsVisit", b =>
+                {
+                    b.Navigation("JarConditions");
+
+                    b.Navigation("Loadings");
+
+                    b.Navigation("Quarantines");
+
+                    b.Navigation("Unloadings");
                 });
 
             modelBuilder.Entity("Aquora.Domain.Entities.Permission", b =>

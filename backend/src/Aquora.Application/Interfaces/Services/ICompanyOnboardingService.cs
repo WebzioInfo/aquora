@@ -7,5 +7,7 @@ namespace Aquora.Application.Interfaces.Services
     public interface ICompanyOnboardingService
     {
         Task<CompanyOnboardingResponse> OnboardCompanyAsync(Guid userId, CompanyOnboardingRequest request);
+        Task<CompanyOnboardingResponse> RetryOnboardingAsync(Guid userId);
+        Task<object> GetProvisioningStatusAsync(Guid userId);
     }
 }

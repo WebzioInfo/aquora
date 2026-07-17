@@ -21,11 +21,11 @@ export function EnterpriseTable<T extends { id: string | number }>({
   emptyMessage = 'No records found.'
 }: EnterpriseTableProps<T>) {
   return (
-    <div className="w-full overflow-hidden border border-[#E5E9F2] dark:border-slate-800 rounded-[8px] bg-white dark:bg-slate-900 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+    <div className="w-full overflow-hidden border border-[#E5E7EB] rounded-[12px] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
       <div className="overflow-x-auto w-full">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
-            <tr className="h-[48px] border-b border-[#E5E9F2] dark:border-slate-800 text-[#344054] dark:text-slate-200 font-semibold select-none bg-[#F4F6F9] dark:bg-slate-800">
+            <tr className="h-[48px] border-b border-[#E5E7EB] text-[#374151] font-semibold select-none bg-[#F8FAFC]">
               {columns.map((col) => (
                 <th key={col.key} className={`py-3 px-4 text-sm ${col.className || ''}`}>
                   {col.title}
@@ -33,7 +33,7 @@ export function EnterpriseTable<T extends { id: string | number }>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#E5E9F2] dark:divide-slate-800">
+          <tbody className="divide-y divide-[#F3F4F6]">
             {loading ? (
               <tr>
                 <td colSpan={columns.length} className="p-8 text-center">
@@ -48,7 +48,7 @@ export function EnterpriseTable<T extends { id: string | number }>({
               </tr>
             ) : data.length > 0 ? (
               data.map((row) => (
-                <tr key={row.id} className="h-[48px] hover:bg-[#EFF4FF] dark:hover:bg-slate-800/50 text-[#101828] dark:text-slate-100 transition-colors">
+                <tr key={row.id} className="h-[48px] bg-white hover:bg-[#F9FAFB] text-[#111827] transition-colors">
                   {columns.map((col) => (
                     <td key={col.key} className={`py-3 px-4 ${col.className || ''}`}>
                       {col.render ? col.render(row) : (row as any)[col.key]}

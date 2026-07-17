@@ -17,15 +17,18 @@ namespace Aquora.Infrastructure.Services
         private readonly ITenantProvisioningQueue _queue;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<TenantProvisioningWorker> _logger;
+        private readonly IProvisioningProgressReporter _progressReporter;
 
         public TenantProvisioningWorker(
             ITenantProvisioningQueue queue,
             IServiceScopeFactory scopeFactory,
-            ILogger<TenantProvisioningWorker> logger)
+            ILogger<TenantProvisioningWorker> logger,
+            IProvisioningProgressReporter progressReporter)
         {
             _queue = queue;
             _scopeFactory = scopeFactory;
             _logger = logger;
+            _progressReporter = progressReporter;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -59,7 +62,8 @@ namespace Aquora.Infrastructure.Services
             var stopwatch = Stopwatch.StartNew();
             
             // Set initial state
-            await UpdateProgressAsync(job.TenantId, 15, "Queueing provisioning", "Provisioning");
+            await UpdateProgressAsync(job.TenantId, 5, "Starting", "Getting things ready...");
+            await _progressReporter.ReportProgressAsync(job.OwnerUserId.ToString(), 5, "Starting", "Getting things ready...");
 
             try
             {
@@ -79,6 +83,7 @@ namespace Aquora.Infrastructure.Services
                         async (progress, step, status) =>
                         {
                             await UpdateProgressAsync(job.TenantId, progress, step, status);
+                            await _progressReporter.ReportProgressAsync(job.OwnerUserId.ToString(), progress, step, status);
                         });
 
                     // 2. Create UserMembership link in Platform Db
@@ -111,13 +116,22 @@ namespace Aquora.Infrastructure.Services
                     await UpdateProgressAsync(
                         job.TenantId, 
                         100, 
-                        "Workspace ready", 
-                        "Ready", 
+                        "Complete", 
+                        "Your workspace is ready!", 
                         isInitialized: true,
                         duration: stopwatch.Elapsed.TotalSeconds);
+                    await _progressReporter.ReportProgressAsync(job.OwnerUserId.ToString(), 100, "Complete", "Your workspace is ready!");
 
                     _logger.LogInformation($"[TENANT CREATION SUCCESS] Tenant: {job.CompanyName} (ID: {job.TenantId}) provisioned successfully in {stopwatch.ElapsedMilliseconds} ms.");
                 }
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                stopwatch.Stop();
+                _logger.LogWarning(
+                    "Tenant provisioning for {CompanyName} (ID: {TenantId}) was interrupted by host shutdown after {ElapsedMs}ms. " +
+                    "Tenant remains in current state and can be retried.",
+                    job.CompanyName, job.TenantId, stopwatch.ElapsedMilliseconds);
             }
             catch (Exception ex)
             {
@@ -225,6 +239,9 @@ namespace Aquora.Infrastructure.Services
                         user.TenantId = null;
                         await platformContext.SaveChangesAsync();
                     }
+
+                    // Report failure live via SignalR
+                    await _progressReporter.ReportFailureAsync(ownerUserId.ToString(), tenant?.CurrentStep ?? "Provisioning", ex.Message);
                 }
             }
             catch (Exception rollbackEx)

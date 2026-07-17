@@ -22,15 +22,18 @@ namespace Aquora.API.Controllers
         private readonly IPlatformDbContext _platformContext;
         private readonly ITenantDbContext _tenantContext;
         private readonly IPasswordHasher _passwordHasher;
+        private readonly ITenantProvider _tenantProvider;
 
         public EmployeesController(
             IPlatformDbContext platformContext,
             ITenantDbContext tenantContext,
-            IPasswordHasher passwordHasher)
+            IPasswordHasher passwordHasher,
+            ITenantProvider tenantProvider)
         {
             _platformContext = platformContext;
             _tenantContext = tenantContext;
             _passwordHasher = passwordHasher;
+            _tenantProvider = tenantProvider;
         }
 
         private Guid GetTenantId()
@@ -107,6 +110,16 @@ namespace Aquora.API.Controllers
                     return Failure<EmployeeDto>($"Username '{request.Username}' is already taken inside this tenant.", "Validation Error");
                 }
 
+                // Globally unique email mapping incorporating tenantId
+                var email = $"{usernameNormalized}@{tenantId}.aquora-tenant.com";
+                var emailExists = await _platformContext.Users
+                    .AnyAsync(u => u.Email.ToLower() == email && !u.IsDeleted);
+
+                if (emailExists)
+                {
+                    return Failure<EmployeeDto>($"Email '{email}' is already associated with another user.", "Validation Error");
+                }
+
                 // Check role existence inside tenant schema
                 var role = await _tenantContext.Roles
                     .FirstOrDefaultAsync(r => r.Code.ToUpper() == request.RoleCode.ToUpper() || r.Name.ToLower() == request.RoleCode.ToLower());
@@ -128,11 +141,11 @@ namespace Aquora.API.Controllers
                 {
                     Id = Guid.NewGuid(),
                     Username = request.Username.Trim(),
-                    Email = $"{usernameNormalized}@aquora-tenant.com", // Unique email mapping
+                    Email = email,
                     FirstName = firstName,
                     LastName = lastName,
                     PasswordHash = hash,
-                    PinHash = hash, // Automatic PasswordHash + PinHash update
+                    PinHash = hash,
                     TenantId = tenantId,
                     Department = request.Department ?? "Operations",
                     IsActive = true,
@@ -164,8 +177,16 @@ namespace Aquora.API.Controllers
                 };
                 _tenantContext.UserRoles.Add(tenantUserRole);
 
-                await _platformContext.SaveChangesAsync();
-                await _tenantContext.SaveChangesAsync();
+                // Wrap in a transaction scope to ensure atomicity across both DbContexts
+                using (var scope = new System.Transactions.TransactionScope(
+                    System.Transactions.TransactionScopeOption.Required,
+                    new System.Transactions.TransactionOptions { IsolationLevel = System.Transactions.IsolationLevel.ReadCommitted },
+                    System.Transactions.TransactionScopeAsyncFlowOption.Enabled))
+                {
+                    await _platformContext.SaveChangesAsync();
+                    await _tenantContext.SaveChangesAsync();
+                    scope.Complete();
+                }
 
                 // Non-blocking Platform Audit Trail logging
                 try
@@ -218,13 +239,36 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Employee created successfully.");
             }
+            catch (DbUpdateException dbEx)
+            {
+                var details = new System.Text.StringBuilder();
+                details.AppendLine($"Database Save Failure: {dbEx.Message}");
+                if (dbEx.InnerException is Npgsql.PostgresException pgEx)
+                {
+                    details.AppendLine($"Postgres Error Code (SqlState): {pgEx.SqlState}");
+                    details.AppendLine($"Constraint Name: {pgEx.ConstraintName}");
+                    details.AppendLine($"Column Name: {pgEx.ColumnName}");
+                    details.AppendLine($"Table Name: {pgEx.TableName}");
+                    details.AppendLine($"Error Message: {pgEx.MessageText}");
+                    details.AppendLine($"Detail: {pgEx.Detail}");
+                }
+                var fullError = details.ToString();
+                Console.WriteLine($"[CREATE EMPLOYEE DATABASE ERROR]:\n{fullError}");
+                return Failure<EmployeeDto>(fullError, "Failed to save database changes during employee creation.");
+            }
             catch (Exception ex)
             {
-                return Failure<EmployeeDto>(ex.Message, "Failed to create employee.");
+                var fullError = ex.ToString();
+                if (ex.InnerException != null)
+                {
+                    fullError += $"\nInner Exception: {ex.InnerException.ToString()}";
+                }
+                Console.WriteLine($"[CREATE EMPLOYEE EXCEPTION]:\n{fullError}");
+                return Failure<EmployeeDto>(fullError, "Failed to create employee.");
             }
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{id:guid}")]
         public async Task<ActionResult<ApiResponse<EmployeeDto>>> UpdateEmployee(Guid id, [FromBody] UpdateEmployeeRequest request)
         {
             try
@@ -347,7 +391,7 @@ namespace Aquora.API.Controllers
             }
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{id:guid}")]
         public async Task<ActionResult<ApiResponse<bool>>> DeleteEmployee(Guid id)
         {
             try
@@ -429,7 +473,20 @@ namespace Aquora.API.Controllers
         {
             try
             {
+                var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value.ToUpperInvariant()).ToList();
+                if (!roles.Contains("COMPANYADMIN"))
+                {
+                    return StatusCode(403, ApiResponse<bool>.CreateFailure("Only Company Admin can reset employee password.", "Forbidden", HttpContext.TraceIdentifier));
+                }
+
                 var tenantId = GetTenantId();
+
+                if (!VerifySecurityPin(tenantId, request.Pin))
+                {
+                    await LogSecurityAuditAsync(tenantId, "InvalidPin", request.EmployeeId.ToString(), "Invalid Company Secret PIN attempt during password reset.");
+                    return BadRequest(ApiResponse<bool>.CreateFailure("Invalid Company Secret PIN.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
                 var user = await _platformContext.Users
                     .FirstOrDefaultAsync(u => u.Id == request.EmployeeId && u.TenantId == tenantId && !u.IsDeleted);
 
@@ -438,20 +495,24 @@ namespace Aquora.API.Controllers
                     return NotFound(ApiResponse<bool>.CreateFailure("Employee not found.", "Not Found", HttpContext.TraceIdentifier));
                 }
 
-                // Capture old hashes before mutation
                 var oldValuesJson = System.Text.Json.JsonSerializer.Serialize(new {
                     user.PasswordHash,
                     user.PinHash
                 });
 
-                // Automatic PasswordHash + PinHash update
                 var hash = _passwordHasher.HashPassword(request.PasswordOrPin);
                 user.PasswordHash = hash;
                 user.PinHash = hash;
 
+                var encryptedPassword = EncryptPassword(request.PasswordOrPin);
+                var secrets = GetEmployeeSecrets(tenantId);
+                secrets[user.Id] = encryptedPassword;
+                SaveEmployeeSecrets(tenantId, secrets);
+
                 await _platformContext.SaveChangesAsync();
 
-                // Non-blocking Platform Audit Trail logging
+                await LogSecurityAuditAsync(tenantId, "UpdatePassword", user.Id.ToString(), $"Updated employee password for: {user.Username ?? user.Email}");
+
                 try
                 {
                     var auditLog = new PlatformAuditLog
@@ -486,6 +547,240 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 return Failure<bool>(ex.Message, "Failed to reset password.");
+            }
+        }
+
+        [HttpPost("security-pin")]
+        public async Task<ActionResult<ApiResponse<bool>>> SaveSecurityPin([FromBody] SecuritySettingsRequest request)
+        {
+            try
+            {
+                var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value.ToUpperInvariant()).ToList();
+                if (!roles.Contains("COMPANYADMIN"))
+                {
+                    return StatusCode(403, ApiResponse<bool>.CreateFailure("Only Company Admin can set the security PIN.", "Forbidden", HttpContext.TraceIdentifier));
+                }
+
+                if (request.Pin != request.ConfirmPin)
+                {
+                    return BadRequest(ApiResponse<bool>.CreateFailure("PIN and Confirm PIN do not match.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                var tenantId = GetTenantId();
+                var pinHash = _passwordHasher.HashPassword(request.Pin);
+                SaveSecurityPinHash(tenantId, pinHash);
+
+                return Success(true, "Security PIN updated successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<bool>(ex.Message, "Failed to save security PIN.");
+            }
+        }
+
+        [HttpGet("security-pin/status")]
+        public ActionResult<ApiResponse<object>> GetSecurityPinStatus()
+        {
+            try
+            {
+                var tenantId = GetTenantId();
+                var hash = GetSecurityPinHash(tenantId);
+                return Success<object>(new { isPinSet = !string.IsNullOrEmpty(hash) }, "PIN status loaded successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<object>(ex.Message, "Failed to load PIN status.");
+            }
+        }
+
+        [HttpPost("security-pin/verify")]
+        public async Task<ActionResult<ApiResponse<bool>>> VerifyPin([FromBody] VerifyPinRequest request)
+        {
+            try
+            {
+                var tenantId = GetTenantId();
+                var isValid = VerifySecurityPin(tenantId, request.Pin);
+                if (!isValid)
+                {
+                    await LogSecurityAuditAsync(tenantId, "InvalidPin", null, "Invalid Company Secret PIN verification attempt.");
+                }
+                return Success(isValid, "PIN verification checked.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<bool>(ex.Message, "PIN verification failed.");
+            }
+        }
+
+        [HttpPost("reveal-password")]
+        public async Task<ActionResult<ApiResponse<string>>> RevealPassword([FromBody] RevealPasswordRequest request)
+        {
+            try
+            {
+                var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value.ToUpperInvariant()).ToList();
+                if (!roles.Contains("COMPANYADMIN"))
+                {
+                    return StatusCode(403, ApiResponse<string>.CreateFailure("Only Company Admin can view employee passwords.", "Forbidden", HttpContext.TraceIdentifier));
+                }
+
+                var tenantId = GetTenantId();
+
+                if (!VerifySecurityPin(tenantId, request.Pin))
+                {
+                    await LogSecurityAuditAsync(tenantId, "InvalidPin", request.EmployeeId.ToString(), "Invalid Company Secret PIN attempt during password view.");
+                    return BadRequest(ApiResponse<string>.CreateFailure("Invalid Company Secret PIN.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                var secrets = GetEmployeeSecrets(tenantId);
+                if (!secrets.TryGetValue(request.EmployeeId, out var encryptedPassword))
+                {
+                    return NotFound(ApiResponse<string>.CreateFailure("Encrypted password not found for this employee.", "Not Found", HttpContext.TraceIdentifier));
+                }
+
+                var decrypted = DecryptPassword(encryptedPassword);
+
+                await LogSecurityAuditAsync(tenantId, "ViewPassword", request.EmployeeId.ToString(), "Viewed employee password.");
+
+                return Success(decrypted, "Password decrypted successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<string>(ex.Message, "Failed to reveal password.");
+            }
+        }
+
+        private string GetSecurityPinFilePath(Guid tenantId)
+        {
+            var dir = System.IO.Path.Combine(AppContext.BaseDirectory, "settings");
+            if (!System.IO.Directory.Exists(dir))
+            {
+                System.IO.Directory.CreateDirectory(dir);
+            }
+            return System.IO.Path.Combine(dir, $"security-settings-{tenantId}.json");
+        }
+
+        private string GetEmployeeSecretsFilePath(Guid tenantId)
+        {
+            var dir = System.IO.Path.Combine(AppContext.BaseDirectory, "settings");
+            if (!System.IO.Directory.Exists(dir))
+            {
+                System.IO.Directory.CreateDirectory(dir);
+            }
+            return System.IO.Path.Combine(dir, $"employee-secrets-{tenantId}.json");
+        }
+
+        private string? GetSecurityPinHash(Guid tenantId)
+        {
+            var path = GetSecurityPinFilePath(tenantId);
+            if (!System.IO.File.Exists(path)) return null;
+            try
+            {
+                var json = System.IO.File.ReadAllText(path);
+                var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+                return dict != null && dict.TryGetValue("SecretPinHash", out var hash) ? hash : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private bool VerifySecurityPin(Guid tenantId, string pin)
+        {
+            var hash = GetSecurityPinHash(tenantId);
+            if (string.IsNullOrEmpty(hash)) return false;
+            return _passwordHasher.VerifyPassword(pin, hash);
+        }
+
+        private void SaveSecurityPinHash(Guid tenantId, string pinHash)
+        {
+            var path = GetSecurityPinFilePath(tenantId);
+            var dict = new Dictionary<string, string> { { "SecretPinHash", pinHash } };
+            var json = System.Text.Json.JsonSerializer.Serialize(dict);
+            System.IO.File.WriteAllText(path, json);
+        }
+
+        private static readonly byte[] AesKey = System.Text.Encoding.UTF8.GetBytes("AquoraSuperSecretKeyPlaceholder123").Take(32).ToArray();
+        private static readonly byte[] AesIv = System.Text.Encoding.UTF8.GetBytes("AquoraIVPlh12345").Take(16).ToArray();
+
+        private string EncryptPassword(string plainText)
+        {
+            using var aes = System.Security.Cryptography.Aes.Create();
+            aes.Key = AesKey;
+            aes.IV = AesIv;
+            using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
+            using var ms = new System.IO.MemoryStream();
+            using (var cs = new System.Security.Cryptography.CryptoStream(ms, encryptor, System.Security.Cryptography.CryptoStreamMode.Write))
+            using (var sw = new System.IO.StreamWriter(cs))
+            {
+                sw.Write(plainText);
+            }
+            return Convert.ToBase64String(ms.ToArray());
+        }
+
+        private string DecryptPassword(string cipherText)
+        {
+            using var aes = System.Security.Cryptography.Aes.Create();
+            aes.Key = AesKey;
+            aes.IV = AesIv;
+            using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
+            using var ms = new System.IO.MemoryStream(Convert.FromBase64String(cipherText));
+            using var cs = new System.Security.Cryptography.CryptoStream(ms, decryptor, System.Security.Cryptography.CryptoStreamMode.Read);
+            using var sr = new System.IO.StreamReader(cs);
+            return sr.ReadToEnd();
+        }
+
+        private Dictionary<Guid, string> GetEmployeeSecrets(Guid tenantId)
+        {
+            var path = GetEmployeeSecretsFilePath(tenantId);
+            if (!System.IO.File.Exists(path)) return new Dictionary<Guid, string>();
+            try
+            {
+                var json = System.IO.File.ReadAllText(path);
+                return System.Text.Json.JsonSerializer.Deserialize<Dictionary<Guid, string>>(json) ?? new Dictionary<Guid, string>();
+            }
+            catch
+            {
+                return new Dictionary<Guid, string>();
+            }
+        }
+
+        private void SaveEmployeeSecrets(Guid tenantId, Dictionary<Guid, string> secrets)
+        {
+            var path = GetEmployeeSecretsFilePath(tenantId);
+            var json = System.Text.Json.JsonSerializer.Serialize(secrets);
+            System.IO.File.WriteAllText(path, json);
+        }
+
+        private async Task LogSecurityAuditAsync(Guid tenantId, string action, string? employeeId, string reason)
+        {
+            try
+            {
+                var adminUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value ?? "System";
+                var auditLog = new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    UserId = adminUserId,
+                    UserEmail = GetCurrentUserEmail(),
+                    Action = action,
+                    TableName = "Users",
+                    PrimaryKey = employeeId ?? "None",
+                    OldValues = "{}",
+                    NewValues = System.Text.Json.JsonSerializer.Serialize(new { Reason = reason }),
+                    Timestamp = DateTime.UtcNow,
+                    IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
+                    Device = Request.Headers["User-Agent"].ToString() ?? "Unknown",
+                    Reason = reason,
+                    Module = "Security"
+                };
+
+                _tenantContext.AuditLogs.Add(auditLog);
+                await _tenantContext.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SECURITY AUDIT LOG FAILURE - NON-BLOCKING]: {ex.Message}");
             }
         }
 

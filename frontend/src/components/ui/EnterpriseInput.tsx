@@ -4,22 +4,29 @@ interface EnterpriseInputProps extends React.InputHTMLAttributes<HTMLInputElemen
   label?: string
   error?: string
   icon?: React.ReactNode
+  light?: boolean
 }
 
 export const EnterpriseInput = React.forwardRef<HTMLInputElement, EnterpriseInputProps>(
-  ({ label, error, icon, className = '', ...props }, ref) => {
+  ({ label, error, icon, light = true, className = '', ...props }, ref) => {
     return (
       <div className="flex flex-col gap-1 w-full text-left">
         {label && (
-          <label className="text-xs font-medium text-[#344054] dark:text-slate-300 select-none">
+          <label className={`text-xs font-medium select-none ${
+            light ? 'text-[#344054] dark:text-[#344054]' : 'text-[#344054] dark:text-slate-300'
+          }`}>
             {label}
           </label>
         )}
         <div className="relative group w-full">
           <input
             ref={ref}
-            className={`w-full h-[40px] border px-3 py-2 text-sm bg-white dark:bg-slate-900 text-slate-900 dark:text-white transition-all placeholder:text-[#98A2B3] focus:outline-none focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB] focus:shadow-[0_0_0_2px_rgba(26,86,219,0.15)] rounded-[8px] ${
-              error ? 'border-red-500 ring-1 ring-red-500' : 'border-[#D0D5DD] dark:border-slate-700'
+            className={`w-full h-[40px] border px-3 py-2 text-sm transition-all placeholder:text-[#98A2B3] focus:outline-none focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB] focus:shadow-[0_0_0_2px_rgba(26,86,219,0.15)] rounded-[8px] ${
+              light 
+                ? 'bg-white dark:bg-white text-slate-900 dark:text-slate-900 border-[#D0D5DD] dark:border-[#D0D5DD]' 
+                : 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border-[#D0D5DD] dark:border-slate-700'
+            } ${
+              error ? 'border-red-500 ring-1 ring-red-500' : ''
             } ${icon ? 'pr-10' : ''} ${className}`}
             {...props}
           />

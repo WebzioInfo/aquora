@@ -73,12 +73,13 @@ export const CompanyOnboardingPage: React.FC = () => {
             roles: [response.data.ownerRole],
             permissions: response.data.permissions,
             ownsCompany: true,
-            isTenantInitialized: true,
+            isTenantInitialized: false,
+            tenantStatus: 'Provisioning',
             emailVerified: user.emailVerified
           })
         }
         
-        navigate('/invite-team')
+        navigate('/account-setup')
       } else {
         showToast(response.message || 'Onboarding failed.', 'error')
       }

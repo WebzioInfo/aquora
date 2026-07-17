@@ -28,6 +28,8 @@ namespace Aquora.Domain.Entities
         public string CreatedBy { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public string? UpdatedBy { get; set; }
+        public string? CreatedByIP { get; set; }
+        public string? UpdatedByIP { get; set; }
 
         // Soft Delete fields
         public bool IsDeleted { get; set; }
@@ -35,3 +37,4 @@ namespace Aquora.Domain.Entities
         public string? DeletedBy { get; set; }
     }
 }
+

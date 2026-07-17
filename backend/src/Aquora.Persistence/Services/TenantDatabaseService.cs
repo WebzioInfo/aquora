@@ -79,10 +79,10 @@ namespace Aquora.Persistence.Services
                 // 1. Create Postgres Schema
                 await _platformContext.Database.ExecuteSqlRawAsync(
                     "CREATE SCHEMA IF NOT EXISTS " + QuoteSchemaName(schemaName) + ";");
-                
+
                 if (onProgress != null)
                 {
-                    await onProgress(30, "Creating database schema", "Provisioning");
+                    await onProgress(15, "Preparing workspace", "Creating your workspace environment...");
                 }
 
                 // 2. Resolve TenantDbContext in a child scope with custom schema configuration
@@ -95,12 +95,29 @@ namespace Aquora.Persistence.Services
                     var tenantContext = scope.ServiceProvider.GetRequiredService<TenantDbContext>();
                     TenantSchemaResolver.CurrentSchemaName = schemaName;
 
+                    // Verify Database Connection
+                    var canConnect = await tenantContext.Database.CanConnectAsync();
+                    if (!canConnect)
+                    {
+                        throw new InvalidOperationException("Failed to verify connection to the tenant database schema.");
+                    }
+
+                    if (onProgress != null)
+                    {
+                        await onProgress(30, "Preparing workspace", "Verifying workspace configuration...");
+                    }
+
+                    if (onProgress != null)
+                    {
+                        await onProgress(45, "Building workspace", "Building your workspace structure...");
+                    }
+
                     // Run EF Migrations inside the schema
                     await tenantContext.Database.MigrateAsync();
                     
                     if (onProgress != null)
                     {
-                        await onProgress(60, "Applying migrations", "Migrating");
+                        await onProgress(60, "Configuring access", "Setting up team access controls...");
                     }
 
                     // Check for duplicate company record to prevent repeat initialization
@@ -114,7 +131,36 @@ namespace Aquora.Persistence.Services
                     using var transaction = await tenantContext.Database.BeginTransactionAsync();
                     try
                     {
-                        // Seed dynamic permissions inside schema
+                        // 1. Seed security roles inside schema
+                        var roleNames = new[]
+                        {
+                            "CompanyAdmin", "Admin", "Manager", "Supervisor", "Operator",
+                            "Store Keeper", "Sales", "HR"
+                        };
+                        Console.WriteLine($"[ROLE SEEDING]: Seeding roles: {string.Join(", ", roleNames)} inside schema '{schemaName}'.");
+
+                        Role ownerRole = null!;
+                        foreach (var roleName in roleNames)
+                        {
+                            var code = roleName.Replace(" ", "_").ToUpperInvariant();
+                            var role = new Role { Name = roleName, Code = code, TenantId = tenantId };
+                            tenantContext.Roles.Add(role);
+                            if (roleName == "CompanyAdmin")
+                            {
+                                ownerRole = role;
+                            }
+                        }
+                        await tenantContext.SaveChangesAsync();
+
+                        if (onProgress != null)
+                        {
+                            await onProgress(70, "Configuring access", "Configuring security settings...");
+                        }
+
+                        result.OwnerRoleId = ownerRole.Id;
+                        result.OwnerRoleName = ownerRole.Name;
+
+                        // 2. Seed dynamic permissions inside schema
                         var permissionStrings = new[]
                         {
                             Permissions.TenantRead, Permissions.TenantWrite,
@@ -138,36 +184,12 @@ namespace Aquora.Persistence.Services
                         }
                         await tenantContext.SaveChangesAsync();
 
-                        var roleNames = new[]
-                        {
-                            "CompanyAdmin", "Admin", "Manager", "Supervisor", "Operator",
-                            "Store Keeper", "Sales", "HR"
-                        };
-                        Console.WriteLine($"[ROLE SEEDING]: Seeding roles: {string.Join(", ", roleNames)} inside schema '{schemaName}'.");
-
-                        Role ownerRole = null;
-                        foreach (var roleName in roleNames)
-                        {
-                            var code = roleName.Replace(" ", "_").ToUpperInvariant();
-                            var role = new Role { Name = roleName, Code = code, TenantId = tenantId };
-                            tenantContext.Roles.Add(role);
-                            if (roleName == "CompanyAdmin")
-                            {
-                                ownerRole = role;
-                            }
-                        }
-
-                        await tenantContext.SaveChangesAsync();
-                        
                         if (onProgress != null)
                         {
-                            await onProgress(85, "Seeding security roles & permissions", "Seeding");
+                            await onProgress(80, "Creating your account", "Setting up your administrator profile...");
                         }
-                        
-                        result.OwnerRoleId = ownerRole.Id;
-                        result.OwnerRoleName = ownerRole.Name;
 
-                        // Map all permissions to Company Owner
+                        // 3. Map all permissions to Company Owner & Assign UserRole to Admin
                         foreach (var perm in seededPermissions)
                         {
                             var rp = new RolePermission
@@ -179,7 +201,6 @@ namespace Aquora.Persistence.Services
                             tenantContext.RolePermissions.Add(rp);
                         }
 
-                        // Add UserRole link inside the tenant database
                         var userRole = new UserRole
                         {
                             UserId = ownerUserId,
@@ -187,9 +208,15 @@ namespace Aquora.Persistence.Services
                             TenantId = tenantId
                         };
                         tenantContext.UserRoles.Add(userRole);
+                        await tenantContext.SaveChangesAsync();
                         Console.WriteLine($"[USERROLE ASSIGNMENT]: Assigned role '{ownerRole.Name}' (ID: {ownerRole.Id}) to user '{ownerUserId}' inside schema '{schemaName}'.");
 
-                        // Create initial Company entity inside the schema
+                        if (onProgress != null)
+                        {
+                            await onProgress(90, "Finalizing setup", "Applying default settings...");
+                        }
+
+                        // 4. Create initial Company entity inside the schema
                         var company = new Company
                         {
                             Name = companyName,
@@ -214,9 +241,8 @@ namespace Aquora.Persistence.Services
                             Device = "Server"
                         };
                         tenantContext.AuditLogs.Add(auditLog);
-
                         await tenantContext.SaveChangesAsync();
-                        
+
                         // Seed default station configurations in public schema
                         var allStations = new[] { "Blowing", "Filling", "Labeling", "Packing" };
                         foreach (var station in allStations)
@@ -234,12 +260,12 @@ namespace Aquora.Persistence.Services
                             _platformContext.TenantProductionConfigurations.Add(config);
                         }
                         await _platformContext.SaveChangesAsync();
-                        
+
                         if (onProgress != null)
                         {
-                            await onProgress(95, "Initializing defaults", "Initializing");
+                            await onProgress(95, "Finalizing setup", "Running final checks...");
                         }
-                        
+
                         await transaction.CommitAsync();
                         result.CompanyId = company.Id;
                     }

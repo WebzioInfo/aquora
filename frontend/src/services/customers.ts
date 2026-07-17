@@ -44,6 +44,55 @@ export interface Customer {
   updatedAt: string | null
   createdBy?: string | null
   updatedBy?: string | null
+
+  // Expanded Business Partner Profiles
+  whatsApp?: string | null
+  website?: string | null
+  photoUrl?: string | null
+  businessRegistration?: string | null
+  businessCategory?: string | null
+  industry?: string | null
+  tradeLicense?: string | null
+  taxExempt?: boolean
+  addressesJson?: string | null
+
+  // Financial Settings
+  priceList?: string | null
+  discountGroup?: string | null
+  taxCategory?: string | null
+  outstandingPlaceholder?: number
+  ledgerPlaceholder?: string | null
+  accountingPlaceholder?: string | null
+
+  // Logistics/Distributor Profile details
+  distributorType?: string | null
+  commissionPercentage?: number
+  monthlySalary?: number
+  securityDeposit?: number
+  assignedRoute?: string | null
+  assignedVehicle?: string | null
+  assignedDriver?: string | null
+  assignedSalesExecutive?: string | null
+  defaultDeliveryPriority?: string | null
+  workingArea?: string | null
+  workingDays?: string | null
+
+  // 20L Water Plant operations settings
+  jarDeposit?: number
+  outstandingJars?: number
+  maxJarLimit?: number
+  preferredJarBrand?: string | null
+  preferredCapMaterial?: string | null
+  sealRequired?: boolean
+  preferredDeliveryWindow?: string | null
+  emergencyDelivery?: boolean
+  priorityCustomer?: boolean
+  preferredProductsJson?: string | null
+  preferredDeliveryTime?: string | null
+  deliveryFrequency?: string | null
+
+  contactsJson?: string | null
+  documentsJson?: string | null
 }
 
 export interface CreateCustomerRequest {
@@ -80,6 +129,55 @@ export interface CreateCustomerRequest {
   status?: string
   isActive?: boolean
   remarks?: string
+
+  // Expanded Business Partner Profiles
+  whatsApp?: string
+  website?: string
+  photoUrl?: string
+  businessRegistration?: string
+  businessCategory?: string
+  industry?: string
+  tradeLicense?: string
+  taxExempt?: boolean
+  addressesJson?: string
+
+  // Financial Settings
+  priceList?: string
+  discountGroup?: string
+  taxCategory?: string
+  outstandingPlaceholder?: number
+  ledgerPlaceholder?: string
+  accountingPlaceholder?: string
+
+  // Logistics/Distributor Profile details
+  distributorType?: string
+  commissionPercentage?: number
+  monthlySalary?: number
+  securityDeposit?: number
+  assignedRoute?: string
+  assignedVehicle?: string
+  assignedDriver?: string
+  assignedSalesExecutive?: string
+  defaultDeliveryPriority?: string
+  workingArea?: string
+  workingDays?: string
+
+  // 20L Water Plant operations settings
+  jarDeposit?: number
+  outstandingJars?: number
+  maxJarLimit?: number
+  preferredJarBrand?: string
+  preferredCapMaterial?: string
+  sealRequired?: boolean
+  preferredDeliveryWindow?: string
+  emergencyDelivery?: boolean
+  priorityCustomer?: boolean
+  preferredProductsJson?: string
+  preferredDeliveryTime?: string
+  deliveryFrequency?: string
+
+  contactsJson?: string
+  documentsJson?: string
 }
 
 export interface UpdateCustomerRequest {
@@ -115,6 +213,55 @@ export interface UpdateCustomerRequest {
   status?: string
   isActive?: boolean
   remarks?: string
+
+  // Expanded Business Partner Profiles
+  whatsApp?: string
+  website?: string
+  photoUrl?: string
+  businessRegistration?: string
+  businessCategory?: string
+  industry?: string
+  tradeLicense?: string
+  taxExempt?: boolean
+  addressesJson?: string
+
+  // Financial Settings
+  priceList?: string
+  discountGroup?: string
+  taxCategory?: string
+  outstandingPlaceholder?: number
+  ledgerPlaceholder?: string
+  accountingPlaceholder?: string
+
+  // Logistics/Distributor Profile details
+  distributorType?: string
+  commissionPercentage?: number
+  monthlySalary?: number
+  securityDeposit?: number
+  assignedRoute?: string
+  assignedVehicle?: string
+  assignedDriver?: string
+  assignedSalesExecutive?: string
+  defaultDeliveryPriority?: string
+  workingArea?: string
+  workingDays?: string
+
+  // 20L Water Plant operations settings
+  jarDeposit?: number
+  outstandingJars?: number
+  maxJarLimit?: number
+  preferredJarBrand?: string
+  preferredCapMaterial?: string
+  sealRequired?: boolean
+  preferredDeliveryWindow?: string
+  emergencyDelivery?: boolean
+  priorityCustomer?: boolean
+  preferredProductsJson?: string
+  preferredDeliveryTime?: string
+  deliveryFrequency?: string
+
+  contactsJson?: string
+  documentsJson?: string
 }
 
 export const customersService = {

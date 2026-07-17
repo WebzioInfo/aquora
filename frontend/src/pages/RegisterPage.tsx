@@ -96,7 +96,7 @@ export const RegisterPage: React.FC = () => {
 
       if (response.success) {
         showToast('Registration completed. Enter the verification code sent to your email.', 'success')
-        navigate('/verify-otp', { state: { email: data.email } })
+        navigate('/verify-otp', { state: { email: data.email, fromRegistration: true } })
       } else {
         showToast(response.message || 'Registration failed.', 'error')
       }

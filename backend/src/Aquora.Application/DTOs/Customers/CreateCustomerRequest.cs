@@ -89,5 +89,58 @@ namespace Aquora.Application.DTOs.Customers
         public string Status { get; set; } = "Active";
         public bool IsActive { get; set; } = true;
         public string? Remarks { get; set; }
+
+        // Expanded Business Partner Profiles
+        public string? WhatsApp { get; set; }
+        public string? Website { get; set; }
+        public string? PhotoUrl { get; set; }
+
+        public string? BusinessRegistration { get; set; }
+        public string? BusinessCategory { get; set; }
+        public string? Industry { get; set; }
+        public string? TradeLicense { get; set; }
+        public bool TaxExempt { get; set; } = false;
+
+        public string? AddressesJson { get; set; }
+
+        // Financial Settings
+        public string? PriceList { get; set; }
+        public string? DiscountGroup { get; set; }
+        public string? TaxCategory { get; set; }
+        public decimal OutstandingPlaceholder { get; set; } = 0;
+        public string? LedgerPlaceholder { get; set; }
+        public string? AccountingPlaceholder { get; set; }
+
+        // Logistics/Distributor Profile details
+        public string? DistributorType { get; set; }
+        public decimal CommissionPercentage { get; set; } = 0;
+        public decimal MonthlySalary { get; set; } = 0;
+        public decimal SecurityDeposit { get; set; } = 0;
+        
+        public string? AssignedRoute { get; set; }
+        public string? AssignedVehicle { get; set; }
+        public string? AssignedDriver { get; set; }
+        public string? AssignedSalesExecutive { get; set; }
+        public string? DefaultDeliveryPriority { get; set; } = "Normal";
+        public string? WorkingArea { get; set; }
+        public string? WorkingDays { get; set; }
+
+        // 20L Water Plant operations settings
+        public decimal JarDeposit { get; set; } = 0;
+        public int OutstandingJars { get; set; } = 0;
+        public int MaxJarLimit { get; set; } = 0;
+        public string? PreferredJarBrand { get; set; }
+        public string? PreferredCapMaterial { get; set; }
+        public bool SealRequired { get; set; } = false;
+        public string? PreferredDeliveryWindow { get; set; }
+        public bool EmergencyDelivery { get; set; } = false;
+        public bool PriorityCustomer { get; set; } = false;
+
+        public string? PreferredProductsJson { get; set; }
+        public string? PreferredDeliveryTime { get; set; }
+        public string? DeliveryFrequency { get; set; }
+
+        public string? ContactsJson { get; set; }
+        public string? DocumentsJson { get; set; }
     }
 }

@@ -172,6 +172,8 @@ export const CustomersPage: React.FC = () => {
     return () => clearTimeout(handler)
   }, [searchTerm])
 
+  const [formTab, setFormTab] = useState<'general' | 'address' | 'financials' | 'logistics'>('general')
+
   // Form State
   const [formData, setFormData] = useState({
     customerType: 'B2C',
@@ -198,7 +200,55 @@ export const CustomersPage: React.FC = () => {
     paymentTerms: 'COD',
     status: 'Active',
     remarks: '',
-    internalNotes: ''
+    internalNotes: '',
+
+    // Expanded Business Partner Profiles
+    whatsApp: '',
+    website: '',
+    photoUrl: '',
+    businessRegistration: '',
+    businessCategory: '',
+    industry: '',
+    tradeLicense: '',
+    taxExempt: false,
+    addressesJson: '[]',
+
+    // Financial Settings
+    priceList: '',
+    discountGroup: '',
+    taxCategory: '',
+    outstandingPlaceholder: 0,
+    ledgerPlaceholder: '',
+    accountingPlaceholder: '',
+
+    // Logistics/Distributor Profile details
+    distributorType: '',
+    commissionPercentage: 0,
+    monthlySalary: 0,
+    securityDeposit: 0,
+    assignedRoute: '',
+    assignedVehicle: '',
+    assignedDriver: '',
+    assignedSalesExecutive: '',
+    defaultDeliveryPriority: 'Normal',
+    workingArea: '',
+    workingDays: '',
+
+    // 20L Water Plant operations settings
+    jarDeposit: 0,
+    outstandingJars: 0,
+    maxJarLimit: 0,
+    preferredJarBrand: '',
+    preferredCapMaterial: '',
+    sealRequired: false,
+    preferredDeliveryWindow: '',
+    emergencyDelivery: false,
+    priorityCustomer: false,
+    preferredProductsJson: '[]',
+    preferredDeliveryTime: 'Morning',
+    deliveryFrequency: 'Daily',
+    contactsJson: '[]',
+    documentsJson: '[]',
   })
 
   // Fetch paginated customers list
@@ -363,9 +413,51 @@ export const CustomersPage: React.FC = () => {
       paymentTerms: 'COD',
       status: 'Active',
       remarks: '',
-      internalNotes: ''
+      internalNotes: '',
+
+      whatsApp: '',
+      website: '',
+      photoUrl: '',
+      businessRegistration: '',
+      businessCategory: '',
+      industry: '',
+      tradeLicense: '',
+      taxExempt: false,
+      addressesJson: '[]',
+      priceList: '',
+      discountGroup: '',
+      taxCategory: '',
+      outstandingPlaceholder: 0,
+      ledgerPlaceholder: '',
+      accountingPlaceholder: '',
+      distributorType: '',
+      commissionPercentage: 0,
+      monthlySalary: 0,
+      securityDeposit: 0,
+      assignedRoute: '',
+      assignedVehicle: '',
+      assignedDriver: '',
+      assignedSalesExecutive: '',
+      defaultDeliveryPriority: 'Normal',
+      workingArea: '',
+      workingDays: '',
+      jarDeposit: 0,
+      outstandingJars: 0,
+      maxJarLimit: 0,
+      preferredJarBrand: '',
+      preferredCapMaterial: '',
+      sealRequired: false,
+      preferredDeliveryWindow: '',
+      emergencyDelivery: false,
+      priorityCustomer: false,
+      preferredProductsJson: '[]',
+      preferredDeliveryTime: 'Morning',
+      deliveryFrequency: 'Daily',
+      contactsJson: '[]',
+      documentsJson: '[]',
     })
     setEditingCustomerId(null)
+    setFormTab('general')
   }
 
   const handleOpenCreateDrawer = () => {
@@ -404,8 +496,50 @@ export const CustomersPage: React.FC = () => {
       paymentTerms: customer.paymentTerms,
       status: customer.status,
       remarks: customer.remarks || '',
-      internalNotes: '' // Placed inside remarks in db structure
+      internalNotes: '',
+
+      whatsApp: customer.whatsApp || '',
+      website: customer.website || '',
+      photoUrl: customer.photoUrl || '',
+      businessRegistration: customer.businessRegistration || '',
+      businessCategory: customer.businessCategory || '',
+      industry: customer.industry || '',
+      tradeLicense: customer.tradeLicense || '',
+      taxExempt: customer.taxExempt || false,
+      addressesJson: customer.addressesJson || '[]',
+      priceList: customer.priceList || '',
+      discountGroup: customer.discountGroup || '',
+      taxCategory: customer.taxCategory || '',
+      outstandingPlaceholder: customer.outstandingPlaceholder || 0,
+      ledgerPlaceholder: customer.ledgerPlaceholder || '',
+      accountingPlaceholder: customer.accountingPlaceholder || '',
+      distributorType: customer.distributorType || '',
+      commissionPercentage: customer.commissionPercentage || 0,
+      monthlySalary: customer.monthlySalary || 0,
+      securityDeposit: customer.securityDeposit || 0,
+      assignedRoute: customer.assignedRoute || '',
+      assignedVehicle: customer.assignedVehicle || '',
+      assignedDriver: customer.assignedDriver || '',
+      assignedSalesExecutive: customer.assignedSalesExecutive || '',
+      defaultDeliveryPriority: customer.defaultDeliveryPriority || 'Normal',
+      workingArea: customer.workingArea || '',
+      workingDays: customer.workingDays || '',
+      jarDeposit: customer.jarDeposit || 0,
+      outstandingJars: customer.outstandingJars || 0,
+      maxJarLimit: customer.maxJarLimit || 0,
+      preferredJarBrand: customer.preferredJarBrand || '',
+      preferredCapMaterial: customer.preferredCapMaterial || '',
+      sealRequired: customer.sealRequired || false,
+      preferredDeliveryWindow: customer.preferredDeliveryWindow || '',
+      emergencyDelivery: customer.emergencyDelivery || false,
+      priorityCustomer: customer.priorityCustomer || false,
+      preferredProductsJson: customer.preferredProductsJson || '[]',
+      preferredDeliveryTime: customer.preferredDeliveryTime || 'Morning',
+      deliveryFrequency: customer.deliveryFrequency || 'Daily',
+      contactsJson: customer.contactsJson || '[]',
+      documentsJson: customer.documentsJson || '[]',
     })
+    setFormTab('general')
     setIsDrawerOpen(true)
   }
 
@@ -486,7 +620,48 @@ export const CustomersPage: React.FC = () => {
         paymentTerms: formData.paymentTerms,
         status: formData.status,
         isActive: formData.status === 'Active',
-        remarks: notesCombined || undefined
+        remarks: notesCombined || undefined,
+
+        whatsApp: formData.whatsApp.trim() || undefined,
+        website: formData.website.trim() || undefined,
+        photoUrl: formData.photoUrl.trim() || undefined,
+        businessRegistration: formData.businessRegistration.trim() || undefined,
+        businessCategory: formData.businessCategory.trim() || undefined,
+        industry: formData.industry.trim() || undefined,
+        tradeLicense: formData.tradeLicense.trim() || undefined,
+        taxExempt: Boolean(formData.taxExempt),
+        addressesJson: formData.addressesJson,
+        priceList: formData.priceList.trim() || undefined,
+        discountGroup: formData.discountGroup.trim() || undefined,
+        taxCategory: formData.taxCategory.trim() || undefined,
+        outstandingPlaceholder: Number(formData.outstandingPlaceholder),
+        ledgerPlaceholder: formData.ledgerPlaceholder.trim() || undefined,
+        accountingPlaceholder: formData.accountingPlaceholder.trim() || undefined,
+        distributorType: formData.distributorType.trim() || undefined,
+        commissionPercentage: Number(formData.commissionPercentage),
+        monthlySalary: Number(formData.monthlySalary),
+        securityDeposit: Number(formData.securityDeposit),
+        assignedRoute: formData.assignedRoute.trim() || undefined,
+        assignedVehicle: formData.assignedVehicle.trim() || undefined,
+        assignedDriver: formData.assignedDriver.trim() || undefined,
+        assignedSalesExecutive: formData.assignedSalesExecutive.trim() || undefined,
+        defaultDeliveryPriority: formData.defaultDeliveryPriority || 'Normal',
+        workingArea: formData.workingArea.trim() || undefined,
+        workingDays: formData.workingDays.trim() || undefined,
+        jarDeposit: Number(formData.jarDeposit),
+        outstandingJars: Number(formData.outstandingJars),
+        maxJarLimit: Number(formData.maxJarLimit),
+        preferredJarBrand: formData.preferredJarBrand.trim() || undefined,
+        preferredCapMaterial: formData.preferredCapMaterial.trim() || undefined,
+        sealRequired: Boolean(formData.sealRequired),
+        preferredDeliveryWindow: formData.preferredDeliveryWindow.trim() || undefined,
+        emergencyDelivery: Boolean(formData.emergencyDelivery),
+        priorityCustomer: Boolean(formData.priorityCustomer),
+        preferredProductsJson: formData.preferredProductsJson,
+        preferredDeliveryTime: formData.preferredDeliveryTime || 'Morning',
+        deliveryFrequency: formData.deliveryFrequency || 'Daily',
+        contactsJson: formData.contactsJson,
+        documentsJson: formData.documentsJson
       })
     } else if (drawerMode === 'edit' && editingCustomerId) {
       updateCustomerMutation.mutate({
@@ -516,7 +691,48 @@ export const CustomersPage: React.FC = () => {
           paymentTerms: formData.paymentTerms,
           status: formData.status,
           isActive: formData.status === 'Active',
-          remarks: notesCombined || undefined
+          remarks: notesCombined || undefined,
+
+          whatsApp: formData.whatsApp.trim() || undefined,
+          website: formData.website.trim() || undefined,
+          photoUrl: formData.photoUrl.trim() || undefined,
+          businessRegistration: formData.businessRegistration.trim() || undefined,
+          businessCategory: formData.businessCategory.trim() || undefined,
+          industry: formData.industry.trim() || undefined,
+          tradeLicense: formData.tradeLicense.trim() || undefined,
+          taxExempt: Boolean(formData.taxExempt),
+          addressesJson: formData.addressesJson,
+          priceList: formData.priceList.trim() || undefined,
+          discountGroup: formData.discountGroup.trim() || undefined,
+          taxCategory: formData.taxCategory.trim() || undefined,
+          outstandingPlaceholder: Number(formData.outstandingPlaceholder),
+          ledgerPlaceholder: formData.ledgerPlaceholder.trim() || undefined,
+          accountingPlaceholder: formData.accountingPlaceholder.trim() || undefined,
+          distributorType: formData.distributorType.trim() || undefined,
+          commissionPercentage: Number(formData.commissionPercentage),
+          monthlySalary: Number(formData.monthlySalary),
+          securityDeposit: Number(formData.securityDeposit),
+          assignedRoute: formData.assignedRoute.trim() || undefined,
+          assignedVehicle: formData.assignedVehicle.trim() || undefined,
+          assignedDriver: formData.assignedDriver.trim() || undefined,
+          assignedSalesExecutive: formData.assignedSalesExecutive.trim() || undefined,
+          defaultDeliveryPriority: formData.defaultDeliveryPriority || 'Normal',
+          workingArea: formData.workingArea.trim() || undefined,
+          workingDays: formData.workingDays.trim() || undefined,
+          jarDeposit: Number(formData.jarDeposit),
+          outstandingJars: Number(formData.outstandingJars),
+          maxJarLimit: Number(formData.maxJarLimit),
+          preferredJarBrand: formData.preferredJarBrand.trim() || undefined,
+          preferredCapMaterial: formData.preferredCapMaterial.trim() || undefined,
+          sealRequired: Boolean(formData.sealRequired),
+          preferredDeliveryWindow: formData.preferredDeliveryWindow.trim() || undefined,
+          emergencyDelivery: Boolean(formData.emergencyDelivery),
+          priorityCustomer: Boolean(formData.priorityCustomer),
+          preferredProductsJson: formData.preferredProductsJson,
+          preferredDeliveryTime: formData.preferredDeliveryTime || 'Morning',
+          deliveryFrequency: formData.deliveryFrequency || 'Daily',
+          contactsJson: formData.contactsJson,
+          documentsJson: formData.documentsJson
         }
       })
     }
@@ -551,8 +767,8 @@ export const CustomersPage: React.FC = () => {
       
       {/* Executive Clean Header */}
       <EnterpriseHeader
-        title="Customer Registry"
-        description="Single source of truth for managing all B2B and B2C operational customer master profiles."
+        title="Business Partner Directory"
+        description="Single source of truth for all customer, B2B, and distributor profiles across Sales and 20L Operations."
         actions={
           canWrite && (
             <button
@@ -560,7 +776,7 @@ export const CustomersPage: React.FC = () => {
               className="flex items-center gap-1.5 px-4 h-[40px] bg-[#1A56DB] hover:bg-[#1E40AF] text-white text-sm font-semibold rounded-[8px] shadow-sm transition-all duration-150 active:scale-[0.98] select-none cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Customer</span>
+              <span>Add Partner</span>
             </button>
           )
         }
@@ -574,7 +790,7 @@ export const CustomersPage: React.FC = () => {
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search by code, name, phone, GST..."
+            placeholder="Search by code, name, phone, WhatsApp, GST..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 h-[40px] border border-[#E2E8F0] rounded-[8px] bg-white text-slate-900 text-sm focus:outline-none focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB] focus:shadow-[0_0_0_2px_rgba(26,86,219,0.15)] transition-all"
@@ -589,9 +805,10 @@ export const CustomersPage: React.FC = () => {
             onChange={(e) => { setCustomerTypeFilter(e.target.value); setCurrentPage(1); }}
             className="h-[40px] px-3.5 border border-[#E2E8F0] rounded-[8px] bg-white text-sm text-slate-700 font-medium focus:outline-none cursor-pointer"
           >
-            <option value="">All Types</option>
-            <option value="B2B">B2B Only</option>
-            <option value="B2C">B2C Only</option>
+            <option value="">All Partner Types</option>
+            <option value="B2B">B2B Partners</option>
+            <option value="B2C">B2C Partners</option>
+            <option value="Distributor">Distributors</option>
           </select>
 
           {/* Status Filter */}
@@ -653,7 +870,7 @@ export const CustomersPage: React.FC = () => {
               <thead>
                 <tr className="h-[48px] border-b border-[#E2E8F0] text-[#344054] font-semibold bg-[#F4F6F9] select-none">
                   <th className="py-3 px-4 text-sm font-semibold">Code</th>
-                  <th className="py-3 px-4 text-sm font-semibold">Customer Name</th>
+                  <th className="py-3 px-4 text-sm font-semibold">Partner Name</th>
                   <th className="py-3 px-4 text-sm font-semibold">Business Name</th>
                   <th className="py-3 px-4 text-sm font-semibold">Type</th>
                   <th className="py-3 px-4 text-sm font-semibold">Phone</th>
@@ -683,6 +900,8 @@ export const CustomersPage: React.FC = () => {
                       <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                         c.customerType === 'B2B' 
                           ? 'bg-[#DBEAFE] text-[#2563EB]' 
+                          : c.customerType === 'Distributor'
+                          ? 'bg-[#F3E8FF] text-[#7E22CE]'
                           : 'bg-[#DCFCE7] text-[#16A34A]'
                       }`}>
                         {c.customerType}
@@ -807,10 +1026,10 @@ export const CustomersPage: React.FC = () => {
               <div className="px-8 py-5 border-b border-[#E2E8F0] flex items-center justify-between bg-[#F8FAFC]">
                 <div>
                   <h3 className="text-[20px] font-semibold text-gray-900 tracking-tight">
-                    {drawerMode === 'create' ? 'Register New Customer' : `Modify Customer Settings`}
+                    {drawerMode === 'create' ? 'Register New Business Partner' : `Modify Partner Settings`}
                   </h3>
                   <p className="text-[12px] text-gray-400 mt-1 font-medium">
-                    {drawerMode === 'create' ? 'Generates an auto-incremented customer code suffix' : 'Customer ID code is read-only'}
+                    {drawerMode === 'create' ? 'Generates an auto-incremented business partner code suffix' : 'Partner ID code is read-only'}
                   </p>
                 </div>
                 <button 
@@ -821,101 +1040,283 @@ export const CustomersPage: React.FC = () => {
                 </button>
               </div>
 
+              {/* Tab Selector */}
+              <div className="flex border-b border-[#E2E8F0] px-8 bg-[#F8FAFC]">
+                {(['general', 'address', 'financials', 'logistics'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setFormTab(tab)}
+                    className={`py-3 px-4 text-xs font-semibold uppercase tracking-wider border-b-2 -mb-[2px] transition-colors cursor-pointer ${
+                      formTab === tab
+                        ? 'border-[#1A56DB] text-[#1A56DB]'
+                        : 'border-transparent text-gray-500 hover:text-gray-900'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+
               {/* Drawer Scrollable Body Form */}
               <form onSubmit={handleFormSubmit} className="flex-1 overflow-y-auto p-8 space-y-8">
                 
-                {/* SECTION 1: Basic Information */}
-                <div className="space-y-5">
-                  <PremiumSectionHeading title="Basic Information" />
-                  
-                  <div className="grid grid-cols-2 gap-5">
-                    <PremiumSelect
-                      label="Customer Type *"
-                      name="customerType"
-                      value={formData.customerType}
-                      onChange={handleFormChange}
-                      required
-                    >
-                      <option value="B2C">B2C (Individual / Retail)</option>
-                      <option value="B2B">B2B (Business / Corporate)</option>
-                    </PremiumSelect>
-
-                    <PremiumInput
-                      label="Customer Name *"
-                      name="customerName"
-                      value={formData.customerName}
-                      onChange={handleFormChange}
-                      placeholder="e.g. John Doe / Apex Inc"
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-5">
-                    <PremiumInput
-                      label="Contact Person Name"
-                      name="contactPerson"
-                      value={formData.contactPerson}
-                      onChange={handleFormChange}
-                      placeholder="e.g. Vance R."
-                    />
-                    <PremiumInput
-                      label="Business Name"
-                      name="businessName"
-                      value={formData.businessName}
-                      onChange={handleFormChange}
-                      placeholder={formData.customerType === 'B2B' ? 'Required business name' : 'Optional'}
-                      required={formData.customerType === 'B2B'}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-5">
-                    <PremiumInput
-                      label="Primary Phone *"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleFormChange}
-                      placeholder="e.g. +91 9999999999"
-                      required
-                    />
-                    <PremiumInput
-                      label="Alternate Phone"
-                      name="alternatePhone"
-                      value={formData.alternatePhone}
-                      onChange={handleFormChange}
-                      placeholder="Optional"
-                    />
-                    <PremiumInput
-                      label="Email Address"
-                      name="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={handleFormChange}
-                      placeholder="e.g. name@domain.com"
-                    />
-                  </div>
-                </div>
-
-                {/* SECTION 2: B2B Specific details */}
-                {formData.customerType === 'B2B' && (
+                {formTab === 'general' && (
                   <div className="space-y-5 animate-in fade-in duration-200">
-                    <PremiumSectionHeading title="Business Information (B2B Only)" />
+                    <PremiumSectionHeading title="General Partner Information" />
                     
                     <div className="grid grid-cols-2 gap-5">
-                      <PremiumInput
-                        label="GST Registration Number *"
-                        name="gstNumber"
-                        value={formData.gstNumber}
+                      <PremiumSelect
+                        label="Partner Type *"
+                        name="customerType"
+                        value={formData.customerType}
                         onChange={handleFormChange}
-                        placeholder="15-digit GSTIN (e.g. 27AAAAA1111A1Z1)"
+                        required
+                      >
+                        <option value="B2C">B2C (Individual / Retail)</option>
+                        <option value="B2B">B2B (Business / Corporate)</option>
+                        <option value="Distributor">Distributor / Logistics</option>
+                      </PremiumSelect>
+
+                      <PremiumInput
+                        label="Partner Name *"
+                        name="customerName"
+                        value={formData.customerName}
+                        onChange={handleFormChange}
+                        placeholder="e.g. John Doe / Apex Distributors"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+                      <PremiumInput
+                        label="Contact Person Name"
+                        name="contactPerson"
+                        value={formData.contactPerson}
+                        onChange={handleFormChange}
+                        placeholder="e.g. Vance R."
+                      />
+                      <PremiumInput
+                        label="Business Name"
+                        name="businessName"
+                        value={formData.businessName}
+                        onChange={handleFormChange}
+                        placeholder={formData.customerType === 'B2B' ? 'Required business name' : 'Optional'}
+                        required={formData.customerType === 'B2B'}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-5">
+                      <PremiumInput
+                        label="Primary Phone *"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleFormChange}
+                        placeholder="e.g. +91 9999999999"
                         required
                       />
                       <PremiumInput
-                        label="PAN Card Number *"
+                        label="WhatsApp Phone"
+                        name="whatsApp"
+                        value={formData.whatsApp}
+                        onChange={handleFormChange}
+                        placeholder="WhatsApp Number"
+                      />
+                      <PremiumInput
+                        label="Alternate Phone"
+                        name="alternatePhone"
+                        value={formData.alternatePhone}
+                        onChange={handleFormChange}
+                        placeholder="Optional alternate"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+                      <PremiumInput
+                        label="Email Address"
+                        name="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={handleFormChange}
+                        placeholder="e.g. name@domain.com"
+                      />
+                      <PremiumInput
+                        label="Website"
+                        name="website"
+                        value={formData.website}
+                        onChange={handleFormChange}
+                        placeholder="e.g. www.domain.com"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-5">
+                      <PremiumInput
+                        label="Photo / Avatar URL"
+                        name="photoUrl"
+                        value={formData.photoUrl}
+                        onChange={handleFormChange}
+                        placeholder="e.g. https://domain.com/photo.png"
+                      />
+                    </div>
+
+                    {formData.customerType === 'Distributor' && (
+                      <div className="pt-4 mt-6 border-t border-gray-100">
+                        <PremiumSectionHeading title="Distributor Information" />
+                        <div className="grid grid-cols-2 gap-5 mt-4">
+                          <PremiumSelect
+                            label="Distributor Type"
+                            name="distributorType"
+                            value={formData.distributorType}
+                            onChange={handleFormChange}
+                          >
+                            <option value="">-- Select Type --</option>
+                            <option value="Company Distributor">Company Distributor</option>
+                            <option value="Commission Distributor">Commission Distributor</option>
+                            <option value="Salary Distributor">Salary Distributor</option>
+                          </PremiumSelect>
+                          
+                          {formData.distributorType === 'Commission Distributor' && (
+                            <PremiumInput
+                              label="Commission Percentage"
+                              name="commissionPercentage"
+                              type="number"
+                              value={formData.commissionPercentage}
+                              onChange={handleFormChange}
+                            />
+                          )}
+                          {formData.distributorType === 'Salary Distributor' && (
+                            <PremiumInput
+                              label="Monthly Salary"
+                              name="monthlySalary"
+                              type="number"
+                              value={formData.monthlySalary}
+                              onChange={handleFormChange}
+                            />
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-5 mt-4">
+                          <PremiumInput
+                            label="Route Name"
+                            name="assignedRoute"
+                            value={formData.assignedRoute}
+                            onChange={handleFormChange}
+                            placeholder="Optional route"
+                          />
+                          <PremiumInput
+                            label="Remarks"
+                            name="remarks"
+                            value={formData.remarks}
+                            onChange={handleFormChange}
+                            placeholder="Optional remarks"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {formTab === 'address' && (
+                  <div className="space-y-5 animate-in fade-in duration-200">
+                    <PremiumSectionHeading title="Primary Billing & Shipping Address" />
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <PremiumInput
+                        label="Address Line 1 *"
+                        name="addressLine1"
+                        value={formData.addressLine1}
+                        onChange={handleFormChange}
+                        placeholder="Building, street name"
+                        required
+                      />
+                      <PremiumInput
+                        label="Address Line 2"
+                        name="addressLine2"
+                        value={formData.addressLine2}
+                        onChange={handleFormChange}
+                        placeholder="Area, landmark"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-5">
+                      <PremiumInput
+                        label="City *"
+                        name="city"
+                        value={formData.city}
+                        onChange={handleFormChange}
+                        placeholder="City Name"
+                        required
+                      />
+                      <PremiumInput
+                        label="District *"
+                        name="district"
+                        value={formData.district}
+                        onChange={handleFormChange}
+                        placeholder="District Name"
+                        required
+                      />
+                      <PremiumSelect
+                        label="State *"
+                        name="state"
+                        value={formData.state}
+                        onChange={handleFormChange}
+                        required
+                      >
+                        <option value="">Select State</option>
+                        {indianStates.map(state => (
+                          <option key={state} value={state}>{state}</option>
+                        ))}
+                      </PremiumSelect>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+                      <PremiumInput
+                        label="Country *"
+                        name="country"
+                        value={formData.country}
+                        onChange={handleFormChange}
+                        required
+                      />
+                      <PremiumInput
+                        label="PIN/Zip Code *"
+                        name="pinCode"
+                        value={formData.pinCode}
+                        onChange={handleFormChange}
+                        placeholder="6-digit PIN"
+                        required
+                      />
+                    </div>
+
+                    <PremiumTextarea
+                      label="Multiple Addresses Config (JSON format)"
+                      name="addressesJson"
+                      rows={3}
+                      value={formData.addressesJson}
+                      onChange={handleFormChange}
+                      placeholder="[{'type': 'Shipping', 'addressLine1': '...'}, ...]"
+                    />
+                  </div>
+                )}
+
+                {formTab === 'financials' && (
+                  <div className="space-y-5 animate-in fade-in duration-200">
+                    <PremiumSectionHeading title="Financial Setup & GST Registry" />
+                    
+                    <div className="grid grid-cols-2 gap-5">
+                      <PremiumInput
+                        label="GST Registration Number"
+                        name="gstNumber"
+                        value={formData.gstNumber}
+                        onChange={handleFormChange}
+                        placeholder="e.g. 27AAAAA1111A1Z1"
+                        required={formData.customerType === 'B2B'}
+                      />
+                      <PremiumInput
+                        label="PAN Card Number"
                         name="panNumber"
                         value={formData.panNumber}
                         onChange={handleFormChange}
-                        placeholder="10-digit PAN (e.g. ABCDE1234F)"
-                        required
+                        placeholder="e.g. ABCDE1234F"
+                        required={formData.customerType === 'B2B'}
                       />
                     </div>
 
@@ -945,156 +1346,379 @@ export const CustomersPage: React.FC = () => {
                         ))}
                       </PremiumSelect>
                     </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+                      <PremiumInput
+                        label="Trade License Number"
+                        name="tradeLicense"
+                        value={formData.tradeLicense}
+                        onChange={handleFormChange}
+                        placeholder="e.g. LIC/2026/001"
+                      />
+                      <PremiumSelect
+                        label="Tax Status"
+                        name="taxExempt"
+                        value={formData.taxExempt ? 'true' : 'false'}
+                        onChange={(e) => setFormData(prev => ({ ...prev, taxExempt: e.target.value === 'true' }))}
+                      >
+                        <option value="false">Taxable Partner</option>
+                        <option value="true">Tax Exempt Partner</option>
+                      </PremiumSelect>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-5">
+                      <PremiumInput
+                        label="Opening Balance (INR) *"
+                        name="openingBalance"
+                        type="number"
+                        step="0.01"
+                        value={formData.openingBalance}
+                        onChange={handleFormChange}
+                        required
+                      />
+                      <PremiumSelect
+                        label="Balance Type *"
+                        name="balanceType"
+                        value={formData.balanceType}
+                        onChange={handleFormChange}
+                        required
+                      >
+                        <option value="Zero">Zero Balance</option>
+                        <option value="Receivable">Receivable (Debit)</option>
+                        <option value="Payable">Payable (Credit)</option>
+                      </PremiumSelect>
+
+                      <PremiumInput
+                        label="Credit Limit (INR)"
+                        name="creditLimit"
+                        type="number"
+                        step="1"
+                        value={formData.creditLimit}
+                        onChange={handleFormChange}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+                      <PremiumSelect
+                        label="Payment Terms *"
+                        name="paymentTerms"
+                        value={formData.paymentTerms}
+                        onChange={handleFormChange}
+                        required
+                      >
+                        <option value="COD">Cash on Delivery (COD)</option>
+                        <option value="Net 7">Net 7 Days</option>
+                        <option value="Net 15">Net 15 Days</option>
+                        <option value="Net 30">Net 30 Days</option>
+                        <option value="Net 60">Net 60 Days</option>
+                        <option value="Due on Receipt">Due on Receipt</option>
+                      </PremiumSelect>
+                      
+                      <PremiumSelect
+                        label="Operations Status *"
+                        name="status"
+                        value={formData.status}
+                        onChange={handleFormChange}
+                        required
+                      >
+                        <option value="Active">Active Registry</option>
+                        <option value="Inactive">Inactive Registry</option>
+                      </PremiumSelect>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-5">
+                      <PremiumInput
+                        label="Price List Code"
+                        name="priceList"
+                        value={formData.priceList}
+                        onChange={handleFormChange}
+                        placeholder="e.g. DIST_PL_2"
+                      />
+                      <PremiumInput
+                        label="Discount Group"
+                        name="discountGroup"
+                        value={formData.discountGroup}
+                        onChange={handleFormChange}
+                        placeholder="e.g. GOLD_PARTNER"
+                      />
+                      <PremiumInput
+                        label="Tax Category"
+                        name="taxCategory"
+                        value={formData.taxCategory}
+                        onChange={handleFormChange}
+                        placeholder="e.g. GST_18"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+                      <PremiumInput
+                        label="Ledger ID / Account Code"
+                        name="ledgerPlaceholder"
+                        value={formData.ledgerPlaceholder}
+                        onChange={handleFormChange}
+                        placeholder="e.g. LEDG-50201"
+                      />
+                      <PremiumInput
+                        label="Accounting Integration Mapping"
+                        name="accountingPlaceholder"
+                        value={formData.accountingPlaceholder}
+                        onChange={handleFormChange}
+                        placeholder="e.g. ACC-SYS-MAP-CUS"
+                      />
+                    </div>
                   </div>
                 )}
 
-                {/* SECTION 3: Address Line */}
-                <div className="space-y-5">
-                  <PremiumSectionHeading title="Shipping & Billing Address" />
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <PremiumInput
-                      label="Address Line 1 *"
-                      name="addressLine1"
-                      value={formData.addressLine1}
-                      onChange={handleFormChange}
-                      placeholder="Building, street name"
-                      required
-                    />
-                    <PremiumInput
-                      label="Address Line 2"
-                      name="addressLine2"
-                      value={formData.addressLine2}
-                      onChange={handleFormChange}
-                      placeholder="Area, landmark"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-5">
-                    <PremiumInput
-                      label="City *"
-                      name="city"
-                      value={formData.city}
-                      onChange={handleFormChange}
-                      placeholder="City Name"
-                      required
-                    />
-                    <PremiumInput
-                      label="District *"
-                      name="district"
-                      value={formData.district}
-                      onChange={handleFormChange}
-                      placeholder="District Name"
-                      required
-                    />
-                    <PremiumSelect
-                      label="State *"
-                      name="state"
-                      value={formData.state}
-                      onChange={handleFormChange}
-                      required
-                    >
-                      <option value="">Select State</option>
-                      {indianStates.map(state => (
-                        <option key={state} value={state}>{state}</option>
-                      ))}
-                    </PremiumSelect>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-5">
-                    <PremiumInput
-                      label="Country *"
-                      name="country"
-                      value={formData.country}
-                      onChange={handleFormChange}
-                      required
-                    />
-                    <PremiumInput
-                      label="PIN/Zip Code *"
-                      name="pinCode"
-                      value={formData.pinCode}
-                      onChange={handleFormChange}
-                      placeholder="6-digit PIN"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* SECTION 4: Financial Setup */}
-                <div className="space-y-5">
-                  <PremiumSectionHeading title="Initial Financial Accounting" />
-                  
-                  <div className="grid grid-cols-3 gap-5">
-                    <PremiumInput
-                      label="Opening Balance (INR) *"
-                      name="openingBalance"
-                      type="number"
-                      step="0.01"
-                      value={formData.openingBalance}
-                      onChange={handleFormChange}
-                      required
-                    />
-                    <PremiumSelect
-                      label="Balance Type *"
-                      name="balanceType"
-                      value={formData.balanceType}
-                      onChange={handleFormChange}
-                      required
-                    >
-                      <option value="Zero">Zero Balance</option>
-                      <option value="Receivable">Receivable (Debit)</option>
-                      <option value="Payable">Payable (Credit)</option>
-                    </PremiumSelect>
-
-                    <PremiumInput
-                      label="Credit Limit (INR)"
-                      name="creditLimit"
-                      type="number"
-                      step="1"
-                      value={formData.creditLimit}
-                      onChange={handleFormChange}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-5">
-                    <PremiumSelect
-                      label="Payment Terms *"
-                      name="paymentTerms"
-                      value={formData.paymentTerms}
-                      onChange={handleFormChange}
-                      required
-                    >
-                      <option value="COD">Cash on Delivery (COD)</option>
-                      <option value="Net 7">Net 7 Days</option>
-                      <option value="Net 15">Net 15 Days</option>
-                      <option value="Net 30">Net 30 Days</option>
-                      <option value="Net 60">Net 60 Days</option>
-                      <option value="Due on Receipt">Due on Receipt</option>
-                    </PremiumSelect>
+                {formTab === 'logistics' && (
+                  <div className="space-y-5 animate-in fade-in duration-200">
+                    <PremiumSectionHeading title="Distributor Settings & Jar Operations (20L Water Plant)" />
                     
-                    <PremiumSelect
-                      label="Operations Status *"
-                      name="status"
-                      value={formData.status}
-                      onChange={handleFormChange}
-                      required
-                    >
-                      <option value="Active">Active Registry</option>
-                      <option value="Inactive">Inactive Registry</option>
-                    </PremiumSelect>
-                  </div>
-                </div>
+                    {formData.customerType === 'Distributor' && (
+                      <div className="p-4 bg-blue-50 border border-blue-100 rounded-[10px] space-y-4 animate-in slide-in-from-top duration-150 text-left">
+                        <h5 className="text-[13px] font-semibold text-blue-900">Distributor Profile Details</h5>
+                        <div className="grid grid-cols-2 gap-5">
+                          <PremiumSelect
+                            label="Distributor Type"
+                            name="distributorType"
+                            value={formData.distributorType}
+                            onChange={handleFormChange}
+                          >
+                            <option value="">Select Type</option>
+                            <option value="Company Owned">Company Owned (Employee)</option>
+                            <option value="Commission">Commission Agent</option>
+                            <option value="Salary">Salary Based</option>
+                            <option value="Independent">Independent Operator</option>
+                          </PremiumSelect>
+                          <PremiumInput
+                            label="Commission Percentage (%)"
+                            name="commissionPercentage"
+                            type="number"
+                            step="0.1"
+                            value={formData.commissionPercentage}
+                            onChange={handleFormChange}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-5">
+                          <PremiumInput
+                            label="Monthly Salary (INR)"
+                            name="monthlySalary"
+                            type="number"
+                            value={formData.monthlySalary}
+                            onChange={handleFormChange}
+                          />
+                          <PremiumInput
+                            label="Security Deposit (INR)"
+                            name="securityDeposit"
+                            type="number"
+                            value={formData.securityDeposit}
+                            onChange={handleFormChange}
+                          />
+                        </div>
+                      </div>
+                    )}
 
-                {/* SECTION 5: Remarks & Notes */}
-                <div className="space-y-5">
-                  <PremiumSectionHeading title="Remarks & Notes" />
+                    <div className="grid grid-cols-2 gap-5">
+                      <PremiumInput
+                        label="Assigned Delivery Route"
+                        name="assignedRoute"
+                        value={formData.assignedRoute}
+                        onChange={handleFormChange}
+                        placeholder="e.g. Route 4 (Downtown)"
+                      />
+                      <PremiumInput
+                        label="Assigned Vehicle Number"
+                        name="assignedVehicle"
+                        value={formData.assignedVehicle}
+                        onChange={handleFormChange}
+                        placeholder="e.g. MH-12-PQ-9876"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+                      <PremiumInput
+                        label="Assigned Driver Name"
+                        name="assignedDriver"
+                        value={formData.assignedDriver}
+                        onChange={handleFormChange}
+                        placeholder="Driver Name"
+                      />
+                      <PremiumInput
+                        label="Assigned Sales Executive"
+                        name="assignedSalesExecutive"
+                        value={formData.assignedSalesExecutive}
+                        onChange={handleFormChange}
+                        placeholder="Sales Exec Name"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+                      <PremiumSelect
+                        label="Default Delivery Priority"
+                        name="defaultDeliveryPriority"
+                        value={formData.defaultDeliveryPriority}
+                        onChange={handleFormChange}
+                      >
+                        <option value="Low">Low Priority</option>
+                        <option value="Normal">Normal Priority</option>
+                        <option value="High">High Priority</option>
+                        <option value="Critical">Critical Priority</option>
+                      </PremiumSelect>
+                      <PremiumInput
+                        label="Working Area Coverage"
+                        name="workingArea"
+                        value={formData.workingArea}
+                        onChange={handleFormChange}
+                        placeholder="e.g. North Sector, Ward 3"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+                      <PremiumInput
+                        label="Working Days"
+                        name="workingDays"
+                        value={formData.workingDays}
+                        onChange={handleFormChange}
+                        placeholder="e.g. Mon,Wed,Fri"
+                      />
+                      <PremiumSelect
+                        label="Seal Inspection Required?"
+                        name="sealRequired"
+                        value={formData.sealRequired ? 'true' : 'false'}
+                        onChange={(e) => setFormData(prev => ({ ...prev, sealRequired: e.target.value === 'true' }))}
+                      >
+                        <option value="false">No (Standard jars)</option>
+                        <option value="true">Yes (Hygienic double seals)</option>
+                      </PremiumSelect>
+                    </div>
+
+                    <div className="p-4 bg-[#F8FAFC] border border-gray-200 rounded-[10px] space-y-4 text-left">
+                      <h5 className="text-[13px] font-semibold text-gray-800">20L Jar Inventory Settings</h5>
+                      
+                      <div className="grid grid-cols-3 gap-4">
+                        <PremiumInput
+                          label="Jar Deposit (INR/Jar)"
+                          name="jarDeposit"
+                          type="number"
+                          value={formData.jarDeposit}
+                          onChange={handleFormChange}
+                        />
+                        <PremiumInput
+                          label="Max Jar Limit"
+                          name="maxJarLimit"
+                          type="number"
+                          value={formData.maxJarLimit}
+                          onChange={handleFormChange}
+                        />
+                        <PremiumInput
+                          label="Outstanding Jars"
+                          name="outstandingJars"
+                          type="number"
+                          value={formData.outstandingJars}
+                          onChange={handleFormChange}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <PremiumInput
+                          label="Preferred Jar Brand"
+                          name="preferredJarBrand"
+                          value={formData.preferredJarBrand}
+                          onChange={handleFormChange}
+                          placeholder="e.g. Aquora PET, Polycarbonate"
+                        />
+                        <PremiumInput
+                          label="Preferred Cap Material"
+                          name="preferredCapMaterial"
+                          value={formData.preferredCapMaterial}
+                          onChange={handleFormChange}
+                          placeholder="e.g. Pull-ring cap"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-4">
+                        <PremiumSelect
+                          label="Preferred Delivery Window"
+                          name="preferredDeliveryWindow"
+                          value={formData.preferredDeliveryWindow}
+                          onChange={handleFormChange}
+                        >
+                          <option value="">Select Window</option>
+                          <option value="09:00 - 12:00">Morning (09:00 - 12:00)</option>
+                          <option value="12:00 - 15:00">Noon (12:00 - 15:00)</option>
+                          <option value="15:00 - 18:00">Evening (15:00 - 18:00)</option>
+                        </PremiumSelect>
+
+                        <PremiumSelect
+                          label="Preferred Delivery Time"
+                          name="preferredDeliveryTime"
+                          value={formData.preferredDeliveryTime}
+                          onChange={handleFormChange}
+                        >
+                          <option value="Morning">Morning</option>
+                          <option value="Afternoon">Afternoon</option>
+                          <option value="Evening">Evening</option>
+                        </PremiumSelect>
+
+                        <PremiumSelect
+                          label="Delivery Frequency"
+                          name="deliveryFrequency"
+                          value={formData.deliveryFrequency}
+                          onChange={handleFormChange}
+                        >
+                          <option value="Daily">Daily</option>
+                          <option value="Alternate Day">Alternate Day</option>
+                          <option value="Weekly">Weekly</option>
+                          <option value="On Demand">On Demand</option>
+                        </PremiumSelect>
+                      </div>
+
+                      <div className="flex gap-6 pt-2">
+                        <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="emergencyDelivery"
+                            checked={formData.emergencyDelivery}
+                            onChange={(e) => setFormData(prev => ({ ...prev, emergencyDelivery: e.target.checked }))}
+                            className="w-4 h-4 rounded text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>Allow Emergency/Express Deliveries</span>
+                        </label>
+
+                        <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="priorityCustomer"
+                            checked={formData.priorityCustomer}
+                            onChange={(e) => setFormData(prev => ({ ...prev, priorityCustomer: e.target.checked }))}
+                            className="w-4 h-4 rounded text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>Mark as Priority Business Partner</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <PremiumTextarea
+                        label="Product Pricing Mappings JSON"
+                        name="preferredProductsJson"
+                        rows={2}
+                        value={formData.preferredProductsJson}
+                        onChange={handleFormChange}
+                        placeholder="{'20L Jar': 80, '1L Box': 120}"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Public & Internal remarks always at bottom */}
+                <div className="pt-4 border-t border-gray-100 space-y-4 text-left">
                   <PremiumTextarea
-                    label="Remarks / Public Notes"
+                    label="Public Partner Remarks"
                     name="remarks"
                     rows={2}
                     value={formData.remarks}
                     onChange={handleFormChange}
-                    placeholder="Remarks displayed on public documents..."
+                    placeholder="Public remarks displayed on invoices/reports..."
                   />
                   <PremiumTextarea
                     label="Internal System Notes"
@@ -1122,7 +1746,7 @@ export const CustomersPage: React.FC = () => {
                   onClick={handleFormSubmit}
                   className="h-[44px] px-6 bg-[#1A56DB] hover:bg-[#1E40AF] active:bg-[#123E97] text-white text-sm font-semibold rounded-[10px] shadow-sm select-none cursor-pointer transition-all duration-150 active:scale-[0.99]"
                 >
-                  {drawerMode === 'create' ? 'Register Customer' : 'Save Changes'}
+                  {drawerMode === 'create' ? 'Register Partner' : 'Save Changes'}
                 </button>
               </div>
 

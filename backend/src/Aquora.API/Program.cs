@@ -20,6 +20,39 @@ using Aquora.Domain.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Load .env file
+var currentDir = System.IO.Directory.GetCurrentDirectory();
+string? envPath = null;
+for (int i = 0; i < 3; i++)
+{
+    var testPath = System.IO.Path.Combine(currentDir, ".env");
+    if (System.IO.File.Exists(testPath))
+    {
+        envPath = testPath;
+        break;
+    }
+    var parent = System.IO.Directory.GetParent(currentDir);
+    if (parent == null) break;
+    currentDir = parent.FullName;
+}
+
+Console.WriteLine($"[DEBUG ENV] Looking for .env. Resolved path: '{envPath}'. Exists: {envPath != null}");
+if (envPath != null)
+{
+    foreach (var line in System.IO.File.ReadAllLines(envPath))
+    {
+        if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+        var parts = line.Split('=', 2, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 2)
+        {
+            var key = parts[0].Trim();
+            var val = parts[1].Trim();
+            Console.WriteLine($"[DEBUG ENV] Loaded key: '{key}'");
+            Environment.SetEnvironmentVariable(key, val);
+            builder.Configuration[key] = val;
+        }
+    }
+}
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
@@ -101,6 +134,7 @@ builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler
 // Controllers, SignalR and CORS
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
+builder.Services.AddTransient<Aquora.Application.Interfaces.Services.IProvisioningProgressReporter, Aquora.API.Services.ProvisioningProgressReporter>();
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen(c =>
@@ -169,6 +203,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<NotificationHub>("/hub/notifications");
+app.MapHub<ProvisioningHub>("/hub/provisioning");
 
 // Database migration and seeding
 using (var scope = app.Services.CreateScope())

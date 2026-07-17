@@ -6,7 +6,9 @@ namespace Aquora.Domain.Common
     {
         DateTime CreatedAt { get; set; }
         string CreatedBy { get; set; }
+        string? CreatedByIP { get; set; }
         DateTime? UpdatedAt { get; set; }
         string? UpdatedBy { get; set; }
+        string? UpdatedByIP { get; set; }
     }
 }

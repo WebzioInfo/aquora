@@ -21,17 +21,23 @@ namespace Aquora.Application.Services
         private readonly ITokenService _tokenService;
         private readonly IPasswordHasher _passwordHasher;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IEmailService _emailService;
+        private readonly IBackgroundTaskQueue _taskQueue;
 
         public AuthService(
             IPlatformDbContext platformContext,
             ITokenService tokenService,
             IPasswordHasher passwordHasher,
-            IServiceScopeFactory scopeFactory)
+            IServiceScopeFactory scopeFactory,
+            IEmailService emailService,
+            IBackgroundTaskQueue taskQueue)
         {
             _platformContext = platformContext;
             _tokenService = tokenService;
             _passwordHasher = passwordHasher;
             _scopeFactory = scopeFactory;
+            _emailService = emailService;
+            _taskQueue = taskQueue;
         }
 
         public async Task<bool> RegisterAsync(RegisterRequest request)
@@ -54,22 +60,36 @@ namespace Aquora.Application.Services
                 throw new InvalidOperationException("Email is already registered.");
 
             var parts = (request.FullName ?? string.Empty).Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-            var user = new User
-            {
-                Email = email,
-                FirstName = parts.Length > 0 ? parts[0] : string.Empty,
-                LastName = parts.Length > 1 ? parts[1] : string.Empty,
-                PasswordHash = _passwordHasher.HashPassword(request.Password),
-                IsActive = true,
-                EmailVerified = false,
-                TokenVersion = 0
-            };
 
-            _platformContext.Users.Add(user);
-            await _platformContext.SaveChangesAsync();
-            Console.WriteLine($"[USER REGISTRATION]: User '{user.Email}' registered successfully with ID '{user.Id}'.");
-            await SendOtpAsync(new SendOtpRequest { Email = email, Purpose = "Registration" });
-            return true;
+            using var transaction = await _platformContext.Database.BeginTransactionAsync();
+            try
+            {
+                var user = new User
+                {
+                    Email = email,
+                    FirstName = parts.Length > 0 ? parts[0] : string.Empty,
+                    LastName = parts.Length > 1 ? parts[1] : string.Empty,
+                    PasswordHash = _passwordHasher.HashPassword(request.Password),
+                    IsActive = true,
+                    EmailVerified = false,
+                    TokenVersion = 0
+                };
+
+                _platformContext.Users.Add(user);
+                await _platformContext.SaveChangesAsync();
+                
+                await SendOtpAsync(new SendOtpRequest { Email = email, Purpose = "Registration" });
+
+                await transaction.CommitAsync();
+                Console.WriteLine($"[USER REGISTRATION]: User '{user.Email}' registered successfully with ID '{user.Id}'.");
+                
+                return true;
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<bool> SendOtpAsync(SendOtpRequest request)
@@ -93,18 +113,21 @@ namespace Aquora.Application.Services
             if (existing != null && existing.CreatedAt.AddHours(1) > now && existing.SendCount >= 5)
                 throw new InvalidOperationException("OTP rate limit exceeded. Try again later.");
 
-            var code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
+            // Generate cryptographically secure OTP
+            var code = System.Security.Cryptography.RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
+            
             if (existing == null)
             {
                 existing = new OTPVerification
                 {
                     Email = email,
-                    Purpose = purpose
+                    Purpose = purpose,
+                    RequestId = Guid.NewGuid().ToString()
                 };
                 _platformContext.OTPVerifications.Add(existing);
             }
 
-            existing.Code = code;
+            existing.OtpHash = _passwordHasher.HashPassword(code);
             existing.ExpiryTime = now.AddMinutes(10);
             existing.Attempts = 0;
             existing.SendCount = existing.CreatedAt.AddHours(1) > now ? existing.SendCount + 1 : 1;
@@ -112,7 +135,10 @@ namespace Aquora.Application.Services
             existing.CreatedAt = existing.CreatedAt == default ? now : existing.CreatedAt;
 
             await _platformContext.SaveChangesAsync();
-            Console.WriteLine($"[OTP EMAIL {purpose}] Generated OTP code '{code}' for email '{email}' (expires in 10 minutes)");
+            
+            // Queue the OTP email in background worker
+            _taskQueue.QueueOtpJob(email, code, 10);
+            
             return true;
         }
 
@@ -139,7 +165,8 @@ namespace Aquora.Application.Services
                 throw new InvalidOperationException("Verification code has expired.");
             if (otp.Attempts >= 5)
                 throw new InvalidOperationException("Maximum verification attempts exceeded.");
-            if (otp.Code != request.Code)
+            
+            if (!_passwordHasher.VerifyPassword(request.Code, otp.OtpHash))
             {
                 otp.Attempts++;
                 await _platformContext.SaveChangesAsync();

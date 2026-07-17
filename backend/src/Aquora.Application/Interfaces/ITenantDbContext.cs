@@ -28,6 +28,14 @@ namespace Aquora.Application.Interfaces
         DbSet<OperatorContextLog> OperatorContextLogs { get; }
         DbSet<Customer> Customers { get; }
         DbSet<SalesTransaction> SalesTransactions { get; }
+        
+        // 20L Operations Module
+        DbSet<OperationsVisit> OperationsVisits { get; }
+        DbSet<OperationsUnloading> OperationsUnloadings { get; }
+        DbSet<OperationsJarCondition> OperationsJarConditions { get; }
+        DbSet<OperationsQuarantine> OperationsQuarantines { get; }
+        DbSet<OperationsFillingQueue> OperationsFillingQueues { get; }
+        DbSet<OperationsLoading> OperationsLoadings { get; }
 
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }

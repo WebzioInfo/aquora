@@ -21,6 +21,17 @@ export const OtpVerificationPage: React.FC = () => {
   // Retrieve email passed from registration or cached unverified user
   const initialEmail = (location.state as { email?: string })?.email || user?.email || ''
   const [email, setEmail] = useState(initialEmail)
+  
+  // Show sending verification code message for 8 seconds
+  const fromRegistration = (location.state as { fromRegistration?: boolean })?.fromRegistration || false
+  const [sendingMsgVisible, setSendingMsgVisible] = useState(fromRegistration)
+
+  useEffect(() => {
+    if (sendingMsgVisible) {
+      const timer = setTimeout(() => setSendingMsgVisible(false), 8000)
+      return () => clearTimeout(timer)
+    }
+  }, [sendingMsgVisible])
 
   // 6-digit OTP input state
   const [otp, setOtp] = useState<string[]>(Array(6).fill(''))
@@ -170,6 +181,14 @@ export const OtpVerificationPage: React.FC = () => {
           Enter the 6-digit confirmation pin
         </p>
       </div>
+
+      {/* Verification Code Sending Message */}
+      {sendingMsgVisible && (
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5 flex items-center gap-3 animate-pulse">
+          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+          <span className="text-xs font-semibold text-blue-700">We are sending your verification code...</span>
+        </div>
+      )}
 
       {/* Main Info */}
       <div className="bg-[#F8FAFC] border border-[#E5E7EB] p-4 rounded-xl flex items-center gap-3">

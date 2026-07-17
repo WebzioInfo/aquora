@@ -32,12 +32,15 @@ namespace Aquora.Persistence.Migrations.Platform
                     b.Property<int>("Attempts")
                         .HasColumnType("integer");
 
-                    b.Property<string>("Code")
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -52,12 +55,29 @@ namespace Aquora.Persistence.Migrations.Platform
                     b.Property<DateTime?>("LastSentAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("OtpHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RequestId")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<int>("SendCount")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpdatedByIP")
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -136,6 +156,9 @@ namespace Aquora.Persistence.Migrations.Platform
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
                     b.Property<string>("CurrentStep")
                         .HasColumnType("text");
 
@@ -198,6 +221,9 @@ namespace Aquora.Persistence.Migrations.Platform
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpdatedByIP")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -299,6 +325,9 @@ namespace Aquora.Persistence.Migrations.Platform
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("CreatedByIP")
+                        .HasColumnType("text");
+
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("boolean");
 
@@ -313,6 +342,9 @@ namespace Aquora.Persistence.Migrations.Platform
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpdatedByIP")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -337,6 +369,9 @@ namespace Aquora.Persistence.Migrations.Platform
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByIP")
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("DeletedAt")
@@ -399,6 +434,9 @@ namespace Aquora.Persistence.Migrations.Platform
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpdatedByIP")
                         .HasColumnType("text");
 
                     b.Property<string>("Username")

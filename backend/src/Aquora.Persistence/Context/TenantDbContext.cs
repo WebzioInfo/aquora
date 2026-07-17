@@ -48,6 +48,14 @@ namespace Aquora.Persistence.Context
         public DbSet<OperatorContextLog> OperatorContextLogs => Set<OperatorContextLog>();
         public DbSet<Customer> Customers => Set<Customer>();
         public DbSet<SalesTransaction> SalesTransactions => Set<SalesTransaction>();
+        
+        // 20L Operations Module
+        public DbSet<OperationsVisit> OperationsVisits => Set<OperationsVisit>();
+        public DbSet<OperationsUnloading> OperationsUnloadings => Set<OperationsUnloading>();
+        public DbSet<OperationsJarCondition> OperationsJarConditions => Set<OperationsJarCondition>();
+        public DbSet<OperationsQuarantine> OperationsQuarantines => Set<OperationsQuarantine>();
+        public DbSet<OperationsFillingQueue> OperationsFillingQueues => Set<OperationsFillingQueue>();
+        public DbSet<OperationsLoading> OperationsLoadings => Set<OperationsLoading>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -200,6 +208,52 @@ namespace Aquora.Persistence.Context
                 .HasMaxLength(50)
                 .IsRequired();
 
+            // Operations Visit Configuration
+            modelBuilder.Entity<OperationsVisit>()
+                .HasIndex(v => v.DistributorId);
+            modelBuilder.Entity<OperationsVisit>()
+                .HasIndex(v => v.ArrivalTime);
+            modelBuilder.Entity<OperationsVisit>()
+                .HasIndex(v => v.Status);
+
+            // Operations Unloading Configuration
+            modelBuilder.Entity<OperationsUnloading>()
+                .HasIndex(u => u.VisitId);
+            modelBuilder.Entity<OperationsUnloading>()
+                .HasIndex(u => u.BrandId);
+
+            // Operations Jar Condition Configuration
+            modelBuilder.Entity<OperationsJarCondition>()
+                .HasIndex(c => c.VisitId);
+            modelBuilder.Entity<OperationsJarCondition>()
+                .HasIndex(c => c.ConditionType);
+
+            // Operations Quarantine Configuration
+            modelBuilder.Entity<OperationsQuarantine>()
+                .HasIndex(q => q.VisitId);
+            modelBuilder.Entity<OperationsQuarantine>()
+                .HasIndex(q => q.Status);
+
+            // Operations Filling Queue Configuration
+            modelBuilder.Entity<OperationsFillingQueue>()
+                .HasIndex(fq => fq.DistributorId);
+            modelBuilder.Entity<OperationsFillingQueue>()
+                .HasIndex(fq => fq.BrandId);
+            modelBuilder.Entity<OperationsFillingQueue>()
+                .HasIndex(fq => fq.Status);
+            modelBuilder.Entity<OperationsFillingQueue>()
+                .HasIndex(fq => fq.Priority);
+
+            // Operations Loading Configuration
+            modelBuilder.Entity<OperationsLoading>()
+                .HasIndex(l => l.VisitId);
+            modelBuilder.Entity<OperationsLoading>()
+                .HasIndex(l => l.ProductId);
+            modelBuilder.Entity<OperationsLoading>()
+                .HasIndex(l => l.BrandId);
+            modelBuilder.Entity<OperationsLoading>()
+                .HasIndex(l => l.BatchNumber);
+
             modelBuilder.Entity<SalesTransaction>()
                 .Property(t => t.TransactionType)
                 .HasMaxLength(50)
@@ -343,11 +397,13 @@ namespace Aquora.Persistence.Context
                     {
                         auditableEntity.CreatedAt = DateTime.UtcNow;
                         auditableEntity.CreatedBy = currentUserId;
+                        auditableEntity.CreatedByIP = _currentUserContext.IpAddress ?? "127.0.0.1";
                     }
                     else if (entry.State == EntityState.Modified)
                     {
                         auditableEntity.UpdatedAt = DateTime.UtcNow;
                         auditableEntity.UpdatedBy = currentUserId;
+                        auditableEntity.UpdatedByIP = _currentUserContext.IpAddress ?? "127.0.0.1";
                     }
                 }
             }

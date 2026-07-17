@@ -37,9 +37,10 @@ export const CompanyLayout: React.FC = () => {
   const sidebarItems = [
     { label: 'Dashboard', path: '/company/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
     { label: 'Production', path: '/company/production', icon: <Factory className="w-5 h-5" /> },
+    { label: '20L Operations', path: '/company/operations', icon: <Truck className="w-5 h-5" /> },
     { label: 'Inventory', path: '/company/inventory', icon: <Package className="w-5 h-5" /> },
     { label: 'Sales', path: '/company/sales', icon: <TrendingUp className="w-5 h-5" /> },
-    { label: 'Customers', path: '/company/customers', icon: <Users className="w-5 h-5" /> },
+    { label: 'Business Partners', path: '/company/customers', icon: <Users className="w-5 h-5" /> },
     { label: 'Suppliers', path: '/company/suppliers', icon: <Truck className="w-5 h-5" /> },
     { label: 'Employees', path: '/company/employees', icon: <Users className="w-5 h-5" /> },
     { label: 'Company Settings', path: '/company/settings', icon: <Settings className="w-5 h-5" /> },
@@ -48,8 +49,8 @@ export const CompanyLayout: React.FC = () => {
   const getBreadcrumbs = () => {
     const paths = location.pathname.split('/').filter(x => x)
     return (
-      <div className="flex items-center select-none text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-        <Link to="/company" className="hover:text-hydro-navy dark:hover:text-white transition-colors">
+      <div className="flex items-center select-none text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">
+        <Link to="/company" className="hover:text-[#111827] transition-colors">
           Aquaflow ERP
         </Link>
         {paths.map((path, idx) => {
@@ -59,11 +60,11 @@ export const CompanyLayout: React.FC = () => {
           
           return (
             <span key={url} className="flex items-center">
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400 mx-1 shrink-0" />
+              <ChevronRight className="w-3.5 h-3.5 text-[#6B7280] mx-1 shrink-0" />
               {isLast ? (
-                <span className="text-hydro-navy dark:text-white font-bold">{formattedName}</span>
+                <span className="text-[#111827] font-bold">{formattedName}</span>
               ) : (
-                <Link to={url} className="text-slate-400 hover:text-hydro-azure transition-colors">
+                <Link to={url} className="text-[#6B7280] hover:text-[#111827] transition-colors">
                   {formattedName}
                 </Link>
               )}
@@ -116,7 +117,7 @@ export const CompanyLayout: React.FC = () => {
           <div className="absolute right-6 top-0 -translate-y-12 select-none z-30">
             <button
               onClick={() => setShowQuickActions(true)}
-              className="px-3.5 py-2 bg-hydro-navy hover:bg-[#003d7a] dark:bg-hydro-azure dark:hover:bg-[#005ec8] text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm rounded-sm cursor-pointer transition-all active:scale-[0.98]"
+              className="px-4 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm rounded-[10px] h-[42px] cursor-pointer transition-all active:scale-[0.98]"
             >
               <Plus className="w-4 h-4" />
               <span>Actions</span>

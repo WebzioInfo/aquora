@@ -9,8 +9,11 @@ namespace Aquora.Persistence.Context
 {
     public class PlatformDbContext : DbContext, IPlatformDbContext
     {
-        public PlatformDbContext(DbContextOptions<PlatformDbContext> options) : base(options)
+        private readonly ICurrentUserContext _currentUserContext;
+
+        public PlatformDbContext(DbContextOptions<PlatformDbContext> options, ICurrentUserContext currentUserContext = null) : base(options)
         {
+            _currentUserContext = currentUserContext;
         }
 
         public DbSet<Tenant> Tenants => Set<Tenant>();
@@ -66,6 +69,9 @@ namespace Aquora.Persistence.Context
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
+            var currentUserId = _currentUserContext?.UserId ?? "System";
+            var currentIp = _currentUserContext?.IpAddress ?? "127.0.0.1";
+
             foreach (var entry in ChangeTracker.Entries())
             {
                 if (entry.Entity is IAuditable auditableEntity)
@@ -73,12 +79,14 @@ namespace Aquora.Persistence.Context
                     if (entry.State == EntityState.Added)
                     {
                         auditableEntity.CreatedAt = System.DateTime.UtcNow;
-                        auditableEntity.CreatedBy = "System";
+                        auditableEntity.CreatedBy = currentUserId;
+                        auditableEntity.CreatedByIP = currentIp;
                     }
                     else if (entry.State == EntityState.Modified)
                     {
                         auditableEntity.UpdatedAt = System.DateTime.UtcNow;
-                        auditableEntity.UpdatedBy = "System";
+                        auditableEntity.UpdatedBy = currentUserId;
+                        auditableEntity.UpdatedByIP = currentIp;
                     }
                 }
             }

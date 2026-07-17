@@ -141,6 +141,56 @@ namespace Aquora.API.Controllers
             }
         }
 
+        [HttpGet("dashboard")]
+        public async Task<ActionResult<ApiResponse<ProductionDashboardDto>>> GetProductionDashboardStats()
+        {
+            try
+            {
+                var tenantId = GetTenantId();
+                var today = DateTime.UtcNow.Date;
+                var startOfWeek = today.AddDays(-(int)today.DayOfWeek);
+                var startOfMonth = new DateTime(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+                var todayProduction = await _tenantContext.ProductionBatches
+                    .Where(b => b.TenantId == tenantId && !b.IsDeleted && (b.StartedAt >= today || (b.CompletedAt.HasValue && b.CompletedAt.Value >= today)))
+                    .SumAsync(b => b.ProducedQuantity);
+
+                var todayTarget = await _tenantContext.ProductionBatches
+                    .Where(b => b.TenantId == tenantId && !b.IsDeleted && (b.StartedAt >= today || (b.CompletedAt.HasValue && b.CompletedAt.Value >= today)))
+                    .SumAsync(b => b.TargetQuantity);
+
+                var weeklyProduction = await _tenantContext.ProductionBatches
+                    .Where(b => b.TenantId == tenantId && !b.IsDeleted && b.StartedAt >= startOfWeek)
+                    .SumAsync(b => b.ProducedQuantity);
+
+                var monthlyProduction = await _tenantContext.ProductionBatches
+                    .Where(b => b.TenantId == tenantId && !b.IsDeleted && b.StartedAt >= startOfMonth)
+                    .SumAsync(b => b.ProducedQuantity);
+
+                var pendingDispatch = await _tenantContext.OperationsFillingQueues
+                    .CountAsync(q => q.TenantId == tenantId && !q.IsDeleted && (q.Status == "Pending" || q.Status == "InProgress"));
+
+                var pendingDispatchHighPriority = await _tenantContext.OperationsFillingQueues
+                    .CountAsync(q => q.TenantId == tenantId && !q.IsDeleted && (q.Status == "Pending" || q.Status == "InProgress") && (q.Priority == "Immediate" || q.Priority == "High"));
+
+                var dto = new ProductionDashboardDto
+                {
+                    TodayProduction = todayProduction,
+                    TodayTarget = todayTarget,
+                    WeeklyProduction = weeklyProduction,
+                    MonthlyProduction = monthlyProduction,
+                    PendingDispatch = pendingDispatch,
+                    PendingDispatchHighPriority = pendingDispatchHighPriority
+                };
+
+                return Success(dto, "Production dashboard stats loaded successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<ProductionDashboardDto>(ex.Message, "Failed to load production dashboard stats.");
+            }
+        }
+
         // 2c. GET api/v1/production/batches/active
         [HttpGet("batches/active")]
         public async Task<ActionResult<ApiResponse<List<object>>>> GetActiveBatches()
@@ -150,8 +200,8 @@ namespace Aquora.API.Controllers
                 var tenantId = GetTenantId();
                 var activeBatches = await _tenantContext.ProductionBatches
                     .Include(b => b.ProductionLine)
-                    .Where(b => (b.Status == "Active" || b.Status == "Paused") && !b.IsDeleted)
-                    .OrderByDescending(b => b.StartedAt)
+                    .Where(b => !b.IsDeleted)
+                    .OrderByDescending(b => b.CreatedAt)
                     .Select(b => new
                     {
                         b.Id,
@@ -167,7 +217,7 @@ namespace Aquora.API.Controllers
                         b.CompletedAt,
                         b.TargetQuantity,
                         b.ProducedQuantity,
-                        b.Status
+                        b.Status, b.CreatedAt
                     })
                     .ToListAsync();
 
@@ -199,7 +249,7 @@ namespace Aquora.API.Controllers
                     .Include(b => b.ProductionLine)
                     .Where(b => b.Status == "Active" && !b.IsDeleted && b.ProductionLineId == lineId);
 
-                var activeBatch = await activeBatchQuery.OrderByDescending(b => b.StartedAt).FirstOrDefaultAsync();
+                var activeBatch = await activeBatchQuery.OrderByDescending(b => b.CreatedAt).FirstOrDefaultAsync();
 
                 if (activeBatch == null)
                 {
@@ -949,5 +999,15 @@ namespace Aquora.API.Controllers
         public int OutputQty { get; set; }
         public int WastageQty { get; set; }
         public string? AdditionalData { get; set; }
+    }
+
+    public class ProductionDashboardDto
+    {
+        public int TodayProduction { get; set; }
+        public int TodayTarget { get; set; }
+        public int WeeklyProduction { get; set; }
+        public int MonthlyProduction { get; set; }
+        public int PendingDispatch { get; set; }
+        public int PendingDispatchHighPriority { get; set; }
     }
 }
