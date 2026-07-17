@@ -159,12 +159,6 @@ namespace Aquora.API.Controllers
                 }
 
                 var trimmedName = request.Name.Trim();
-                var nameExists = await _tenantContext.RawMaterials
-                    .AnyAsync(rm => rm.CompanyId == company.Id && rm.Name.ToLower() == trimmedName.ToLower() && !rm.IsDeleted);
-                if (nameExists)
-                {
-                    return BadRequest(ApiResponse<RawMaterialDto>.CreateFailure("A raw material with this name already exists in this company.", "Validation Error", HttpContext.TraceIdentifier));
-                }
 
                 var dbContext = _tenantContext as DbContext;
                 if (dbContext == null)
@@ -175,24 +169,59 @@ namespace Aquora.API.Controllers
                 using var transaction = await dbContext.Database.BeginTransactionAsync();
                 try
                 {
-                    var rawMaterial = new RawMaterial
+                    // Check for existing raw materials ignoring query filters (find soft-deleted ones as well)
+                    var existingMaterial = await _tenantContext.RawMaterials
+                        .IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(rm => rm.Name.ToLower() == trimmedName.ToLower());
+
+                    RawMaterial rawMaterial;
+
+                    if (existingMaterial != null)
                     {
-                        Id = Guid.NewGuid(),
-                        Name = trimmedName,
-                        Category = categoryEnum.ToString(),
-                        Unit = unitEnum.ToString(),
-                        IsActive = request.IsActive,
-                        CompanyId = company.Id,
-                        // Populate legacy fields required by db constraints
-                        Code = trimmedName.Replace(" ", "_").ToUpperInvariant(),
-                        BaseUnit = unitEnum.ToString(),
-                        ConversionFactor = 1.0m,
-                        CurrentStock = request.CurrentStock
-                    };
+                        if (!existingMaterial.IsDeleted)
+                        {
+                            return BadRequest(ApiResponse<RawMaterialDto>.CreateFailure(
+                                "A raw material with this name already exists in this company.", 
+                                "Validation Error", 
+                                HttpContext.TraceIdentifier));
+                        }
 
-                    _tenantContext.RawMaterials.Add(rawMaterial);
+                        // Reuse and restore the soft-deleted raw material
+                        rawMaterial = existingMaterial;
+                        rawMaterial.IsDeleted = false;
+                        rawMaterial.DeletedAt = null;
+                        rawMaterial.DeletedBy = null;
+                        rawMaterial.IsActive = request.IsActive;
+                        rawMaterial.Category = categoryEnum.ToString();
+                        rawMaterial.Unit = unitEnum.ToString();
+                        rawMaterial.BaseUnit = unitEnum.ToString();
+                        rawMaterial.CurrentStock = 0.0m; // Centralized balance engine will calculate new balance
+                    }
+                    else
+                    {
+                        // Create a brand new raw material
+                        rawMaterial = new RawMaterial
+                        {
+                            Id = Guid.NewGuid(),
+                            Name = trimmedName,
+                            Category = categoryEnum.ToString(),
+                            Unit = unitEnum.ToString(),
+                            IsActive = request.IsActive,
+                            CompanyId = company.Id,
+                            TenantId = _currentUserContext.TenantId,
+                            // Populate legacy fields required by db constraints
+                            Code = trimmedName.Replace(" ", "_").ToUpperInvariant(),
+                            BaseUnit = unitEnum.ToString(),
+                            ConversionFactor = 1.0m,
+                            CurrentStock = 0.0m // Centralized balance engine will set it
+                        };
 
-                    // Every stock modification must create one ledger entry
+                        _tenantContext.RawMaterials.Add(rawMaterial);
+                    }
+
+                    await _tenantContext.SaveChangesAsync();
+
+                    // Every stock modification must create one ledger entry (even if 0 for opening stock)
                     await _inventoryMovementService.RecordRawMaterialMovementAsync(
                         _tenantContext,
                         rawMaterial.Id,
@@ -229,12 +258,27 @@ namespace Aquora.API.Controllers
             }
             catch (DbUpdateException ex)
             {
-                var innerMsg = ex.InnerException?.Message ?? ex.Message;
-                _logger.LogError(ex, "RawMaterial creation database save failed. Tenant: {TenantId}, Company: {CompanyId}, Name: {Name}, Error: {Error}",
-                    _currentUserContext.TenantId, company?.Id, request.Name, innerMsg);
+                var details = new System.Text.StringBuilder();
+                details.AppendLine($"Database Save Failure: {ex.Message}");
+                if (ex.InnerException is Npgsql.PostgresException pgEx)
+                {
+                    details.AppendLine($"Postgres Error Code (SqlState): {pgEx.SqlState}");
+                    details.AppendLine($"Constraint Name: {pgEx.ConstraintName}");
+                    details.AppendLine($"Column Name: {pgEx.ColumnName}");
+                    details.AppendLine($"Table Name: {pgEx.TableName}");
+                    details.AppendLine($"Error Message: {pgEx.MessageText}");
+                    details.AppendLine($"Detail: {pgEx.Detail}");
+                }
+                else
+                {
+                    details.AppendLine($"Inner Exception: {ex.InnerException?.Message ?? "None"}");
+                }
+                var fullError = details.ToString();
+                _logger.LogError(ex, "RawMaterial creation database save failed. Tenant: {TenantId}, Company: {CompanyId}, Name: {Name}\nDetails: {Details}",
+                    _currentUserContext.TenantId, company?.Id, request.Name, fullError);
 
                 return BadRequest(ApiResponse<RawMaterialDto>.CreateFailure(
-                    $"Database constraint failed: {innerMsg}", 
+                    fullError, 
                     "Database Error", 
                     HttpContext.TraceIdentifier));
             }

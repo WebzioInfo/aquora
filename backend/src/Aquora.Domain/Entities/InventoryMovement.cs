@@ -14,6 +14,7 @@ namespace Aquora.Domain.Entities
         public string InventoryType { get; set; } = "RawMaterial";
 
         public decimal Quantity { get; set; } // Negative for deductions, positive for increases
+        public decimal BalanceAfter { get; set; } = 0.0m;
         public string ReferenceType { get; set; } // E.g., "ProductionEntry"
         public Guid ReferenceId { get; set; } // The ID of the related transaction
         public string? Notes { get; set; }

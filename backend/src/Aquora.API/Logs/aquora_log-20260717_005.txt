@@ -3504,3 +3504,655 @@ ORDER BY s0."TransactionDate" DESC, s0."CreatedAt" DESC
 SELECT u."Id", u."AssignedProductionLineId", u."CreatedAt", u."CreatedBy", u."CreatedByIP", u."DeletedAt", u."DeletedBy", u."Department", u."Email", u."EmailVerified", u."EmailVerifiedAt", u."FirstName", u."IsActive", u."IsDeleted", u."IsPlatformAdmin", u."LastLoginAt", u."LastName", u."PasswordHash", u."PinHash", u."RefreshToken", u."RefreshTokenExpiryTime", u."TenantId", u."TokenVersion", u."UpdatedAt", u."UpdatedBy", u."UpdatedByIP", u."Username"
 FROM public."Users" AS u
 WHERE u."Id" = ANY (@creatorIds)
+2026-07-17 18:02:43.787 +05:30 [INF] Executed DbCommand (192ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:02:43.984 +05:30 [INF] Executed DbCommand (163ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:02:44.177 +05:30 [INF] Executed DbCommand (168ms) [Parameters=[@guidId='d730ea91-86fb-49a6-8b8e-2a7381e3873a'], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."AssignedProductionLineId", u."CreatedAt", u."CreatedBy", u."CreatedByIP", u."DeletedAt", u."DeletedBy", u."Department", u."Email", u."EmailVerified", u."EmailVerifiedAt", u."FirstName", u."IsActive", u."IsDeleted", u."IsPlatformAdmin", u."LastLoginAt", u."LastName", u."PasswordHash", u."PinHash", u."RefreshToken", u."RefreshTokenExpiryTime", u."TenantId", u."TokenVersion", u."UpdatedAt", u."UpdatedBy", u."UpdatedByIP", u."Username"
+FROM public."Users" AS u
+WHERE u."Id" = @guidId AND NOT (u."IsDeleted")
+LIMIT 1
+2026-07-17 18:02:44.346 +05:30 [INF] Executed DbCommand (156ms) [Parameters=[@user_TenantId_Value='244655ac-96d5-4251-a482-90c932356adb'], CommandType='"Text"', CommandTimeout='120']
+SELECT EXISTS (
+    SELECT 1
+    FROM public."Tenants" AS t
+    WHERE t."Id" = @user_TenantId_Value AND NOT (t."IsDeleted"))
+2026-07-17 18:02:44.645 +05:30 [INF] Executed DbCommand (187ms) [Parameters=[@user_Id='d730ea91-86fb-49a6-8b8e-2a7381e3873a'], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."CreatedAt", u."CreatedBy", u."CreatedByIP", u."RoleId", u."TenantId", u."UpdatedAt", u."UpdatedBy", u."UpdatedByIP", u."UserId", r0."Id", r0."Code", r0."CreatedAt", r0."CreatedBy", r0."CreatedByIP", r0."DeletedAt", r0."DeletedBy", r0."IsDeleted", r0."Name", r0."TenantId", r0."UpdatedAt", r0."UpdatedBy", r0."UpdatedByIP"
+FROM aquora_tenant_code_company."UserRoles" AS u
+INNER JOIN (
+    SELECT r."Id", r."Code", r."CreatedAt", r."CreatedBy", r."CreatedByIP", r."DeletedAt", r."DeletedBy", r."IsDeleted", r."Name", r."TenantId", r."UpdatedAt", r."UpdatedBy", r."UpdatedByIP"
+    FROM aquora_tenant_code_company."Roles" AS r
+    WHERE NOT (r."IsDeleted")
+) AS r0 ON u."RoleId" = r0."Id"
+WHERE u."UserId" = @user_Id
+2026-07-17 18:02:44.842 +05:30 [INF] Executed DbCommand (162ms) [Parameters=[@ur_RoleId='389472f3-7d18-46ed-bfce-58f8f2b458d2'], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."CreatedAt", r."CreatedBy", r."CreatedByIP", r."PermissionId", r."RoleId", r."TenantId", r."UpdatedAt", r."UpdatedBy", r."UpdatedByIP", p."Id", p."Code", p."CreatedAt", p."CreatedBy", p."CreatedByIP", p."Name", p."UpdatedAt", p."UpdatedBy", p."UpdatedByIP"
+FROM aquora_tenant_code_company."RolePermissions" AS r
+INNER JOIN aquora_tenant_code_company."Permissions" AS p ON r."PermissionId" = p."Id"
+WHERE r."RoleId" = @ur_RoleId
+2026-07-17 18:02:45.030 +05:30 [INF] Executed DbCommand (166ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:02:45.199 +05:30 [INF] Executed DbCommand (165ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:02:45.360 +05:30 [INF] Executed DbCommand (157ms) [Parameters=[@guidId='d730ea91-86fb-49a6-8b8e-2a7381e3873a'], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."AssignedProductionLineId", u."CreatedAt", u."CreatedBy", u."CreatedByIP", u."DeletedAt", u."DeletedBy", u."Department", u."Email", u."EmailVerified", u."EmailVerifiedAt", u."FirstName", u."IsActive", u."IsDeleted", u."IsPlatformAdmin", u."LastLoginAt", u."LastName", u."PasswordHash", u."PinHash", u."RefreshToken", u."RefreshTokenExpiryTime", u."TenantId", u."TokenVersion", u."UpdatedAt", u."UpdatedBy", u."UpdatedByIP", u."Username"
+FROM public."Users" AS u
+WHERE u."Id" = @guidId AND NOT (u."IsDeleted")
+LIMIT 1
+2026-07-17 18:02:45.524 +05:30 [INF] Executed DbCommand (162ms) [Parameters=[@user_TenantId_Value='244655ac-96d5-4251-a482-90c932356adb'], CommandType='"Text"', CommandTimeout='120']
+SELECT EXISTS (
+    SELECT 1
+    FROM public."Tenants" AS t
+    WHERE t."Id" = @user_TenantId_Value AND NOT (t."IsDeleted"))
+2026-07-17 18:02:45.683 +05:30 [INF] Executed DbCommand (155ms) [Parameters=[@user_Id='d730ea91-86fb-49a6-8b8e-2a7381e3873a'], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."CreatedAt", u."CreatedBy", u."CreatedByIP", u."RoleId", u."TenantId", u."UpdatedAt", u."UpdatedBy", u."UpdatedByIP", u."UserId", r0."Id", r0."Code", r0."CreatedAt", r0."CreatedBy", r0."CreatedByIP", r0."DeletedAt", r0."DeletedBy", r0."IsDeleted", r0."Name", r0."TenantId", r0."UpdatedAt", r0."UpdatedBy", r0."UpdatedByIP"
+FROM aquora_tenant_code_company."UserRoles" AS u
+INNER JOIN (
+    SELECT r."Id", r."Code", r."CreatedAt", r."CreatedBy", r."CreatedByIP", r."DeletedAt", r."DeletedBy", r."IsDeleted", r."Name", r."TenantId", r."UpdatedAt", r."UpdatedBy", r."UpdatedByIP"
+    FROM aquora_tenant_code_company."Roles" AS r
+    WHERE NOT (r."IsDeleted")
+) AS r0 ON u."RoleId" = r0."Id"
+WHERE u."UserId" = @user_Id
+2026-07-17 18:02:45.841 +05:30 [INF] Executed DbCommand (155ms) [Parameters=[@ur_RoleId='389472f3-7d18-46ed-bfce-58f8f2b458d2'], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."CreatedAt", r."CreatedBy", r."CreatedByIP", r."PermissionId", r."RoleId", r."TenantId", r."UpdatedAt", r."UpdatedBy", r."UpdatedByIP", p."Id", p."Code", p."CreatedAt", p."CreatedBy", p."CreatedByIP", p."Name", p."UpdatedAt", p."UpdatedBy", p."UpdatedByIP"
+FROM aquora_tenant_code_company."RolePermissions" AS r
+INNER JOIN aquora_tenant_code_company."Permissions" AS p ON r."PermissionId" = p."Id"
+WHERE r."RoleId" = @ur_RoleId
+2026-07-17 18:02:45.949 +05:30 [INF] Executed DbCommand (143ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:02:45.953 +05:30 [INF] Executed DbCommand (143ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:02:45.978 +05:30 [INF] Executed DbCommand (143ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:02:46.023 +05:30 [INF] Executed DbCommand (154ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:02:46.054 +05:30 [INF] Executed DbCommand (154ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:02:46.106 +05:30 [INF] Executed DbCommand (153ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:02:46.106 +05:30 [INF] Executed DbCommand (149ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:02:46.142 +05:30 [INF] Executed DbCommand (157ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:02:46.182 +05:30 [INF] Executed DbCommand (156ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:02:46.215 +05:30 [INF] Executed DbCommand (157ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:02:46.275 +05:30 [INF] Executed DbCommand (160ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT c."Id", c."Code", c."CreatedAt", c."CreatedBy", c."CreatedByIP", c."DeletedAt", c."DeletedBy", c."IsActive", c."IsDeleted", c."Name", c."TenantId", c."UpdatedAt", c."UpdatedBy", c."UpdatedByIP"
+FROM aquora_tenant_code_company."Companies" AS c
+WHERE NOT (c."IsDeleted")
+LIMIT 1
+2026-07-17 18:02:46.288 +05:30 [INF] Executed DbCommand (171ms) [Parameters=[@tenantId='244655ac-96d5-4251-a482-90c932356adb'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."IsEnabled", t."StationName", t."TenantId", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."TenantProductionConfigurations" AS t
+WHERE t."TenantId" = @tenantId
+2026-07-17 18:02:46.306 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT c."Id", c."Code", c."CreatedAt", c."CreatedBy", c."CreatedByIP", c."DeletedAt", c."DeletedBy", c."IsActive", c."IsDeleted", c."Name", c."TenantId", c."UpdatedAt", c."UpdatedBy", c."UpdatedByIP"
+FROM aquora_tenant_code_company."Companies" AS c
+WHERE NOT (c."IsDeleted")
+LIMIT 1
+2026-07-17 18:02:46.349 +05:30 [INF] Executed DbCommand (149ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT p."Id", p."Code", p."CompanyId", p."CreatedAt", p."CreatedBy", p."CreatedByIP", p."DeletedAt", p."DeletedBy", p."Description", p."IsActive", p."IsDeleted", p."Name", p."TenantId", p."UpdatedAt", p."UpdatedBy", p."UpdatedByIP"
+FROM aquora_tenant_code_company."ProductionLines" AS p
+WHERE NOT (p."IsDeleted") AND p."IsActive"
+2026-07-17 18:02:46.436 +05:30 [INF] Executed DbCommand (184ms) [Parameters=[@lineId='f7ffdc09-50ee-4252-916a-6bfdfd63681a'], CommandType='"Text"', CommandTimeout='120']
+SELECT s."Id", s."BatchNumber", s."CompanyId", s."CreatedAt", s."CreatedBy", s."CreatedByIP", s."DeletedAt", s."DeletedBy", s."EndedAt", s."IsDeleted", s."OperatorId", s."OperatorName", s."ProductId", s."ProductionLineId", s."Remarks", s."Shift", s."StartedAt", s."Status", s."TenantId", s."TotalCasesProduced", s."UpdatedAt", s."UpdatedBy", s."UpdatedByIP", s."Id0", s."BrandId", s."CreatedAt0", s."CreatedBy0", s."CreatedByIP0", s."CurrentStock", s."DeletedAt0", s."DeletedBy0", s."IsActive", s."IsDeleted0", s."Name", s."SKU", s."UpdatedAt0", s."UpdatedBy0", s."UpdatedByIP0", s."Id1", s."Code", s."CompanyId0", s."CreatedAt1", s."CreatedBy1", s."CreatedByIP1", s."DeletedAt1", s."DeletedBy1", s."Description", s."IsActive0", s."IsDeleted1", s."Name0", s."TenantId0", s."UpdatedAt1", s."UpdatedBy1", s."UpdatedByIP1", p5."Id", p5."CapMaterialId", p5."CapUsage", p5."CapWastage", p5."CasesProduced", p5."CompanyId", p5."CreatedAt", p5."CreatedBy", p5."CreatedByIP", p5."Date", p5."DeletedAt", p5."DeletedBy", p5."GlueMaterialId", p5."GlueUsage", p5."InkUsed", p5."InventoryMovementIds", p5."IsDeleted", p5."LabelMaterialId", p5."LabelUsage", p5."LabelWastage", p5."MakeupUsed", p5."OperatorId", p5."OperatorName", p5."PreformMaterialId", p5."PreformUsage", p5."PreformWastage", p5."ProductId", p5."ProductionLineId", p5."ProductionSessionId", p5."Shift", p5."ShrinkMaterialId", p5."ShrinkUsage", p5."ShrinkWastage", p5."TenantId", p5."Time", p5."UpdatedAt", p5."UpdatedBy", p5."UpdatedByIP"
+FROM (
+    SELECT p."Id", p."BatchNumber", p."CompanyId", p."CreatedAt", p."CreatedBy", p."CreatedByIP", p."DeletedAt", p."DeletedBy", p."EndedAt", p."IsDeleted", p."OperatorId", p."OperatorName", p."ProductId", p."ProductionLineId", p."Remarks", p."Shift", p."StartedAt", p."Status", p."TenantId", p."TotalCasesProduced", p."UpdatedAt", p."UpdatedBy", p."UpdatedByIP", p1."Id" AS "Id0", p1."BrandId", p1."CreatedAt" AS "CreatedAt0", p1."CreatedBy" AS "CreatedBy0", p1."CreatedByIP" AS "CreatedByIP0", p1."CurrentStock", p1."DeletedAt" AS "DeletedAt0", p1."DeletedBy" AS "DeletedBy0", p1."IsActive", p1."IsDeleted" AS "IsDeleted0", p1."Name", p1."SKU", p1."UpdatedAt" AS "UpdatedAt0", p1."UpdatedBy" AS "UpdatedBy0", p1."UpdatedByIP" AS "UpdatedByIP0", p3."Id" AS "Id1", p3."Code", p3."CompanyId" AS "CompanyId0", p3."CreatedAt" AS "CreatedAt1", p3."CreatedBy" AS "CreatedBy1", p3."CreatedByIP" AS "CreatedByIP1", p3."DeletedAt" AS "DeletedAt1", p3."DeletedBy" AS "DeletedBy1", p3."Description", p3."IsActive" AS "IsActive0", p3."IsDeleted" AS "IsDeleted1", p3."Name" AS "Name0", p3."TenantId" AS "TenantId0", p3."UpdatedAt" AS "UpdatedAt1", p3."UpdatedBy" AS "UpdatedBy1", p3."UpdatedByIP" AS "UpdatedByIP1"
+    FROM aquora_tenant_code_company."ProductionSessions" AS p
+    INNER JOIN (
+        SELECT p0."Id", p0."BrandId", p0."CreatedAt", p0."CreatedBy", p0."CreatedByIP", p0."CurrentStock", p0."DeletedAt", p0."DeletedBy", p0."IsActive", p0."IsDeleted", p0."Name", p0."SKU", p0."UpdatedAt", p0."UpdatedBy", p0."UpdatedByIP"
+        FROM aquora_tenant_code_company."Products" AS p0
+        WHERE NOT (p0."IsDeleted")
+    ) AS p1 ON p."ProductId" = p1."Id"
+    INNER JOIN (
+        SELECT p2."Id", p2."Code", p2."CompanyId", p2."CreatedAt", p2."CreatedBy", p2."CreatedByIP", p2."DeletedAt", p2."DeletedBy", p2."Description", p2."IsActive", p2."IsDeleted", p2."Name", p2."TenantId", p2."UpdatedAt", p2."UpdatedBy", p2."UpdatedByIP"
+        FROM aquora_tenant_code_company."ProductionLines" AS p2
+        WHERE NOT (p2."IsDeleted")
+    ) AS p3 ON p."ProductionLineId" = p3."Id"
+    WHERE NOT (p."IsDeleted") AND p."ProductionLineId" = @lineId AND p."Status" = 'Running' AND NOT (p."IsDeleted")
+    LIMIT 1
+) AS s
+LEFT JOIN (
+    SELECT p4."Id", p4."CapMaterialId", p4."CapUsage", p4."CapWastage", p4."CasesProduced", p4."CompanyId", p4."CreatedAt", p4."CreatedBy", p4."CreatedByIP", p4."Date", p4."DeletedAt", p4."DeletedBy", p4."GlueMaterialId", p4."GlueUsage", p4."InkUsed", p4."InventoryMovementIds", p4."IsDeleted", p4."LabelMaterialId", p4."LabelUsage", p4."LabelWastage", p4."MakeupUsed", p4."OperatorId", p4."OperatorName", p4."PreformMaterialId", p4."PreformUsage", p4."PreformWastage", p4."ProductId", p4."ProductionLineId", p4."ProductionSessionId", p4."Shift", p4."ShrinkMaterialId", p4."ShrinkUsage", p4."ShrinkWastage", p4."TenantId", p4."Time", p4."UpdatedAt", p4."UpdatedBy", p4."UpdatedByIP"
+    FROM aquora_tenant_code_company."ProductionEntries" AS p4
+    WHERE NOT (p4."IsDeleted")
+) AS p5 ON s."Id" = p5."ProductionSessionId"
+ORDER BY s."Id", s."Id0", s."Id1"
+2026-07-17 18:02:46.542 +05:30 [INF] Executed DbCommand (235ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CreatedByIP", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy", r."UpdatedByIP"
+FROM aquora_tenant_code_company."RawMaterials" AS r
+WHERE NOT (r."IsDeleted") AND r."Category" = 'INK' AND r."IsActive" AND NOT (r."IsDeleted")
+LIMIT 1
+2026-07-17 18:02:46.542 +05:30 [INF] Executed DbCommand (219ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."Name", r."Code", r."Category", r."Unit", r."BaseUnit", r."ConversionFactor", r."CurrentStock", r."IsActive"
+FROM aquora_tenant_code_company."RawMaterials" AS r
+WHERE NOT (r."IsDeleted") AND NOT (r."IsDeleted") AND r."IsActive"
+ORDER BY r."Name"
+2026-07-17 18:02:46.548 +05:30 [INF] Executed DbCommand (189ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT p."Id", p."BatchNumber", p."CompanyId", p."CompletedAt", p."CreatedAt", p."CreatedBy", p."CreatedByIP", p."DeletedAt", p."DeletedBy", p."IsDeleted", p."OperatorId", p."OperatorName", p."ProducedQuantity", p."Product", p."ProductionLineId", p."Shift", p."StartedAt", p."Status", p."TargetQuantity", p."TenantId", p."UpdatedAt", p."UpdatedBy", p."UpdatedByIP"
+FROM aquora_tenant_code_company."ProductionBatches" AS p
+WHERE NOT (p."IsDeleted") AND p."Status" = 'Active' AND NOT (p."IsDeleted")
+2026-07-17 18:02:46.623 +05:30 [INF] Executed DbCommand (147ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:02:46.664 +05:30 [INF] Executed DbCommand (145ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:02:46.689 +05:30 [INF] Executed DbCommand (141ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CreatedByIP", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy", r."UpdatedByIP"
+FROM aquora_tenant_code_company."RawMaterials" AS r
+WHERE NOT (r."IsDeleted") AND r."Category" = 'MAKEUP' AND r."IsActive" AND NOT (r."IsDeleted")
+LIMIT 1
+2026-07-17 18:02:47.367 +05:30 [INF] Executed DbCommand (741ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:02:47.398 +05:30 [INF] Executed DbCommand (731ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:02:47.530 +05:30 [INF] Executed DbCommand (159ms) [Parameters=[@lineId='f7ffdc09-50ee-4252-916a-6bfdfd63681a'], CommandType='"Text"', CommandTimeout='120']
+SELECT s."Id", s."BatchNumber", s."CompanyId", s."CreatedAt", s."CreatedBy", s."CreatedByIP", s."DeletedAt", s."DeletedBy", s."EndedAt", s."IsDeleted", s."OperatorId", s."OperatorName", s."ProductId", s."ProductionLineId", s."Remarks", s."Shift", s."StartedAt", s."Status", s."TenantId", s."TotalCasesProduced", s."UpdatedAt", s."UpdatedBy", s."UpdatedByIP", s."Id0", s."BrandId", s."CreatedAt0", s."CreatedBy0", s."CreatedByIP0", s."CurrentStock", s."DeletedAt0", s."DeletedBy0", s."IsActive", s."IsDeleted0", s."Name", s."SKU", s."UpdatedAt0", s."UpdatedBy0", s."UpdatedByIP0", s."Id1", s."Code", s."CompanyId0", s."CreatedAt1", s."CreatedBy1", s."CreatedByIP1", s."DeletedAt1", s."DeletedBy1", s."Description", s."IsActive0", s."IsDeleted1", s."Name0", s."TenantId0", s."UpdatedAt1", s."UpdatedBy1", s."UpdatedByIP1", p5."Id", p5."CapMaterialId", p5."CapUsage", p5."CapWastage", p5."CasesProduced", p5."CompanyId", p5."CreatedAt", p5."CreatedBy", p5."CreatedByIP", p5."Date", p5."DeletedAt", p5."DeletedBy", p5."GlueMaterialId", p5."GlueUsage", p5."InkUsed", p5."InventoryMovementIds", p5."IsDeleted", p5."LabelMaterialId", p5."LabelUsage", p5."LabelWastage", p5."MakeupUsed", p5."OperatorId", p5."OperatorName", p5."PreformMaterialId", p5."PreformUsage", p5."PreformWastage", p5."ProductId", p5."ProductionLineId", p5."ProductionSessionId", p5."Shift", p5."ShrinkMaterialId", p5."ShrinkUsage", p5."ShrinkWastage", p5."TenantId", p5."Time", p5."UpdatedAt", p5."UpdatedBy", p5."UpdatedByIP"
+FROM (
+    SELECT p."Id", p."BatchNumber", p."CompanyId", p."CreatedAt", p."CreatedBy", p."CreatedByIP", p."DeletedAt", p."DeletedBy", p."EndedAt", p."IsDeleted", p."OperatorId", p."OperatorName", p."ProductId", p."ProductionLineId", p."Remarks", p."Shift", p."StartedAt", p."Status", p."TenantId", p."TotalCasesProduced", p."UpdatedAt", p."UpdatedBy", p."UpdatedByIP", p1."Id" AS "Id0", p1."BrandId", p1."CreatedAt" AS "CreatedAt0", p1."CreatedBy" AS "CreatedBy0", p1."CreatedByIP" AS "CreatedByIP0", p1."CurrentStock", p1."DeletedAt" AS "DeletedAt0", p1."DeletedBy" AS "DeletedBy0", p1."IsActive", p1."IsDeleted" AS "IsDeleted0", p1."Name", p1."SKU", p1."UpdatedAt" AS "UpdatedAt0", p1."UpdatedBy" AS "UpdatedBy0", p1."UpdatedByIP" AS "UpdatedByIP0", p3."Id" AS "Id1", p3."Code", p3."CompanyId" AS "CompanyId0", p3."CreatedAt" AS "CreatedAt1", p3."CreatedBy" AS "CreatedBy1", p3."CreatedByIP" AS "CreatedByIP1", p3."DeletedAt" AS "DeletedAt1", p3."DeletedBy" AS "DeletedBy1", p3."Description", p3."IsActive" AS "IsActive0", p3."IsDeleted" AS "IsDeleted1", p3."Name" AS "Name0", p3."TenantId" AS "TenantId0", p3."UpdatedAt" AS "UpdatedAt1", p3."UpdatedBy" AS "UpdatedBy1", p3."UpdatedByIP" AS "UpdatedByIP1"
+    FROM aquora_tenant_code_company."ProductionSessions" AS p
+    INNER JOIN (
+        SELECT p0."Id", p0."BrandId", p0."CreatedAt", p0."CreatedBy", p0."CreatedByIP", p0."CurrentStock", p0."DeletedAt", p0."DeletedBy", p0."IsActive", p0."IsDeleted", p0."Name", p0."SKU", p0."UpdatedAt", p0."UpdatedBy", p0."UpdatedByIP"
+        FROM aquora_tenant_code_company."Products" AS p0
+        WHERE NOT (p0."IsDeleted")
+    ) AS p1 ON p."ProductId" = p1."Id"
+    INNER JOIN (
+        SELECT p2."Id", p2."Code", p2."CompanyId", p2."CreatedAt", p2."CreatedBy", p2."CreatedByIP", p2."DeletedAt", p2."DeletedBy", p2."Description", p2."IsActive", p2."IsDeleted", p2."Name", p2."TenantId", p2."UpdatedAt", p2."UpdatedBy", p2."UpdatedByIP"
+        FROM aquora_tenant_code_company."ProductionLines" AS p2
+        WHERE NOT (p2."IsDeleted")
+    ) AS p3 ON p."ProductionLineId" = p3."Id"
+    WHERE NOT (p."IsDeleted") AND p."ProductionLineId" = @lineId AND p."Status" = 'Running' AND NOT (p."IsDeleted")
+    LIMIT 1
+) AS s
+LEFT JOIN (
+    SELECT p4."Id", p4."CapMaterialId", p4."CapUsage", p4."CapWastage", p4."CasesProduced", p4."CompanyId", p4."CreatedAt", p4."CreatedBy", p4."CreatedByIP", p4."Date", p4."DeletedAt", p4."DeletedBy", p4."GlueMaterialId", p4."GlueUsage", p4."InkUsed", p4."InventoryMovementIds", p4."IsDeleted", p4."LabelMaterialId", p4."LabelUsage", p4."LabelWastage", p4."MakeupUsed", p4."OperatorId", p4."OperatorName", p4."PreformMaterialId", p4."PreformUsage", p4."PreformWastage", p4."ProductId", p4."ProductionLineId", p4."ProductionSessionId", p4."Shift", p4."ShrinkMaterialId", p4."ShrinkUsage", p4."ShrinkWastage", p4."TenantId", p4."Time", p4."UpdatedAt", p4."UpdatedBy", p4."UpdatedByIP"
+    FROM aquora_tenant_code_company."ProductionEntries" AS p4
+    WHERE NOT (p4."IsDeleted")
+) AS p5 ON s."Id" = p5."ProductionSessionId"
+ORDER BY s."Id", s."Id0", s."Id1"
+2026-07-17 18:02:47.560 +05:30 [INF] Executed DbCommand (153ms) [Parameters=[@sessionId='9dd7ff26-0b2f-439d-8650-ad3111af1418' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT p."Id", p."CapMaterialId", p."CapUsage", p."CapWastage", p."CasesProduced", p."CompanyId", p."CreatedAt", p."CreatedBy", p."CreatedByIP", p."Date", p."DeletedAt", p."DeletedBy", p."GlueMaterialId", p."GlueUsage", p."InkUsed", p."InventoryMovementIds", p."IsDeleted", p."LabelMaterialId", p."LabelUsage", p."LabelWastage", p."MakeupUsed", p."OperatorId", p."OperatorName", p."PreformMaterialId", p."PreformUsage", p."PreformWastage", p."ProductId", p."ProductionLineId", p."ProductionSessionId", p."Shift", p."ShrinkMaterialId", p."ShrinkUsage", p."ShrinkWastage", p."TenantId", p."Time", p."UpdatedAt", p."UpdatedBy", p."UpdatedByIP", p1."Id", p1."BrandId", p1."CreatedAt", p1."CreatedBy", p1."CreatedByIP", p1."CurrentStock", p1."DeletedAt", p1."DeletedBy", p1."IsActive", p1."IsDeleted", p1."Name", p1."SKU", p1."UpdatedAt", p1."UpdatedBy", p1."UpdatedByIP", r0."Id", r0."BaseUnit", r0."Category", r0."Code", r0."CompanyId", r0."ConversionFactor", r0."CreatedAt", r0."CreatedBy", r0."CreatedByIP", r0."CurrentStock", r0."DeletedAt", r0."DeletedBy", r0."IsActive", r0."IsDeleted", r0."Name", r0."TenantId", r0."Unit", r0."UpdatedAt", r0."UpdatedBy", r0."UpdatedByIP", r2."Id", r2."BaseUnit", r2."Category", r2."Code", r2."CompanyId", r2."ConversionFactor", r2."CreatedAt", r2."CreatedBy", r2."CreatedByIP", r2."CurrentStock", r2."DeletedAt", r2."DeletedBy", r2."IsActive", r2."IsDeleted", r2."Name", r2."TenantId", r2."Unit", r2."UpdatedAt", r2."UpdatedBy", r2."UpdatedByIP", r4."Id", r4."BaseUnit", r4."Category", r4."Code", r4."CompanyId", r4."ConversionFactor", r4."CreatedAt", r4."CreatedBy", r4."CreatedByIP", r4."CurrentStock", r4."DeletedAt", r4."DeletedBy", r4."IsActive", r4."IsDeleted", r4."Name", r4."TenantId", r4."Unit", r4."UpdatedAt", r4."UpdatedBy", r4."UpdatedByIP", r6."Id", r6."BaseUnit", r6."Category", r6."Code", r6."CompanyId", r6."ConversionFactor", r6."CreatedAt", r6."CreatedBy", r6."CreatedByIP", r6."CurrentStock", r6."DeletedAt", r6."DeletedBy", r6."IsActive", r6."IsDeleted", r6."Name", r6."TenantId", r6."Unit", r6."UpdatedAt", r6."UpdatedBy", r6."UpdatedByIP", r8."Id", r8."BaseUnit", r8."Category", r8."Code", r8."CompanyId", r8."ConversionFactor", r8."CreatedAt", r8."CreatedBy", r8."CreatedByIP", r8."CurrentStock", r8."DeletedAt", r8."DeletedBy", r8."IsActive", r8."IsDeleted", r8."Name", r8."TenantId", r8."Unit", r8."UpdatedAt", r8."UpdatedBy", r8."UpdatedByIP"
+FROM aquora_tenant_code_company."ProductionEntries" AS p
+INNER JOIN (
+    SELECT p0."Id", p0."BrandId", p0."CreatedAt", p0."CreatedBy", p0."CreatedByIP", p0."CurrentStock", p0."DeletedAt", p0."DeletedBy", p0."IsActive", p0."IsDeleted", p0."Name", p0."SKU", p0."UpdatedAt", p0."UpdatedBy", p0."UpdatedByIP"
+    FROM aquora_tenant_code_company."Products" AS p0
+    WHERE NOT (p0."IsDeleted")
+) AS p1 ON p."ProductId" = p1."Id"
+LEFT JOIN (
+    SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CreatedByIP", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy", r."UpdatedByIP"
+    FROM aquora_tenant_code_company."RawMaterials" AS r
+    WHERE NOT (r."IsDeleted")
+) AS r0 ON p."PreformMaterialId" = r0."Id"
+LEFT JOIN (
+    SELECT r1."Id", r1."BaseUnit", r1."Category", r1."Code", r1."CompanyId", r1."ConversionFactor", r1."CreatedAt", r1."CreatedBy", r1."CreatedByIP", r1."CurrentStock", r1."DeletedAt", r1."DeletedBy", r1."IsActive", r1."IsDeleted", r1."Name", r1."TenantId", r1."Unit", r1."UpdatedAt", r1."UpdatedBy", r1."UpdatedByIP"
+    FROM aquora_tenant_code_company."RawMaterials" AS r1
+    WHERE NOT (r1."IsDeleted")
+) AS r2 ON p."CapMaterialId" = r2."Id"
+LEFT JOIN (
+    SELECT r3."Id", r3."BaseUnit", r3."Category", r3."Code", r3."CompanyId", r3."ConversionFactor", r3."CreatedAt", r3."CreatedBy", r3."CreatedByIP", r3."CurrentStock", r3."DeletedAt", r3."DeletedBy", r3."IsActive", r3."IsDeleted", r3."Name", r3."TenantId", r3."Unit", r3."UpdatedAt", r3."UpdatedBy", r3."UpdatedByIP"
+    FROM aquora_tenant_code_company."RawMaterials" AS r3
+    WHERE NOT (r3."IsDeleted")
+) AS r4 ON p."LabelMaterialId" = r4."Id"
+LEFT JOIN (
+    SELECT r5."Id", r5."BaseUnit", r5."Category", r5."Code", r5."CompanyId", r5."ConversionFactor", r5."CreatedAt", r5."CreatedBy", r5."CreatedByIP", r5."CurrentStock", r5."DeletedAt", r5."DeletedBy", r5."IsActive", r5."IsDeleted", r5."Name", r5."TenantId", r5."Unit", r5."UpdatedAt", r5."UpdatedBy", r5."UpdatedByIP"
+    FROM aquora_tenant_code_company."RawMaterials" AS r5
+    WHERE NOT (r5."IsDeleted")
+) AS r6 ON p."ShrinkMaterialId" = r6."Id"
+LEFT JOIN (
+    SELECT r7."Id", r7."BaseUnit", r7."Category", r7."Code", r7."CompanyId", r7."ConversionFactor", r7."CreatedAt", r7."CreatedBy", r7."CreatedByIP", r7."CurrentStock", r7."DeletedAt", r7."DeletedBy", r7."IsActive", r7."IsDeleted", r7."Name", r7."TenantId", r7."Unit", r7."UpdatedAt", r7."UpdatedBy", r7."UpdatedByIP"
+    FROM aquora_tenant_code_company."RawMaterials" AS r7
+    WHERE NOT (r7."IsDeleted")
+) AS r8 ON p."GlueMaterialId" = r8."Id"
+WHERE NOT (p."IsDeleted") AND NOT (p."IsDeleted") AND p."ProductionSessionId" = @sessionId
+ORDER BY p."CreatedAt" DESC
+2026-07-17 18:06:12.114 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:06:12.260 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:06:12.550 +05:30 [INF] Executed DbCommand (155ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:06:12.564 +05:30 [INF] Executed DbCommand (161ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:06:12.727 +05:30 [INF] Executed DbCommand (171ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:06:13.039 +05:30 [INF] Executed DbCommand (145ms) [Parameters=[@inputIdentifier='codecraze9020@gmail.com'], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."AssignedProductionLineId", u."CreatedAt", u."CreatedBy", u."CreatedByIP", u."DeletedAt", u."DeletedBy", u."Department", u."Email", u."EmailVerified", u."EmailVerifiedAt", u."FirstName", u."IsActive", u."IsDeleted", u."IsPlatformAdmin", u."LastLoginAt", u."LastName", u."PasswordHash", u."PinHash", u."RefreshToken", u."RefreshTokenExpiryTime", u."TenantId", u."TokenVersion", u."UpdatedAt", u."UpdatedBy", u."UpdatedByIP", u."Username"
+FROM public."Users" AS u
+WHERE (lower(u."Email") = @inputIdentifier OR (u."Username" IS NOT NULL AND lower(u."Username") = @inputIdentifier)) AND NOT (u."IsDeleted")
+LIMIT 1
+2026-07-17 18:06:13.229 +05:30 [INF] Executed DbCommand (141ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:06:13.393 +05:30 [INF] Executed DbCommand (145ms) [Parameters=[@user_Id='17567110-39fb-4c9d-893a-ae72965215f0'], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."CreatedAt", u."CreatedBy", u."CreatedByIP", u."RoleId", u."TenantId", u."UpdatedAt", u."UpdatedBy", u."UpdatedByIP", u."UserId", r0."Id", r0."Code", r0."CreatedAt", r0."CreatedBy", r0."CreatedByIP", r0."DeletedAt", r0."DeletedBy", r0."IsDeleted", r0."Name", r0."TenantId", r0."UpdatedAt", r0."UpdatedBy", r0."UpdatedByIP"
+FROM aquora_tenant_code_company."UserRoles" AS u
+INNER JOIN (
+    SELECT r."Id", r."Code", r."CreatedAt", r."CreatedBy", r."CreatedByIP", r."DeletedAt", r."DeletedBy", r."IsDeleted", r."Name", r."TenantId", r."UpdatedAt", r."UpdatedBy", r."UpdatedByIP"
+    FROM aquora_tenant_code_company."Roles" AS r
+    WHERE NOT (r."IsDeleted")
+) AS r0 ON u."RoleId" = r0."Id"
+WHERE u."UserId" = @user_Id
+2026-07-17 18:06:13.560 +05:30 [INF] Executed DbCommand (157ms) [Parameters=[@ur_RoleId='58e5e3e3-566f-4b5f-b95e-3c5a7a37b3e7'], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."CreatedAt", r."CreatedBy", r."CreatedByIP", r."PermissionId", r."RoleId", r."TenantId", r."UpdatedAt", r."UpdatedBy", r."UpdatedByIP", p."Id", p."Code", p."CreatedAt", p."CreatedBy", p."CreatedByIP", p."Name", p."UpdatedAt", p."UpdatedBy", p."UpdatedByIP"
+FROM aquora_tenant_code_company."RolePermissions" AS r
+INNER JOIN aquora_tenant_code_company."Permissions" AS p ON r."PermissionId" = p."Id"
+WHERE r."RoleId" = @ur_RoleId
+2026-07-17 18:06:13.863 +05:30 [INF] Executed DbCommand (168ms) [Parameters=[@p4='17567110-39fb-4c9d-893a-ae72965215f0', @p0='W6m7qfP+3okRwPDMETxaM8Dse0MhBwekk8F6i2rq+Qz/tHDscYnp+iKu3N5mYxBE0dkMQPvCeZmqNzrPA8xIPA==', @p1='2026-07-24T12:36:13.6792721Z' (Nullable = true) (DbType = DateTime), @p2='2026-07-17T12:36:13.6846266Z' (Nullable = true) (DbType = DateTime), @p3='System'], CommandType='"Text"', CommandTimeout='120']
+UPDATE public."Users" SET "RefreshToken" = @p0, "RefreshTokenExpiryTime" = @p1, "UpdatedAt" = @p2, "UpdatedBy" = @p3
+WHERE "Id" = @p4;
+2026-07-17 18:06:14.035 +05:30 [INF] Executed DbCommand (154ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:06:14.179 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:06:14.324 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[@guidId='17567110-39fb-4c9d-893a-ae72965215f0'], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."AssignedProductionLineId", u."CreatedAt", u."CreatedBy", u."CreatedByIP", u."DeletedAt", u."DeletedBy", u."Department", u."Email", u."EmailVerified", u."EmailVerifiedAt", u."FirstName", u."IsActive", u."IsDeleted", u."IsPlatformAdmin", u."LastLoginAt", u."LastName", u."PasswordHash", u."PinHash", u."RefreshToken", u."RefreshTokenExpiryTime", u."TenantId", u."TokenVersion", u."UpdatedAt", u."UpdatedBy", u."UpdatedByIP", u."Username"
+FROM public."Users" AS u
+WHERE u."Id" = @guidId AND NOT (u."IsDeleted")
+LIMIT 1
+2026-07-17 18:06:14.469 +05:30 [INF] Executed DbCommand (140ms) [Parameters=[@user_TenantId_Value='244655ac-96d5-4251-a482-90c932356adb'], CommandType='"Text"', CommandTimeout='120']
+SELECT EXISTS (
+    SELECT 1
+    FROM public."Tenants" AS t
+    WHERE t."Id" = @user_TenantId_Value AND NOT (t."IsDeleted"))
+2026-07-17 18:06:14.626 +05:30 [INF] Executed DbCommand (154ms) [Parameters=[@user_Id='17567110-39fb-4c9d-893a-ae72965215f0'], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."CreatedAt", u."CreatedBy", u."CreatedByIP", u."RoleId", u."TenantId", u."UpdatedAt", u."UpdatedBy", u."UpdatedByIP", u."UserId", r0."Id", r0."Code", r0."CreatedAt", r0."CreatedBy", r0."CreatedByIP", r0."DeletedAt", r0."DeletedBy", r0."IsDeleted", r0."Name", r0."TenantId", r0."UpdatedAt", r0."UpdatedBy", r0."UpdatedByIP"
+FROM aquora_tenant_code_company."UserRoles" AS u
+INNER JOIN (
+    SELECT r."Id", r."Code", r."CreatedAt", r."CreatedBy", r."CreatedByIP", r."DeletedAt", r."DeletedBy", r."IsDeleted", r."Name", r."TenantId", r."UpdatedAt", r."UpdatedBy", r."UpdatedByIP"
+    FROM aquora_tenant_code_company."Roles" AS r
+    WHERE NOT (r."IsDeleted")
+) AS r0 ON u."RoleId" = r0."Id"
+WHERE u."UserId" = @user_Id
+2026-07-17 18:06:15.621 +05:30 [INF] Executed DbCommand (991ms) [Parameters=[@ur_RoleId='58e5e3e3-566f-4b5f-b95e-3c5a7a37b3e7'], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."CreatedAt", r."CreatedBy", r."CreatedByIP", r."PermissionId", r."RoleId", r."TenantId", r."UpdatedAt", r."UpdatedBy", r."UpdatedByIP", p."Id", p."Code", p."CreatedAt", p."CreatedBy", p."CreatedByIP", p."Name", p."UpdatedAt", p."UpdatedBy", p."UpdatedByIP"
+FROM aquora_tenant_code_company."RolePermissions" AS r
+INNER JOIN aquora_tenant_code_company."Permissions" AS p ON r."PermissionId" = p."Id"
+WHERE r."RoleId" = @ur_RoleId
+2026-07-17 18:06:15.786 +05:30 [INF] Executed DbCommand (156ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:06:15.870 +05:30 [INF] Executed DbCommand (144ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:06:15.871 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:06:15.871 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:06:15.950 +05:30 [INF] Executed DbCommand (156ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:06:16.030 +05:30 [INF] Executed DbCommand (143ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:06:16.030 +05:30 [INF] Executed DbCommand (152ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:06:16.038 +05:30 [INF] Executed DbCommand (156ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:06:16.094 +05:30 [INF] Executed DbCommand (141ms) [Parameters=[@guidId='17567110-39fb-4c9d-893a-ae72965215f0'], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."AssignedProductionLineId", u."CreatedAt", u."CreatedBy", u."CreatedByIP", u."DeletedAt", u."DeletedBy", u."Department", u."Email", u."EmailVerified", u."EmailVerifiedAt", u."FirstName", u."IsActive", u."IsDeleted", u."IsPlatformAdmin", u."LastLoginAt", u."LastName", u."PasswordHash", u."PinHash", u."RefreshToken", u."RefreshTokenExpiryTime", u."TenantId", u."TokenVersion", u."UpdatedAt", u."UpdatedBy", u."UpdatedByIP", u."Username"
+FROM public."Users" AS u
+WHERE u."Id" = @guidId AND NOT (u."IsDeleted")
+LIMIT 1
+2026-07-17 18:06:16.185 +05:30 [INF] Executed DbCommand (148ms) [Parameters=[@tenantId='244655ac-96d5-4251-a482-90c932356adb'], CommandType='"Text"', CommandTimeout='120']
+SELECT count(*)::int
+FROM aquora_tenant_code_company."SalesTransactions" AS s
+WHERE NOT (s."IsDeleted") AND s."TenantId" = @tenantId AND NOT (s."IsDeleted")
+2026-07-17 18:06:16.185 +05:30 [INF] Executed DbCommand (141ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT count(*)::int
+FROM aquora_tenant_code_company."Products" AS p
+WHERE NOT (p."IsDeleted")
+2026-07-17 18:06:16.196 +05:30 [INF] Executed DbCommand (160ms) [Parameters=[@tenantId='244655ac-96d5-4251-a482-90c932356adb', @ToLower='active'], CommandType='"Text"', CommandTimeout='120']
+SELECT count(*)::int
+FROM aquora_tenant_code_company."Customers" AS c
+WHERE NOT (c."IsDeleted") AND c."TenantId" = @tenantId AND lower(c."Status") = @ToLower
+2026-07-17 18:06:16.249 +05:30 [INF] Executed DbCommand (152ms) [Parameters=[@user_TenantId_Value='244655ac-96d5-4251-a482-90c932356adb'], CommandType='"Text"', CommandTimeout='120']
+SELECT EXISTS (
+    SELECT 1
+    FROM public."Tenants" AS t
+    WHERE t."Id" = @user_TenantId_Value AND NOT (t."IsDeleted"))
+2026-07-17 18:06:16.336 +05:30 [INF] Executed DbCommand (145ms) [Parameters=[@p1='100', @p='0'], CommandType='"Text"', CommandTimeout='120']
+SELECT p0."Id", p0."Name", p0."BrandId", b0."Name" AS "BrandName", p0."SKU", p0."IsActive", p0."CurrentStock", p0."CreatedAt", p0."UpdatedAt"
+FROM (
+    SELECT p."Id", p."BrandId", p."CreatedAt", p."CurrentStock", p."IsActive", p."Name", p."SKU", p."UpdatedAt"
+    FROM aquora_tenant_code_company."Products" AS p
+    WHERE NOT (p."IsDeleted")
+    ORDER BY p."CreatedAt" DESC
+    LIMIT @p1 OFFSET @p
+) AS p0
+INNER JOIN (
+    SELECT b."Id", b."Name"
+    FROM aquora_tenant_code_company."Brands" AS b
+    WHERE NOT (b."IsDeleted")
+) AS b0 ON p0."BrandId" = b0."Id"
+ORDER BY p0."CreatedAt" DESC
+2026-07-17 18:06:16.344 +05:30 [INF] Executed DbCommand (144ms) [Parameters=[@tenantId='244655ac-96d5-4251-a482-90c932356adb', @ToLower='active', @p3='100', @p='0'], CommandType='"Text"', CommandTimeout='120']
+SELECT c."Id", c."CompanyId", c."CustomerCode", c."CustomerType", c."CustomerName", c."BusinessName", c."ContactPerson", c."Phone", c."AlternatePhone", c."Email", c."GSTNumber", c."PANNumber", c."BusinessType", c."GSTState", c."AddressLine1", c."AddressLine2", c."City", c."District", c."State", c."Country", c."PinCode", c."OpeningBalance", c."BalanceType", c."CreditLimit", c."PaymentTerms", c."Status", c."IsActive", c."Remarks", c."CreatedAt", c."UpdatedAt", c."WhatsApp", c."Website", c."PhotoUrl", c."BusinessRegistration", c."BusinessCategory", c."Industry", c."TradeLicense", c."TaxExempt", c."AddressesJson", c."PriceList", c."DiscountGroup", c."TaxCategory", c."OutstandingPlaceholder", c."LedgerPlaceholder", c."AccountingPlaceholder", c."DistributorType", c."CommissionPercentage", c."MonthlySalary", c."SecurityDeposit", c."AssignedRoute", c."AssignedVehicle", c."AssignedDriver", c."AssignedSalesExecutive", c."DefaultDeliveryPriority", c."WorkingArea", c."WorkingDays", c."JarDeposit", c."OutstandingJars", c."MaxJarLimit", c."PreferredJarBrand", c."PreferredCapMaterial", c."SealRequired", c."PreferredDeliveryWindow", c."EmergencyDelivery", c."PriorityCustomer", c."PreferredProductsJson", c."PreferredDeliveryTime", c."DeliveryFrequency", c."ContactsJson", c."DocumentsJson"
+FROM aquora_tenant_code_company."Customers" AS c
+WHERE NOT (c."IsDeleted") AND c."TenantId" = @tenantId AND lower(c."Status") = @ToLower
+ORDER BY c."CreatedAt" DESC
+LIMIT @p3 OFFSET @p
+2026-07-17 18:06:16.355 +05:30 [INF] Executed DbCommand (167ms) [Parameters=[@tenantId='244655ac-96d5-4251-a482-90c932356adb', @p2='10', @p='0'], CommandType='"Text"', CommandTimeout='120']
+SELECT s0."Id", s0."Cases", s0."CompanyId", s0."CreatedAt", s0."CreatedBy", s0."CreatedByIP", s0."CustomerId", s0."DeletedAt", s0."DeletedBy", s0."IsDeleted", s0."ProductId", s0."ReferenceNumber", s0."Remarks", s0."Status", s0."TenantId", s0."TransactionDate", s0."TransactionNumber", s0."TransactionType", s0."UpdatedAt", s0."UpdatedBy", s0."UpdatedByIP", c0."Id", c0."AccountingPlaceholder", c0."AddressLine1", c0."AddressLine2", c0."AddressesJson", c0."AlternatePhone", c0."AssignedDriver", c0."AssignedRoute", c0."AssignedSalesExecutive", c0."AssignedVehicle", c0."BalanceType", c0."BusinessCategory", c0."BusinessName", c0."BusinessRegistration", c0."BusinessType", c0."City", c0."CommissionPercentage", c0."CompanyId", c0."ContactPerson", c0."ContactsJson", c0."Country", c0."CreatedAt", c0."CreatedBy", c0."CreatedByIP", c0."CreditLimit", c0."CustomerCode", c0."CustomerName", c0."CustomerType", c0."DefaultDeliveryPriority", c0."DeletedAt", c0."DeletedBy", c0."DeliveryFrequency", c0."DiscountGroup", c0."DistributorType", c0."District", c0."DocumentsJson", c0."Email", c0."EmergencyDelivery", c0."GSTNumber", c0."GSTState", c0."Industry", c0."IsActive", c0."IsDeleted", c0."JarDeposit", c0."LedgerPlaceholder", c0."MaxJarLimit", c0."MonthlySalary", c0."OpeningBalance", c0."OutstandingJars", c0."OutstandingPlaceholder", c0."PANNumber", c0."PaymentTerms", c0."Phone", c0."PhotoUrl", c0."PinCode", c0."PreferredCapMaterial", c0."PreferredDeliveryTime", c0."PreferredDeliveryWindow", c0."PreferredJarBrand", c0."PreferredProductsJson", c0."PriceList", c0."PriorityCustomer", c0."Remarks", c0."SealRequired", c0."SecurityDeposit", c0."State", c0."Status", c0."TaxCategory", c0."TaxExempt", c0."TenantId", c0."TradeLicense", c0."UpdatedAt", c0."UpdatedBy", c0."UpdatedByIP", c0."Website", c0."WhatsApp", c0."WorkingArea", c0."WorkingDays", p0."Id", p0."BrandId", p0."CreatedAt", p0."CreatedBy", p0."CreatedByIP", p0."CurrentStock", p0."DeletedAt", p0."DeletedBy", p0."IsActive", p0."IsDeleted", p0."Name", p0."SKU", p0."UpdatedAt", p0."UpdatedBy", p0."UpdatedByIP"
+FROM (
+    SELECT s."Id", s."Cases", s."CompanyId", s."CreatedAt", s."CreatedBy", s."CreatedByIP", s."CustomerId", s."DeletedAt", s."DeletedBy", s."IsDeleted", s."ProductId", s."ReferenceNumber", s."Remarks", s."Status", s."TenantId", s."TransactionDate", s."TransactionNumber", s."TransactionType", s."UpdatedAt", s."UpdatedBy", s."UpdatedByIP"
+    FROM aquora_tenant_code_company."SalesTransactions" AS s
+    WHERE NOT (s."IsDeleted") AND s."TenantId" = @tenantId AND NOT (s."IsDeleted")
+    ORDER BY s."TransactionDate" DESC, s."CreatedAt" DESC
+    LIMIT @p2 OFFSET @p
+) AS s0
+INNER JOIN (
+    SELECT c."Id", c."AccountingPlaceholder", c."AddressLine1", c."AddressLine2", c."AddressesJson", c."AlternatePhone", c."AssignedDriver", c."AssignedRoute", c."AssignedSalesExecutive", c."AssignedVehicle", c."BalanceType", c."BusinessCategory", c."BusinessName", c."BusinessRegistration", c."BusinessType", c."City", c."CommissionPercentage", c."CompanyId", c."ContactPerson", c."ContactsJson", c."Country", c."CreatedAt", c."CreatedBy", c."CreatedByIP", c."CreditLimit", c."CustomerCode", c."CustomerName", c."CustomerType", c."DefaultDeliveryPriority", c."DeletedAt", c."DeletedBy", c."DeliveryFrequency", c."DiscountGroup", c."DistributorType", c."District", c."DocumentsJson", c."Email", c."EmergencyDelivery", c."GSTNumber", c."GSTState", c."Industry", c."IsActive", c."IsDeleted", c."JarDeposit", c."LedgerPlaceholder", c."MaxJarLimit", c."MonthlySalary", c."OpeningBalance", c."OutstandingJars", c."OutstandingPlaceholder", c."PANNumber", c."PaymentTerms", c."Phone", c."PhotoUrl", c."PinCode", c."PreferredCapMaterial", c."PreferredDeliveryTime", c."PreferredDeliveryWindow", c."PreferredJarBrand", c."PreferredProductsJson", c."PriceList", c."PriorityCustomer", c."Remarks", c."SealRequired", c."SecurityDeposit", c."State", c."Status", c."TaxCategory", c."TaxExempt", c."TenantId", c."TradeLicense", c."UpdatedAt", c."UpdatedBy", c."UpdatedByIP", c."Website", c."WhatsApp", c."WorkingArea", c."WorkingDays"
+    FROM aquora_tenant_code_company."Customers" AS c
+    WHERE NOT (c."IsDeleted")
+) AS c0 ON s0."CustomerId" = c0."Id"
+INNER JOIN (
+    SELECT p."Id", p."BrandId", p."CreatedAt", p."CreatedBy", p."CreatedByIP", p."CurrentStock", p."DeletedAt", p."DeletedBy", p."IsActive", p."IsDeleted", p."Name", p."SKU", p."UpdatedAt", p."UpdatedBy", p."UpdatedByIP"
+    FROM aquora_tenant_code_company."Products" AS p
+    WHERE NOT (p."IsDeleted")
+) AS p0 ON s0."ProductId" = p0."Id"
+ORDER BY s0."TransactionDate" DESC, s0."CreatedAt" DESC
+2026-07-17 18:06:16.407 +05:30 [INF] Executed DbCommand (156ms) [Parameters=[@user_Id='17567110-39fb-4c9d-893a-ae72965215f0'], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."CreatedAt", u."CreatedBy", u."CreatedByIP", u."RoleId", u."TenantId", u."UpdatedAt", u."UpdatedBy", u."UpdatedByIP", u."UserId", r0."Id", r0."Code", r0."CreatedAt", r0."CreatedBy", r0."CreatedByIP", r0."DeletedAt", r0."DeletedBy", r0."IsDeleted", r0."Name", r0."TenantId", r0."UpdatedAt", r0."UpdatedBy", r0."UpdatedByIP"
+FROM aquora_tenant_code_company."UserRoles" AS u
+INNER JOIN (
+    SELECT r."Id", r."Code", r."CreatedAt", r."CreatedBy", r."CreatedByIP", r."DeletedAt", r."DeletedBy", r."IsDeleted", r."Name", r."TenantId", r."UpdatedAt", r."UpdatedBy", r."UpdatedByIP"
+    FROM aquora_tenant_code_company."Roles" AS r
+    WHERE NOT (r."IsDeleted")
+) AS r0 ON u."RoleId" = r0."Id"
+WHERE u."UserId" = @user_Id
+2026-07-17 18:06:16.528 +05:30 [INF] Executed DbCommand (154ms) [Parameters=[@creatorIds={ '17567110-39fb-4c9d-893a-ae72965215f0' } (DbType = Object)], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."AssignedProductionLineId", u."CreatedAt", u."CreatedBy", u."CreatedByIP", u."DeletedAt", u."DeletedBy", u."Department", u."Email", u."EmailVerified", u."EmailVerifiedAt", u."FirstName", u."IsActive", u."IsDeleted", u."IsPlatformAdmin", u."LastLoginAt", u."LastName", u."PasswordHash", u."PinHash", u."RefreshToken", u."RefreshTokenExpiryTime", u."TenantId", u."TokenVersion", u."UpdatedAt", u."UpdatedBy", u."UpdatedByIP", u."Username"
+FROM public."Users" AS u
+WHERE u."Id" = ANY (@creatorIds)
+2026-07-17 18:06:16.563 +05:30 [INF] Executed DbCommand (152ms) [Parameters=[@ur_RoleId='58e5e3e3-566f-4b5f-b95e-3c5a7a37b3e7'], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."CreatedAt", r."CreatedBy", r."CreatedByIP", r."PermissionId", r."RoleId", r."TenantId", r."UpdatedAt", r."UpdatedBy", r."UpdatedByIP", p."Id", p."Code", p."CreatedAt", p."CreatedBy", p."CreatedByIP", p."Name", p."UpdatedAt", p."UpdatedBy", p."UpdatedByIP"
+FROM aquora_tenant_code_company."RolePermissions" AS r
+INNER JOIN aquora_tenant_code_company."Permissions" AS p ON r."PermissionId" = p."Id"
+WHERE r."RoleId" = @ur_RoleId
+2026-07-17 18:06:16.715 +05:30 [INF] Executed DbCommand (140ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:06:16.860 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:06:17.017 +05:30 [INF] Executed DbCommand (154ms) [Parameters=[@guidId='17567110-39fb-4c9d-893a-ae72965215f0'], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."AssignedProductionLineId", u."CreatedAt", u."CreatedBy", u."CreatedByIP", u."DeletedAt", u."DeletedBy", u."Department", u."Email", u."EmailVerified", u."EmailVerifiedAt", u."FirstName", u."IsActive", u."IsDeleted", u."IsPlatformAdmin", u."LastLoginAt", u."LastName", u."PasswordHash", u."PinHash", u."RefreshToken", u."RefreshTokenExpiryTime", u."TenantId", u."TokenVersion", u."UpdatedAt", u."UpdatedBy", u."UpdatedByIP", u."Username"
+FROM public."Users" AS u
+WHERE u."Id" = @guidId AND NOT (u."IsDeleted")
+LIMIT 1
+2026-07-17 18:06:17.161 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[@user_TenantId_Value='244655ac-96d5-4251-a482-90c932356adb'], CommandType='"Text"', CommandTimeout='120']
+SELECT EXISTS (
+    SELECT 1
+    FROM public."Tenants" AS t
+    WHERE t."Id" = @user_TenantId_Value AND NOT (t."IsDeleted"))
+2026-07-17 18:06:17.318 +05:30 [INF] Executed DbCommand (154ms) [Parameters=[@user_Id='17567110-39fb-4c9d-893a-ae72965215f0'], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."CreatedAt", u."CreatedBy", u."CreatedByIP", u."RoleId", u."TenantId", u."UpdatedAt", u."UpdatedBy", u."UpdatedByIP", u."UserId", r0."Id", r0."Code", r0."CreatedAt", r0."CreatedBy", r0."CreatedByIP", r0."DeletedAt", r0."DeletedBy", r0."IsDeleted", r0."Name", r0."TenantId", r0."UpdatedAt", r0."UpdatedBy", r0."UpdatedByIP"
+FROM aquora_tenant_code_company."UserRoles" AS u
+INNER JOIN (
+    SELECT r."Id", r."Code", r."CreatedAt", r."CreatedBy", r."CreatedByIP", r."DeletedAt", r."DeletedBy", r."IsDeleted", r."Name", r."TenantId", r."UpdatedAt", r."UpdatedBy", r."UpdatedByIP"
+    FROM aquora_tenant_code_company."Roles" AS r
+    WHERE NOT (r."IsDeleted")
+) AS r0 ON u."RoleId" = r0."Id"
+WHERE u."UserId" = @user_Id
+2026-07-17 18:06:17.551 +05:30 [INF] Executed DbCommand (230ms) [Parameters=[@ur_RoleId='58e5e3e3-566f-4b5f-b95e-3c5a7a37b3e7'], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."CreatedAt", r."CreatedBy", r."CreatedByIP", r."PermissionId", r."RoleId", r."TenantId", r."UpdatedAt", r."UpdatedBy", r."UpdatedByIP", p."Id", p."Code", p."CreatedAt", p."CreatedBy", p."CreatedByIP", p."Name", p."UpdatedAt", p."UpdatedBy", p."UpdatedByIP"
+FROM aquora_tenant_code_company."RolePermissions" AS r
+INNER JOIN aquora_tenant_code_company."Permissions" AS p ON r."PermissionId" = p."Id"
+WHERE r."RoleId" = @ur_RoleId
+2026-07-17 18:06:39.300 +05:30 [INF] Executed DbCommand (140ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:06:39.302 +05:30 [INF] Executed DbCommand (141ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:06:39.452 +05:30 [INF] Executed DbCommand (144ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:06:39.468 +05:30 [INF] Executed DbCommand (162ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:06:39.609 +05:30 [INF] Executed DbCommand (153ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT count(*)::int
+FROM aquora_tenant_code_company."Products" AS p
+WHERE NOT (p."IsDeleted")
+2026-07-17 18:06:39.625 +05:30 [INF] Executed DbCommand (152ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT count(*)::int
+FROM aquora_tenant_code_company."Brands" AS b
+WHERE NOT (b."IsDeleted")
+2026-07-17 18:06:39.753 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[@p1='10', @p='0'], CommandType='"Text"', CommandTimeout='120']
+SELECT p0."Id", p0."Name", p0."BrandId", b0."Name" AS "BrandName", p0."SKU", p0."IsActive", p0."CurrentStock", p0."CreatedAt", p0."UpdatedAt"
+FROM (
+    SELECT p."Id", p."BrandId", p."CreatedAt", p."CurrentStock", p."IsActive", p."Name", p."SKU", p."UpdatedAt"
+    FROM aquora_tenant_code_company."Products" AS p
+    WHERE NOT (p."IsDeleted")
+    ORDER BY p."CreatedAt" DESC
+    LIMIT @p1 OFFSET @p
+) AS p0
+INNER JOIN (
+    SELECT b."Id", b."Name"
+    FROM aquora_tenant_code_company."Brands" AS b
+    WHERE NOT (b."IsDeleted")
+) AS b0 ON p0."BrandId" = b0."Id"
+ORDER BY p0."CreatedAt" DESC
+2026-07-17 18:06:39.771 +05:30 [INF] Executed DbCommand (143ms) [Parameters=[@p1='1000', @p='0'], CommandType='"Text"', CommandTimeout='120']
+SELECT b."Id", b."Name", b."Code", b."Description", b."IsActive", b."CreatedAt"
+FROM aquora_tenant_code_company."Brands" AS b
+WHERE NOT (b."IsDeleted")
+ORDER BY b."CreatedAt" DESC
+LIMIT @p1 OFFSET @p
+2026-07-17 18:06:48.184 +05:30 [INF] Executed DbCommand (143ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:06:48.346 +05:30 [INF] Executed DbCommand (160ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:06:48.527 +05:30 [INF] Executed DbCommand (153ms) [Parameters=[@id='0208e25e-b7e4-4daf-b09d-0a9a4a145efe'], CommandType='"Text"', CommandTimeout='120']
+SELECT p."Id", p."BrandId", p."CreatedAt", p."CreatedBy", p."CreatedByIP", p."CurrentStock", p."DeletedAt", p."DeletedBy", p."IsActive", p."IsDeleted", p."Name", p."SKU", p."UpdatedAt", p."UpdatedBy", p."UpdatedByIP"
+FROM aquora_tenant_code_company."Products" AS p
+WHERE NOT (p."IsDeleted") AND p."Id" = @id AND NOT (p."IsDeleted")
+LIMIT 1
+2026-07-17 18:06:48.718 +05:30 [INF] Executed DbCommand (153ms) [Parameters=[@id='0208e25e-b7e4-4daf-b09d-0a9a4a145efe' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT i."Id", i."Quantity", i."ReferenceType", i."CreatedAt", i."CreatedBy", i."Notes"
+FROM aquora_tenant_code_company."InventoryMovements" AS i
+WHERE NOT (i."IsDeleted") AND i."ProductId" = @id AND i."InventoryType" = 'FinishedProduct' AND NOT (i."IsDeleted")
+ORDER BY i."CreatedAt"
+2026-07-17 18:06:48.876 +05:30 [INF] Executed DbCommand (141ms) [Parameters=[@userIds={ '17567110-39fb-4c9d-893a-ae72965215f0' } (DbType = Object)], CommandType='"Text"', CommandTimeout='120']
+SELECT u."Id", u."FirstName", u."LastName", u."Username"
+FROM public."Users" AS u
+WHERE u."Id" = ANY (@userIds)
+2026-07-17 18:06:50.698 +05:30 [INF] Executed DbCommand (143ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:06:50.856 +05:30 [INF] Executed DbCommand (155ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:06:51.040 +05:30 [INF] Executed DbCommand (157ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT count(*)::int
+FROM aquora_tenant_code_company."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+2026-07-17 18:06:51.222 +05:30 [INF] Executed DbCommand (153ms) [Parameters=[@p1='10', @p='0'], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."Name", r."Category", r."Unit", r."IsActive", r."CurrentStock", r."CreatedAt", r."UpdatedAt"
+FROM aquora_tenant_code_company."RawMaterials" AS r
+WHERE NOT (r."IsDeleted")
+ORDER BY r."CreatedAt" DESC
+LIMIT @p1 OFFSET @p
+2026-07-17 18:07:08.603 +05:30 [INF] Executed DbCommand (152ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:07:08.759 +05:30 [INF] Executed DbCommand (153ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:07:08.943 +05:30 [INF] Executed DbCommand (141ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT c."Id", c."Code", c."CreatedAt", c."CreatedBy", c."CreatedByIP", c."DeletedAt", c."DeletedBy", c."IsActive", c."IsDeleted", c."Name", c."TenantId", c."UpdatedAt", c."UpdatedBy", c."UpdatedByIP"
+FROM aquora_tenant_code_company."Companies" AS c
+WHERE NOT (c."IsDeleted")
+LIMIT 1
+2026-07-17 18:07:09.108 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[@_8__locals1_company_Id='811b4166-0efe-41e6-878e-395cc1b23761', @ToLower='cap green'], CommandType='"Text"', CommandTimeout='120']
+SELECT EXISTS (
+    SELECT 1
+    FROM aquora_tenant_code_company."RawMaterials" AS r
+    WHERE NOT (r."IsDeleted") AND r."CompanyId" = @_8__locals1_company_Id AND lower(r."Name") = @ToLower AND NOT (r."IsDeleted"))
+2026-07-17 18:07:09.373 +05:30 [INF] Executed DbCommand (159ms) [Parameters=[@rawMaterialId='bd9470f9-a26f-455b-9dab-d8e084b4fdbd'], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CreatedByIP", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy", r."UpdatedByIP"
+FROM aquora_tenant_code_company."RawMaterials" AS r
+WHERE NOT (r."IsDeleted") AND r."Id" = @rawMaterialId AND NOT (r."IsDeleted")
+LIMIT 1
+2026-07-17 18:07:09.580 +05:30 [ERR] RawMaterial creation failed due to unexpected error. Tenant: "244655ac-96d5-4251-a482-90c932356adb", Company: "811b4166-0efe-41e6-878e-395cc1b23761", Name: Cap Green
+System.InvalidOperationException: Raw material not found.
+   at Aquora.Application.Services.InventoryMovementService.RecordRawMaterialMovementAsync(ITenantDbContext context, Guid rawMaterialId, Decimal quantity, String referenceType, Guid referenceId, String notes, Guid tenantId, Guid companyId, String createdBy) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\InventoryMovementService.cs:line 71
+   at Aquora.API.Controllers.RawMaterialsController.CreateRawMaterial(CreateRawMaterialDto request)
+   at Aquora.API.Controllers.RawMaterialsController.CreateRawMaterial(CreateRawMaterialDto request)
+2026-07-17 18:07:32.864 +05:30 [INF] Executed DbCommand (153ms) [Parameters=[@ToLower='localhost'], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."CustomDomain" IS NOT NULL AND lower(t."CustomDomain") = @ToLower AND NOT (t."IsDeleted")
+LIMIT 1
+2026-07-17 18:07:33.020 +05:30 [INF] Executed DbCommand (154ms) [Parameters=[@p='244655ac-96d5-4251-a482-90c932356adb' (Nullable = true)], CommandType='"Text"', CommandTimeout='120']
+SELECT t."Id", t."Code", t."CompletedAt", t."CreatedAt", t."CreatedBy", t."CreatedByIP", t."CurrentStep", t."CustomDomain", t."DeletedAt", t."DeletedBy", t."Duration", t."FailureReason", t."InitializedAt", t."InitializedBy", t."IsActive", t."IsDeleted", t."IsInitialized", t."Name", t."Progress", t."RetryCount", t."SchemaName", t."StartedAt", t."Status", t."Subdomain", t."UpdatedAt", t."UpdatedBy", t."UpdatedByIP"
+FROM public."Tenants" AS t
+WHERE t."Id" = @p
+LIMIT 1
+2026-07-17 18:07:33.167 +05:30 [INF] Executed DbCommand (143ms) [Parameters=[], CommandType='"Text"', CommandTimeout='120']
+SELECT c."Id", c."Code", c."CreatedAt", c."CreatedBy", c."CreatedByIP", c."DeletedAt", c."DeletedBy", c."IsActive", c."IsDeleted", c."Name", c."TenantId", c."UpdatedAt", c."UpdatedBy", c."UpdatedByIP"
+FROM aquora_tenant_code_company."Companies" AS c
+WHERE NOT (c."IsDeleted")
+LIMIT 1
+2026-07-17 18:07:33.312 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[@_8__locals1_company_Id='811b4166-0efe-41e6-878e-395cc1b23761', @ToLower='cap green'], CommandType='"Text"', CommandTimeout='120']
+SELECT EXISTS (
+    SELECT 1
+    FROM aquora_tenant_code_company."RawMaterials" AS r
+    WHERE NOT (r."IsDeleted") AND r."CompanyId" = @_8__locals1_company_Id AND lower(r."Name") = @ToLower AND NOT (r."IsDeleted"))
+2026-07-17 18:07:33.457 +05:30 [INF] Executed DbCommand (142ms) [Parameters=[@rawMaterialId='126bd338-ca9e-47ba-a222-e7c80381194e'], CommandType='"Text"', CommandTimeout='120']
+SELECT r."Id", r."BaseUnit", r."Category", r."Code", r."CompanyId", r."ConversionFactor", r."CreatedAt", r."CreatedBy", r."CreatedByIP", r."CurrentStock", r."DeletedAt", r."DeletedBy", r."IsActive", r."IsDeleted", r."Name", r."TenantId", r."Unit", r."UpdatedAt", r."UpdatedBy", r."UpdatedByIP"
+FROM aquora_tenant_code_company."RawMaterials" AS r
+WHERE NOT (r."IsDeleted") AND r."Id" = @rawMaterialId AND NOT (r."IsDeleted")
+LIMIT 1
+2026-07-17 18:07:33.602 +05:30 [ERR] RawMaterial creation failed due to unexpected error. Tenant: "244655ac-96d5-4251-a482-90c932356adb", Company: "811b4166-0efe-41e6-878e-395cc1b23761", Name: Cap Green
+System.InvalidOperationException: Raw material not found.
+   at Aquora.Application.Services.InventoryMovementService.RecordRawMaterialMovementAsync(ITenantDbContext context, Guid rawMaterialId, Decimal quantity, String referenceType, Guid referenceId, String notes, Guid tenantId, Guid companyId, String createdBy) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\InventoryMovementService.cs:line 71
+   at Aquora.API.Controllers.RawMaterialsController.CreateRawMaterial(CreateRawMaterialDto request)
+   at Aquora.API.Controllers.RawMaterialsController.CreateRawMaterial(CreateRawMaterialDto request)

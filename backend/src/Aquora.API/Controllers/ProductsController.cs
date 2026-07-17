@@ -173,7 +173,7 @@ namespace Aquora.API.Controllers
                     BrandId = request.BrandId,
                     SKU = string.IsNullOrWhiteSpace(request.SKU) ? null : request.SKU.Trim(),
                     IsActive = request.IsActive,
-                    CurrentStock = request.OpeningStock ?? 0
+                    CurrentStock = 0.0m // Initialize to 0, balance engine will set it
                 };
 
                 var dbContext = _tenantContext as DbContext;
@@ -188,21 +188,20 @@ namespace Aquora.API.Controllers
                     _tenantContext.Products.Add(product);
                     await _tenantContext.SaveChangesAsync();
 
-                    if (request.OpeningStock.HasValue && request.OpeningStock.Value > 0)
-                    {
-                        await _inventoryMovementService.RecordProductMovementAsync(
-                            _tenantContext,
-                            product.Id,
-                            request.OpeningStock.Value,
-                            "OpeningStock",
-                            product.Id,
-                            "Opening Stock",
-                            _currentUserContext.TenantId,
-                            company.Id,
-                            _currentUserContext.UserId?.ToString() ?? "System");
-                        await _tenantContext.SaveChangesAsync();
-                    }
+                    decimal openingStockQty = request.OpeningStock ?? 0.0m;
 
+                    await _inventoryMovementService.RecordProductMovementAsync(
+                        _tenantContext,
+                        product.Id,
+                        openingStockQty,
+                        "OpeningStock",
+                        product.Id,
+                        "Opening Stock",
+                        _currentUserContext.TenantId,
+                        company.Id,
+                        _currentUserContext.UserId?.ToString() ?? "System");
+
+                    await _tenantContext.SaveChangesAsync();
                     await transaction.CommitAsync();
                 }
                 catch (Exception)

@@ -26,10 +26,11 @@ namespace Aquora.Application.Services
                 throw new InvalidOperationException("Product not found.");
             }
 
-            decimal newStock = product.CurrentStock + quantity;
+            decimal previousBalance = product.CurrentStock;
+            decimal newStock = previousBalance + quantity;
             if (newStock < 0)
             {
-                throw new InvalidOperationException($"Insufficient stock for finished product '{product.Name}'. Current stock: {product.CurrentStock}, requested change: {quantity}.");
+                throw new InvalidOperationException($"Insufficient stock for finished product '{product.Name}'. Current stock: {previousBalance}, requested change: {quantity}.");
             }
 
             product.CurrentStock = newStock;
@@ -40,6 +41,7 @@ namespace Aquora.Application.Services
                 ProductId = productId,
                 RawMaterialId = null,
                 Quantity = quantity,
+                BalanceAfter = newStock,
                 ReferenceType = referenceType,
                 ReferenceId = referenceId,
                 InventoryType = "FinishedProduct",
@@ -71,10 +73,11 @@ namespace Aquora.Application.Services
                 throw new InvalidOperationException("Raw material not found.");
             }
 
-            decimal newStock = material.CurrentStock + quantity;
+            decimal previousBalance = material.CurrentStock;
+            decimal newStock = previousBalance + quantity;
             if (newStock < 0)
             {
-                throw new InvalidOperationException($"Insufficient stock for raw material '{material.Name}'. Current stock: {material.CurrentStock}, requested change: {quantity}.");
+                throw new InvalidOperationException($"Insufficient stock for raw material '{material.Name}'. Current stock: {previousBalance}, requested change: {quantity}.");
             }
 
             material.CurrentStock = newStock;
@@ -85,6 +88,7 @@ namespace Aquora.Application.Services
                 ProductId = null,
                 RawMaterialId = rawMaterialId,
                 Quantity = quantity,
+                BalanceAfter = newStock,
                 ReferenceType = referenceType,
                 ReferenceId = referenceId,
                 InventoryType = "RawMaterial",
