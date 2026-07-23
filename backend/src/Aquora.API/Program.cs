@@ -132,7 +132,24 @@ builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProv
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
 // Controllers, SignalR and CORS
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var errors = new List<object>();
+            foreach (var state in context.ModelState)
+            {
+                foreach (var error in state.Value.Errors)
+                {
+                    errors.Add(error.ErrorMessage);
+                }
+            }
+            var response = Aquora.Shared.Models.ApiResponse<object>.CreateFailure(errors, "Validation failed.", context.HttpContext.TraceIdentifier);
+            response.Code = "VALIDATION_ERROR";
+            return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(response);
+        };
+    });
 builder.Services.AddSignalR();
 builder.Services.AddTransient<Aquora.Application.Interfaces.Services.IProvisioningProgressReporter, Aquora.API.Services.ProvisioningProgressReporter>();
 builder.Services.AddEndpointsApiExplorer();
@@ -263,100 +280,32 @@ PHASE 4: Active Database Instance Verification:
         }
         Log.Information("Database connectivity verified successfully.");
 
-        try
+        bool autoMigrate = builder.Configuration.GetValue<bool>("AUTO_MIGRATE_ON_STARTUP");
+        bool isMigrateCommand = args.Contains("migrate", StringComparer.OrdinalIgnoreCase);
+
+        if (autoMigrate || isMigrateCommand)
         {
-            Log.Information("Executing Platform Database Migrations (public schema)...");
-            await platformContext.Database.MigrateAsync();
-            Log.Information("Platform Database Migrations applied successfully.");
-
-            Log.Information("Executing Tenant Database Migrations for active tenants...");
-            var tenants = await platformContext.Set<Aquora.Domain.Entities.Tenant>()
-                .Where(t => t.IsActive && !t.IsDeleted)
-                .ToListAsync();
-
-            Log.Information("--- Platform Database Dump (public schema) ---");
-            Log.Information("Total Tenants found: {Count}", tenants.Count);
-            foreach (var t in tenants)
+            try
             {
-                Log.Information("  Tenant: ID={Id}, Name='{Name}', Code='{Code}', Schema='{Schema}', Created={Created}", 
-                    t.Id, t.Name, t.Code, t.SchemaName, t.CreatedAt);
-            }
-
-            var users = await platformContext.Set<Aquora.Domain.Entities.User>()
-                .Where(u => !u.IsDeleted)
-                .ToListAsync();
-            Log.Information("Total Users found: {Count}", users.Count);
-            foreach (var u in users)
-            {
-                Log.Information("  User: ID={Id}, Name='{Name}', Email='{Email}', TenantId={TenantId}, Created={Created}", 
-                    u.Id, $"{u.FirstName} {u.LastName}", u.Email, u.TenantId, u.CreatedAt);
-            }
-            Log.Information("----------------------------------------------");
-
-            foreach (var tenant in tenants)
-            {
-                try
+                Log.Information("Migration execution started (AutoMigrate: {AutoMigrate}, Command: {Command})", autoMigrate, isMigrateCommand);
+                var migrationService = services.GetRequiredService<IMigrationService>();
+                await migrationService.MigrateAllAsync();
+                
+                if (isMigrateCommand)
                 {
-                    Log.Information($"Migrating tenant: {tenant.Name} (Schema: {tenant.SchemaName})...");
-                    using (var tenantScope = app.Services.CreateScope())
-                    {
-                        var tenantProvider = tenantScope.ServiceProvider.GetRequiredService<ITenantProvider>();
-                        tenantProvider.SetTenantId(tenant.Id);
-                        tenantProvider.SetTenantSchemaName(tenant.SchemaName);
-
-                        var tenantContext = tenantScope.ServiceProvider.GetRequiredService<TenantDbContext>();
-                        TenantSchemaResolver.CurrentSchemaName = tenant.SchemaName;
-
-                        await tenantContext.Database.MigrateAsync();
-
-                        // Reconcile and migrate historical raw material stock to inventory movements
-                        var rawMaterials = await tenantContext.RawMaterials.Where(rm => !rm.IsDeleted).ToListAsync();
-                        bool reconciledAny = false;
-                        foreach (var rm in rawMaterials)
-                        {
-                            var movementsSum = await tenantContext.InventoryMovements
-                                .Where(m => m.RawMaterialId == rm.Id && !m.IsDeleted)
-                                .SumAsync(m => m.Quantity);
-
-                            var diff = rm.CurrentStock - movementsSum;
-                            if (diff != 0)
-                            {
-                                Log.Information($"[RECONCILIATION] RawMaterial '{rm.Name}' (ID: {rm.Id}) stock mismatch in '{tenant.SchemaName}': CurrentStock={rm.CurrentStock}, MovementsSum={movementsSum}. Reconciling diff of {diff}.");
-                                
-                                var reconciliationMovement = new InventoryMovement
-                                {
-                                    Id = Guid.NewGuid(),
-                                    RawMaterialId = rm.Id,
-                                    Quantity = diff,
-                                    ReferenceType = "OpeningStock",
-                                    ReferenceId = rm.Id,
-                                    TenantId = tenant.Id,
-                                    CompanyId = rm.CompanyId,
-                                    CreatedAt = DateTime.UtcNow,
-                                    CreatedBy = "System Migration",
-                                    IsDeleted = false
-                                };
-                                tenantContext.InventoryMovements.Add(reconciliationMovement);
-                                reconciledAny = true;
-                            }
-                        }
-                        if (reconciledAny)
-                        {
-                            await tenantContext.SaveChangesAsync();
-                        }
-                    }
-                    Log.Information($"Tenant {tenant.Name} migrated successfully.");
+                    Log.Information("Migration command completed successfully. Exiting application.");
+                    return; // Exit the app since it was just run for migrations
                 }
-                catch (Exception tenantEx)
-                {
-                    Log.Error(tenantEx, $"Failed to migrate tenant schema for: {tenant.Name}");
-                }
-            } // watch restart trigger
-            Log.Information("Tenant Database Migrations completed.");
+            }
+            catch (Exception migrationEx)
+            {
+                Log.Fatal(migrationEx, "A fatal error occurred during database migrations.");
+                throw;
+            }
         }
-        catch (Exception migrationEx)
+        else
         {
-            Log.Error(migrationEx, "A non-fatal error occurred during database migrations at startup. API will proceed to start.");
+            Log.Information("Skipping automatic database migrations (AUTO_MIGRATE_ON_STARTUP is false).");
         }
     }
     catch (System.Net.Sockets.SocketException socketEx)
@@ -389,3 +338,4 @@ finally
 {
     Log.CloseAndFlush();
 }
+// Restart trigger 3

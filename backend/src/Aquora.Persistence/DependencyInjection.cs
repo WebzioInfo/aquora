@@ -57,6 +57,7 @@ namespace Aquora.Persistence
                 provider.GetRequiredService<TenantDbContext>());
 
             services.AddScoped<ITenantDatabaseService, Aquora.Persistence.Services.TenantDatabaseService>();
+            services.AddScoped<IMigrationService, Aquora.Persistence.Services.MigrationService>();
 
             return services;
         }

@@ -25,6 +25,7 @@ namespace Aquora.Application.Interfaces
         DbSet<ProductionSession> ProductionSessions { get; }
         DbSet<Brand> Brands { get; }
         DbSet<Product> Products { get; }
+        DbSet<ProductionShift> ProductionShifts { get; }
         DbSet<OperatorContextLog> OperatorContextLogs { get; }
         DbSet<Customer> Customers { get; }
         DbSet<SalesTransaction> SalesTransactions { get; }

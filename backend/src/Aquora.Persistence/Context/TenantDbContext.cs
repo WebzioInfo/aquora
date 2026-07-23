@@ -45,6 +45,7 @@ namespace Aquora.Persistence.Context
         public DbSet<ProductionSession> ProductionSessions => Set<ProductionSession>();
         public DbSet<Brand> Brands => Set<Brand>();
         public DbSet<Product> Products => Set<Product>();
+        public DbSet<ProductionShift> ProductionShifts => Set<ProductionShift>();
         public DbSet<OperatorContextLog> OperatorContextLogs => Set<OperatorContextLog>();
         public DbSet<Customer> Customers => Set<Customer>();
         public DbSet<SalesTransaction> SalesTransactions => Set<SalesTransaction>();

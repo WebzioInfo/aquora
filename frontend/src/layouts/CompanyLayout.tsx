@@ -6,7 +6,7 @@ import { useNotificationStore } from '../store/useNotificationStore'
 import ToastContainer from '../components/ui/ToastContainer'
 import { 
   LayoutDashboard, Factory, Package, TrendingUp, Users, Truck, 
-  Settings, ChevronRight, Play, Plus
+  Settings, ChevronRight, Play, Plus, X
 } from 'lucide-react'
 import EnterpriseSidebar from '../components/ui/EnterpriseSidebar'
 import EnterpriseTopbar from '../components/ui/EnterpriseTopbar'
@@ -40,8 +40,7 @@ export const CompanyLayout: React.FC = () => {
     { label: '20L Operations', path: '/company/operations', icon: <Truck className="w-5 h-5" /> },
     { label: 'Inventory', path: '/company/inventory', icon: <Package className="w-5 h-5" /> },
     { label: 'Sales', path: '/company/sales', icon: <TrendingUp className="w-5 h-5" /> },
-    { label: 'Business Partners', path: '/company/customers', icon: <Users className="w-5 h-5" /> },
-    { label: 'Suppliers', path: '/company/suppliers', icon: <Truck className="w-5 h-5" /> },
+    { label: 'Customers', path: '/company/customers', icon: <Users className="w-5 h-5" /> },
     { label: 'Employees', path: '/company/employees', icon: <Users className="w-5 h-5" /> },
     { label: 'Company Settings', path: '/company/settings', icon: <Settings className="w-5 h-5" /> },
   ]
@@ -51,7 +50,7 @@ export const CompanyLayout: React.FC = () => {
     return (
       <div className="flex items-center select-none text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">
         <Link to="/company" className="hover:text-[#111827] transition-colors">
-          Aquaflow ERP
+          {user?.companyName || user?.tenantName || 'Aquaflow ERP'}
         </Link>
         {paths.map((path, idx) => {
           const isLast = idx === paths.length - 1
@@ -128,36 +127,69 @@ export const CompanyLayout: React.FC = () => {
         </main>
       </div>
 
-      {/* Reusable Enterprise Modal */}
-      <EnterpriseModal
-        isOpen={showQuickActions}
-        onClose={() => setShowQuickActions(false)}
-        title="Quick Actions Portal"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mt-2">
-          <button onClick={() => triggerQuickAction('Create Production Batch')} className="p-3 bg-slate-50 dark:bg-slate-850 hover:bg-hydro-navy/5 dark:hover:bg-hydro-azure/10 text-left border border-slate-200 dark:border-slate-800 flex items-center gap-3 cursor-pointer rounded-sm">
-            <Play className="w-5 h-5 text-hydro-navy dark:text-hydro-azure" />
-            <div className="flex flex-col">
-              <span className="text-xs font-bold text-hydro-navy dark:text-white">Create Batch</span>
-              <span className="text-[10px] text-slate-400">Initialize a water run</span>
+      {/* Premium Light Theme Quick Actions Portal */}
+      {showQuickActions && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            onClick={() => setShowQuickActions(false)}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+          />
+          
+          <div className="relative w-full max-w-[600px] bg-white border border-gray-200 p-6 sm:p-8 rounded-[16px] shadow-xl flex flex-col gap-6 animate-in fade-in zoom-in-95 duration-200 z-10"
+               role="dialog" aria-modal="true" aria-labelledby="qa-modal-title"
+               tabIndex={-1}
+               onKeyDown={(e) => {
+                 if (e.key === 'Escape') setShowQuickActions(false);
+               }}>
+            
+            {/* Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-gray-100">
+              <div>
+                <h3 id="qa-modal-title" className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <span className="text-xl">⚡</span> Quick Actions Portal
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Access frequently used actions instantly.
+                </p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowQuickActions(false)}
+                className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          </button>
-          <button onClick={() => triggerQuickAction('Create Sales Order')} className="p-3 bg-slate-50 dark:bg-slate-855 hover:bg-hydro-navy/5 dark:hover:bg-hydro-azure/10 text-left border border-slate-200 dark:border-slate-800 flex items-center gap-3 cursor-pointer rounded-sm">
-            <TrendingUp className="w-5 h-5 text-hydro-navy dark:text-hydro-azure" />
-            <div className="flex flex-col">
-              <span className="text-xs font-bold text-hydro-navy dark:text-white">Sales Order</span>
-              <span className="text-[10px] text-slate-400">Bill a wholesale buyer</span>
+
+            {/* Quick Actions Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button onClick={() => triggerQuickAction('Create Production Batch')} className="group flex flex-col gap-2 p-5 bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-200 rounded-[12px] transition-all cursor-pointer text-left shadow-sm hover:shadow-md">
+                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                  <Play className="w-5 h-5" />
+                </div>
+                <h4 className="text-sm font-bold text-gray-900">Create Batch</h4>
+                <p className="text-xs text-gray-500">Initialize a water run in operations.</p>
+              </button>
+              
+              <button onClick={() => triggerQuickAction('Create Sales Order')} className="group flex flex-col gap-2 p-5 bg-white hover:bg-emerald-50 border border-gray-200 hover:border-emerald-200 rounded-[12px] transition-all cursor-pointer text-left shadow-sm hover:shadow-md">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+                <h4 className="text-sm font-bold text-gray-900">Sales Order</h4>
+                <p className="text-xs text-gray-500">Bill a wholesale buyer directly.</p>
+              </button>
+              
+              <button onClick={() => triggerQuickAction('Receive Materials')} className="group flex flex-col gap-2 p-5 bg-white hover:bg-indigo-50 border border-gray-200 hover:border-indigo-200 rounded-[12px] transition-all cursor-pointer text-left shadow-sm hover:shadow-md">
+                <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                  <Package className="w-5 h-5" />
+                </div>
+                <h4 className="text-sm font-bold text-gray-900">Receive Stock</h4>
+                <p className="text-xs text-gray-500">Accept raw materials into inventory.</p>
+              </button>
             </div>
-          </button>
-          <button onClick={() => triggerQuickAction('Receive Materials')} className="p-3 bg-slate-50 dark:bg-slate-855 hover:bg-hydro-navy/5 dark:hover:bg-hydro-azure/10 text-left border border-slate-200 dark:border-slate-800 flex items-center gap-3 cursor-pointer rounded-sm">
-            <Package className="w-5 h-5 text-hydro-navy dark:text-hydro-azure" />
-            <div className="flex flex-col">
-              <span className="text-xs font-bold text-hydro-navy dark:text-white">Receive Stock</span>
-              <span className="text-[10px] text-slate-400">Accept raw materials</span>
-            </div>
-          </button>
+          </div>
         </div>
-      </EnterpriseModal>
+      )}
 
       <ToastContainer />
     </div>

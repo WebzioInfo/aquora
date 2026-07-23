@@ -27,6 +27,7 @@ export interface LoginResponseData {
   firstName: string
   lastName: string
   tenantId: string | null
+  companyName?: string
   roles: string[]
   permissions: string[]
   isTenantInitialized: boolean

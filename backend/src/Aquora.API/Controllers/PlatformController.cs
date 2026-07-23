@@ -57,7 +57,7 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 Serilog.Log.Error(ex, "[PLATFORM AUDIT] Failed to load platform users.");
-                return Failure<List<object>>(ex.Message, "Failed to load platform users.");
+                return Failure<List<object>>("An internal error occurred.", "Failed to load platform users.");
             }
         }
 
@@ -95,7 +95,7 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 Serilog.Log.Error(ex, "[PLATFORM AUDIT] Failed to load platform tenants.");
-                return Failure<List<object>>(ex.Message, "Failed to load tenants.");
+                return Failure<List<object>>("An internal error occurred.", "Failed to load tenants.");
             }
         }
     }

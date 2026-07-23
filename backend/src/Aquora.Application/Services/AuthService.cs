@@ -23,6 +23,7 @@ namespace Aquora.Application.Services
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IEmailService _emailService;
         private readonly IBackgroundTaskQueue _taskQueue;
+        private readonly ICurrentUserContext _currentUserContext;
 
         public AuthService(
             IPlatformDbContext platformContext,
@@ -30,7 +31,8 @@ namespace Aquora.Application.Services
             IPasswordHasher passwordHasher,
             IServiceScopeFactory scopeFactory,
             IEmailService emailService,
-            IBackgroundTaskQueue taskQueue)
+            IBackgroundTaskQueue taskQueue,
+            ICurrentUserContext currentUserContext)
         {
             _platformContext = platformContext;
             _tokenService = tokenService;
@@ -38,6 +40,7 @@ namespace Aquora.Application.Services
             _scopeFactory = scopeFactory;
             _emailService = emailService;
             _taskQueue = taskQueue;
+            _currentUserContext = currentUserContext;
         }
 
         public async Task<bool> RegisterAsync(RegisterRequest request)
@@ -184,8 +187,54 @@ namespace Aquora.Application.Services
             user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
             await _platformContext.SaveChangesAsync();
 
+            string companyName = "";
+            if (user.TenantId.HasValue)
+            {
+                var tenant = await _platformContext.Tenants.FindAsync(user.TenantId.Value);
+                if (tenant != null)
+                {
+                    companyName = tenant.Name;
+                }
+            }
+
             var onboarding = await GetTenantInitializationStatusAsync(user.TenantId);
-            return ToLoginResponse(user, accessToken, refreshToken, roles, permissions, onboarding.IsInitialized, onboarding.Status, onboarding.Progress, onboarding.Step, onboarding.FailureReason);
+            return ToLoginResponse(user, accessToken, refreshToken, roles, permissions, onboarding.IsInitialized, onboarding.Status, onboarding.Progress, onboarding.Step, onboarding.FailureReason, companyName);
+        }
+
+        private async Task LogLoginAttemptAsync(string username, User? user, Tenant? tenant, bool isSuccess, string reason)
+        {
+            try
+            {
+                var auditLog = new PlatformAuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = user?.TenantId ?? Guid.Empty,
+                    UserId = user?.Id.ToString(),
+                    UserEmail = user?.Email ?? username,
+                    Action = isSuccess ? "Login_Success" : "Login_Failure",
+                    TableName = "Users",
+                    PrimaryKey = user?.Id.ToString(),
+                    OldValues = null,
+                    NewValues = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        InputUsername = username,
+                        ResolvedCompany = tenant?.Name,
+                        ResolvedSchema = tenant?.SchemaName,
+                        ClientIP = _currentUserContext.IpAddress,
+                        UserAgent = _currentUserContext.UserAgent
+                    }),
+                    Timestamp = DateTime.UtcNow,
+                    IpAddress = _currentUserContext.IpAddress,
+                    Reason = reason,
+                    Module = "Authentication"
+                };
+                _platformContext.PlatformAuditLogs.Add(auditLog);
+                await _platformContext.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AUDIT LOG EXCEPTION] Failed to log login attempt: {ex.Message}");
+            }
         }
 
         public async Task<LoginResponse> LoginAsync(LoginRequest request)
@@ -196,7 +245,28 @@ namespace Aquora.Application.Services
 
             if (user == null)
             {
-                throw new UnauthorizedAccessException("Invalid email, username, or password/PIN.");
+                await LogLoginAttemptAsync(inputIdentifier, null, null, false, "Invalid username/email or PIN.");
+                throw new UnauthorizedAccessException("Invalid username/email or PIN.");
+            }
+
+            Tenant? tenant = null;
+            string companyName = "";
+            if (user.TenantId.HasValue)
+            {
+                tenant = await _platformContext.Tenants.FindAsync(user.TenantId.Value);
+                if (tenant == null || tenant.IsDeleted)
+                {
+                    await LogLoginAttemptAsync(inputIdentifier, user, null, false, "This company could not be found.");
+                    throw new UnauthorizedAccessException("This company could not be found.");
+                }
+
+                companyName = tenant.Name;
+
+                if (!tenant.IsActive)
+                {
+                    await LogLoginAttemptAsync(inputIdentifier, user, tenant, false, "This company account is inactive.");
+                    throw new UnauthorizedAccessException("This company account is inactive.");
+                }
             }
 
             bool passwordValid = _passwordHasher.VerifyPassword(request.Password, user.PasswordHash);
@@ -204,12 +274,14 @@ namespace Aquora.Application.Services
 
             if (!passwordValid && !pinValid)
             {
-                throw new UnauthorizedAccessException("Invalid email, username, or password/PIN.");
+                await LogLoginAttemptAsync(inputIdentifier, user, tenant, false, "Incorrect PIN.");
+                throw new UnauthorizedAccessException("Invalid username/email or PIN.");
             }
 
             if (!user.IsActive)
             {
-                throw new UnauthorizedAccessException("User account is inactive.");
+                await LogLoginAttemptAsync(inputIdentifier, user, tenant, false, "Your account is inactive.");
+                throw new UnauthorizedAccessException("Your account is inactive.");
             }
 
             user.LastLoginAt = DateTime.UtcNow;
@@ -224,8 +296,10 @@ namespace Aquora.Application.Services
 
             await _platformContext.SaveChangesAsync();
 
+            await LogLoginAttemptAsync(inputIdentifier, user, tenant, true, "User logged in successfully.");
+
             var onboarding = await GetTenantInitializationStatusAsync(user.TenantId);
-            return ToLoginResponse(user, accessToken, refreshToken, roles, permissions, onboarding.IsInitialized, onboarding.Status, onboarding.Progress, onboarding.Step, onboarding.FailureReason);
+            return ToLoginResponse(user, accessToken, refreshToken, roles, permissions, onboarding.IsInitialized, onboarding.Status, onboarding.Progress, onboarding.Step, onboarding.FailureReason, companyName);
         }
 
         public async Task<LoginResponse> RefreshTokenAsync(RefreshTokenRequest request)
@@ -257,8 +331,18 @@ namespace Aquora.Application.Services
 
             await _platformContext.SaveChangesAsync();
 
+            string companyName = "";
+            if (user.TenantId.HasValue)
+            {
+                var tenant = await _platformContext.Tenants.FindAsync(user.TenantId.Value);
+                if (tenant != null)
+                {
+                    companyName = tenant.Name;
+                }
+            }
+
             var onboarding = await GetTenantInitializationStatusAsync(user.TenantId);
-            return ToLoginResponse(user, newAccessToken, newRefreshToken, roles, permissions, onboarding.IsInitialized, onboarding.Status, onboarding.Progress, onboarding.Step, onboarding.FailureReason);
+            return ToLoginResponse(user, newAccessToken, newRefreshToken, roles, permissions, onboarding.IsInitialized, onboarding.Status, onboarding.Progress, onboarding.Step, onboarding.FailureReason, companyName);
         }
 
         public async Task<bool> ResetPasswordAsync(PasswordResetRequest request)
@@ -531,7 +615,8 @@ namespace Aquora.Application.Services
             string tenantStatus,
             int progress = 0,
             string step = "",
-            string failureReason = "")
+            string failureReason = "",
+            string companyName = "")
         {
             return new LoginResponse
             {
@@ -543,6 +628,7 @@ namespace Aquora.Application.Services
                 FirstName = user.FirstName,
                 LastName = user.LastName,
                 TenantId = user.TenantId,
+                CompanyName = companyName,
                 Roles = roles,
                 Permissions = permissions,
                 IsTenantInitialized = isTenantInitialized,

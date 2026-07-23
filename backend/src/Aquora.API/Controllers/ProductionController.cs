@@ -71,7 +71,7 @@ namespace Aquora.API.Controllers
                 {
                     query = query.Where(l => l.IsActive);
                 }
-                var lines = await query.ToListAsync();
+                var lines = await query.OrderBy(l => l.Code).ToListAsync();
                 if (lines.Count == 0)
                 {
                     var company = await _tenantContext.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
@@ -137,7 +137,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<List<object>>(ex.Message, "Failed to load production lines.");
+                return Failure<List<object>>("An internal error occurred.", "Failed to load production lines.");
             }
         }
 
@@ -187,7 +187,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<ProductionDashboardDto>(ex.Message, "Failed to load production dashboard stats.");
+                return Failure<ProductionDashboardDto>("An internal error occurred.", "Failed to load production dashboard stats.");
             }
         }
 
@@ -225,7 +225,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<List<object>>(ex.Message, "Failed to load active batches.");
+                return Failure<List<object>>("An internal error occurred.", "Failed to load active batches.");
             }
         }
 
@@ -309,7 +309,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<object>(ex.Message, "Failed to load active batch.");
+                return Failure<object>("An internal error occurred.", "Failed to load active batch.");
             }
         }
 
@@ -333,7 +333,7 @@ namespace Aquora.API.Controllers
                         .Include(s => s.ProductionEntries)
                         .FirstOrDefaultAsync(s => s.ProductionLineId == lineId && s.Status == "Running" && !s.IsDeleted);
                 }
-                catch (Exception ex) when (ex.ToString().Contains("42703") || ex.ToString().Contains("CapMaterialId"))
+                catch (Exception ex) when ("An internal error occurred.".Contains("42703") || "An internal error occurred.".Contains("CapMaterialId"))
                 {
                     // Graceful fallback for outdated tenant schemas missing new columns (e.g., CapMaterialId)
                     activeSession = await _tenantContext.ProductionSessions
@@ -404,7 +404,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<object>(ex.Message, "Failed to load production context.");
+                return Failure<object>("An internal error occurred.", "Failed to load production context.");
             }
         }
 
@@ -570,12 +570,12 @@ namespace Aquora.API.Controllers
                 catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
-                    return Failure<object>(ex.Message, "Failed to start batch.");
+                    return Failure<object>("An internal error occurred.", "Failed to start batch.");
                 }
             }
             catch (Exception ex)
             {
-                return Failure<object>(ex.Message, "Failed to start batch.");
+                return Failure<object>("An internal error occurred.", "Failed to start batch.");
             }
         }
 
@@ -636,7 +636,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<object>(ex.Message, "Failed to submit station parameters.");
+                return Failure<object>("An internal error occurred.", "Failed to submit station parameters.");
             }
         }
 
@@ -683,7 +683,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<object>(ex.Message, "Failed to complete batch.");
+                return Failure<object>("An internal error occurred.", "Failed to complete batch.");
             }
         }
 
@@ -717,7 +717,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<object>(ex.Message, "Failed to pause batch.");
+                return Failure<object>("An internal error occurred.", "Failed to pause batch.");
             }
         }
 
@@ -751,7 +751,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<object>(ex.Message, "Failed to resume batch.");
+                return Failure<object>("An internal error occurred.", "Failed to resume batch.");
             }
         }
 
@@ -790,7 +790,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<List<object>>(ex.Message, "Failed to retrieve history.");
+                return Failure<List<object>>("An internal error occurred.", "Failed to retrieve history.");
             }
         }
 
@@ -841,7 +841,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<object>(ex.Message, "Failed to create production line.", System.Net.HttpStatusCode.InternalServerError);
+                return Failure<object>("An internal error occurred.", "Failed to create production line.", System.Net.HttpStatusCode.InternalServerError);
             }
         }
 
@@ -889,7 +889,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<object>(ex.Message, "Failed to update production line.", System.Net.HttpStatusCode.InternalServerError);
+                return Failure<object>("An internal error occurred.", "Failed to update production line.", System.Net.HttpStatusCode.InternalServerError);
             }
         }
 
@@ -918,7 +918,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<object>(ex.Message, "Failed to delete production line.", System.Net.HttpStatusCode.InternalServerError);
+                return Failure<object>("An internal error occurred.", "Failed to delete production line.", System.Net.HttpStatusCode.InternalServerError);
             }
         }
 
@@ -955,8 +955,8 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AUDIT LOG ERROR]: {ex.Message}");
-                return Failure<object>(ex.Message, "Failed to log line switch.");
+                Console.WriteLine($"[AUDIT LOG ERROR]: {"An internal error occurred."}");
+                return Failure<object>("An internal error occurred.", "Failed to log line switch.");
             }
         }
     }

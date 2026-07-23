@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { queryClient } from '../lib/queryClient'
 
 export interface User {
   userId: string
@@ -19,6 +20,7 @@ export interface User {
   onboardingFailureReason?: string | null
   fullName?: string
   tenantName?: string
+  companyName?: string
 }
 
 interface AuthState {
@@ -59,6 +61,7 @@ export const useAuthStore = create<AuthState>((set) => {
       localStorage.removeItem('token')
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('user')
+      queryClient.clear()
       set({ token: null, refreshToken: null, user: null, isAuthenticated: false })
     },
     updateUser: (updatedFields) => {

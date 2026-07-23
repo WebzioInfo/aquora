@@ -156,7 +156,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<PagedResult<SalesTransactionDto>>(ex.Message, "Failed to retrieve sales transactions.");
+                return Failure<PagedResult<SalesTransactionDto>>("An internal error occurred.", "Failed to retrieve sales transactions.");
             }
         }
 
@@ -212,7 +212,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<SalesTransactionDto>(ex.Message, "Failed to retrieve sales transaction.");
+                return Failure<SalesTransactionDto>("An internal error occurred.", "Failed to retrieve sales transaction.");
             }
         }
 
@@ -341,7 +341,7 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 await dbTransaction.RollbackAsync();
-                return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure(ex.Message, "Transaction Failed", HttpContext.TraceIdentifier));
+                return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("An internal error occurred.", "Transaction Failed", HttpContext.TraceIdentifier));
             }
         }
 
@@ -491,7 +491,7 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 await dbTransaction.RollbackAsync();
-                return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure(ex.Message, "Transaction Failed", HttpContext.TraceIdentifier));
+                return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("An internal error occurred.", "Transaction Failed", HttpContext.TraceIdentifier));
             }
         }
 
@@ -559,7 +559,7 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 await dbTransaction.RollbackAsync();
-                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Transaction Failed", HttpContext.TraceIdentifier));
+                return BadRequest(ApiResponse<object>.CreateFailure("An internal error occurred.", "Transaction Failed", HttpContext.TraceIdentifier));
             }
         }
 
@@ -610,7 +610,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<SalesDashboardDto>(ex.Message, "Failed to load sales dashboard.");
+                return Failure<SalesDashboardDto>("An internal error occurred.", "Failed to load sales dashboard.");
             }
         }
     }

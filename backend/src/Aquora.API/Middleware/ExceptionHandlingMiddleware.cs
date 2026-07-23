@@ -37,26 +37,48 @@ namespace Aquora.API.Middleware
         {
             context.Response.ContentType = "application/json";
             
-             var statusCode = exception switch
-             {
-                 UnauthorizedAccessException => HttpStatusCode.Unauthorized,
-                 KeyNotFoundException => HttpStatusCode.NotFound,
-                 ArgumentException => HttpStatusCode.BadRequest,
-                 InvalidOperationException => exception.Message == "ALREADY_VERIFIED" ? HttpStatusCode.Conflict : HttpStatusCode.BadRequest,
-                 _ => HttpStatusCode.InternalServerError
-             };
+            var statusCode = exception switch
+            {
+                UnauthorizedAccessException => HttpStatusCode.Unauthorized,
+                KeyNotFoundException => HttpStatusCode.NotFound,
+                ArgumentException => HttpStatusCode.BadRequest,
+                InvalidOperationException => exception.Message == "ALREADY_VERIFIED" ? HttpStatusCode.Conflict : HttpStatusCode.BadRequest,
+                _ => HttpStatusCode.InternalServerError
+            };
 
             context.Response.StatusCode = (int)statusCode;
-
             var traceId = context.TraceIdentifier;
             
             Console.WriteLine($"[EXCEPTION PIPELINE] Error: {exception.Message}\nStack: {exception.StackTrace}\nInner: {exception.InnerException?.Message}");
 
+            string errorMessage;
+            string errorCode;
+            var errorDetails = new List<object>();
+
+            if (statusCode == HttpStatusCode.InternalServerError)
+            {
+                // Never expose details of internal server errors/crashes
+                errorMessage = "Unable to complete your request. Please try again later.";
+                errorCode = "INTERNAL_SERVER_ERROR";
+                errorDetails.Add("Unable to complete your request. Please try again later.");
+            }
+            else
+            {
+                // Safe mapped client exception messages
+                errorMessage = exception.Message;
+                errorCode = exception switch
+                {
+                    UnauthorizedAccessException => "UNAUTHORIZED",
+                    KeyNotFoundException => "NOT_FOUND",
+                    InvalidOperationException => exception.Message == "ALREADY_VERIFIED" ? "ALREADY_VERIFIED" : "INVALID_OPERATION",
+                    _ => "BAD_REQUEST"
+                };
+                errorDetails.Add(exception.Message);
+            }
+
             // Build standardized error response
-            var apiResponse = ApiResponse<object>.CreateFailure(
-                exception.Message, 
-                exception.ToString(), 
-                traceId);
+            var apiResponse = ApiResponse<object>.CreateFailure(errorDetails, errorMessage, traceId);
+            apiResponse.Code = errorCode;
 
             var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
             var result = JsonSerializer.Serialize(apiResponse, options);

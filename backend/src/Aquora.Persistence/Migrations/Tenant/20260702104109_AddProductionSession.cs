@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Aquora.Persistence.Context;
 
@@ -9,7 +9,7 @@ namespace Aquora.Persistence.Migrations.Tenant
     /// <inheritdoc />
     public partial class AddProductionSession : Migration
     {
-        private readonly string _schema = TenantSchemaResolver.CurrentSchemaName ?? "public";
+        private string _schema => TenantSchemaResolver.CurrentSchemaName ?? "public";
 
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

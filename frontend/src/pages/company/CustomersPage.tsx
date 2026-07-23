@@ -8,6 +8,9 @@ import {
 } from 'lucide-react'
 import { customersService } from '../../services/customers'
 import type { Customer } from '../../services/customers'
+import { brandService } from '../../services/brands'
+import { rawMaterialsService } from '../../services/rawMaterials'
+import { SearchableDropdown } from '../../components/ui/SearchableDropdown'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import EnterpriseHeader from '../../components/ui/EnterpriseHeader'
@@ -250,6 +253,29 @@ export const CustomersPage: React.FC = () => {
     contactsJson: '[]',
     documentsJson: '[]',
   })
+
+  // Queries for Dropdowns
+  const { data: brandsData, isLoading: isLoadingBrands } = useQuery({
+    queryKey: ['brandsListForDropdown'],
+    queryFn: () => brandService.getBrands(1, 200),
+    staleTime: 5 * 60 * 1000 // Cache for 5 mins
+  })
+
+  const { data: materialsData, isLoading: isLoadingMaterials } = useQuery({
+    queryKey: ['capMaterialsForDropdown'],
+    queryFn: () => rawMaterialsService.getRawMaterials(1, 200),
+    staleTime: 5 * 60 * 1000
+  })
+
+  const brandItems = React.useMemo(() => {
+    return brandsData?.data?.items?.filter(b => b.isActive).map(b => ({ id: b.id, name: b.name })) || []
+  }, [brandsData])
+
+  const capItems = React.useMemo(() => {
+    return materialsData?.data?.items
+      ?.filter(m => m.isActive && (m.category === 'Cap Material' || m.category === 'Cap' || m.category?.toLowerCase().includes('cap')))
+      .map(m => ({ id: m.id, name: m.name })) || []
+  }, [materialsData])
 
   // Fetch paginated customers list
   const { data: customerData, isLoading, refetch } = useQuery({
@@ -579,6 +605,15 @@ export const CustomersPage: React.FC = () => {
         showToast('GST Number is required for B2B customers.', 'warning')
         return
       }
+      const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/
+      if (!gstRegex.test(formData.gstNumber.trim().toUpperCase())) {
+        showToast('Invalid GST Number format.', 'warning')
+        return
+      }
+      if (!formData.gstState) {
+        showToast('GST Registered State is required for B2B customers.', 'warning')
+        return
+      }
       if (!formData.panNumber.trim()) {
         showToast('PAN Number is required for B2B customers.', 'warning')
         return
@@ -604,7 +639,7 @@ export const CustomersPage: React.FC = () => {
         alternatePhone: formData.alternatePhone.trim() || undefined,
         email: formData.email.trim() || undefined,
         gstNumber: isB2B ? formData.gstNumber.trim().toUpperCase() : undefined,
-        panNumber: isB2B ? formData.panNumber.trim().toUpperCase() : undefined,
+        panNumber: formData.panNumber.trim() ? formData.panNumber.trim().toUpperCase() : undefined,
         businessType: isB2B ? formData.businessType : undefined,
         gstState: isB2B ? formData.gstState : undefined,
         addressLine1: formData.addressLine1.trim(),
@@ -675,7 +710,7 @@ export const CustomersPage: React.FC = () => {
           alternatePhone: formData.alternatePhone.trim() || undefined,
           email: formData.email.trim() || undefined,
           gstNumber: isB2B ? formData.gstNumber.trim().toUpperCase() : undefined,
-          panNumber: isB2B ? formData.panNumber.trim().toUpperCase() : undefined,
+          panNumber: formData.panNumber.trim() ? formData.panNumber.trim().toUpperCase() : undefined,
           businessType: isB2B ? formData.businessType : undefined,
           gstState: isB2B ? formData.gstState : undefined,
           addressLine1: formData.addressLine1.trim(),
@@ -767,8 +802,8 @@ export const CustomersPage: React.FC = () => {
       
       {/* Executive Clean Header */}
       <EnterpriseHeader
-        title="Business Partner Directory"
-        description="Single source of truth for all customer, B2B, and distributor profiles across Sales and 20L Operations."
+        title="Customers Directory"
+        description="Single source of truth for all customer profiles across Sales and 20L Operations."
         actions={
           canWrite && (
             <button
@@ -790,7 +825,7 @@ export const CustomersPage: React.FC = () => {
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search by code, name, phone, WhatsApp, GST..."
+            placeholder="Search by customer name, business name or phone"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 h-[40px] border border-[#E2E8F0] rounded-[8px] bg-white text-slate-900 text-sm focus:outline-none focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB] focus:shadow-[0_0_0_2px_rgba(26,86,219,0.15)] transition-all"
@@ -822,17 +857,7 @@ export const CustomersPage: React.FC = () => {
             <option value="Inactive">Inactive</option>
           </select>
 
-          {/* State Filter */}
-          <select
-            value={stateFilter}
-            onChange={(e) => { setStateFilter(e.target.value); setCurrentPage(1); }}
-            className="h-[40px] px-3.5 border border-[#E2E8F0] rounded-[8px] bg-white text-sm text-slate-700 font-medium focus:outline-none cursor-pointer max-w-[160px]"
-          >
-            <option value="">All States</option>
-            {indianStates.map(state => (
-              <option key={state} value={state}>{state}</option>
-            ))}
-          </select>
+
 
           {/* Sorting */}
           <select
@@ -869,14 +894,10 @@ export const CustomersPage: React.FC = () => {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="h-[48px] border-b border-[#E2E8F0] text-[#344054] font-semibold bg-[#F4F6F9] select-none">
-                  <th className="py-3 px-4 text-sm font-semibold">Code</th>
                   <th className="py-3 px-4 text-sm font-semibold">Partner Name</th>
                   <th className="py-3 px-4 text-sm font-semibold">Business Name</th>
                   <th className="py-3 px-4 text-sm font-semibold">Type</th>
                   <th className="py-3 px-4 text-sm font-semibold">Phone</th>
-                  <th className="py-3 px-4 text-sm font-semibold">GST Number</th>
-                  <th className="py-3 px-4 text-sm font-semibold">City</th>
-                  <th className="py-3 px-4 text-sm font-semibold text-right">Opening Bal.</th>
                   <th className="py-3 px-4 text-sm font-semibold text-center">Status</th>
                   <th className="py-3 px-4 text-sm font-semibold text-right">Actions</th>
                 </tr>
@@ -887,9 +908,6 @@ export const CustomersPage: React.FC = () => {
                     key={c.id} 
                     className="h-[48px] hover:bg-[#E8F0FE] text-slate-900 transition-colors"
                   >
-                    <td className="py-3.5 px-4 font-mono font-bold text-[#1A56DB]">
-                      {c.customerCode}
-                    </td>
                     <td className="py-3.5 px-4 font-semibold text-slate-800">
                       {c.customerName}
                     </td>
@@ -909,17 +927,6 @@ export const CustomersPage: React.FC = () => {
                     </td>
                     <td className="py-3.5 px-4 font-mono">
                       {c.phone}
-                    </td>
-                    <td className="py-3.5 px-4 font-mono">
-                      {c.gstNumber || <span className="text-slate-300 italic text-[11px]">B2C (None)</span>}
-                    </td>
-                    <td className="py-3.5 px-4 font-medium">
-                      {c.city}
-                    </td>
-                    <td className="py-3.5 px-4 font-mono font-semibold text-right">
-                      <span className={c.balanceType === 'Receivable' ? 'text-blue-600' : c.balanceType === 'Payable' ? 'text-red-500' : 'text-slate-400'}>
-                        {c.balanceType === 'Receivable' ? '+' : c.balanceType === 'Payable' ? '—' : ''}₹{c.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
                     </td>
                     <td className="py-3.5 px-4 text-center">
                       <button
@@ -1026,7 +1033,7 @@ export const CustomersPage: React.FC = () => {
               <div className="px-8 py-5 border-b border-[#E2E8F0] flex items-center justify-between bg-[#F8FAFC]">
                 <div>
                   <h3 className="text-[20px] font-semibold text-gray-900 tracking-tight">
-                    {drawerMode === 'create' ? 'Register New Business Partner' : `Modify Partner Settings`}
+                    {drawerMode === 'create' ? 'Register New Customer' : `Modify Customer Settings`}
                   </h3>
                   <p className="text-[12px] text-gray-400 mt-1 font-medium">
                     {drawerMode === 'create' ? 'Generates an auto-incremented business partner code suffix' : 'Partner ID code is read-only'}
@@ -1131,7 +1138,7 @@ export const CustomersPage: React.FC = () => {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-5">
+                    <div className="grid grid-cols-1 gap-5">
                       <PremiumInput
                         label="Email Address"
                         name="email"
@@ -1139,23 +1146,6 @@ export const CustomersPage: React.FC = () => {
                         value={formData.email}
                         onChange={handleFormChange}
                         placeholder="e.g. name@domain.com"
-                      />
-                      <PremiumInput
-                        label="Website"
-                        name="website"
-                        value={formData.website}
-                        onChange={handleFormChange}
-                        placeholder="e.g. www.domain.com"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-5">
-                      <PremiumInput
-                        label="Photo / Avatar URL"
-                        name="photoUrl"
-                        value={formData.photoUrl}
-                        onChange={handleFormChange}
-                        placeholder="e.g. https://domain.com/photo.png"
                       />
                     </div>
 
@@ -1237,15 +1227,7 @@ export const CustomersPage: React.FC = () => {
                       />
                     </div>
 
-                    <div className="grid grid-cols-3 gap-5">
-                      <PremiumInput
-                        label="City *"
-                        name="city"
-                        value={formData.city}
-                        onChange={handleFormChange}
-                        placeholder="City Name"
-                        required
-                      />
+                    <div className="grid grid-cols-2 gap-5">
                       <PremiumInput
                         label="District *"
                         name="district"
@@ -1286,14 +1268,7 @@ export const CustomersPage: React.FC = () => {
                       />
                     </div>
 
-                    <PremiumTextarea
-                      label="Multiple Addresses Config (JSON format)"
-                      name="addressesJson"
-                      rows={3}
-                      value={formData.addressesJson}
-                      onChange={handleFormChange}
-                      placeholder="[{'type': 'Shipping', 'addressLine1': '...'}, ...]"
-                    />
+
                   </div>
                 )}
 
@@ -1301,17 +1276,9 @@ export const CustomersPage: React.FC = () => {
                   <div className="space-y-5 animate-in fade-in duration-200">
                     <PremiumSectionHeading title="Financial Setup & GST Registry" />
                     
-                    <div className="grid grid-cols-2 gap-5">
+                    <div className="grid grid-cols-1 gap-5">
                       <PremiumInput
-                        label="GST Registration Number"
-                        name="gstNumber"
-                        value={formData.gstNumber}
-                        onChange={handleFormChange}
-                        placeholder="e.g. 27AAAAA1111A1Z1"
-                        required={formData.customerType === 'B2B'}
-                      />
-                      <PremiumInput
-                        label="PAN Card Number"
+                        label={formData.customerType === 'B2B' ? "PAN Card Number *" : "PAN Card Number"}
                         name="panNumber"
                         value={formData.panNumber}
                         onChange={handleFormChange}
@@ -1320,62 +1287,53 @@ export const CustomersPage: React.FC = () => {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-5">
-                      <PremiumSelect
-                        label="Business Registration Type"
-                        name="businessType"
-                        value={formData.businessType}
-                        onChange={handleFormChange}
-                      >
-                        <option value="Proprietorship">Proprietorship</option>
-                        <option value="Partnership">Partnership Firm</option>
-                        <option value="Private Limited">Private Limited (Pvt Ltd)</option>
-                        <option value="Public Limited">Public Limited Ltd</option>
-                        <option value="LLP">LLP</option>
-                        <option value="Government">Government / PSU</option>
-                      </PremiumSelect>
-                      <PremiumSelect
-                        label="GST Registered State"
-                        name="gstState"
-                        value={formData.gstState}
-                        onChange={handleFormChange}
-                      >
-                        <option value="">Select Registered State</option>
-                        {indianStates.map(state => (
-                          <option key={state} value={state}>{state}</option>
-                        ))}
-                      </PremiumSelect>
-                    </div>
+                    {formData.customerType === 'B2B' && (
+                      <div className="space-y-5 animate-in slide-in-from-top duration-200">
+                        <div className="grid grid-cols-2 gap-5">
+                          <PremiumInput
+                            label="GST Number *"
+                            name="gstNumber"
+                            value={formData.gstNumber}
+                            onChange={handleFormChange}
+                            placeholder="e.g. 27ABCDE1234F1Z5"
+                            required
+                          />
+                          <PremiumSelect
+                            label="GST Registered State *"
+                            name="gstState"
+                            value={formData.gstState}
+                            onChange={handleFormChange}
+                            required
+                          >
+                            <option value="">Select Registered State</option>
+                            {indianStates.map(state => (
+                              <option key={state} value={state}>{state}</option>
+                            ))}
+                          </PremiumSelect>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-5">
+                          <PremiumInput
+                            label="Trade License Number"
+                            name="tradeLicense"
+                            value={formData.tradeLicense}
+                            onChange={handleFormChange}
+                            placeholder="e.g. LIC/2026/001"
+                          />
+                          <PremiumSelect
+                            label="Tax Status"
+                            name="taxExempt"
+                            value={formData.taxExempt ? 'true' : 'false'}
+                            onChange={(e) => setFormData(prev => ({ ...prev, taxExempt: e.target.value === 'true' }))}
+                          >
+                            <option value="false">Taxable Partner</option>
+                            <option value="true">Tax Exempt Partner</option>
+                          </PremiumSelect>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-5">
-                      <PremiumInput
-                        label="Trade License Number"
-                        name="tradeLicense"
-                        value={formData.tradeLicense}
-                        onChange={handleFormChange}
-                        placeholder="e.g. LIC/2026/001"
-                      />
-                      <PremiumSelect
-                        label="Tax Status"
-                        name="taxExempt"
-                        value={formData.taxExempt ? 'true' : 'false'}
-                        onChange={(e) => setFormData(prev => ({ ...prev, taxExempt: e.target.value === 'true' }))}
-                      >
-                        <option value="false">Taxable Partner</option>
-                        <option value="true">Tax Exempt Partner</option>
-                      </PremiumSelect>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-5">
-                      <PremiumInput
-                        label="Opening Balance (INR) *"
-                        name="openingBalance"
-                        type="number"
-                        step="0.01"
-                        value={formData.openingBalance}
-                        onChange={handleFormChange}
-                        required
-                      />
                       <PremiumSelect
                         label="Balance Type *"
                         name="balanceType"
@@ -1450,22 +1408,7 @@ export const CustomersPage: React.FC = () => {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-5">
-                      <PremiumInput
-                        label="Ledger ID / Account Code"
-                        name="ledgerPlaceholder"
-                        value={formData.ledgerPlaceholder}
-                        onChange={handleFormChange}
-                        placeholder="e.g. LEDG-50201"
-                      />
-                      <PremiumInput
-                        label="Accounting Integration Mapping"
-                        name="accountingPlaceholder"
-                        value={formData.accountingPlaceholder}
-                        onChange={handleFormChange}
-                        placeholder="e.g. ACC-SYS-MAP-CUS"
-                      />
-                    </div>
+
                   </div>
                 )}
 
@@ -1551,7 +1494,7 @@ export const CustomersPage: React.FC = () => {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-5">
+                    <div className="grid grid-cols-1 gap-5">
                       <PremiumSelect
                         label="Default Delivery Priority"
                         name="defaultDeliveryPriority"
@@ -1563,23 +1506,9 @@ export const CustomersPage: React.FC = () => {
                         <option value="High">High Priority</option>
                         <option value="Critical">Critical Priority</option>
                       </PremiumSelect>
-                      <PremiumInput
-                        label="Working Area Coverage"
-                        name="workingArea"
-                        value={formData.workingArea}
-                        onChange={handleFormChange}
-                        placeholder="e.g. North Sector, Ward 3"
-                      />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-5">
-                      <PremiumInput
-                        label="Working Days"
-                        name="workingDays"
-                        value={formData.workingDays}
-                        onChange={handleFormChange}
-                        placeholder="e.g. Mon,Wed,Fri"
-                      />
+                    <div className="grid grid-cols-1 gap-5">
                       <PremiumSelect
                         label="Seal Inspection Required?"
                         name="sealRequired"
@@ -1594,14 +1523,7 @@ export const CustomersPage: React.FC = () => {
                     <div className="p-4 bg-[#F8FAFC] border border-gray-200 rounded-[10px] space-y-4 text-left">
                       <h5 className="text-[13px] font-semibold text-gray-800">20L Jar Inventory Settings</h5>
                       
-                      <div className="grid grid-cols-3 gap-4">
-                        <PremiumInput
-                          label="Jar Deposit (INR/Jar)"
-                          name="jarDeposit"
-                          type="number"
-                          value={formData.jarDeposit}
-                          onChange={handleFormChange}
-                        />
+                      <div className="grid grid-cols-1 gap-4">
                         <PremiumInput
                           label="Max Jar Limit"
                           name="maxJarLimit"
@@ -1609,56 +1531,28 @@ export const CustomersPage: React.FC = () => {
                           value={formData.maxJarLimit}
                           onChange={handleFormChange}
                         />
-                        <PremiumInput
-                          label="Outstanding Jars"
-                          name="outstandingJars"
-                          type="number"
-                          value={formData.outstandingJars}
-                          onChange={handleFormChange}
-                        />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
-                        <PremiumInput
+                        <SearchableDropdown
                           label="Preferred Jar Brand"
-                          name="preferredJarBrand"
                           value={formData.preferredJarBrand}
-                          onChange={handleFormChange}
-                          placeholder="e.g. Aquora PET, Polycarbonate"
+                          onChange={(val) => setFormData(prev => ({ ...prev, preferredJarBrand: val }))}
+                          items={brandItems}
+                          placeholder="Search & Select Jar Brand"
+                          isLoading={isLoadingBrands}
                         />
-                        <PremiumInput
+                        <SearchableDropdown
                           label="Preferred Cap Material"
-                          name="preferredCapMaterial"
                           value={formData.preferredCapMaterial}
-                          onChange={handleFormChange}
-                          placeholder="e.g. Pull-ring cap"
+                          onChange={(val) => setFormData(prev => ({ ...prev, preferredCapMaterial: val }))}
+                          items={capItems}
+                          placeholder="Search & Select Cap Material"
+                          isLoading={isLoadingMaterials}
                         />
                       </div>
 
-                      <div className="grid grid-cols-3 gap-4">
-                        <PremiumSelect
-                          label="Preferred Delivery Window"
-                          name="preferredDeliveryWindow"
-                          value={formData.preferredDeliveryWindow}
-                          onChange={handleFormChange}
-                        >
-                          <option value="">Select Window</option>
-                          <option value="09:00 - 12:00">Morning (09:00 - 12:00)</option>
-                          <option value="12:00 - 15:00">Noon (12:00 - 15:00)</option>
-                          <option value="15:00 - 18:00">Evening (15:00 - 18:00)</option>
-                        </PremiumSelect>
-
-                        <PremiumSelect
-                          label="Preferred Delivery Time"
-                          name="preferredDeliveryTime"
-                          value={formData.preferredDeliveryTime}
-                          onChange={handleFormChange}
-                        >
-                          <option value="Morning">Morning</option>
-                          <option value="Afternoon">Afternoon</option>
-                          <option value="Evening">Evening</option>
-                        </PremiumSelect>
-
+                      <div className="grid grid-cols-1 gap-4">
                         <PremiumSelect
                           label="Delivery Frequency"
                           name="deliveryFrequency"
@@ -1697,57 +1591,61 @@ export const CustomersPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-4">
-                      <PremiumTextarea
-                        label="Product Pricing Mappings JSON"
-                        name="preferredProductsJson"
-                        rows={2}
-                        value={formData.preferredProductsJson}
-                        onChange={handleFormChange}
-                        placeholder="{'20L Jar': 80, '1L Box': 120}"
-                      />
-                    </div>
+
                   </div>
                 )}
 
-                {/* Public & Internal remarks always at bottom */}
-                <div className="pt-4 border-t border-gray-100 space-y-4 text-left">
-                  <PremiumTextarea
-                    label="Public Partner Remarks"
-                    name="remarks"
-                    rows={2}
-                    value={formData.remarks}
-                    onChange={handleFormChange}
-                    placeholder="Public remarks displayed on invoices/reports..."
-                  />
-                  <PremiumTextarea
-                    label="Internal System Notes"
-                    name="internalNotes"
-                    rows={2}
-                    value={formData.internalNotes}
-                    onChange={handleFormChange}
-                    placeholder="Confidential internal notes only visible to staff..."
-                  />
-                </div>
+                {formTab !== 'general' && (
+                  <div className="pt-4 border-t border-gray-100 space-y-4 text-left">
+                    <PremiumTextarea
+                      label="Remark"
+                      name="remarks"
+                      rows={2}
+                      value={formData.remarks}
+                      onChange={handleFormChange}
+                      placeholder="Add any remarks or notes..."
+                    />
+                  </div>
+                )}
 
               </form>
 
               {/* Drawer Action Footer */}
               <div className="px-8 py-5 border-t border-[#E2E8F0] flex gap-3 justify-end bg-[#F8FAFC] select-none">
-                <button
-                  type="button"
-                  onClick={() => setIsDrawerOpen(false)}
-                  className="h-[44px] px-5 border border-gray-300 hover:border-gray-400 rounded-[10px] bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold select-none cursor-pointer transition-all duration-150 active:scale-[0.99]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleFormSubmit}
-                  className="h-[44px] px-6 bg-[#1A56DB] hover:bg-[#1E40AF] active:bg-[#123E97] text-white text-sm font-semibold rounded-[10px] shadow-sm select-none cursor-pointer transition-all duration-150 active:scale-[0.99]"
-                >
-                  {drawerMode === 'create' ? 'Register Partner' : 'Save Changes'}
-                </button>
+                {formTab !== 'general' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (formTab === 'logistics') setFormTab('financials')
+                      else if (formTab === 'financials') setFormTab('address')
+                      else if (formTab === 'address') setFormTab('general')
+                    }}
+                    className="h-[44px] px-5 border border-gray-300 hover:border-gray-400 rounded-[10px] bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold select-none cursor-pointer transition-all duration-150 active:scale-[0.99]"
+                  >
+                    Back
+                  </button>
+                )}
+                {formTab !== 'logistics' ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (formTab === 'general') setFormTab('address')
+                      else if (formTab === 'address') setFormTab('financials')
+                      else if (formTab === 'financials') setFormTab('logistics')
+                    }}
+                    className="h-[44px] px-6 bg-[#1A56DB] hover:bg-[#1E40AF] active:bg-[#123E97] text-white text-sm font-semibold rounded-[10px] shadow-sm select-none cursor-pointer transition-all duration-150 active:scale-[0.99]"
+                  >
+                    Continue
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleFormSubmit}
+                    className="h-[44px] px-6 bg-[#1A56DB] hover:bg-[#1E40AF] active:bg-[#123E97] text-white text-sm font-semibold rounded-[10px] shadow-sm select-none cursor-pointer transition-all duration-150 active:scale-[0.99]"
+                  >
+                    {drawerMode === 'create' ? 'Register' : 'Save Changes'}
+                  </button>
+                )}
               </div>
 
             </div>

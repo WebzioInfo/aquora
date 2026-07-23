@@ -5,11 +5,12 @@ import { productsService } from '../../services/products'
 import { rawMaterialsService } from '../../services/rawMaterials'
 import { brandService } from '../../services/brands'
 import { RAW_MATERIAL_CATEGORIES } from '../../utils/rawMaterialCategories'
-import { Search, Plus, Edit2, Trash2, ChevronDown, ChevronUp, RefreshCw, RotateCcw, Package } from 'lucide-react'
+import { Search, Plus, Edit2, Trash2, ChevronDown, ChevronUp, RefreshCw, RotateCcw, Package, X } from 'lucide-react'
 import EnterpriseModal from '../../components/ui/EnterpriseModal'
 import EnterpriseInput from '../../components/ui/EnterpriseInput'
 import EnterpriseSelect from '../../components/ui/EnterpriseSelect'
 import EnterpriseButton from '../../components/ui/EnterpriseButton'
+import { SearchableDropdown } from '../../components/ui/SearchableDropdown'
 
 type ToastType = 'success' | 'error' | 'warning'
 
@@ -676,16 +677,142 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
           ) : <div className="py-16 text-center"><Package className="w-8 h-8 text-slate-300 mx-auto mb-3"/><p className="text-[14px] font-semibold text-slate-600">No Brands Found</p>{canWrite && <button onClick={()=>setIsAddBrandModalOpen(true)} className="mt-4 h-[32px] px-4 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg cursor-pointer transition-all">Add Brand</button>}</div>
         )}
       </div>
-      <EnterpriseModal isOpen={isAddProductModalOpen} onClose={()=>setIsAddProductModalOpen(false)} title="Add New Product" maxWidth="sm">
-        <form onSubmit={handleCreateProductSubmit} className="flex flex-col gap-4">
-          <EnterpriseInput label="Product Name" placeholder="E.g., Aquora Premium 500ml" value={productFormName} onChange={e=>setProductFormName(e.target.value)} required/>
-          <EnterpriseSelect label="Brand" value={productFormBrandId} onChange={e=>setProductFormBrandId(e.target.value)} required><option value="">Select a Brand</option>{(brands as any[]).map((b:any)=><option key={b.id} value={b.id}>{b.name}</option>)}</EnterpriseSelect>
-          <EnterpriseInput label="SKU (Optional)" placeholder="E.g., AQ-500ML" value={productFormSKU} onChange={e=>setProductFormSKU(e.target.value)}/>
-          <EnterpriseInput type="number" step="0.01" label="Opening Stock (Cases)" placeholder="E.g., 100" value={productFormOpeningStock} onChange={e=>setProductFormOpeningStock(e.target.value)}/>
-          <div className="flex items-center gap-2"><input type="checkbox" id="addPA" checked={productFormIsActive} onChange={e=>setProductFormIsActive(e.target.checked)} className="w-4 h-4 accent-blue-600"/><label htmlFor="addPA" className="text-xs font-semibold text-slate-700 cursor-pointer select-none">Active Product</label></div>
-          <div className="flex justify-end gap-2 mt-2"><EnterpriseButton type="button" onClick={()=>setIsAddProductModalOpen(false)} variant="secondary">Cancel</EnterpriseButton><EnterpriseButton type="submit" variant="primary" disabled={createProductMutation.isPending}>{createProductMutation.isPending?'Saving...':'Add Product'}</EnterpriseButton></div>
-        </form>
-      </EnterpriseModal>
+      {/* Redesigned Add New Product Modal */}
+      {isAddProductModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            onClick={() => !createProductMutation.isPending && setIsAddProductModalOpen(false)}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+          />
+          
+          <div className="relative w-full max-w-[650px] bg-white border border-gray-200 p-6 sm:p-8 rounded-[16px] shadow-xl flex flex-col gap-6 animate-in fade-in zoom-in-95 duration-200 z-10"
+               role="dialog" aria-modal="true" aria-labelledby="modal-title"
+               tabIndex={-1}
+               onKeyDown={(e) => {
+                 if (e.key === 'Escape' && !createProductMutation.isPending) {
+                   setIsAddProductModalOpen(false);
+                 }
+               }}>
+            
+            {/* Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-gray-100">
+              <div>
+                <h3 id="modal-title" className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <span className="text-xl">📦</span> Add New Product
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Create a new packaged drinking water product.
+                </p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => !createProductMutation.isPending && setIsAddProductModalOpen(false)}
+                className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer"
+                disabled={createProductMutation.isPending}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCreateProductSubmit} className="flex flex-col gap-6">
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Row 1 */}
+                <div className="flex flex-col gap-1.5 text-left">
+                  <label className="text-sm font-semibold text-gray-700">Product Name <span className="text-red-500">*</span></label>
+                  <input 
+                    type="text" 
+                    autoFocus
+                    placeholder="Enter product name"
+                    value={productFormName}
+                    onChange={e => setProductFormName(e.target.value)}
+                    required
+                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5 text-left">
+                  <SearchableDropdown
+                    label="Brand"
+                    value={productFormBrandId}
+                    onChange={setProductFormBrandId}
+                    items={(brands as any[]).filter(b => b.isActive).map(b => ({ id: b.id, name: b.name }))}
+                    placeholder="Search & Select Brand"
+                    required
+                  />
+                </div>
+
+                {/* Row 2 */}
+                <div className="flex flex-col gap-1.5 text-left">
+                  <label className="text-sm font-semibold text-gray-700">SKU</label>
+                  <input 
+                    type="text" 
+                    placeholder="Optional SKU"
+                    value={productFormSKU}
+                    onChange={e => setProductFormSKU(e.target.value)}
+                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5 text-left">
+                  <label className="text-sm font-semibold text-gray-700">Opening Stock (Cases)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    placeholder="Enter opening stock"
+                    value={productFormOpeningStock}
+                    onChange={e => setProductFormOpeningStock(e.target.value)}
+                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Row 3 - Toggle Switch */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-[12px] text-left">
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900">Active Product</h4>
+                  <p className="text-xs text-gray-500 mt-0.5">Product is available for sales and inventory.</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={productFormIsActive}
+                  onClick={() => setProductFormIsActive(!productFormIsActive)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer ${productFormIsActive ? 'bg-[#1A56DB]' : 'bg-gray-200'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${productFormIsActive ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-gray-100">
+                <button 
+                  type="button" 
+                  onClick={() => setIsAddProductModalOpen(false)}
+                  disabled={createProductMutation.isPending}
+                  className="px-5 h-10 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={createProductMutation.isPending}
+                  className="px-6 h-10 bg-[#1A56DB] text-white font-semibold text-sm rounded-[10px] hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px] shadow-sm cursor-pointer"
+                >
+                  {createProductMutation.isPending ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Creating...
+                    </span>
+                  ) : 'Create Product'}
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
       <EnterpriseModal isOpen={isEditProductModalOpen} onClose={()=>setIsEditProductModalOpen(false)} title="Edit Product" maxWidth="sm">
         <form onSubmit={handleEditProductSubmit} className="flex flex-col gap-4">
           <EnterpriseInput label="Product Name" value={productFormName} onChange={e=>setProductFormName(e.target.value)} required/>
@@ -696,16 +823,148 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
           <div className="flex justify-end gap-2 mt-2"><EnterpriseButton type="button" onClick={()=>setIsEditProductModalOpen(false)} variant="secondary">Cancel</EnterpriseButton><EnterpriseButton type="submit" variant="primary" disabled={updateProductMutation.isPending}>{updateProductMutation.isPending?'Saving...':'Save Changes'}</EnterpriseButton></div>
         </form>
       </EnterpriseModal>
-      <EnterpriseModal isOpen={isAddRawMaterialModalOpen} onClose={()=>setIsAddRawMaterialModalOpen(false)} title="Add New Raw Material" maxWidth="sm">
-        <form onSubmit={handleCreateRawMaterialSubmit} className="flex flex-col gap-4">
-          <EnterpriseInput label="Material Name" placeholder="E.g., 28mm Preform (Premium)" value={rawMaterialFormName} onChange={e=>setRawMaterialFormName(e.target.value)} required/>
-          <EnterpriseSelect label="Category" value={rawMaterialFormCategory} onChange={e=>setRawMaterialFormCategory(e.target.value)} required>{Object.values(RAW_MATERIAL_CATEGORIES).map(cat=><option key={cat.value} value={cat.value}>{cat.label}</option>)}</EnterpriseSelect>
-          <EnterpriseSelect label="Unit" value={rawMaterialFormUnit} onChange={e=>setRawMaterialFormUnit(e.target.value)} required>{['PIECE','KG','GRAM','ROLL','BOX','BAG','LITER','ML'].map(u=><option key={u} value={u}>{u}</option>)}</EnterpriseSelect>
-          <EnterpriseInput type="number" step="0.01" label="Initial Stock" placeholder="E.g., 500" value={rawMaterialFormCurrentStock} onChange={e=>setRawMaterialFormCurrentStock(e.target.value)}/>
-          <div className="flex items-center gap-2"><input type="checkbox" id="addMA" checked={rawMaterialFormIsActive} onChange={e=>setRawMaterialFormIsActive(e.target.checked)} className="w-4 h-4 accent-blue-600"/><label htmlFor="addMA" className="text-xs font-semibold text-slate-700 cursor-pointer select-none">Active Material</label></div>
-          <div className="flex justify-end gap-2 mt-2"><EnterpriseButton type="button" onClick={()=>setIsAddRawMaterialModalOpen(false)} variant="secondary">Cancel</EnterpriseButton><EnterpriseButton type="submit" variant="primary" disabled={createRawMaterialMutation.isPending}>{createRawMaterialMutation.isPending?'Saving...':'Add Material'}</EnterpriseButton></div>
-        </form>
-      </EnterpriseModal>
+      {/* Redesigned Add New Raw Material Modal */}
+      {isAddRawMaterialModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            onClick={() => !createRawMaterialMutation.isPending && setIsAddRawMaterialModalOpen(false)}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+          />
+          
+          <div className="relative w-full max-w-[650px] bg-white border border-gray-200 p-6 sm:p-8 rounded-[16px] shadow-xl flex flex-col gap-6 animate-in fade-in zoom-in-95 duration-200 z-10"
+               role="dialog" aria-modal="true" aria-labelledby="rm-modal-title"
+               tabIndex={-1}
+               onKeyDown={(e) => {
+                 if (e.key === 'Escape' && !createRawMaterialMutation.isPending) {
+                   setIsAddRawMaterialModalOpen(false);
+                 }
+               }}>
+            
+            {/* Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-gray-100">
+              <div>
+                <h3 id="rm-modal-title" className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <span className="text-xl">🛠️</span> Add New Raw Material
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Register a new material for inventory and production.
+                </p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => !createRawMaterialMutation.isPending && setIsAddRawMaterialModalOpen(false)}
+                className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer"
+                disabled={createRawMaterialMutation.isPending}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCreateRawMaterialSubmit} className="flex flex-col gap-6">
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Row 1 */}
+                <div className="flex flex-col gap-1.5 text-left">
+                  <label className="text-sm font-semibold text-gray-700">Material Name <span className="text-red-500">*</span></label>
+                  <input 
+                    type="text" 
+                    autoFocus
+                    placeholder="E.g., 28mm Preform (Premium)"
+                    value={rawMaterialFormName}
+                    onChange={e => setRawMaterialFormName(e.target.value)}
+                    required
+                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5 text-left">
+                  <label className="text-sm font-semibold text-gray-700">Category <span className="text-red-500">*</span></label>
+                  <select 
+                    value={rawMaterialFormCategory}
+                    onChange={e => setRawMaterialFormCategory(e.target.value)}
+                    required
+                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                  >
+                    {Object.values(RAW_MATERIAL_CATEGORIES).map(cat => (
+                      <option key={cat.value} value={cat.value}>{cat.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Row 2 */}
+                <div className="flex flex-col gap-1.5 text-left">
+                  <label className="text-sm font-semibold text-gray-700">Unit of Measurement <span className="text-red-500">*</span></label>
+                  <select 
+                    value={rawMaterialFormUnit}
+                    onChange={e => setRawMaterialFormUnit(e.target.value)}
+                    required
+                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                  >
+                    {['PIECE','KG','GRAM','ROLL','BOX','BAG','LITER','ML'].map(u => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1.5 text-left">
+                  <label className="text-sm font-semibold text-gray-700">Initial Stock</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    placeholder="E.g., 500"
+                    value={rawMaterialFormCurrentStock}
+                    onChange={e => setRawMaterialFormCurrentStock(e.target.value)}
+                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Row 3 - Toggle Switch */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-[12px] text-left">
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900">Active Material</h4>
+                  <p className="text-xs text-gray-500 mt-0.5">Material can be used in production and inventory.</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={rawMaterialFormIsActive}
+                  onClick={() => setRawMaterialFormIsActive(!rawMaterialFormIsActive)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer ${rawMaterialFormIsActive ? 'bg-[#1A56DB]' : 'bg-gray-200'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${rawMaterialFormIsActive ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-gray-100">
+                <button 
+                  type="button" 
+                  onClick={() => setIsAddRawMaterialModalOpen(false)}
+                  disabled={createRawMaterialMutation.isPending}
+                  className="px-5 h-10 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={createRawMaterialMutation.isPending}
+                  className="px-6 h-10 bg-[#1A56DB] text-white font-semibold text-sm rounded-[10px] hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px] shadow-sm cursor-pointer"
+                >
+                  {createRawMaterialMutation.isPending ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Creating...
+                    </span>
+                  ) : 'Add Material'}
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
       <EnterpriseModal isOpen={isEditRawMaterialModalOpen} onClose={()=>setIsEditRawMaterialModalOpen(false)} title="Edit Raw Material" maxWidth="sm">
         <form onSubmit={handleEditRawMaterialSubmit} className="flex flex-col gap-4">
           <EnterpriseInput label="Material Name" value={rawMaterialFormName} onChange={e=>setRawMaterialFormName(e.target.value)} required/>
@@ -719,47 +978,139 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
         </form>
       </EnterpriseModal>
 
-      <EnterpriseModal isOpen={isAddStockModalOpen} onClose={()=>setIsAddStockModalOpen(false)} title="Add Raw Material Stock" maxWidth="sm">
-        <form onSubmit={handleAddStockSubmit} className="flex flex-col gap-4">
-          <EnterpriseSelect label="Raw Material" value={selectedAddStockMaterialId} onChange={e=>setSelectedAddStockMaterialId(e.target.value)} required>
-            <option value="">Select Raw Material</option>
-            {allMats.filter(m => m.isActive).map((m: any) => (
-              <option key={m.id} value={m.id}>{m.name}</option>
-            ))}
-          </EnterpriseSelect>
+      {/* Redesigned Add Stock Modal */}
+      {isAddStockModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            onClick={() => !addStockMutation.isPending && setIsAddStockModalOpen(false)}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+          />
           
-          <div className="grid grid-cols-2 gap-4">
-            <EnterpriseInput label="Current Stock" value={selectedAddStockMaterialId ? `${allMats.find(m => m.id === selectedAddStockMaterialId)?.currentStock ?? 0} ${allMats.find(m => m.id === selectedAddStockMaterialId)?.unit ?? ''}` : '—'} disabled />
-            <EnterpriseInput type="number" step="0.01" label="Quantity to Add" placeholder="E.g., 10" value={addStockFormQuantity} onChange={e=>setAddStockFormQuantity(e.target.value)} required />
-          </div>
-
-          {selectedAddStockMaterialId && (
-            <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 select-none text-[12px] flex items-center justify-between font-bold text-slate-700">
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Current Stock</span>
-                <span className="text-[14px] mt-0.5">{(allMats.find(m => m.id === selectedAddStockMaterialId)?.currentStock ?? 0)} {(allMats.find(m => m.id === selectedAddStockMaterialId)?.unit ?? '')}</span>
+          <div className="relative w-full max-w-[650px] bg-white border border-gray-200 p-6 sm:p-8 rounded-[16px] shadow-xl flex flex-col gap-6 animate-in fade-in zoom-in-95 duration-200 z-10"
+               role="dialog" aria-modal="true" aria-labelledby="stock-modal-title"
+               tabIndex={-1}
+               onKeyDown={(e) => {
+                 if (e.key === 'Escape' && !addStockMutation.isPending) {
+                   setIsAddStockModalOpen(false);
+                 }
+               }}>
+            
+            {/* Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-gray-100">
+              <div>
+                <h3 id="stock-modal-title" className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <span className="text-xl">📥</span> Add Raw Material Stock
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Record new incoming stock for raw materials.
+                </p>
               </div>
-              <span className="text-slate-400 text-[14px]">+</span>
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Added Quantity</span>
-                <span className="text-[14px] mt-0.5 text-blue-600">{(parseFloat(addStockFormQuantity) || 0)} {(allMats.find(m => m.id === selectedAddStockMaterialId)?.unit ?? '')}</span>
-              </div>
-              <span className="text-slate-400 text-[14px]">=</span>
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">New Stock</span>
-                <span className="text-[14px] mt-0.5 text-emerald-600">{(allMats.find(m => m.id === selectedAddStockMaterialId)?.currentStock ?? 0) + (parseFloat(addStockFormQuantity) || 0)} {(allMats.find(m => m.id === selectedAddStockMaterialId)?.unit ?? '')}</span>
-              </div>
+              <button 
+                type="button"
+                onClick={() => !addStockMutation.isPending && setIsAddStockModalOpen(false)}
+                className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer"
+                disabled={addStockMutation.isPending}
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          )}
 
-          <EnterpriseInput label="Reason / Notes (Optional)" placeholder="E.g., Purchased from Supplier" value={addStockFormNotes} onChange={e=>setAddStockFormNotes(e.target.value)} />
-          
-          <div className="flex justify-end gap-2 mt-2">
-            <EnterpriseButton type="button" onClick={()=>setIsAddStockModalOpen(false)} variant="secondary">Cancel</EnterpriseButton>
-            <EnterpriseButton type="submit" variant="primary" disabled={addStockMutation.isPending}>{addStockMutation.isPending ? 'Processing...' : 'Add Stock'}</EnterpriseButton>
+            {/* Form */}
+            <form onSubmit={handleAddStockSubmit} className="flex flex-col gap-6">
+              
+              <div className="flex flex-col gap-1.5 text-left">
+                <SearchableDropdown
+                  label="Raw Material"
+                  value={selectedAddStockMaterialId}
+                  onChange={setSelectedAddStockMaterialId}
+                  items={allMats.filter(m => m.isActive).map((m: any) => ({ id: m.id, name: m.name }))}
+                  placeholder="Search & Select Material"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="flex flex-col gap-1.5 text-left">
+                  <label className="text-sm font-semibold text-gray-700">Current Stock</label>
+                  <input 
+                    type="text" 
+                    value={selectedAddStockMaterialId ? `${allMats.find(m => m.id === selectedAddStockMaterialId)?.currentStock ?? 0} ${allMats.find(m => m.id === selectedAddStockMaterialId)?.unit ?? ''}` : '—'} 
+                    disabled 
+                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-500 bg-gray-50 cursor-not-allowed"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5 text-left">
+                  <label className="text-sm font-semibold text-gray-700">Quantity to Add <span className="text-red-500">*</span></label>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    placeholder="E.g., 10" 
+                    value={addStockFormQuantity} 
+                    onChange={e => setAddStockFormQuantity(e.target.value)} 
+                    required 
+                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                  />
+                </div>
+              </div>
+
+              {selectedAddStockMaterialId && (
+                <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-[12px] p-4 select-none flex items-center justify-between">
+                  <div className="flex flex-col items-center w-1/3">
+                    <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-1">Current</span>
+                    <span className="text-[15px] font-semibold text-slate-700">{(allMats.find(m => m.id === selectedAddStockMaterialId)?.currentStock ?? 0)} {(allMats.find(m => m.id === selectedAddStockMaterialId)?.unit ?? '')}</span>
+                  </div>
+                  <div className="text-slate-300 font-light text-xl">+</div>
+                  <div className="flex flex-col items-center w-1/3">
+                    <span className="text-[11px] text-[#1A56DB] font-bold uppercase tracking-wider mb-1">Adding</span>
+                    <span className="text-[15px] font-semibold text-[#1A56DB]">{(parseFloat(addStockFormQuantity) || 0)} {(allMats.find(m => m.id === selectedAddStockMaterialId)?.unit ?? '')}</span>
+                  </div>
+                  <div className="text-slate-300 font-light text-xl">=</div>
+                  <div className="flex flex-col items-center w-1/3">
+                    <span className="text-[11px] text-[#16A34A] font-bold uppercase tracking-wider mb-1">New Total</span>
+                    <span className="text-[15px] font-bold text-[#16A34A]">{(allMats.find(m => m.id === selectedAddStockMaterialId)?.currentStock ?? 0) + (parseFloat(addStockFormQuantity) || 0)} {(allMats.find(m => m.id === selectedAddStockMaterialId)?.unit ?? '')}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-1.5 text-left">
+                <label className="text-sm font-semibold text-gray-700">Reason / Notes (Optional)</label>
+                <input 
+                  type="text" 
+                  placeholder="E.g., Purchased from Supplier" 
+                  value={addStockFormNotes} 
+                  onChange={e => setAddStockFormNotes(e.target.value)} 
+                  className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                />
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-gray-100">
+                <button 
+                  type="button" 
+                  onClick={() => setIsAddStockModalOpen(false)}
+                  disabled={addStockMutation.isPending}
+                  className="px-5 h-10 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={addStockMutation.isPending}
+                  className="px-6 h-10 bg-[#1A56DB] text-white font-semibold text-sm rounded-[10px] hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px] shadow-sm cursor-pointer"
+                >
+                  {addStockMutation.isPending ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Processing...
+                    </span>
+                  ) : 'Add Stock'}
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
-      </EnterpriseModal>
+        </div>
+      )}
       <EnterpriseModal isOpen={isAddBrandModalOpen} onClose={()=>setIsAddBrandModalOpen(false)} title="Add New Brand" maxWidth="sm">
         <form onSubmit={handleCreateBrandSubmit} className="flex flex-col gap-4">
           <EnterpriseInput label="Brand Name" placeholder="E.g., Aquora" value={brandFormName} onChange={e=>setBrandFormName(e.target.value)} required/>

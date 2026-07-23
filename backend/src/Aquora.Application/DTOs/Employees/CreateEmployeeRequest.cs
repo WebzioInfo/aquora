@@ -11,6 +11,10 @@ namespace Aquora.Application.DTOs.Employees
         [MinLength(3, ErrorMessage = "Username must be at least 3 characters.")]
         public string Username { get; set; }
 
+        [Required(ErrorMessage = "Email is required.")]
+        [EmailAddress(ErrorMessage = "Invalid email address.")]
+        public string Email { get; set; }
+
         [Required(ErrorMessage = "Role is required.")]
         public string RoleCode { get; set; }
 

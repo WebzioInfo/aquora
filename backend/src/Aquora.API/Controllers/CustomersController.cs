@@ -184,7 +184,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<PagedResult<CustomerDto>>(ex.Message, "Failed to retrieve customers.");
+                return Failure<PagedResult<CustomerDto>>("An internal error occurred.", "Failed to retrieve customers.");
             }
         }
 
@@ -279,7 +279,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<CustomerDto>(ex.Message, "Failed to retrieve customer.");
+                return Failure<CustomerDto>("An internal error occurred.", "Failed to retrieve customer.");
             }
         }
 
@@ -524,7 +524,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                var fullErrorMessage = ex.Message;
+                var fullErrorMessage = "An internal error occurred.";
                 if (ex.InnerException != null)
                 {
                     fullErrorMessage += $" (Inner Exception: {ex.InnerException.Message})";
@@ -753,7 +753,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<CustomerDto>(ex.Message, "Failed to update customer.");
+                return Failure<CustomerDto>("An internal error occurred.", "Failed to update customer.");
             }
         }
 
@@ -782,7 +782,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<bool>(ex.Message, "Failed to delete customer.");
+                return Failure<bool>("An internal error occurred.", "Failed to delete customer.");
             }
         }
     }

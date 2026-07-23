@@ -18,6 +18,7 @@ export const OperatorLayout: React.FC = () => {
   // State managed globally in layout and shared with child pages via context
   const [selectedLine, setSelectedLine] = useState<any>(null)
   const [selectedShift, setSelectedShift] = useState<string | null>(null)
+  const [selectedProduct, setSelectedProduct] = useState<any>(null)
 
   const [isLineDropdownOpen, setIsLineDropdownOpen] = useState(false)
   const [hasUnsavedData, setHasUnsavedData] = useState(false)
@@ -121,9 +122,11 @@ export const OperatorLayout: React.FC = () => {
     // Load from LocalStorage for persistence on page reload
     const line = localStorage.getItem('mes_selected_line')
     const shift = localStorage.getItem('mes_selected_shift')
+    const product = localStorage.getItem('mes_selected_product')
     
     if (line) setSelectedLine(JSON.parse(line))
     if (shift) setSelectedShift(shift)
+    if (product) setSelectedProduct(JSON.parse(product))
 
      // Live clock timer
     const updateTime = () => {
@@ -186,11 +189,19 @@ export const OperatorLayout: React.FC = () => {
     else localStorage.removeItem('mes_selected_shift')
   }
 
+  const updateProduct = (product: any) => {
+    setSelectedProduct(product)
+    if (product) localStorage.setItem('mes_selected_product', JSON.stringify(product))
+    else localStorage.removeItem('mes_selected_product')
+  }
+
   const resetTerminal = () => {
     setSelectedLine(null)
     setSelectedShift(null)
+    setSelectedProduct(null)
     localStorage.removeItem('mes_selected_line')
     localStorage.removeItem('mes_selected_shift')
+    localStorage.removeItem('mes_selected_product')
   }
 
   const handleCancelSwitch = () => {
@@ -386,9 +397,9 @@ export const OperatorLayout: React.FC = () => {
               {getInitials()}
             </div>
             <div className="hidden xl:block text-left select-none">
-              <span className="font-bold text-[11px] block leading-tight">{user?.firstName} {user?.lastName}</span>
+              <span className="font-bold text-[11px] block leading-tight">{user?.firstName} {user?.lastName} ({user?.roles?.[0] || 'Operator'})</span>
               <span className="text-[8px] uppercase tracking-wider block font-bold mt-0.5" style={{ color: lineTheme ? 'rgba(255,255,255,0.7)' : '#6B7280' }}>
-                Operator
+                {user?.companyName || user?.tenantName || 'Aquaflow ERP'}
               </span>
             </div>
           </div>
@@ -430,6 +441,7 @@ export const OperatorLayout: React.FC = () => {
         <Outlet context={{
           selectedLine, updateLine,
           selectedShift, updateShift,
+          selectedProduct, updateProduct,
           resetTerminal,
           hasUnsavedData, setHasUnsavedData,
           registerSaveHandler,

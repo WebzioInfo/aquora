@@ -109,6 +109,7 @@ namespace Aquora.API.Middleware
             {
                 tenantProvider.SetTenantId(resolvedTenantId.Value);
                 tenantProvider.SetTenantSchemaName(resolvedSchemaName);
+                context.Response.Headers.Add("X-Resolved-Tenant-Schema", resolvedSchemaName);
                 Console.WriteLine($"[TENANT RESOLVED] Tenant ID: {resolvedTenantId.Value}, Schema: {resolvedSchemaName}, Host: {host}");
             }
 

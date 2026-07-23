@@ -86,7 +86,7 @@ export const LoginPage: React.FC = () => {
       const result = response.data
       
       if (response.success && result) {
-        const { accessToken, refreshToken, userId, email, firstName, lastName, tenantId, roles, permissions, assignedProductionLineId } = result
+        const { accessToken, refreshToken, userId, email, firstName, lastName, tenantId, roles, permissions, assignedProductionLineId, companyName } = result
         
         localStorage.setItem('tenantCode', 'DEFAULT')
         
@@ -101,7 +101,9 @@ export const LoginPage: React.FC = () => {
           isTenantInitialized: response.data.isTenantInitialized,
           tenantStatus: response.data.tenantStatus,
           emailVerified: response.data.emailVerified,
-          assignedProductionLineId
+          assignedProductionLineId,
+          companyName,
+          tenantName: companyName
         })
 
         showToast(`Welcome back, ${firstName}!`, 'success')

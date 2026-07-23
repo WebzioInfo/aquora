@@ -9,7 +9,7 @@ namespace Aquora.Persistence.Migrations.Tenant
     /// <inheritdoc />
     public partial class InitialTenant : Migration
     {
-        private readonly string _schema = TenantSchemaResolver.CurrentSchemaName ?? "public";
+        private string _schema => TenantSchemaResolver.CurrentSchemaName ?? "public";
 
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

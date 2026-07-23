@@ -89,7 +89,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<List<EmployeeDto>>(ex.Message, "Failed to load employees.");
+                return Failure<List<EmployeeDto>>("An internal error occurred.", "Failed to load employees.");
             }
         }
 
@@ -100,24 +100,24 @@ namespace Aquora.API.Controllers
             {
                 var tenantId = GetTenantId();
                 var usernameNormalized = request.Username.Trim().ToLowerInvariant();
+                var emailNormalized = request.Email.Trim().ToLowerInvariant();
 
-                // Unique username check per tenant
+                // Unique username check globally across all tenants
                 var usernameExists = await _platformContext.Users
-                    .AnyAsync(u => u.TenantId == tenantId && u.Username.ToLower() == usernameNormalized && !u.IsDeleted);
+                    .AnyAsync(u => u.Username.ToLower() == usernameNormalized && !u.IsDeleted);
 
                 if (usernameExists)
                 {
-                    return Failure<EmployeeDto>($"Username '{request.Username}' is already taken inside this tenant.", "Validation Error");
+                    return Failure<EmployeeDto>("Username is already taken. Please choose another username.", "Validation Error");
                 }
 
-                // Globally unique email mapping incorporating tenantId
-                var email = $"{usernameNormalized}@{tenantId}.aquora-tenant.com";
+                // Globally unique email mapping check
                 var emailExists = await _platformContext.Users
-                    .AnyAsync(u => u.Email.ToLower() == email && !u.IsDeleted);
+                    .AnyAsync(u => u.Email.ToLower() == emailNormalized && !u.IsDeleted);
 
                 if (emailExists)
                 {
-                    return Failure<EmployeeDto>($"Email '{email}' is already associated with another user.", "Validation Error");
+                    return Failure<EmployeeDto>("Email is already registered.", "Validation Error");
                 }
 
                 // Check role existence inside tenant schema
@@ -141,7 +141,7 @@ namespace Aquora.API.Controllers
                 {
                     Id = Guid.NewGuid(),
                     Username = request.Username.Trim(),
-                    Email = email,
+                    Email = emailNormalized,
                     FirstName = firstName,
                     LastName = lastName,
                     PasswordHash = hash,
@@ -221,7 +221,7 @@ namespace Aquora.API.Controllers
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[AUDIT LOG FAILURE - NON-BLOCKING]: Failed to write employee creation platform audit: {ex.Message}");
+                    Console.WriteLine($"[AUDIT LOG FAILURE - NON-BLOCKING]: Failed to write employee creation platform audit: {"An internal error occurred."}");
                 }
 
                 var dto = new EmployeeDto
@@ -258,7 +258,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                var fullError = ex.ToString();
+                var fullError = "An internal error occurred.";
                 if (ex.InnerException != null)
                 {
                     fullError += $"\nInner Exception: {ex.InnerException.ToString()}";
@@ -367,7 +367,7 @@ namespace Aquora.API.Controllers
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[AUDIT LOG FAILURE - NON-BLOCKING]: Failed to write employee update platform audit: {ex.Message}");
+                    Console.WriteLine($"[AUDIT LOG FAILURE - NON-BLOCKING]: Failed to write employee update platform audit: {"An internal error occurred."}");
                 }
 
                 var dto = new EmployeeDto
@@ -387,7 +387,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<EmployeeDto>(ex.Message, "Failed to update employee.");
+                return Failure<EmployeeDto>("An internal error occurred.", "Failed to update employee.");
             }
         }
 
@@ -457,14 +457,14 @@ namespace Aquora.API.Controllers
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[AUDIT LOG FAILURE - NON-BLOCKING]: Failed to write employee deletion platform audit: {ex.Message}");
+                    Console.WriteLine($"[AUDIT LOG FAILURE - NON-BLOCKING]: Failed to write employee deletion platform audit: {"An internal error occurred."}");
                 }
 
                 return Success(true, "Employee soft-deleted successfully.");
             }
             catch (Exception ex)
             {
-                return Failure<bool>(ex.Message, "Failed to delete employee.");
+                return Failure<bool>("An internal error occurred.", "Failed to delete employee.");
             }
         }
 
@@ -539,14 +539,14 @@ namespace Aquora.API.Controllers
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[AUDIT LOG FAILURE - NON-BLOCKING]: Failed to write employee reset password platform audit: {ex.Message}");
+                    Console.WriteLine($"[AUDIT LOG FAILURE - NON-BLOCKING]: Failed to write employee reset password platform audit: {"An internal error occurred."}");
                 }
 
                 return Success(true, "Password and PIN reset successfully.");
             }
             catch (Exception ex)
             {
-                return Failure<bool>(ex.Message, "Failed to reset password.");
+                return Failure<bool>("An internal error occurred.", "Failed to reset password.");
             }
         }
 
@@ -574,7 +574,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<bool>(ex.Message, "Failed to save security PIN.");
+                return Failure<bool>("An internal error occurred.", "Failed to save security PIN.");
             }
         }
 
@@ -589,7 +589,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<object>(ex.Message, "Failed to load PIN status.");
+                return Failure<object>("An internal error occurred.", "Failed to load PIN status.");
             }
         }
 
@@ -608,7 +608,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<bool>(ex.Message, "PIN verification failed.");
+                return Failure<bool>("An internal error occurred.", "PIN verification failed.");
             }
         }
 
@@ -645,7 +645,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<string>(ex.Message, "Failed to reveal password.");
+                return Failure<string>("An internal error occurred.", "Failed to reveal password.");
             }
         }
 
@@ -780,7 +780,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[SECURITY AUDIT LOG FAILURE - NON-BLOCKING]: {ex.Message}");
+                Console.WriteLine($"[SECURITY AUDIT LOG FAILURE - NON-BLOCKING]: {"An internal error occurred."}");
             }
         }
 
@@ -796,7 +796,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<List<Role>>(ex.Message, "Failed to load roles.");
+                return Failure<List<Role>>("An internal error occurred.", "Failed to load roles.");
             }
         }
 
@@ -817,7 +817,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<List<string>>(ex.Message, "Failed to load departments.");
+                return Failure<List<string>>("An internal error occurred.", "Failed to load departments.");
             }
         }
     }

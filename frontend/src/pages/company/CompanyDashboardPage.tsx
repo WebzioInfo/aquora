@@ -10,7 +10,8 @@ import { authService } from '../../services/auth'
 import { productsService } from '../../services/products'
 import { rawMaterialsService } from '../../services/rawMaterials'
 import { brandService } from '../../services/brands'
-import { RAW_MATERIAL_CATEGORIES } from '../../utils/rawMaterialCategories'
+import { productionShiftsService } from '../../services/productionShifts'
+import { ProductionShiftsManager } from './ProductionShiftsManager'
 import {
   Factory, ShieldCheck, Wrench, CheckCircle,
   ArrowUpRight, CloudSun, Play, Search, Plus, Eye, Key, Trash2, Edit2, ToggleLeft, ToggleRight,
@@ -239,9 +240,11 @@ export const CompanyDashboardPage: React.FC = () => {
   // Add Employee Form States
   const [addFullName, setAddFullName] = useState('')
   const [addUsername, setAddUsername] = useState('')
+  const [addEmail, setAddEmail] = useState('')
   const [addRoleCode, setAddRoleCode] = useState('')
   const [addPasswordOrPin, setAddPasswordOrPin] = useState('')
   const [addDepartment, setAddDepartment] = useState('Operations')
+  const [addEmployeeErrors, setAddEmployeeErrors] = useState<Record<string, string>>({})
 
   // Edit Employee Form States
   const [editEmployeeId, setEditEmployeeId] = useState('')
@@ -249,6 +252,7 @@ export const CompanyDashboardPage: React.FC = () => {
   const [editRoleCode, setEditRoleCode] = useState('')
   const [editDepartment, setEditDepartment] = useState('Operations')
   const [editIsActive, setEditIsActive] = useState(true)
+  const [editEmployeeErrors, setEditEmployeeErrors] = useState<Record<string, string>>({})
 
   // Reset Password Form States
   const [resetEmployeeId, setResetEmployeeId] = useState('')
@@ -296,7 +300,7 @@ export const CompanyDashboardPage: React.FC = () => {
   const [startBatchLineId, setStartBatchLineId] = useState('')
   const [startBatchNumber, setStartBatchNumber] = useState('')
   const [startBatchProduct, setStartBatchProduct] = useState('')
-  const [startBatchShift, setStartBatchShift] = useState('Day')
+  const [startBatchShift, setStartBatchShift] = useState('')
   const [startBatchTargetQty, setStartBatchTargetQty] = useState<string | number>('')
   const [batchSearch, setBatchSearch] = useState('')
   const [batchLineFilter, setBatchLineFilter] = useState('')
@@ -378,6 +382,16 @@ export const CompanyDashboardPage: React.FC = () => {
     enabled: path.includes('/inventory') && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
 
+  // Fetch Production Shifts for dropdown
+  const { data: productionShifts = [] } = useQuery({
+    queryKey: ['productionShifts'],
+    queryFn: async () => {
+      const res = await productionShiftsService.getAll()
+      return res.data?.data || []
+    },
+    enabled: user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
+  })
+
   // Create Brand Mutation
   const createBrandMutation = useMutation({
     mutationFn: brandService.createBrand,
@@ -449,27 +463,7 @@ export const CompanyDashboardPage: React.FC = () => {
     enabled: path.includes('/inventory') && inventoryTab === 'raw_materials' && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
 
-  // --- INVENTORY SETTINGS FOR DEFAULT INK/MAKEUP ---
-  const [defaultInkId, setDefaultInkId] = useState('')
-  const [defaultMakeupId, setDefaultMakeupId] = useState('')
 
-  const { data: inventorySettings } = useQuery<any>({
-    queryKey: ['inventorySettingsAdmin'],
-    queryFn: async () => {
-      const res = await api.get('/api/v1/rawmaterials/settings')
-      return res.data?.data || null
-    },
-    enabled: path.includes('/settings') && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
-  })
-
-  const { data: allMaterials = [] } = useQuery<any[]>({
-    queryKey: ['allRawMaterialsForDropdowns'],
-    queryFn: async () => {
-      const res = await api.get('/api/v1/production-entries/materials')
-      return res.data?.data || []
-    },
-    enabled: path.includes('/settings') && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
-  })
 
   // --- PRODUCTION STATIONS CONFIGURATION ---
   const [stationStates, setStationStates] = useState<Record<string, boolean>>({
@@ -525,35 +519,6 @@ export const CompanyDashboardPage: React.FC = () => {
     ['CompanyAdmin', 'SuperAdmin', 'PlatformAdmin'].includes(role)
   ) ?? false
 
-  useEffect(() => {
-    if (inventorySettings) {
-      setDefaultInkId(inventorySettings.defaultInkMaterialId || '')
-      setDefaultMakeupId(inventorySettings.defaultMakeupMaterialId || '')
-    }
-  }, [inventorySettings])
-
-  const saveInventorySettingsMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      const res = await api.post('/api/v1/rawmaterials/settings', payload)
-      return res.data
-    },
-    onSuccess: () => {
-      showToast('Inventory settings updated successfully.', 'success')
-      queryClient.invalidateQueries({ queryKey: ['inventorySettingsAdmin'] })
-      queryClient.invalidateQueries({ queryKey: ['inventorySettings'] })
-    },
-    onError: (err: any) => {
-      const msg = err.response?.data?.message || 'Failed to update inventory settings.'
-      showToast(msg, 'error')
-    }
-  })
-
-  const handleSaveInventorySettings = () => {
-    saveInventorySettingsMutation.mutate({
-      defaultInkMaterialId: defaultInkId || null,
-      defaultMakeupMaterialId: defaultMakeupId || null
-    })
-  }
 
   const handleSaveSecurityPin = async () => {
     if (!securityPin || !confirmSecurityPin) {
@@ -1021,6 +986,7 @@ export const CompanyDashboardPage: React.FC = () => {
         setIsAddModalOpen(false)
         setAddFullName('')
         setAddUsername('')
+        setAddEmail('')
         setAddRoleCode('')
         setAddPasswordOrPin('')
         setAddDepartment('Operations')
@@ -1390,26 +1356,40 @@ export const CompanyDashboardPage: React.FC = () => {
 
   const handleAddEmployeeSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    const errs: Record<string, string> = {}
+    
     if (!addFullName.trim()) {
-      showToast('Full Name is required.', 'warning')
-      return
+      errs.fullName = 'Please enter Employee Name.'
     }
-    if (!addUsername.trim() || addUsername.length < 3) {
-      showToast('Username must be at least 3 characters.', 'warning')
-      return
+    if (!addUsername.trim()) {
+      errs.username = 'Please enter Username.'
+    } else if (addUsername.length < 3) {
+      errs.username = 'Username must be at least 3 characters.'
+    }
+    if (!addEmail.trim()) {
+      errs.email = 'Please enter a valid email address.'
+    } else if (!addEmail.includes('@')) {
+      errs.email = 'Please enter a valid email address.'
     }
     if (!addRoleCode) {
-      showToast('Role is required.', 'warning')
+      errs.roleCode = 'Role is required.'
+    }
+    if (!addPasswordOrPin) {
+      errs.passwordOrPin = 'PIN is required.'
+    } else if (addPasswordOrPin.length !== 4 || !/^\d{4}$/.test(addPasswordOrPin)) {
+      errs.passwordOrPin = 'PIN must contain exactly 4 digits.'
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setAddEmployeeErrors(errs)
       return
     }
-    if (!addPasswordOrPin || addPasswordOrPin.length < 4) {
-      showToast('Password or PIN must be at least 4 characters.', 'warning')
-      return
-    }
+    setAddEmployeeErrors({})
 
     createEmployeeMutation.mutate({
       fullName: addFullName.trim(),
       username: addUsername.trim(),
+      email: addEmail.trim(),
       roleCode: addRoleCode,
       passwordOrPin: addPasswordOrPin,
       department: addDepartment
@@ -1418,14 +1398,20 @@ export const CompanyDashboardPage: React.FC = () => {
 
   const handleEditEmployeeSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    const errs: Record<string, string> = {}
+
     if (!editFullName.trim()) {
-      showToast('Full Name is required.', 'warning')
-      return
+      errs.fullName = 'Please enter Employee Name.'
     }
     if (!editRoleCode) {
-      showToast('Role is required.', 'warning')
+      errs.roleCode = 'Role is required.'
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setEditEmployeeErrors(errs)
       return
     }
+    setEditEmployeeErrors({})
 
     updateEmployeeMutation.mutate({
       id: editEmployeeId,
@@ -1739,33 +1725,7 @@ export const CompanyDashboardPage: React.FC = () => {
           </div>
         </EnterpriseCard>
 
-        <EnterpriseCard title="Inventory settings">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <EnterpriseSelect
-              label="Default Ink Material"
-              value={defaultInkId}
-              onChange={(e) => setDefaultInkId(e.target.value)}
-            >
-              <option value="">-- Use First Active Ink Material --</option>
-              {allMaterials.filter(m => m.category === 'INK').map(m => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </EnterpriseSelect>
-            <EnterpriseSelect
-              label="Default Makeup Material"
-              value={defaultMakeupId}
-              onChange={(e) => setDefaultMakeupId(e.target.value)}
-            >
-              <option value="">-- Use First Active Makeup Material --</option>
-              {allMaterials.filter(m => m.category === 'MAKEUP').map(m => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </EnterpriseSelect>
-          </div>
-          <EnterpriseButton onClick={handleSaveInventorySettings} loading={saveInventorySettingsMutation.isPending}>
-            Save Inventory Settings
-          </EnterpriseButton>
-        </EnterpriseCard>
+        <ProductionShiftsManager />
 
         <EnterpriseCard title="Production Stations Configuration">
           <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-4 select-none">
@@ -1775,9 +1735,9 @@ export const CompanyDashboardPage: React.FC = () => {
             {Object.keys(stationStates).map((stationName) => {
               const isEnabled = stationStates[stationName]
               return (
-                <div key={stationName} className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900 border border-[#E5E7EB] dark:border-slate-800 rounded-[8px]">
+                <div key={stationName} className="flex items-center justify-between p-3.5 bg-slate-50 border border-[#E5E7EB] rounded-[8px]">
                   <div className="text-left select-none">
-                    <span className="text-xs font-bold text-slate-800 dark:text-white block">{stationName} Station</span>
+                    <span className="text-xs font-bold text-slate-800 block">{stationName} Station</span>
                     <span className="text-[10px] text-slate-500 block mt-0.5">
                       {stationName === 'Blowing' && 'Preform usage/wastage logging & stock movement.'}
                       {stationName === 'Filling' && 'Cap usage/wastage, bottle & water filling.'}
@@ -1793,7 +1753,7 @@ export const CompanyDashboardPage: React.FC = () => {
                       onChange={(e) => setStationStates(prev => ({ ...prev, [stationName]: e.target.checked }))}
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
                   </label>
                 </div>
               )
@@ -2246,32 +2206,148 @@ export const CompanyDashboardPage: React.FC = () => {
           </form>
         </EnterpriseModal>
 
-        {/* Create Production Batch Modal */}
-        <EnterpriseModal isOpen={isStartBatchModalOpen} onClose={() => setIsStartBatchModalOpen(false)} title="Create Production Batch">
-          <form onSubmit={handleStartBatchSubmit} className="flex flex-col gap-4">
-            <EnterpriseSelect label="Production Line *" value={startBatchLineId} onChange={(e) => setStartBatchLineId(e.target.value)} required>
-              {productionLines.map((line: any) => (
-                <option key={line.lineId} value={line.lineId}>{line.name} ({line.code})</option>
-              ))}
-            </EnterpriseSelect>
-            <EnterpriseInput label="Batch Number / Code *" value={startBatchNumber} onChange={(e) => setStartBatchNumber(e.target.value)} placeholder="e.g. LOT-001, B-RUN-12" required />
-            <EnterpriseSelect label="Product *" value={startBatchProduct} onChange={(e) => setStartBatchProduct(e.target.value)} required>
-              {allCatalogProducts.map((prod: any) => (
-                <option key={prod.id} value={prod.name}>{prod.name} {prod.sku ? `(${prod.sku})` : ''}</option>
-              ))}
-            </EnterpriseSelect>
-            <EnterpriseSelect label="Shift *" value={startBatchShift} onChange={(e) => setStartBatchShift(e.target.value)} required>
-              <option value="Day">Day Shift</option>
-              <option value="Night">Night Shift</option>
-              <option value="Evening">Evening Shift</option>
-            </EnterpriseSelect>
-            <EnterpriseInput label="Target Quantity (Cases) *" type="number" value={startBatchTargetQty} onChange={(e) => setStartBatchTargetQty(e.target.value)} placeholder="e.g. 1000" required />
-            <div className="flex gap-2 justify-end mt-4">
-              <EnterpriseButton type="button" onClick={() => setIsStartBatchModalOpen(false)} variant="secondary">Cancel</EnterpriseButton>
-              <EnterpriseButton type="submit" loading={startBatchMutation.isPending}>Start Batch</EnterpriseButton>
+        {/* Premium Light Theme Create Production Batch Modal */}
+        {isStartBatchModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div 
+              onClick={() => !startBatchMutation.isPending && setIsStartBatchModalOpen(false)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            />
+            
+            <div className="relative w-full max-w-[650px] bg-white border border-gray-200 p-6 sm:p-8 rounded-[16px] shadow-xl flex flex-col gap-6 animate-in fade-in zoom-in-95 duration-200 z-10"
+                 role="dialog" aria-modal="true" aria-labelledby="batch-modal-title"
+                 tabIndex={-1}
+                 onKeyDown={(e) => {
+                   if (e.key === 'Escape' && !startBatchMutation.isPending) {
+                     setIsStartBatchModalOpen(false);
+                   }
+                 }}>
+              
+              {/* Header */}
+              <div className="flex items-start justify-between pb-4 border-b border-gray-100">
+                <div>
+                  <h3 id="batch-modal-title" className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <span className="text-xl">🏭</span> Create Production Batch
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Initialize a new water run on the production floor.
+                  </p>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => !startBatchMutation.isPending && setIsStartBatchModalOpen(false)}
+                  className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer"
+                  disabled={startBatchMutation.isPending}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleStartBatchSubmit} className="flex flex-col gap-6">
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* Row 1 */}
+                  <div className="flex flex-col gap-1.5 text-left">
+                    <label className="text-sm font-semibold text-gray-700">Production Line <span className="text-red-500">*</span></label>
+                    <select 
+                      value={startBatchLineId}
+                      onChange={e => setStartBatchLineId(e.target.value)}
+                      required
+                      className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                    >
+                      <option value="" disabled>Select Production Line</option>
+                      {productionLines.map((line: any) => (
+                        <option key={line.lineId} value={line.lineId}>{line.name} ({line.code})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 text-left">
+                    <label className="text-sm font-semibold text-gray-700">Batch Number / Code <span className="text-red-500">*</span></label>
+                    <input 
+                      type="text" 
+                      autoFocus
+                      placeholder="e.g. LOT-001, B-RUN-12"
+                      value={startBatchNumber}
+                      onChange={e => setStartBatchNumber(e.target.value)}
+                      required
+                      className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                    />
+                  </div>
+
+                  {/* Row 2 */}
+                  <div className="flex flex-col gap-1.5 text-left">
+                    <label className="text-sm font-semibold text-gray-700">Product <span className="text-red-500">*</span></label>
+                    <select 
+                      value={startBatchProduct}
+                      onChange={e => setStartBatchProduct(e.target.value)}
+                      required
+                      className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                    >
+                      <option value="" disabled>Select Product</option>
+                      {allCatalogProducts.map((prod: any) => (
+                        <option key={prod.id} value={prod.name}>{prod.name} {prod.sku ? `(${prod.sku})` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 text-left">
+                    <label className="text-sm font-semibold text-gray-700">Shift <span className="text-red-500">*</span></label>
+                    <select 
+                      value={startBatchShift}
+                      onChange={e => setStartBatchShift(e.target.value)}
+                      required
+                      className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                    >
+                      <option value="" disabled>Select Shift</option>
+                      {productionShifts.filter((s: any) => s.isActive).map((shift: any) => (
+                        <option key={shift.id} value={shift.name}>{shift.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5 text-left">
+                  <label className="text-sm font-semibold text-gray-700">Target Quantity (Cases) <span className="text-red-500">*</span></label>
+                  <input 
+                    type="number" 
+                    placeholder="e.g. 1000"
+                    value={startBatchTargetQty}
+                    onChange={e => setStartBatchTargetQty(e.target.value)}
+                    required
+                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                  />
+                </div>
+
+                {/* Footer */}
+                <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-gray-100">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsStartBatchModalOpen(false)}
+                    disabled={startBatchMutation.isPending}
+                    className="px-5 h-10 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={startBatchMutation.isPending}
+                    className="px-6 h-10 bg-[#1A56DB] text-white font-semibold text-sm rounded-[10px] hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px] shadow-sm cursor-pointer"
+                  >
+                    {startBatchMutation.isPending ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Starting...
+                      </span>
+                    ) : 'Start Batch'}
+                  </button>
+                </div>
+
+              </form>
             </div>
-          </form>
-        </EnterpriseModal>
+          </div>
+        )}
       </div>
     )
   }
@@ -2794,7 +2870,10 @@ export const CompanyDashboardPage: React.FC = () => {
         {/* 2. Add Employee dialog */}
         <EnterpriseModal
           isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
+          onClose={() => {
+            setIsAddModalOpen(false)
+            setAddEmployeeErrors({})
+          }}
           title="Register New Employee"
         >
           <form onSubmit={handleAddEmployeeSubmit} className="flex flex-col gap-4">
@@ -2803,20 +2882,28 @@ export const CompanyDashboardPage: React.FC = () => {
               value={addFullName}
               onChange={(e) => setAddFullName(e.target.value)}
               placeholder="e.g. John Doe"
-              required
+              error={addEmployeeErrors.fullName}
             />
             <EnterpriseInput
               label="Username *"
               value={addUsername}
               onChange={(e) => setAddUsername(e.target.value)}
               placeholder="e.g. john_doe"
-              required
+              error={addEmployeeErrors.username}
+            />
+            <EnterpriseInput
+              label="Email *"
+              type="email"
+              value={addEmail}
+              onChange={(e) => setAddEmail(e.target.value)}
+              placeholder="e.g. john.doe@company.com"
+              error={addEmployeeErrors.email}
             />
             <EnterpriseSelect
               label="Role *"
               value={addRoleCode}
               onChange={(e) => setAddRoleCode(e.target.value)}
-              required
+              error={addEmployeeErrors.roleCode}
             >
               <option value="">Select Role</option>
               {roles.map((r: any) => (
@@ -2830,7 +2917,7 @@ export const CompanyDashboardPage: React.FC = () => {
               placeholder="Enter Password or PIN"
               value={addPasswordOrPin}
               onChange={(e) => setAddPasswordOrPin(e.target.value)}
-              required
+              error={addEmployeeErrors.passwordOrPin}
             />
 
             <EnterpriseSelect
@@ -2844,7 +2931,10 @@ export const CompanyDashboardPage: React.FC = () => {
             </EnterpriseSelect>
 
             <div className="flex gap-2 justify-end mt-4">
-              <EnterpriseButton type="button" onClick={() => setIsAddModalOpen(false)} variant="secondary">
+              <EnterpriseButton type="button" onClick={() => {
+                setIsAddModalOpen(false)
+                setAddEmployeeErrors({})
+              }} variant="secondary">
                 Cancel
               </EnterpriseButton>
               <EnterpriseButton type="submit" loading={createEmployeeMutation.isPending}>
@@ -2857,7 +2947,10 @@ export const CompanyDashboardPage: React.FC = () => {
         {/* 3. Edit Employee dialog */}
         <EnterpriseModal
           isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
+          onClose={() => {
+            setIsEditModalOpen(false)
+            setEditEmployeeErrors({})
+          }}
           title="Modify Employee Account"
         >
           <form onSubmit={handleEditEmployeeSubmit} className="flex flex-col gap-4">
@@ -2865,13 +2958,13 @@ export const CompanyDashboardPage: React.FC = () => {
               label="Full Name *"
               value={editFullName}
               onChange={(e) => setEditFullName(e.target.value)}
-              required
+              error={editEmployeeErrors.fullName}
             />
             <EnterpriseSelect
               label="Role *"
               value={editRoleCode}
               onChange={(e) => setEditRoleCode(e.target.value)}
-              required
+              error={editEmployeeErrors.roleCode}
             >
               {roles.map((r: any) => (
                 <option key={r.id} value={r.code}>{r.name}</option>
@@ -3612,3 +3705,4 @@ export const CompanyDashboardPage: React.FC = () => {
   )
 }
 export default CompanyDashboardPage
+

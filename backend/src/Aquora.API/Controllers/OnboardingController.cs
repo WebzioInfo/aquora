@@ -37,9 +37,9 @@ namespace Aquora.API.Controllers
                 var result = await _companyOnboardingService.OnboardCompanyAsync(userId, request);
                 return Success(result, "Company onboarding completed. Invite Your Team.");
             }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("already initialized"))
+            catch (InvalidOperationException ex) when ("An internal error occurred.".Contains("already initialized"))
             {
-                return Conflict(Failure<CompanyOnboardingResponse>(ex.Message, "Company already initialized."));
+                return Conflict(Failure<CompanyOnboardingResponse>("An internal error occurred.", "Company already initialized."));
             }
         }
 
@@ -59,7 +59,7 @@ namespace Aquora.API.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(Failure<CompanyOnboardingResponse>(ex.Message));
+                return BadRequest(Failure<CompanyOnboardingResponse>("An internal error occurred."));
             }
         }
 
@@ -79,7 +79,7 @@ namespace Aquora.API.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(Failure<object>(ex.Message));
+                return BadRequest(Failure<object>("An internal error occurred."));
             }
         }
     }

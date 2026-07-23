@@ -50,9 +50,8 @@ namespace Aquora.Application.DTOs.Customers
         [StringLength(200, ErrorMessage = "Address Line 2 cannot exceed 200 characters.")]
         public string? AddressLine2 { get; set; }
 
-        [Required(ErrorMessage = "City is required.")]
         [StringLength(100, ErrorMessage = "City cannot exceed 100 characters.")]
-        public string City { get; set; } = string.Empty;
+        public string? City { get; set; }
 
         [Required(ErrorMessage = "District is required.")]
         [StringLength(100, ErrorMessage = "District cannot exceed 100 characters.")]

@@ -68,7 +68,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<List<string>>(ex.Message, "Failed to retrieve production configurations.");
+                return Failure<List<string>>("An internal error occurred.", "Failed to retrieve production configurations.");
             }
         }
 
@@ -99,7 +99,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<List<TenantProductionConfigurationDto>>(ex.Message, "Failed to retrieve production configurations.");
+                return Failure<List<TenantProductionConfigurationDto>>("An internal error occurred.", "Failed to retrieve production configurations.");
             }
         }
 
@@ -148,7 +148,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<bool>(ex.Message, "Failed to update production configurations.");
+                return Failure<bool>("An internal error occurred.", "Failed to update production configurations.");
             }
         }
     }

@@ -94,7 +94,7 @@ namespace Aquora.API.Controllers
                         .OrderByDescending(e => e.CreatedAt)
                         .ToListAsync();
                 }
-                catch (Exception ex) when (ex.ToString().Contains("42703") || ex.ToString().Contains("CapMaterialId"))
+                catch (Exception ex) when ("An internal error occurred.".Contains("42703") || "An internal error occurred.".Contains("CapMaterialId"))
                 {
                     return Failure<List<object>>("Tenant schema is outdated. Pending migration detected.", "Schema Error");
                 }
@@ -135,7 +135,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<List<object>>(ex.Message, "Failed to load today's production entries.");
+                return Failure<List<object>>("An internal error occurred.", "Failed to load today's production entries.");
             }
         }
 
@@ -161,7 +161,7 @@ namespace Aquora.API.Controllers
                         .OrderByDescending(e => e.CreatedAt)
                         .ToListAsync();
                 }
-                catch (Exception ex) when (ex.ToString().Contains("42703") || ex.ToString().Contains("CapMaterialId"))
+                catch (Exception ex) when ("An internal error occurred.".Contains("42703") || "An internal error occurred.".Contains("CapMaterialId"))
                 {
                     return Failure<List<object>>("Tenant schema is outdated. Pending migration detected.", "Schema Error");
                 }
@@ -203,7 +203,7 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to load entries for session {SessionId}.", sessionId);
-                return Failure<List<object>>(ex.Message, "Failed to load session entries.");
+                return Failure<List<object>>("An internal error occurred.", "Failed to load session entries.");
             }
         }
 
@@ -631,7 +631,7 @@ namespace Aquora.API.Controllers
                 {
                     await transaction.RollbackAsync();
                     stopwatch.Stop();
-                    var errorMsg = ex.InnerException?.Message ?? ex.Message;
+                    var errorMsg = ex.InnerException?.Message ?? "An internal error occurred.";
                     
                     _logger.LogError(ex, "CreateProductionEntry unexpected exception. Tenant: {TenantId}, LineId: {LineId}, ElapsedMs: {ElapsedMs}, CorrelationId: {CorrelationId}", 
                         GetTenantId(), request.ProductionLineId, stopwatch.ElapsedMilliseconds, correlationId);
@@ -714,7 +714,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<object>(ex.Message, "Failed to load active production session.");
+                return Failure<object>("An internal error occurred.", "Failed to load active production session.");
             }
         }
 
@@ -942,7 +942,7 @@ namespace Aquora.API.Controllers
                 // Detailed error logging in Development
                 Serilog.Log.Error(ex, "Failed to start production session. DTO: {@Request}", request);
 
-                return Failure<object>(ex.Message, "Failed to start production session.");
+                return Failure<object>("An internal error occurred.", "Failed to start production session.");
             }
         }
 
@@ -1045,7 +1045,7 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return Failure<object>(ex.Message, "Failed to close production batch.");
+                return Failure<object>("An internal error occurred.", "Failed to close production batch.");
             }
         }
 
@@ -1072,7 +1072,7 @@ namespace Aquora.API.Controllers
                             .ThenInclude(e => e.GlueMaterial)
                         .FirstOrDefaultAsync(s => s.Id == sessionId && !s.IsDeleted);
                 }
-                catch (Exception ex) when (ex.ToString().Contains("42703") || ex.ToString().Contains("CapMaterialId"))
+                catch (Exception ex) when ("An internal error occurred.".Contains("42703") || "An internal error occurred.".Contains("CapMaterialId"))
                 {
                     return Failure<object>("Tenant schema is outdated. Pending migration detected.", "Schema Error");
                 }
@@ -1293,7 +1293,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<object>(ex.Message, "Failed to load session summary.");
+                return Failure<object>("An internal error occurred.", "Failed to load session summary.");
             }
         }
 
@@ -1357,7 +1357,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<List<object>>(ex.Message, "Failed to load SKU products.");
+                return Failure<List<object>>("An internal error occurred.", "Failed to load SKU products.");
             }
         }
 
@@ -1376,7 +1376,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<List<object>>(ex.Message, "Failed to load case configurations.");
+                return Failure<List<object>>("An internal error occurred.", "Failed to load case configurations.");
             }
         }
 
@@ -1424,7 +1424,7 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to load raw materials.");
-                return Failure<List<object>>(ex.Message, "Failed to load raw materials.");
+                return Failure<List<object>>("An internal error occurred.", "Failed to load raw materials.");
             }
         }
 

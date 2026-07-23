@@ -69,7 +69,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<PagedResult<BrandDto>>(ex.Message, "Failed to retrieve brands.");
+                return Failure<PagedResult<BrandDto>>("An internal error occurred.", "Failed to retrieve brands.");
             }
         }
 
@@ -99,7 +99,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<BrandDto>(ex.Message, "Failed to retrieve brand.");
+                return Failure<BrandDto>("An internal error occurred.", "Failed to retrieve brand.");
             }
         }
 
@@ -158,7 +158,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<BrandDto>(ex.Message, "Failed to create brand.");
+                return Failure<BrandDto>("An internal error occurred.", "Failed to create brand.");
             }
         }
 
@@ -223,7 +223,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<BrandDto>(ex.Message, "Failed to update brand.");
+                return Failure<BrandDto>("An internal error occurred.", "Failed to update brand.");
             }
         }
 
@@ -250,7 +250,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<bool>(ex.Message, "Failed to delete brand.");
+                return Failure<bool>("An internal error occurred.", "Failed to delete brand.");
             }
         }
     }

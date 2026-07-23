@@ -4,6 +4,7 @@ import { useOutletContext } from 'react-router-dom'
 import { api } from '../../services/api'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import { useAuthStore } from '../../store/useAuthStore'
+import { productionShiftsService } from '../../services/productionShifts'
 import {
   Check, Cpu, Save, RefreshCw, Play, X, AlertTriangle, Clock, ChevronDown, Loader2
 } from 'lucide-react'
@@ -59,7 +60,9 @@ export const OperatorDashboardPage: React.FC = () => {
   const {
     selectedLine, updateLine,
     selectedShift, updateShift,
-    setHasUnsavedData,
+    selectedProduct, updateProduct,
+    resetTerminal,
+    hasUnsavedData, setHasUnsavedData,
     registerSaveHandler,
     registerDiscardHandler,
     registerEndBatchTrigger,
@@ -79,17 +82,14 @@ export const OperatorDashboardPage: React.FC = () => {
   const [showStartModal, setShowStartModal] = useState(false)
   const [showEndModal, setShowEndModal] = useState(false)
 
-  // Local shift calculation helper
-  const getAutoShift = () => {
-    const hour = new Date().getHours()
-    if (hour >= 6 && hour < 14) return 'Morning'
-    if (hour >= 14 && hour < 22) return 'Evening'
-    return 'Night'
-  }
-
   // Pre-login allocation state
   const [localLine, setLocalLine] = useState<any>(null)
-  const [localShift, setLocalShift] = useState<string>(getAutoShift())
+  const [localShift, setLocalShift] = useState<string>('')
+  const [localProduct, setLocalProduct] = useState<SkuProduct | null>(null)
+  const [allocationSkuSearch, setAllocationSkuSearch] = useState('')
+  const [allocationSkuOpen, setAllocationSkuOpen] = useState(false)
+  const [allocationSkuHighlight, setAllocationSkuHighlight] = useState(-1)
+  const allocationSkuContainerRef = useRef<HTMLDivElement>(null)
 
   // --- QUERY: Active Production Session (Unified Context Endpoint) ---
   const {
@@ -124,6 +124,15 @@ export const OperatorDashboardPage: React.FC = () => {
     staleTime: Infinity,
     gcTime: Infinity
   } as any)
+
+  const { data: productionShifts = [] } = useQuery({
+    queryKey: ['productionShifts'],
+    queryFn: async () => {
+      const res = await productionShiftsService.getAll()
+      return res.data?.data || []
+    }
+  })
+
   // Autofocus view transitions & route protection redirect
   const hasAutoOpenedModal = useRef(false)
 
@@ -132,6 +141,24 @@ export const OperatorDashboardPage: React.FC = () => {
       hasAutoOpenedModal.current = false
     }
   }, [selectedLine?.lineId])
+
+  useEffect(() => {
+    if (productionShifts.length > 0 && !localShift) {
+      const activeShifts = productionShifts.filter((s: any) => s.isActive)
+      if (activeShifts.length === 1) {
+        setLocalShift(activeShifts[0].name)
+      } else if (activeShifts.length > 1) {
+        const hour = new Date().getHours()
+        let guess = ''
+        if (hour >= 6 && hour < 14) guess = 'Morning'
+        else if (hour >= 14 && hour < 22) guess = 'Evening'
+        else guess = 'Night'
+        if (activeShifts.find((s: any) => s.name === guess)) {
+          setLocalShift(guess)
+        }
+      }
+    }
+  }, [productionShifts, localShift])
 
   useEffect(() => {
     if (activeSession && activeSession.canEnterProductionPage) {
@@ -177,7 +204,7 @@ export const OperatorDashboardPage: React.FC = () => {
   )
 
   // --- START PRODUCTION MODAL FIELDS ---
-  const [modalShift, setModalShift] = useState(selectedShift || getAutoShift())
+  const [modalShift, setModalShift] = useState(selectedShift || '')
   const [modalBatchNo, setModalBatchNo] = useState('')
   const [modalSkuSearch, setModalSkuSearch] = useState('')
   const [modalSelectedSku, setModalSelectedSku] = useState<SkuProduct | null>(null)
@@ -261,19 +288,20 @@ export const OperatorDashboardPage: React.FC = () => {
   // Generate batch number preview on opening modal
   useEffect(() => {
     if (showStartModal) {
-      setModalShift(selectedShift || getAutoShift())
+      setModalShift(selectedShift || '')
+      setModalSelectedSku(selectedProduct || null)
+      if (selectedProduct) {
+        setModalSkuSearch(selectedProduct.name)
+      } else {
+        setModalSkuSearch('')
+      }
       setModalBatchNo('')
-      setModalSkuSearch('')
-      setModalSelectedSku(null)
       setModalNotes('')
       setModalStartTime(getLocalDateTimeString())
       setModalErrors({})
       setScrollTop(0)
-
-      // Clear batch number
-      setModalBatchNo('')
     }
-  }, [showStartModal])
+  }, [showStartModal, selectedShift, selectedProduct])
 
   // Click outside listener for modal SKU autocomplete
   useEffect(() => {
@@ -549,7 +577,39 @@ export const OperatorDashboardPage: React.FC = () => {
     }
   })
 
+  // Fetch Products for Allocation
+  const { data: allocationProducts = [] } = useQuery<any[]>({
+    queryKey: ['allocationProducts'],
+    queryFn: async () => {
+      const res = await api.get('/api/v1/production-entries/skus')
+      return res.data?.data || []
+    }
+  })
 
+  // Auto-select when only one option exists
+  useEffect(() => {
+    if (!selectedLine) {
+      if (linesData && linesData.length === 1) {
+        setLocalLine(linesData[0])
+      }
+      const activeShifts = productionShifts.filter((s: any) => s.isActive)
+      if (activeShifts.length === 1) {
+        setLocalShift(activeShifts[0].name)
+      }
+      if (allocationProducts && allocationProducts.length === 1) {
+        setLocalProduct(allocationProducts[0])
+        setAllocationSkuSearch(allocationProducts[0].name)
+      }
+    }
+  }, [linesData, productionShifts, allocationProducts, selectedLine])
+
+  useEffect(() => {
+    if (localProduct) {
+      setAllocationSkuSearch(localProduct.name)
+    } else {
+      setAllocationSkuSearch('')
+    }
+  }, [localProduct])
 
   const { data: rawMaterials = [], refetch: refetchMaterials } = useQuery<RawMaterial[]>({
     queryKey: ['rawMaterials'],
@@ -722,14 +782,43 @@ export const OperatorDashboardPage: React.FC = () => {
     rawMaterials
   ])
 
+  const filteredAllocationProducts = useMemo(() => {
+    if (!allocationSkuSearch.trim()) return allocationProducts
+    const q = allocationSkuSearch.toLowerCase()
+    return allocationProducts.filter((p: any) =>
+      (p?.name?.toLowerCase() || '').includes(q) ||
+      (p?.code?.toLowerCase() || '').includes(q) ||
+      (p?.sku?.toLowerCase() || '').includes(q)
+    )
+  }, [allocationProducts, allocationSkuSearch])
+
+  useEffect(() => {
+    const clickOutside = (e: MouseEvent) => {
+      if (allocationSkuContainerRef.current && !allocationSkuContainerRef.current.contains(e.target as Node)) {
+        setAllocationSkuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', clickOutside)
+    return () => document.removeEventListener('mousedown', clickOutside)
+  }, [])
+
   // Shift selection automatically changes timezone shift configuration
   const handleEnterTerminal = () => {
     if (!localLine) {
       showToast('Please select a production line.', 'warning')
       return
     }
+    if (!localShift) {
+      showToast('Please select a working shift.', 'warning')
+      return
+    }
+    if (!localProduct) {
+      showToast('Please select a product for allocation.', 'warning')
+      return
+    }
     updateLine(localLine)
     updateShift(localShift)
+    updateProduct(localProduct)
     showToast(`Entered session for Line: ${localLine.name}`, 'success')
   }
 
@@ -739,7 +828,9 @@ export const OperatorDashboardPage: React.FC = () => {
       const res = await api.post('/api/v1/production-entries/session/start', payload)
       return res.data
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      updateShift(variables.shift)
+      updateProduct(modalSelectedSku)
       showToast('Production session started successfully.', 'success')
       setShowStartModal(false)
       if (refetchActiveBatch) refetchActiveBatch()
@@ -1093,12 +1184,13 @@ export const OperatorDashboardPage: React.FC = () => {
                 <div>
                   <label className="text-xs font-semibold text-[#344054] block mb-2">Working Shift *</label>
                   <div className="grid grid-cols-3 gap-2">
-                    {['Morning', 'Evening', 'Night'].map((s) => {
+                    {productionShifts.filter((shift: any) => shift.isActive).map((shift: any) => {
+                      const s = shift.name
                       const isSelected = localShift === s
                       const lTheme = localLine ? getLineTheme(localLine.name, localLine.lineId) : null
                       return (
                         <button
-                          key={s}
+                          key={shift.id}
                           type="button"
                           onClick={() => setLocalShift(s)}
                           className={`py-2 px-3 border text-center text-xs font-semibold rounded-[6px] transition-all duration-200 cursor-pointer`}
@@ -1114,14 +1206,82 @@ export const OperatorDashboardPage: React.FC = () => {
                     })}
                   </div>
                   <span className="text-[10px] text-[#6B7280] block mt-2 font-medium italic">
-                    * Auto-selected: {getAutoShift()} Shift.
+                    * Working shifts are loaded from your tenant configuration.
                   </span>
+                </div>
+
+                <div ref={allocationSkuContainerRef} className="relative flex flex-col gap-1.5 text-left">
+                  <label className="text-xs font-semibold text-[#344054]">Select Product *</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Type product name or SKU to search..."
+                      value={allocationSkuSearch}
+                      onChange={(e) => {
+                        setAllocationSkuSearch(e.target.value)
+                        setAllocationSkuOpen(true)
+                        setAllocationSkuHighlight(-1)
+                        if (localProduct && e.target.value !== localProduct.name) {
+                          setLocalProduct(null)
+                        }
+                      }}
+                      onFocus={() => setAllocationSkuOpen(true)}
+                      className="w-full h-10 border border-[#D0D5DD] px-3 py-1.5 pr-10 text-xs bg-white rounded-[8px] focus:outline-none focus-line-theme text-slate-800 font-semibold"
+                    />
+                    <div className="absolute right-3 top-2.5 flex items-center gap-1.5 text-slate-400">
+                      {localProduct ? (
+                        <Check className="w-4.5 h-4.5 text-green-600 stroke-[2.5]" />
+                      ) : (
+                        <ChevronDown className="w-4.5 h-4.5" />
+                      )}
+                    </div>
+                  </div>
+
+                  {allocationSkuOpen && filteredAllocationProducts.length > 0 && (
+                    <div className="absolute left-0 top-[62px] z-50 w-full overflow-y-auto border border-[#E5E7EB] shadow-2xl rounded-[12px] bg-white text-left transition-all max-h-[200px]">
+                      {filteredAllocationProducts.map((p) => {
+                        const isSelected = localProduct?.id === p.id
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              setLocalProduct(p)
+                              setAllocationSkuSearch(p.name)
+                              setAllocationSkuOpen(false)
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0 flex justify-between items-center cursor-pointer"
+                          >
+                            <div>
+                              <span className="font-semibold text-slate-800 block">{p.name}</span>
+                              <div className="flex gap-2 items-center text-[10px] text-slate-500 mt-0.5 font-medium">
+                                <span>SKU: {p.sku || p.code}</span>
+                                {p.bottleSize && (
+                                  <>
+                                    <span>•</span>
+                                    <span>Size: {p.bottleSize}</span>
+                                  </>
+                                )}
+                                {p.variant && (
+                                  <>
+                                    <span>•</span>
+                                    <span>Variant: {p.variant}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            {isSelected && <Check className="w-4.5 h-4.5 text-blue-600" />}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <div className="border-t border-[#E5E7EB] pt-4 mt-1">
                   <button
                     onClick={handleEnterTerminal}
-                    disabled={!localLine}
+                    disabled={!localLine || !localShift || !localProduct}
                     className="w-full h-10 text-xs font-bold justify-center rounded-[8px] transition-all duration-200 text-white cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
                     style={{
                       backgroundColor: localLine ? getLineTheme(localLine.name, localLine.lineId).primary : '#1A56DB',
@@ -1197,8 +1357,22 @@ export const OperatorDashboardPage: React.FC = () => {
               )}
             </div>
             <p className="text-xs text-[#6B7280] font-medium">
-              Line: <strong className="text-slate-800">{selectedLine.name}</strong> | Shift: <strong className="text-slate-800">{selectedShift}</strong> | Operator: <strong className="text-slate-800">{activeSession?.operatorName || 'Authorized Operator'}</strong>
+              Line: <strong className="text-slate-800">{selectedLine.name}</strong> | Shift: <strong className="text-slate-800">{selectedShift}</strong> | Product: <strong className="text-slate-800">{selectedProduct?.name || 'None'}</strong> | Operator: <strong className="text-slate-800">{activeSession?.operatorName || 'Authorized Operator'}</strong>
             </p>
+            <button
+              type="button"
+              onClick={() => {
+                if (hasUnsavedData) {
+                  showToast('You have unsaved production entries. Save or discard them first.', 'warning')
+                  return
+                }
+                resetTerminal()
+              }}
+              className="mt-1 px-3 py-1 bg-white hover:bg-slate-50 border border-slate-200 rounded-[6px] text-[#4B5563] text-[10px] font-bold uppercase tracking-wider transition-all duration-150 flex items-center gap-1.5 cursor-pointer shadow-sm"
+            >
+              <RefreshCw className="w-3 h-3 text-[#4B5563]" />
+              <span>Change Production Allocation</span>
+            </button>
           </div>
 
           {sessionLoading ? (
@@ -1362,9 +1536,10 @@ export const OperatorDashboardPage: React.FC = () => {
                       }}
                       className="w-full h-10 border border-[#D0D5DD] px-3 py-1.5 text-xs bg-white rounded-[8px] focus:outline-none focus-line-theme text-slate-800 font-semibold"
                     >
-                      <option value="Morning">Morning</option>
-                      <option value="Evening">Evening</option>
-                      <option value="Night">Night</option>
+                      <option value="" disabled>Select Shift</option>
+                      {productionShifts.filter((s: any) => s.isActive).map((shift: any) => (
+                        <option key={shift.id} value={shift.name}>{shift.name}</option>
+                      ))}
                     </select>
                     {modalErrors.shift && (
                       <span className="text-[10px] font-bold text-red-500 flex items-center gap-1 mt-0.5">

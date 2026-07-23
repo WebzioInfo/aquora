@@ -89,7 +89,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<PagedResult<RawMaterialDto>>(ex.Message, "Failed to retrieve raw materials.");
+                return Failure<PagedResult<RawMaterialDto>>("An internal error occurred.", "Failed to retrieve raw materials.");
             }
         }
 
@@ -122,7 +122,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<RawMaterialDto>(ex.Message, "Failed to retrieve raw material.");
+                return Failure<RawMaterialDto>("An internal error occurred.", "Failed to retrieve raw material.");
             }
         }
 
@@ -259,7 +259,7 @@ namespace Aquora.API.Controllers
             catch (DbUpdateException ex)
             {
                 var details = new System.Text.StringBuilder();
-                details.AppendLine($"Database Save Failure: {ex.Message}");
+                details.AppendLine($"Database Save Failure: {"An internal error occurred."}");
                 if (ex.InnerException is Npgsql.PostgresException pgEx)
                 {
                     details.AppendLine($"Postgres Error Code (SqlState): {pgEx.SqlState}");
@@ -288,7 +288,7 @@ namespace Aquora.API.Controllers
                     _currentUserContext.TenantId, company?.Id, request.Name);
 
                 return StatusCode(500, ApiResponse<RawMaterialDto>.CreateFailure(
-                    ex.Message, 
+                    "An internal error occurred.", 
                     "Unexpected Error", 
                     HttpContext.TraceIdentifier));
             }
@@ -398,7 +398,7 @@ namespace Aquora.API.Controllers
             }
             catch (DbUpdateException ex)
             {
-                var innerMsg = ex.InnerException?.Message ?? ex.Message;
+                var innerMsg = ex.InnerException?.Message ?? "An internal error occurred.";
                 _logger.LogError(ex, "RawMaterial update database save failed. Tenant: {TenantId}, Company: {CompanyId}, Name: {Name}, Error: {Error}",
                     _currentUserContext.TenantId, company?.Id, request.Name, innerMsg);
 
@@ -413,7 +413,7 @@ namespace Aquora.API.Controllers
                     _currentUserContext.TenantId, company?.Id, request.Name);
 
                 return StatusCode(500, ApiResponse<RawMaterialDto>.CreateFailure(
-                    ex.Message, 
+                    "An internal error occurred.", 
                     "Unexpected Error", 
                     HttpContext.TraceIdentifier));
             }
@@ -442,7 +442,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<bool>(ex.Message, "Failed to delete raw material.");
+                return Failure<bool>("An internal error occurred.", "Failed to delete raw material.");
             }
         }
 
@@ -510,7 +510,7 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return Failure<RawMaterialDto>(ex.Message, "Failed to add stock.");
+                return Failure<RawMaterialDto>("An internal error occurred.", "Failed to add stock.");
             }
         }
 
@@ -629,7 +629,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<PagedResult<InventoryMovementDto>>(ex.Message, "Failed to retrieve inventory movements.");
+                return Failure<PagedResult<InventoryMovementDto>>("An internal error occurred.", "Failed to retrieve inventory movements.");
             }
         }
 

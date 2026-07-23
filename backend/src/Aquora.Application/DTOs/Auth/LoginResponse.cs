@@ -13,6 +13,7 @@ namespace Aquora.Application.DTOs.Auth
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public Guid? TenantId { get; set; }
+        public string? CompanyName { get; set; }
         public List<string> Roles { get; set; }
         public List<string> Permissions { get; set; }
         public bool IsTenantInitialized { get; set; }

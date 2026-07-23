@@ -85,7 +85,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<PagedResult<ProductDto>>(ex.Message, "Failed to retrieve products.");
+                return Failure<PagedResult<ProductDto>>("An internal error occurred.", "Failed to retrieve products.");
             }
         }
 
@@ -120,7 +120,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<ProductDto>(ex.Message, "Failed to retrieve product.");
+                return Failure<ProductDto>("An internal error occurred.", "Failed to retrieve product.");
             }
         }
 
@@ -227,7 +227,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<ProductDto>(ex.Message, "Failed to create product.");
+                return Failure<ProductDto>("An internal error occurred.", "Failed to create product.");
             }
         }
 
@@ -334,7 +334,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<ProductDto>(ex.Message, "Failed to update product.");
+                return Failure<ProductDto>("An internal error occurred.", "Failed to update product.");
             }
         }
 
@@ -361,7 +361,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<bool>(ex.Message, "Failed to delete product.");
+                return Failure<bool>("An internal error occurred.", "Failed to delete product.");
             }
         }
 
@@ -384,7 +384,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<List<BrandDto>>(ex.Message, "Failed to load brands.");
+                return Failure<List<BrandDto>>("An internal error occurred.", "Failed to load brands.");
             }
         }
 
@@ -500,7 +500,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<PagedResult<InventoryMovementDto>>(ex.Message, "Failed to retrieve product movements.");
+                return Failure<PagedResult<InventoryMovementDto>>("An internal error occurred.", "Failed to retrieve product movements.");
             }
         }
     }
