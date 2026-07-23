@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Aquora.Application.Interfaces;
+using Aquora.Application.Interfaces.Services;
 using Aquora.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Aquora.Shared.Models;
@@ -19,11 +20,16 @@ namespace Aquora.API.Controllers
     {
         private readonly ITenantDbContext _tenantContext;
         private readonly ICurrentUserContext _userContext;
+        private readonly IInventoryMovementService _inventoryMovementService;
 
-        public OperationsController(ITenantDbContext tenantContext, ICurrentUserContext userContext)
+        public OperationsController(
+            ITenantDbContext tenantContext, 
+            ICurrentUserContext userContext,
+            IInventoryMovementService inventoryMovementService)
         {
             _tenantContext = tenantContext;
             _userContext = userContext;
+            _inventoryMovementService = inventoryMovementService;
         }
 
         [HttpPost("visit")]
@@ -135,6 +141,36 @@ namespace Aquora.API.Controllers
                 _tenantContext.OperationsFillingQueues.Add(queue);
             }
 
+            if (dto.ReturnedEmptyCount > 0)
+            {
+                await _inventoryMovementService.RecordOutstandingJarMovementAsync(
+                    _tenantContext,
+                    visit.DistributorId,
+                    -dto.ReturnedEmptyCount,
+                    "Unloading_Return",
+                    unloading.Id,
+                    "Empty jars returned to plant",
+                    tenantId,
+                    visit.CompanyId,
+                    _userContext.UserId.ToString()
+                );
+            }
+
+            if (dto.LaterRequirement > 0)
+            {
+                await _inventoryMovementService.RecordReservedEmptyJarMovementAsync(
+                    _tenantContext,
+                    visit.DistributorId,
+                    dto.LaterRequirement,
+                    "Unloading_Reserve",
+                    unloading.Id,
+                    "Empty jars reserved for later filling",
+                    tenantId,
+                    visit.CompanyId,
+                    _userContext.UserId.ToString()
+                );
+            }
+
             visit.Status = "Unloaded";
             await _tenantContext.SaveChangesAsync(default);
 
@@ -212,6 +248,21 @@ namespace Aquora.API.Controllers
                 }
             }
 
+            if (dto.QuantityLoaded > 0)
+            {
+                await _inventoryMovementService.RecordOutstandingJarMovementAsync(
+                    _tenantContext,
+                    visit.DistributorId,
+                    dto.QuantityLoaded,
+                    "Loading_Dispatch",
+                    loading.Id,
+                    "Full jars dispatched to distributor",
+                    tenantId,
+                    visit.CompanyId,
+                    _userContext.UserId.ToString()
+                );
+            }
+
             visit.Status = "Completed";
             await _tenantContext.SaveChangesAsync(default);
 
@@ -233,7 +284,7 @@ namespace Aquora.API.Controllers
                 .SumAsync(l => l.QuantityLoaded);
 
             var damagedToday = await _tenantContext.OperationsJarConditions
-                .Where(c => c.TenantId == tenantId && c.CreatedAt >= today && c.ConditionType != "Good")
+                .Where(c => c.TenantId == tenantId && c.CreatedAt >= today && c.ConditionType != "Normal")
                 .SumAsync(c => c.Quantity);
 
             var pendingQueue = await _tenantContext.OperationsFillingQueues
@@ -251,7 +302,279 @@ namespace Aquora.API.Controllers
                 pendingQueue,
                 damagedToday,
                 quarantineTotal,
-                outstandingJars = 0 // In future, integrate with customer ledger
+                outstandingJars = await _tenantContext.Customers.Where(c => c.TenantId == tenantId && !c.IsDeleted).SumAsync(c => c.OutstandingJars)
+            });
+        }
+
+        [HttpGet("distributors")]
+        public async Task<ActionResult<ApiResponse<object>>> GetDistributors()
+        {
+            var tenantId = _userContext.TenantId;
+            var list = await _tenantContext.Customers
+                .Where(c => c.TenantId == tenantId && c.IsActive && !c.IsDeleted)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.CustomerName,
+                    c.CustomerCode,
+                    c.Phone,
+                    c.OutstandingJars,
+                    c.AssignedVehicle,
+                    c.AssignedDriver,
+                    c.MaxJarLimit,
+                    c.ReservedEmptyJars
+                })
+                .ToListAsync();
+            return Success<object>(list);
+        }
+
+        [HttpGet("distributor/{distributorId}/context")]
+        public async Task<ActionResult<ApiResponse<object>>> GetDistributorContext(Guid distributorId)
+        {
+            var tenantId = _userContext.TenantId;
+            var distributor = await _tenantContext.Customers
+                .FirstOrDefaultAsync(c => c.Id == distributorId && c.TenantId == tenantId);
+            if (distributor == null) return Failure<object>("Distributor not found", "Not Found", HttpStatusCode.NotFound);
+
+            var reservedFilled = await _tenantContext.OperationsReservedJars
+                .Where(r => r.DistributorId == distributorId && r.Type == "Filled" && r.Status == "Pending" && r.TenantId == tenantId)
+                .SumAsync(r => r.Quantity);
+
+            var condemnations = await _tenantContext.OperationsJarConditions
+                .Where(c => c.Visit.DistributorId == distributorId && c.ConditionType != "Normal" && c.TenantId == tenantId)
+                .SumAsync(c => c.Quantity);
+
+            return Success<object>(new
+            {
+                distributorId = distributor.Id,
+                distributorName = distributor.CustomerName,
+                outstandingJars = distributor.OutstandingJars,
+                reservedEmpty = distributor.ReservedEmptyJars,
+                reservedEmptyJars = distributor.ReservedEmptyJars,
+                reservedFilled,
+                condemnations,
+                assignedVehicle = distributor.AssignedVehicle ?? string.Empty,
+                assignedDriver = distributor.AssignedDriver ?? string.Empty
+            });
+        }
+
+        [HttpPost("washing")]
+        public async Task<ActionResult<ApiResponse<object>>> RecordWashing([FromBody] WashingLogDto dto)
+        {
+            var tenantId = _userContext.TenantId;
+            var companyId = await _tenantContext.Companies.Select(c => c.Id).FirstOrDefaultAsync();
+
+            var washing = new OperationsWashingLog
+            {
+                TenantId = tenantId,
+                CompanyId = companyId,
+                WashedCount = dto.WashedCount,
+                RejectedCount = dto.RejectedCount,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = _userContext.UserId.ToString()
+            };
+
+            _tenantContext.OperationsWashingLogs.Add(washing);
+            await _tenantContext.SaveChangesAsync(default);
+
+            return Success<object>(new { washing.Id }, "Washing recorded successfully");
+        }
+
+        [HttpPost("filling")]
+        public async Task<ActionResult<ApiResponse<object>>> RecordFilling([FromBody] FillingLogDto dto)
+        {
+            var tenantId = _userContext.TenantId;
+            var companyId = await _tenantContext.Companies.Select(c => c.Id).FirstOrDefaultAsync();
+
+            var filling = new OperationsFillingLog
+            {
+                TenantId = tenantId,
+                CompanyId = companyId,
+                ProductId = dto.ProductId,
+                BrandId = dto.BrandId,
+                FilledCount = dto.FilledCount,
+                RejectedCount = dto.RejectedCount,
+                LeakageCount = dto.LeakageCount,
+                CapFailureCount = dto.CapFailureCount,
+                SealFailureCount = dto.SealFailureCount,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = _userContext.UserId.ToString()
+            };
+
+            _tenantContext.OperationsFillingLogs.Add(filling);
+            await _tenantContext.SaveChangesAsync(default);
+
+            return Success<object>(new { filling.Id }, "Filling recorded successfully");
+        }
+
+        [HttpPost("reserve")]
+        public async Task<ActionResult<ApiResponse<object>>> RecordReservation([FromBody] ReserveDto dto)
+        {
+            var tenantId = _userContext.TenantId;
+            var companyId = await _tenantContext.Companies.Select(c => c.Id).FirstOrDefaultAsync();
+
+            var reservation = new OperationsReservedJar
+            {
+                TenantId = tenantId,
+                CompanyId = companyId,
+                DistributorId = dto.DistributorId,
+                Quantity = dto.Quantity,
+                Type = dto.Type, // Empty or Filled
+                Reason = dto.Reason,
+                Status = "Pending",
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = _userContext.UserId.ToString()
+            };
+
+            _tenantContext.OperationsReservedJars.Add(reservation);
+
+            if (dto.Type == "Empty")
+            {
+                await _inventoryMovementService.RecordReservedEmptyJarMovementAsync(
+                    _tenantContext,
+                    dto.DistributorId,
+                    dto.Quantity,
+                    "Reservation_Add",
+                    reservation.Id,
+                    dto.Reason,
+                    tenantId,
+                    companyId,
+                    _userContext.UserId.ToString()
+                );
+            }
+
+            await _tenantContext.SaveChangesAsync(default);
+
+            return Success<object>(new { reservation.Id }, "Reservation recorded successfully");
+        }
+
+        [HttpPost("reservations/claim")]
+        public async Task<ActionResult<ApiResponse<object>>> ClaimReservations([FromBody] ClaimDto dto)
+        {
+            var tenantId = _userContext.TenantId;
+            var reservations = await _tenantContext.OperationsReservedJars
+                .Where(r => r.DistributorId == dto.DistributorId && r.Type == dto.Type && r.Status == "Pending" && r.TenantId == tenantId)
+                .ToListAsync();
+
+            int totalClaimed = 0;
+            foreach (var r in reservations)
+            {
+                r.Status = "Claimed";
+                r.ClaimedAt = DateTime.UtcNow;
+                totalClaimed += r.Quantity;
+            }
+
+            if (dto.Type == "Empty" && totalClaimed > 0)
+            {
+                var companyId = await _tenantContext.Companies.Select(c => c.Id).FirstOrDefaultAsync();
+                await _inventoryMovementService.RecordReservedEmptyJarMovementAsync(
+                    _tenantContext,
+                    dto.DistributorId,
+                    -totalClaimed,
+                    "Reservation_Claim",
+                    Guid.NewGuid(), // Bulk claim
+                    "Claimed reserved empty jars",
+                    tenantId,
+                    companyId,
+                    _userContext.UserId.ToString()
+                );
+            }
+
+            await _tenantContext.SaveChangesAsync(default);
+            return Success<object>(null, "Reservations claimed successfully");
+        }
+
+        [HttpGet("dashboard-extended")]
+        public async Task<ActionResult<ApiResponse<object>>> GetDashboardExtended()
+        {
+            var tenantId = _userContext.TenantId;
+            var today = DateTime.UtcNow.Date;
+
+            // Raw aggregations
+            var returnedEmptyTotal = await _tenantContext.OperationsUnloadings
+                .Where(u => u.TenantId == tenantId)
+                .SumAsync(u => u.ReturnedEmptyCount);
+
+            var washedTotal = await _tenantContext.OperationsWashingLogs
+                .Where(w => w.TenantId == tenantId)
+                .SumAsync(w => w.WashedCount);
+
+            var isolatedTotal = await _tenantContext.OperationsQuarantines
+                .Where(q => q.TenantId == tenantId && q.Status == "Quarantined")
+                .SumAsync(q => q.Quantity);
+
+            var filledTotal = await _tenantContext.OperationsFillingLogs
+                .Where(f => f.TenantId == tenantId)
+                .SumAsync(f => f.FilledCount);
+
+            var rejectedFillingTotal = await _tenantContext.OperationsFillingLogs
+                .Where(f => f.TenantId == tenantId)
+                .SumAsync(f => f.RejectedCount);
+
+            var loadedTotal = await _tenantContext.OperationsLoadings
+                .Where(l => l.TenantId == tenantId)
+                .SumAsync(l => l.QuantityLoaded);
+
+            var reservedFilledTotal = await _tenantContext.OperationsReservedJars
+                .Where(r => r.TenantId == tenantId && r.Type == "Filled" && r.Status == "Pending")
+                .SumAsync(r => r.Quantity);
+
+            var reservedEmptyTotal = await _tenantContext.Customers
+                .Where(c => c.TenantId == tenantId && !c.IsDeleted)
+                .SumAsync(c => c.ReservedEmptyJars);
+
+            // Isolation Releases: older than 24 hours
+            var cutoff = DateTime.UtcNow.AddHours(-24);
+            var isolationPending = await _tenantContext.OperationsQuarantines
+                .Where(q => q.TenantId == tenantId && q.Status == "Quarantined" && q.CreatedAt > cutoff)
+                .SumAsync(q => q.Quantity);
+
+            var isolationEndingToday = await _tenantContext.OperationsQuarantines
+                .Where(q => q.TenantId == tenantId && q.Status == "Quarantined" && q.CreatedAt <= cutoff)
+                .SumAsync(q => q.Quantity);
+
+            // Inventory derived states
+            var dirtyJars = Math.Max(0, returnedEmptyTotal - washedTotal - isolatedTotal);
+            var cleanJars = Math.Max(0, washedTotal - filledTotal - rejectedFillingTotal);
+            var filledStock = Math.Max(0, filledTotal - loadedTotal - reservedFilledTotal);
+
+            // Daily metrics
+            var todayReturns = await _tenantContext.OperationsUnloadings
+                .Where(u => u.TenantId == tenantId && u.CreatedAt >= today)
+                .SumAsync(u => u.ReturnedEmptyCount);
+
+            var todayDispatch = await _tenantContext.OperationsLoadings
+                .Where(l => l.TenantId == tenantId && l.CreatedAt >= today)
+                .SumAsync(l => l.QuantityLoaded);
+
+            var todayDamage = await _tenantContext.OperationsJarConditions
+                .Where(c => c.TenantId == tenantId && c.CreatedAt >= today && c.ConditionType != "Normal")
+                .SumAsync(c => c.Quantity);
+
+            // Telemetry Quality Rates
+            var leakages = await _tenantContext.OperationsFillingLogs
+                .Where(f => f.TenantId == tenantId)
+                .SumAsync(f => f.LeakageCount);
+
+            double leakageRate = filledTotal > 0 ? (double)leakages / filledTotal * 100 : 0;
+            double breakageRate = washedTotal > 0 ? (double)(rejectedFillingTotal + todayDamage) / washedTotal * 100 : 0;
+            double recoveryRate = returnedEmptyTotal > 0 ? (double)(returnedEmptyTotal - todayDamage) / returnedEmptyTotal * 100 : 100;
+
+            return Success<object>(new
+            {
+                dirtyJars,
+                quarantineQueue = isolationPending,
+                isolationEndingToday,
+                cleanJars,
+                filledStock,
+                reservedFilled = reservedFilledTotal,
+                reservedEmpty = reservedEmptyTotal,
+                todayReturns,
+                todayDispatch,
+                todayDamage,
+                leakageRate = Math.Round(leakageRate, 2),
+                breakageRate = Math.Round(breakageRate, 2),
+                recoveryRate = Math.Round(recoveryRate, 2)
             });
         }
     }
@@ -296,5 +619,35 @@ namespace Aquora.API.Controllers
         public int QuantityLoaded { get; set; }
         public string LoadedBy { get; set; } = string.Empty;
         public string? Remarks { get; set; }
+    }
+    public class WashingLogDto
+    {
+        public int WashedCount { get; set; }
+        public int RejectedCount { get; set; }
+    }
+
+    public class FillingLogDto
+    {
+        public Guid ProductId { get; set; }
+        public Guid BrandId { get; set; }
+        public int FilledCount { get; set; }
+        public int RejectedCount { get; set; }
+        public int LeakageCount { get; set; }
+        public int CapFailureCount { get; set; }
+        public int SealFailureCount { get; set; }
+    }
+
+    public class ReserveDto
+    {
+        public Guid DistributorId { get; set; }
+        public int Quantity { get; set; }
+        public string Type { get; set; } = "Empty"; // Empty, Filled
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    public class ClaimDto
+    {
+        public Guid DistributorId { get; set; }
+        public string Type { get; set; } = "Empty";
     }
 }

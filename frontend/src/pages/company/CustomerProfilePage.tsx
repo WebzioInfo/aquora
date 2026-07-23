@@ -7,9 +7,12 @@ import {
   Coins, Briefcase, FileSignature, Clock, BookOpen, Truck
 } from 'lucide-react'
 import { customersService } from '../../services/customers'
-import EnterpriseHeader from '../../components/ui/EnterpriseHeader'
 import EnterpriseBadge from '../../components/ui/EnterpriseBadge'
 import EnterpriseButton from '../../components/ui/EnterpriseButton'
+import PageContainer from '../../components/ui/layout/PageContainer'
+import Breadcrumb from '../../components/ui/layout/Breadcrumb'
+import DetailTabs from '../../components/ui/layout/DetailTabs'
+import type { TabItem } from '../../components/ui/layout/DetailTabs'
 
 interface CustomerProfilePageProps {
   customerId: string
@@ -79,412 +82,332 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
   }
 
   return (
-    <div className="max-w-[1280px] mx-auto py-6 px-4 md:px-6 select-none bg-[#F8FAFC]">
-      
-      {/* 1. BREADCRUMBS & ACTION HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <div>
-          {/* Back Navigation */}
-          <button 
-            onClick={() => navigate('/company/customers')}
-            className="flex items-center gap-1 text-slate-500 hover:text-slate-900 transition-colors text-xs font-bold mb-3 cursor-pointer group"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
-            <span>Back to Customers</span>
-          </button>
-          
-          {/* Breadcrumb Title */}
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 mb-1">
-            <span>Customers</span>
-            <span>&gt;</span>
-            <span className="text-slate-600 font-bold">{customer.customerName}</span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-black tracking-tight text-slate-900 leading-none">
-              {customer.customerName}
-            </h2>
-            <span className="text-xs font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-              {customer.customerCode}
-            </span>
-            <EnterpriseBadge 
-              variant={customer.status === 'Active' ? 'success' : 'danger'}
-              className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5"
-            >
-              {customer.status}
-            </EnterpriseBadge>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2.5">
-          <EnterpriseButton 
-            variant="primary" 
-            onClick={() => onEditCustomer(customer)}
-            className="inline-flex items-center gap-1.5 h-[38px] px-4 font-bold text-xs"
-          >
-            <Edit3 className="w-3.5 h-3.5" /> Edit Customer
-          </EnterpriseButton>
-          
-          <EnterpriseButton 
-            variant="secondary"
-            disabled
-            className="h-[38px] px-4 font-bold text-xs opacity-50 cursor-not-allowed"
-          >
-            Deactivate
-          </EnterpriseButton>
-
-          <EnterpriseButton 
-            variant="danger"
-            disabled
-            className="h-[38px] px-4 font-bold text-xs opacity-50 cursor-not-allowed"
-          >
-            Delete
-          </EnterpriseButton>
-        </div>
-      </div>
+    <PageContainer>
+      <Breadcrumb
+        items={[
+          { label: 'Company' },
+          { label: 'Customers', href: '/company/customers' },
+          { label: customer.customerName }
+        ]}
+        backHref="/company/customers"
+        backLabel="Back to Customers"
+      />
 
       {/* 2. TOP SUMMARY PROFILE CARD */}
-      <div className="bg-white border border-slate-100 rounded-xl p-5 mb-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-2xl uppercase">
+          <div className="w-12 h-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-black text-xl uppercase shrink-0">
             {customer.customerName.charAt(0)}
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-slate-900 text-base">{customer.customerName}</h3>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                isB2B ? 'bg-indigo-50 text-indigo-600' : 'bg-orange-50 text-orange-600'
-              }`}>
+              <h2 className="text-xl font-bold text-slate-900 leading-none">{customer.customerName}</h2>
+              <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                {customer.customerCode}
+              </span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isB2B ? 'bg-indigo-50 text-indigo-600' : 'bg-orange-50 text-orange-600'}`}>
                 {customer.customerType}
               </span>
+              <EnterpriseBadge 
+                variant={customer.status === 'Active' ? 'success' : 'danger'}
+                className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5"
+              >
+                {customer.status}
+              </EnterpriseBadge>
             </div>
             {customer.businessName && (
-              <p className="text-xs font-semibold text-slate-500 mt-0.5">{customer.businessName}</p>
+              <p className="text-xs font-medium text-slate-500 mt-1">{customer.businessName}</p>
             )}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-400 text-xs mt-1.5 font-medium">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-500 text-xs mt-2">
               <span className="flex items-center gap-1 font-mono">
-                <Phone className="w-3 h-3" /> {customer.phone}
+                <Phone className="w-3.5 h-3.5" /> {customer.phone}
               </span>
               {customer.email && (
                 <span className="flex items-center gap-1">
-                  <Mail className="w-3 h-3" /> {customer.email}
+                  <Mail className="w-3.5 h-3.5" /> {customer.email}
                 </span>
               )}
               <span className="flex items-center gap-1">
-                <MapPin className="w-3 h-3" /> {customer.city}, {customer.state}
+                <MapPin className="w-3.5 h-3.5" /> {customer.city}, {customer.state}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Financial Highlights Panel */}
-        <div className="flex items-center gap-8 border-l border-slate-105 pl-8 pr-4">
-          <div>
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Opening Balance</span>
-            <span className={`font-mono font-black text-lg ${
-              customer.balanceType === 'Receivable' ? 'text-blue-600' : customer.balanceType === 'Payable' ? 'text-red-500' : 'text-slate-700'
-            }`}>
-              ₹{customer.openingBalance.toLocaleString('en-IN')}
-            </span>
-            <span className="text-[9px] font-bold text-slate-400 uppercase block leading-none mt-0.5">({customer.balanceType})</span>
-          </div>
-
-          <div>
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Outstanding Balance</span>
-            <span className="font-mono font-black text-lg text-slate-300">
-              ₹0.00
-            </span>
-            <span className="text-[9px] font-bold text-slate-400 uppercase block leading-none mt-0.5">(Placeholder)</span>
-          </div>
-
-          <div>
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Registered At</span>
-            <span className="font-bold text-slate-600 text-xs block mt-1">
-              {new Date(customer.createdAt).toLocaleDateString('en-IN', { dateStyle: 'medium' })}
-            </span>
-          </div>
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+          <EnterpriseButton 
+            variant="primary" 
+            onClick={() => onEditCustomer(customer)}
+            className="inline-flex items-center gap-1.5 h-8 px-3 font-bold text-xs"
+          >
+            <Edit3 className="w-3.5 h-3.5" /> Edit
+          </EnterpriseButton>
+          <EnterpriseButton variant="secondary" disabled className="h-8 px-3 font-bold text-xs opacity-50">Deactivate</EnterpriseButton>
+          <EnterpriseButton variant="danger" disabled className="h-8 px-3 font-bold text-xs opacity-50">Delete</EnterpriseButton>
         </div>
       </div>
 
-      {/* 3. PROFESSIONAL TABS SELECTION */}
-      <div className="flex border-b border-[#E2E8F0] gap-6 mb-6 overflow-x-auto scrollbar-none">
-        {[
+      {/* TABS */}
+      <DetailTabs
+        tabs={[
           { id: 'overview', label: 'Overview', icon: User },
           { id: 'sales', label: 'Sales History', icon: Coins },
           { id: 'ledger', label: 'Customer Ledger', icon: BookOpen },
           { id: 'jars', label: '20L Jar Tracking', icon: Clock },
           { id: 'dispatch', label: 'Delivery History', icon: Truck },
           { id: 'docs', label: 'Documents', icon: FileText },
-          { id: 'contacts', icon: FileSignature, label: 'Contacts' },
-          { id: 'notes', icon: Briefcase, label: 'Internal Notes' },
-          { id: 'activity', icon: Activity, label: 'Activity Logs' }
-        ].map(tab => {
-          const Icon = tab.icon
-          const isActive = activeTab === tab.id
-          
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as TabType)}
-              className={`pb-3 text-xs font-bold border-b-2 px-1 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-                isActive 
-                  ? 'border-blue-600 text-blue-600' 
-                  : 'border-transparent text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-            </button>
-          )
-        })}
-      </div>
+          { id: 'contacts', label: 'Contacts', icon: FileSignature },
+          { id: 'notes', label: 'Internal Notes', icon: Briefcase },
+          { id: 'activity', label: 'Activity Logs', icon: Activity }
+        ] as TabItem[]}
+        activeTab={activeTab}
+        onTabChange={(id) => setActiveTab(id as TabType)}
+      />
+
+
 
       {/* 4. ACTIVE VIEW RENDERING */}
       <div className="min-h-[400px]">
         {activeTab === 'overview' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* Card 1: Basic Information */}
-            <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
-              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2.5 flex items-center gap-1.5">
-                <User className="w-4 h-4 text-slate-400" /> Basic Details
-              </h4>
-              <div className="space-y-3.5 text-xs text-left">
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Partner Code</span>
-                  <span className="font-mono font-bold text-[#1A56DB]">{customer.customerCode}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Partner Type</span>
-                  <span className="font-bold text-slate-800">{customer.customerType}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Partner Name</span>
-                  <span className="font-bold text-slate-800">{customer.customerName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Contact Person</span>
-                  <span className="font-bold text-slate-800">{customer.contactPerson || 'None listed'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Primary Phone</span>
-                  <span className="font-mono font-bold text-slate-800">{customer.phone}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">WhatsApp Phone</span>
-                  <span className="font-mono font-bold text-slate-800">{customer.whatsApp || 'None listed'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Email Address</span>
-                  <span className="font-bold text-slate-800">{customer.email || 'None listed'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Website</span>
-                  <span className="font-bold text-slate-800 text-blue-600 truncate max-w-[180px]">{customer.website || 'None listed'}</span>
-                </div>
+          <div className="space-y-6">
+            {/* STATISTICS ROW */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Opening Balance</span>
+                <div className="text-lg font-black text-slate-800">₹{customer.openingBalance.toLocaleString('en-IN')}</div>
+              </div>
+              <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Outstanding Jars</span>
+                <div className="text-lg font-black text-blue-600">{customer.outstandingJars || 0}</div>
+              </div>
+              <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Reserved Empty</span>
+                <div className="text-lg font-black text-orange-600">{customer.reservedEmptyJars || 0}</div>
+              </div>
+              <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Max Inventory</span>
+                <div className="text-lg font-black text-slate-800">{customer.maxJarLimit || 0}</div>
+              </div>
+              <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Assigned Route</span>
+                <div className="text-sm font-bold text-slate-800 mt-1 truncate">{customer.assignedRoute || 'None'}</div>
+              </div>
+              <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Assigned Vehicle</span>
+                <div className="text-sm font-bold text-slate-800 mt-1 truncate">{customer.assignedVehicle || 'None'}</div>
               </div>
             </div>
 
-            {/* Card 2: Financial Setup & Accounting */}
-            <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
-              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2.5 flex items-center gap-1.5">
-                <Landmark className="w-4 h-4 text-slate-400" /> Financial Settings
-              </h4>
-              <div className="space-y-3.5 text-xs text-left">
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">GSTIN</span>
-                  <span className="font-mono font-bold text-slate-800">{customer.gstNumber || 'N/A (B2C)'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">PAN Number</span>
-                  <span className="font-mono font-bold text-slate-800">{customer.panNumber || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Trade License</span>
-                  <span className="font-bold text-slate-800">{customer.tradeLicense || 'None listed'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Tax Status</span>
-                  <span className={`font-bold ${customer.taxExempt ? 'text-green-600' : 'text-slate-800'}`}>
-                    {customer.taxExempt ? 'Tax Exempt' : 'Taxable'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Credit Limit</span>
-                  <span className="font-mono font-bold text-slate-800">₹{customer.creditLimit?.toLocaleString('en-IN') || '0.00'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Payment Terms</span>
-                  <span className="font-bold text-slate-800">{customer.paymentTerms}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Price List Code</span>
-                  <span className="font-mono font-semibold text-slate-800">{customer.priceList || 'Default List'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Discount Group</span>
-                  <span className="font-semibold text-slate-800">{customer.discountGroup || 'Standard'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Account Code</span>
-                  <span className="font-mono text-slate-800">{customer.ledgerPlaceholder || 'None'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3: Billing & Locations */}
-            <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
-              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2.5 flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 text-slate-400" /> Primary Address & Branches
-              </h4>
-              <div className="space-y-3.5 text-xs text-left">
-                <div>
-                  <span className="text-slate-400 font-medium block mb-1">Billing & Shipping Address</span>
-                  <p className="font-semibold text-slate-800 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                    {customer.addressLine1}
-                    {customer.addressLine2 ? `, ${customer.addressLine2}` : ''}
-                    <br />
-                    {customer.city}, {customer.district}, {customer.state} — {customer.pinCode}
-                    <br />
-                    <span className="text-[10px] text-slate-400 uppercase tracking-wider">{customer.country}</span>
-                  </p>
-                </div>
-                {customer.addressesJson && customer.addressesJson !== '[]' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left: Basic Details */}
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col">
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                  <User className="w-4 h-4 text-blue-500" /> Basic Details
+                </h4>
+                <div className="space-y-4 text-xs flex-1">
                   <div>
-                    <span className="text-slate-400 font-medium block mb-1">Secondary Branches/Warehouses</span>
-                    <div className="max-h-[80px] overflow-y-auto text-[11px] font-medium text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                      {customer.addressesJson}
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Contact Person</span>
+                    <span className="block font-semibold text-slate-800">{customer.contactPerson || 'None listed'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Primary Phone</span>
+                    <span className="block font-mono font-semibold text-slate-800">{customer.phone}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">WhatsApp Phone</span>
+                    <span className="block font-mono font-semibold text-slate-800">{customer.whatsApp || 'None listed'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Email Address</span>
+                    <span className="block font-semibold text-slate-800">{customer.email || 'None listed'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Website</span>
+                    <span className="block font-semibold text-blue-600 truncate">{customer.website || 'None listed'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Middle: Financial Settings */}
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col">
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                  <Landmark className="w-4 h-4 text-blue-500" /> Financial Settings
+                </h4>
+                <div className="space-y-4 text-xs flex-1">
+                  <div>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">GSTIN</span>
+                    <span className="block font-mono font-semibold text-slate-800">{customer.gstNumber || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">PAN Number</span>
+                    <span className="block font-mono font-semibold text-slate-800">{customer.panNumber || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Credit Limit</span>
+                    <span className="block font-mono font-semibold text-slate-800">₹{customer.creditLimit?.toLocaleString('en-IN') || '0.00'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Payment Terms</span>
+                    <span className="block font-semibold text-slate-800">{customer.paymentTerms}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Price List Code</span>
+                    <span className="block font-mono font-semibold text-slate-800">{customer.priceList || 'Default List'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Primary Address */}
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col">
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4 text-blue-500" /> Locations
+                </h4>
+                <div className="space-y-4 text-xs flex-1">
+                  <div>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Billing & Shipping Address</span>
+                    <div className="font-medium text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100 leading-relaxed">
+                      {customer.addressLine1}
+                      {customer.addressLine2 ? `, ${customer.addressLine2}` : ''}
+                      <br />
+                      {customer.city}, {customer.district}, {customer.state} — {customer.pinCode}
+                      <br />
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-1 block">{customer.country}</span>
                     </div>
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Card 4: Logistics & Distributor Profile */}
-            <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm lg:col-span-2 space-y-4">
-              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2.5 flex items-center gap-1.5">
-                <Truck className="w-4 h-4 text-slate-400" /> Logistics & Distributor Configuration
-              </h4>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-xs text-left">
-                {customer.customerType === 'Distributor' && (
-                  <>
-                    <div className="flex justify-between border-b border-slate-50 pb-1">
-                      <span className="text-slate-400">Distributor Profile</span>
-                      <span className="font-bold text-slate-800">{customer.distributorType || 'Standard'}</span>
+                  {customer.addressesJson && customer.addressesJson !== '[]' && (
+                    <div>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Secondary Branches</span>
+                      <div className="max-h-[100px] overflow-y-auto text-[11px] font-medium text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100 leading-relaxed">
+                        {customer.addressesJson}
+                      </div>
                     </div>
-                    <div className="flex justify-between border-b border-slate-50 pb-1">
-                      <span className="text-slate-400">Commission Rate</span>
-                      <span className="font-bold text-slate-800">{customer.commissionPercentage}%</span>
-                    </div>
-                    <div className="flex justify-between border-b border-slate-50 pb-1">
-                      <span className="text-slate-400">Base Salary</span>
-                      <span className="font-bold text-slate-800">₹{customer.monthlySalary?.toLocaleString('en-IN') || '0.00'}</span>
-                    </div>
-                    <div className="flex justify-between border-b border-slate-50 pb-1">
-                      <span className="text-slate-400">Security Deposit</span>
-                      <span className="font-bold text-slate-800">₹{customer.securityDeposit?.toLocaleString('en-IN') || '0.00'}</span>
-                    </div>
-                  </>
-                )}
-                <div className="flex justify-between border-b border-slate-50 pb-1">
-                  <span className="text-slate-400">Assigned Route</span>
-                  <span className="font-bold text-slate-850">{customer.assignedRoute || 'No route assigned'}</span>
-                </div>
-                <div className="flex justify-between border-b border-slate-50 pb-1">
-                  <span className="text-slate-400">Assigned Vehicle</span>
-                  <span className="font-bold text-slate-850">{customer.assignedVehicle || 'No vehicle assigned'}</span>
-                </div>
-                <div className="flex justify-between border-b border-slate-50 pb-1">
-                  <span className="text-slate-400">Assigned Driver</span>
-                  <span className="font-bold text-slate-800">{customer.assignedDriver || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between border-b border-slate-50 pb-1">
-                  <span className="text-slate-400">Assigned Sales Exec</span>
-                  <span className="font-bold text-slate-800">{customer.assignedSalesExecutive || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between border-b border-slate-50 pb-1 col-span-2">
-                  <span className="text-slate-400">Working Coverage Area & Days</span>
-                  <span className="font-semibold text-slate-800">{customer.workingArea || 'N/A'} {customer.workingDays ? `(${customer.workingDays})` : ''}</span>
+                  )}
                 </div>
               </div>
-            </div>
 
-            {/* Card 5: 20L Jar Plant Settings */}
-            <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
-              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2.5 flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-slate-400" /> 20L Water Jar Parameters
-              </h4>
-              <div className="space-y-3.5 text-xs text-left">
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Jar Deposit Price</span>
-                  <span className="font-bold text-slate-800">₹{customer.jarDeposit || '0'} / jar</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Max Jar Inventory Limit</span>
-                  <span className="font-bold text-slate-800">{customer.maxJarLimit || '0'} jars</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Outstanding Jars</span>
-                  <span className="font-mono font-bold text-blue-600">{customer.outstandingJars || '0'} jars</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Preferred Brand</span>
-                  <span className="font-semibold text-slate-800">{customer.preferredJarBrand || 'Default (Aquora)'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Cap Material</span>
-                  <span className="font-semibold text-slate-800">{customer.preferredCapMaterial || 'Standard cap'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Seal Check Required</span>
-                  <span className="font-semibold text-slate-850">{customer.sealRequired ? 'Double seal check' : 'Standard'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Delivery Schedule</span>
-                  <span className="font-semibold text-slate-850">{customer.deliveryFrequency || 'Daily'} ({customer.preferredDeliveryTime || 'Morning'})</span>
+              {/* Row 2 */}
+              {/* Left: Logistics & Distributor Configuration (colspan 2) */}
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm lg:col-span-2 flex flex-col">
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                  <Truck className="w-4 h-4 text-blue-500" /> Logistics & Setup
+                </h4>
+                <div className="grid grid-cols-2 gap-4 text-xs flex-1">
+                  <div>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Assigned Driver</span>
+                    <span className="block font-semibold text-slate-800">{customer.assignedDriver || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Assigned Sales Exec</span>
+                    <span className="block font-semibold text-slate-800">{customer.assignedSalesExecutive || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Working Coverage Area</span>
+                    <span className="block font-semibold text-slate-800">{customer.workingArea || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Working Days</span>
+                    <span className="block font-semibold text-slate-800">{customer.workingDays || 'N/A'}</span>
+                  </div>
+                  {customer.customerType === 'Distributor' && (
+                    <>
+                      <div>
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Commission Rate</span>
+                        <span className="block font-semibold text-slate-800">{customer.commissionPercentage}%</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Base Salary</span>
+                        <span className="block font-semibold text-slate-800">₹{customer.monthlySalary?.toLocaleString('en-IN') || '0.00'}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
-            </div>
 
-            {/* Card 6: Remarks */}
-            <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm col-span-1 md:col-span-2 lg:col-span-3">
-              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2.5 mb-4 flex items-center gap-1.5">
-                <FileText className="w-4 h-4 text-slate-400" /> Internal Notes & Remarks
-              </h4>
-              <div className="bg-slate-50 border border-slate-100 p-4 rounded-lg min-h-[80px] text-left">
-                {customer.remarks ? (
-                  <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed select-text font-semibold">
-                    {customer.remarks}
-                  </p>
-                ) : (
-                  <p className="text-xs text-slate-400 italic">No notes or remarks listed for this partner record.</p>
-                )}
+              {/* Right: 20L Jar Parameters */}
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col">
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-blue-500" /> 20L Jar Parameters
+                </h4>
+                <div className="space-y-4 text-xs flex-1">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0">
+                      <Coins className="w-4 h-4 text-slate-500" />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Jar Deposit Price</span>
+                      <span className="block font-semibold text-slate-800 leading-none">₹{customer.jarDeposit || '0'} / jar</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0">
+                      <BookOpen className="w-4 h-4 text-slate-500" />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Preferred Brand</span>
+                      <span className="block font-semibold text-slate-800 leading-none">{customer.preferredJarBrand || 'Default (Aquora)'}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0">
+                      <ShieldAlert className="w-4 h-4 text-slate-500" />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Seal Required</span>
+                      <span className="block font-semibold text-slate-800 leading-none">{customer.sealRequired ? 'Double seal check' : 'Standard'}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0">
+                      <Truck className="w-4 h-4 text-slate-500" />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Delivery Schedule</span>
+                      <span className="block font-semibold text-slate-800 leading-none">{customer.deliveryFrequency || 'Daily'} ({customer.preferredDeliveryTime || 'Morning'})</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
 
+              {/* Internal Notes & Remarks */}
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm lg:col-span-3">
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2 mb-3 flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-blue-500" /> Internal Notes & Remarks
+                </h4>
+                <div className="bg-slate-50 border border-slate-100 p-3 rounded-lg min-h-[60px] text-left">
+                  {customer.remarks ? (
+                    <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed font-medium">
+                      {customer.remarks}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-slate-400 italic">No notes or remarks listed for this partner record.</p>
+                  )}
+                </div>
+              </div>
+
+            </div>
           </div>
         ) : (
           /* Visual Placeholders for other tabs */
-          <div className="bg-white border border-slate-100 rounded-xl p-12 text-center shadow-sm flex flex-col items-center justify-center gap-4 select-none">
+          <div className="bg-white border border-slate-200 rounded-xl p-12 text-center shadow-sm flex flex-col items-center justify-center gap-4 select-none">
             <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
               <Landmark className="w-6 h-6 animate-pulse text-blue-500" />
             </div>
             <div>
               <h5 className="text-sm font-bold text-slate-800">Module Integration Placeholder</h5>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1 leading-relaxed">
+              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-2 leading-relaxed">
                 The {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} subview is a visual placeholder for the upcoming ERP module implementation. 
                 Transaction logs, outstanding ledger mappings, and analytical reports are currently out of scope.
               </p>
             </div>
             <div className="flex gap-2.5 mt-2">
-              <EnterpriseButton variant="secondary" size="sm" disabled className="opacity-50 text-[11px] font-bold h-[32px] px-3.5">
+              <EnterpriseButton variant="secondary" size="sm" disabled className="opacity-50 text-[11px] font-bold h-8 px-3">
                 Create Sales Order
               </EnterpriseButton>
-              <EnterpriseButton variant="secondary" size="sm" disabled className="opacity-50 text-[11px] font-bold h-[32px] px-3.5">
+              <EnterpriseButton variant="secondary" size="sm" disabled className="opacity-50 text-[11px] font-bold h-8 px-3">
                 Record Payment
               </EnterpriseButton>
-              <EnterpriseButton variant="secondary" size="sm" disabled className="opacity-50 text-[11px] font-bold h-[32px] px-3.5">
+              <EnterpriseButton variant="secondary" size="sm" disabled className="opacity-50 text-[11px] font-bold h-8 px-3">
                 Create Dispatch
               </EnterpriseButton>
             </div>
@@ -493,13 +416,12 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
       </div>
 
       {/* Audit Footer Details */}
-      <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold uppercase mt-8 pt-4 border-t border-slate-100 select-none">
+      <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold uppercase mt-6 pt-4 border-t border-slate-200 select-none">
         <span>Created By: {customer.createdBy || 'System'} at {formatDateTime(customer.createdAt)}</span>
         {customer.updatedAt && (
           <span>Last Updated By: {customer.updatedBy || 'System'} at {formatDateTime(customer.updatedAt)}</span>
         )}
       </div>
-
-    </div>
+    </PageContainer>
   )
 }

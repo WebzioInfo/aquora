@@ -1,3 +1,8 @@
+import PageContainer from '../../components/ui/layout/PageContainer';
+import PageHeader from '../../components/ui/layout/PageHeader';
+import Breadcrumb from '../../components/ui/layout/Breadcrumb';
+import KPICard from '../../components/ui/layout/KPICard';
+import FilterBar from '../../components/ui/layout/FilterBar';
 import React, { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { 
@@ -294,130 +299,92 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* HEADER SECTION */}
-      <div className="flex items-center justify-between border-b border-gray-100 pb-5">
-        <EnterpriseHeader 
-          title="Sales Ledger & Dispatch" 
-          description="Log finished goods dispatches, returns, and damages with proper inventory adjustments."
-        />
-        <EnterpriseButton
-          variant="primary"
-          onClick={handleOpenCreate}
-          className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 h-10 px-4 text-sm font-medium transition-all"
+    <PageContainer>
+      <Breadcrumb items={[{ label: 'Company' }, { label: 'Sales' }]} />
+      <PageHeader
+        title="Sales"
+        description="Log finished goods dispatches, returns, and damages with proper inventory adjustments."
+        actions={
+          <button
+            onClick={handleOpenCreate}
+            className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow-sm"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Create Transaction
+          </button>
+        }
+      />
+
+      {/* FILTERS */}
+      <FilterBar>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search txn, customer, product..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="pl-9 pr-4 w-full h-9 text-xs bg-white border border-slate-200 rounded-lg placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          />
+        </div>
+        <select
+          value={typeFilter}
+          onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
+          className="h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 cursor-pointer"
         >
-          <Plus className="w-4 h-4" />
-          Create Transaction
-        </EnterpriseButton>
-      </div>
-
-      {/* SEARCH AND FILTERS */}
-      <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-5 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-450" />
-            <input 
-              type="text"
-              placeholder="Search txn, customer, product..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="pl-9 pr-4 w-full h-[40px] text-xs bg-white border border-slate-200 rounded-lg placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-          </div>
-
-          <div>
-            <select
-              value={typeFilter}
-              onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-              className="w-full h-[40px] px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500"
-            >
-              <option value="">All Transaction Types</option>
-              <option value="Sales Dispatch">Sales Dispatch</option>
-              <option value="Customer Return">Customer Return</option>
-              <option value="Damage">Damage</option>
-            </select>
-          </div>
-
-          <div>
-            <select
-              value={productIdFilter}
-              onChange={(e) => { setProductIdFilter(e.target.value); setPage(1); }}
-              className="w-full h-[40px] px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500"
-            >
-              <option value="">All Finished Products</option>
-              {products.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <select
-              value={customerIdFilter}
-              onChange={(e) => { setCustomerIdFilter(e.target.value); setPage(1); }}
-              className="w-full h-[40px] px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500"
-            >
-              <option value="">All Customers</option>
-              {customers.map(c => (
-                <option key={c.id} value={c.id}>{c.customerName}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2 border-t border-slate-100/50">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-medium text-slate-550 whitespace-nowrap">Start:</span>
-            <input 
-              type="date"
-              value={startDateFilter}
-              onChange={(e) => { setStartDateFilter(e.target.value); setPage(1); }}
-              className="w-full h-[36px] px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-medium text-slate-550 whitespace-nowrap">End:</span>
-            <input 
-              type="date"
-              value={endDateFilter}
-              onChange={(e) => { setEndDateFilter(e.target.value); setPage(1); }}
-              className="w-full h-[36px] px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <select
-              value={sortOrder}
-              onChange={(e) => { setSortOrder(e.target.value); setPage(1); }}
-              className="w-full h-[36px] px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500"
-            >
-              <option value="newest">Sort: Newest</option>
-              <option value="oldest">Sort: Oldest</option>
-              <option value="largest_qty">Sort: Largest Quantity</option>
-            </select>
-          </div>
-
-          <div className="flex items-center justify-end">
-            <button
-              onClick={() => {
-                setSearch('')
-                setProductIdFilter('')
-                setCustomerIdFilter('')
-                setTypeFilter('')
-                setStatusFilter('')
-                setStartDateFilter('')
-                setEndDateFilter('')
-                setSortOrder('newest')
-                setPage(1)
-              }}
-              className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 transition-colors"
-            >
-              Clear All Filters
-            </button>
-          </div>
-        </div>
-      </div>
+          <option value="">All Types</option>
+          <option value="Sales Dispatch">Sales Dispatch</option>
+          <option value="Customer Return">Customer Return</option>
+          <option value="Damage">Damage</option>
+        </select>
+        <select
+          value={productIdFilter}
+          onChange={(e) => { setProductIdFilter(e.target.value); setPage(1); }}
+          className="h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 cursor-pointer"
+        >
+          <option value="">All Products</option>
+          {products.map(p => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+        <select
+          value={customerIdFilter}
+          onChange={(e) => { setCustomerIdFilter(e.target.value); setPage(1); }}
+          className="h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 cursor-pointer"
+        >
+          <option value="">All Customers</option>
+          {customers.map(c => (
+            <option key={c.id} value={c.id}>{c.customerName}</option>
+          ))}
+        </select>
+        <input
+          type="date"
+          value={startDateFilter}
+          onChange={(e) => { setStartDateFilter(e.target.value); setPage(1); }}
+          className="h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none cursor-pointer"
+        />
+        <input
+          type="date"
+          value={endDateFilter}
+          onChange={(e) => { setEndDateFilter(e.target.value); setPage(1); }}
+          className="h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none cursor-pointer"
+        />
+        <select
+          value={sortOrder}
+          onChange={(e) => { setSortOrder(e.target.value); setPage(1); }}
+          className="h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 cursor-pointer"
+        >
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
+          <option value="largest_qty">Largest Qty</option>
+        </select>
+        <button
+          onClick={() => { setSearch(''); setProductIdFilter(''); setCustomerIdFilter(''); setTypeFilter(''); setStatusFilter(''); setStartDateFilter(''); setEndDateFilter(''); setSortOrder('newest'); setPage(1); }}
+          className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 transition-colors whitespace-nowrap"
+        >
+          Clear Filters
+        </button>
+      </FilterBar>
 
       {/* TABLE SECTION */}
       <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
@@ -1220,6 +1187,6 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   )
 }

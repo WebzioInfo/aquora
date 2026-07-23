@@ -165,6 +165,7 @@ namespace Aquora.API.Controllers
                         JarDeposit = c.JarDeposit,
                         OutstandingJars = c.OutstandingJars,
                         MaxJarLimit = c.MaxJarLimit,
+                        ReservedEmptyJars = c.ReservedEmptyJars,
                         PreferredJarBrand = c.PreferredJarBrand,
                         PreferredCapMaterial = c.PreferredCapMaterial,
                         SealRequired = c.SealRequired,
@@ -262,6 +263,7 @@ namespace Aquora.API.Controllers
                     JarDeposit = customer.JarDeposit,
                     OutstandingJars = customer.OutstandingJars,
                     MaxJarLimit = customer.MaxJarLimit,
+                    ReservedEmptyJars = customer.ReservedEmptyJars,
                     PreferredJarBrand = customer.PreferredJarBrand,
                     PreferredCapMaterial = customer.PreferredCapMaterial,
                     SealRequired = customer.SealRequired,
@@ -431,6 +433,7 @@ namespace Aquora.API.Controllers
                     JarDeposit = request.JarDeposit,
                     OutstandingJars = request.OutstandingJars,
                     MaxJarLimit = request.MaxJarLimit,
+                    ReservedEmptyJars = request.ReservedEmptyJars,
                     PreferredJarBrand = request.PreferredJarBrand?.Trim(),
                     PreferredCapMaterial = request.PreferredCapMaterial?.Trim(),
                     SealRequired = request.SealRequired,
@@ -507,6 +510,7 @@ namespace Aquora.API.Controllers
                     JarDeposit = customer.JarDeposit,
                     OutstandingJars = customer.OutstandingJars,
                     MaxJarLimit = customer.MaxJarLimit,
+                    ReservedEmptyJars = customer.ReservedEmptyJars,
                     PreferredJarBrand = customer.PreferredJarBrand,
                     PreferredCapMaterial = customer.PreferredCapMaterial,
                     SealRequired = customer.SealRequired,
@@ -660,6 +664,7 @@ namespace Aquora.API.Controllers
                 customer.JarDeposit = request.JarDeposit;
                 customer.OutstandingJars = request.OutstandingJars;
                 customer.MaxJarLimit = request.MaxJarLimit;
+                customer.ReservedEmptyJars = request.ReservedEmptyJars;
                 customer.PreferredJarBrand = request.PreferredJarBrand?.Trim();
                 customer.PreferredCapMaterial = request.PreferredCapMaterial?.Trim();
                 customer.SealRequired = request.SealRequired;
@@ -736,6 +741,7 @@ namespace Aquora.API.Controllers
                     JarDeposit = customer.JarDeposit,
                     OutstandingJars = customer.OutstandingJars,
                     MaxJarLimit = customer.MaxJarLimit,
+                    ReservedEmptyJars = customer.ReservedEmptyJars,
                     PreferredJarBrand = customer.PreferredJarBrand,
                     PreferredCapMaterial = customer.PreferredCapMaterial,
                     SealRequired = customer.SealRequired,

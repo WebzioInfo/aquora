@@ -14,6 +14,10 @@ import { SearchableDropdown } from '../../components/ui/SearchableDropdown'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import EnterpriseHeader from '../../components/ui/EnterpriseHeader'
+import PageContainer from '../../components/ui/layout/PageContainer'
+import PageHeader from '../../components/ui/layout/PageHeader'
+import Breadcrumb from '../../components/ui/layout/Breadcrumb'
+import FilterBar from '../../components/ui/layout/FilterBar'
 import EnterpriseBadge from '../../components/ui/EnterpriseBadge'
 import EnterpriseInput from '../../components/ui/EnterpriseInput'
 import EnterpriseSelect from '../../components/ui/EnterpriseSelect'
@@ -37,9 +41,10 @@ const PremiumLabel: React.FC<{ label: string; required?: boolean }> = ({ label, 
 interface PremiumInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
   error?: string;
+  helpText?: string;
 }
 
-const PremiumInput: React.FC<PremiumInputProps> = ({ label, error, required, className = '', ...props }) => {
+const PremiumInput: React.FC<PremiumInputProps> = ({ label, error, helpText, required, className = '', ...props }) => {
   return (
     <div className="flex flex-col w-full text-left">
       <PremiumLabel label={label} required={required} />
@@ -57,9 +62,10 @@ const PremiumInput: React.FC<PremiumInputProps> = ({ label, error, required, cla
 interface PremiumSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label: string;
   error?: string;
+  helpText?: string;
 }
 
-const PremiumSelect: React.FC<PremiumSelectProps> = ({ label, children, error, required, className = '', ...props }) => {
+const PremiumSelect: React.FC<PremiumSelectProps> = ({ label, error, helpText, required, className = '', children, ...props }) => {
   return (
     <div className="flex flex-col w-full text-left">
       <PremiumLabel label={label} required={required} />
@@ -78,7 +84,8 @@ const PremiumSelect: React.FC<PremiumSelectProps> = ({ label, children, error, r
           </svg>
         </div>
       </div>
-      {error && <span className="text-xs font-medium text-red-500 mt-1">{error}</span>}
+      {helpText && <p className="text-[10px] text-gray-400 mt-1 pl-1">{helpText}</p>}
+      {error && <p className="text-[10px] text-red-500 mt-1 font-medium pl-1">{error}</p>}
     </div>
   );
 };
@@ -241,6 +248,7 @@ export const CustomersPage: React.FC = () => {
     jarDeposit: 0,
     outstandingJars: 0,
     maxJarLimit: 0,
+    reservedEmptyJars: 0,
     preferredJarBrand: '',
     preferredCapMaterial: '',
     sealRequired: false,
@@ -470,6 +478,7 @@ export const CustomersPage: React.FC = () => {
       jarDeposit: 0,
       outstandingJars: 0,
       maxJarLimit: 0,
+      reservedEmptyJars: 0,
       preferredJarBrand: '',
       preferredCapMaterial: '',
       sealRequired: false,
@@ -553,6 +562,7 @@ export const CustomersPage: React.FC = () => {
       jarDeposit: customer.jarDeposit || 0,
       outstandingJars: customer.outstandingJars || 0,
       maxJarLimit: customer.maxJarLimit || 0,
+      reservedEmptyJars: customer.reservedEmptyJars || 0,
       preferredJarBrand: customer.preferredJarBrand || '',
       preferredCapMaterial: customer.preferredCapMaterial || '',
       sealRequired: customer.sealRequired || false,
@@ -622,7 +632,12 @@ export const CustomersPage: React.FC = () => {
 
     // Map remarks with internal notes for archiving
     const notesCombined = formData.internalNotes.trim() 
-      ? `${formData.remarks.trim()}\n[Internal Notes: ${formData.internalNotes.trim()}]`
+      ? `${formData.remarks.trim()}\import PageContainer from '../../components/ui/layout/PageContainer';
+import PageHeader from '../../components/ui/layout/PageHeader';
+import Breadcrumb from '../../components/ui/layout/Breadcrumb';
+import KPICard from '../../components/ui/layout/KPICard';
+import FilterBar from '../../components/ui/layout/FilterBar';
+n[Internal Notes: ${formData.internalNotes.trim()}]`
       : formData.remarks.trim()
 
     // Tenant configuration company lookup: use the current user's default company context or Guid.Empty
@@ -686,6 +701,7 @@ export const CustomersPage: React.FC = () => {
         jarDeposit: Number(formData.jarDeposit),
         outstandingJars: Number(formData.outstandingJars),
         maxJarLimit: Number(formData.maxJarLimit),
+        reservedEmptyJars: Number(formData.reservedEmptyJars),
         preferredJarBrand: formData.preferredJarBrand.trim() || undefined,
         preferredCapMaterial: formData.preferredCapMaterial.trim() || undefined,
         sealRequired: Boolean(formData.sealRequired),
@@ -757,6 +773,7 @@ export const CustomersPage: React.FC = () => {
           jarDeposit: Number(formData.jarDeposit),
           outstandingJars: Number(formData.outstandingJars),
           maxJarLimit: Number(formData.maxJarLimit),
+          reservedEmptyJars: Number(formData.reservedEmptyJars),
           preferredJarBrand: formData.preferredJarBrand.trim() || undefined,
           preferredCapMaterial: formData.preferredCapMaterial.trim() || undefined,
           sealRequired: Boolean(formData.sealRequired),
@@ -798,43 +815,37 @@ export const CustomersPage: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6 font-sans text-slate-800 bg-[#F7F9FC] min-h-screen p-6 relative overflow-x-hidden">
-      
-      {/* Executive Clean Header */}
-      <EnterpriseHeader
-        title="Customers Directory"
+    <PageContainer>
+      <Breadcrumb items={[{ label: 'Company' }, { label: 'Customers' }]} />
+      <PageHeader
+        title="Customers"
         description="Single source of truth for all customer profiles across Sales and 20L Operations."
         actions={
           canWrite && (
             <button
               onClick={handleOpenCreateDrawer}
-              className="flex items-center gap-1.5 px-4 h-[40px] bg-[#1A56DB] hover:bg-[#1E40AF] text-white text-sm font-semibold rounded-[8px] shadow-sm transition-all duration-150 active:scale-[0.98] select-none cursor-pointer"
+              className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow-sm"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               <span>Add Partner</span>
             </button>
           )
         }
       />
 
-      {/* Filter and Search Bar Card */}
-      <div className="bg-white border border-[#E2E8F0] shadow-sm rounded-[12px] p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-        
-        {/* Search Input */}
-        <div className="relative w-full md:w-[320px] shrink-0">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+      {/* Filter Bar */}
+      <FilterBar>
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Search by customer name, business name or phone"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 h-[40px] border border-[#E2E8F0] rounded-[8px] bg-white text-slate-900 text-sm focus:outline-none focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB] focus:shadow-[0_0_0_2px_rgba(26,86,219,0.15)] transition-all"
+            className="w-full pl-10 pr-4 h-9 border border-slate-200 rounded-lg bg-white text-slate-900 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
           />
         </div>
-
-        {/* Filters Group */}
-        <div className="flex flex-wrap md:flex-nowrap gap-3 w-full justify-end select-none">
-          {/* Customer Type Filter */}
+        <div className="flex flex-wrap gap-3 items-center">
           <select
             value={customerTypeFilter}
             onChange={(e) => { setCustomerTypeFilter(e.target.value); setCurrentPage(1); }}
@@ -871,15 +882,14 @@ export const CustomersPage: React.FC = () => {
             <option value="balance">Highest Balance</option>
           </select>
 
-          {/* Export Button (Placeholder) */}
           <button
             onClick={() => showToast('Export action triggered (mock Excel extraction).', 'info')}
-            className="flex items-center gap-2 h-[40px] px-4 border border-[#E2E8F0] rounded-[8px] bg-white text-slate-600 hover:bg-slate-50 text-sm font-semibold transition-colors duration-150 select-none cursor-pointer"
+            className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-slate-600 hover:bg-slate-50 text-xs font-semibold transition-colors cursor-pointer"
           >
-            <span>Export</span>
+            Export
           </button>
         </div>
-      </div>
+      </FilterBar>
 
       {/* Main Content Table Area */}
       {isLoading ? (
@@ -893,13 +903,13 @@ export const CustomersPage: React.FC = () => {
           <div className="overflow-x-auto w-full">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="h-[48px] border-b border-[#E2E8F0] text-[#344054] font-semibold bg-[#F4F6F9] select-none">
-                  <th className="py-3 px-4 text-sm font-semibold">Partner Name</th>
-                  <th className="py-3 px-4 text-sm font-semibold">Business Name</th>
-                  <th className="py-3 px-4 text-sm font-semibold">Type</th>
-                  <th className="py-3 px-4 text-sm font-semibold">Phone</th>
-                  <th className="py-3 px-4 text-sm font-semibold text-center">Status</th>
-                  <th className="py-3 px-4 text-sm font-semibold text-right">Actions</th>
+                <tr className="h-12 border-b border-slate-200 text-slate-500 font-black bg-slate-50/80 select-none uppercase tracking-wide text-[10px]">
+                  <th className="py-3 px-4">Partner Name</th>
+                  <th className="py-3 px-4">Business Name</th>
+                  <th className="py-3 px-4">Type</th>
+                  <th className="py-3 px-4">Phone</th>
+                  <th className="py-3 px-4 text-center">Status</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E2E8F0]">
@@ -1531,6 +1541,19 @@ export const CustomersPage: React.FC = () => {
                           value={formData.maxJarLimit}
                           onChange={handleFormChange}
                         />
+                        <PremiumInput
+                          label="Reserved Empty Jars"
+                          name="reservedEmptyJars"
+                          type="number"
+                          value={formData.reservedEmptyJars}
+                          onChange={(e: any) => {
+                            const val = parseInt(e.target.value);
+                            handleFormChange({
+                              target: { name: 'reservedEmptyJars', value: isNaN(val) || val < 0 ? 0 : val }
+                            } as any);
+                          }}
+                          helpText="Current reserved empty jars available for this customer."
+                        />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
@@ -1656,7 +1679,7 @@ export const CustomersPage: React.FC = () => {
       {/* ======================================================== */}
 
 
-    </div>
+    </PageContainer>
   )
 }
 

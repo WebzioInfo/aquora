@@ -1336,13 +1336,18 @@ namespace Aquora.API.Controllers
                 }
 
                 var skusList = await query
-                    .OrderBy(s => s.Name)
+                    .OrderBy(s => s.DisplayOrder)
+                    .ThenBy(s => s.Name)
                     .Select(s => new {
                         id = s.Id,
                         name = s.Name,
                         sku = s.SKU,
                         barcode = s.SKU != null ? "BARCODE-" + s.SKU : "",
-                        isActive = s.IsActive
+                        isActive = s.IsActive,
+                        category = s.Category,
+                        displayOrder = s.DisplayOrder,
+                        bottleSize = s.BottleSize,
+                        imageUrl = s.ImageUrl
                     })
                     .ToListAsync();
 

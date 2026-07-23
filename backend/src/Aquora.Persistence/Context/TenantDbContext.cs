@@ -57,6 +57,9 @@ namespace Aquora.Persistence.Context
         public DbSet<OperationsQuarantine> OperationsQuarantines => Set<OperationsQuarantine>();
         public DbSet<OperationsFillingQueue> OperationsFillingQueues => Set<OperationsFillingQueue>();
         public DbSet<OperationsLoading> OperationsLoadings => Set<OperationsLoading>();
+        public DbSet<OperationsReservedJar> OperationsReservedJars => Set<OperationsReservedJar>();
+        public DbSet<OperationsWashingLog> OperationsWashingLogs => Set<OperationsWashingLog>();
+        public DbSet<OperationsFillingLog> OperationsFillingLogs => Set<OperationsFillingLog>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

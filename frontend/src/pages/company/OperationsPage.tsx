@@ -1,3 +1,8 @@
+import PageContainer from '../../components/ui/layout/PageContainer';
+import PageHeader from '../../components/ui/layout/PageHeader';
+import Breadcrumb from '../../components/ui/layout/Breadcrumb';
+import KPICard from '../../components/ui/layout/KPICard';
+import FilterBar from '../../components/ui/layout/FilterBar';
 import React, { useState, useEffect } from 'react'
 import { api } from '../../services/api'
 import { useNotificationStore } from '../../store/useNotificationStore'
@@ -188,14 +193,12 @@ export const OperationsPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 text-slate-900 font-sans">
-      <div className="max-w-[1400px] mx-auto space-y-6">
-        
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">20L Operations</h1>
-          <p className="text-sm text-slate-500">Manage 20L empty returns, filling queue, and loading operations.</p>
-        </div>
+    <PageContainer>
+      <Breadcrumb items={[{ label: 'Company' }, { label: '20L Operations' }]} />
+      <PageHeader
+        title="20L Operations"
+        description="Manage 20L empty returns, filling queue, and loading operations."
+      />
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           
@@ -413,9 +416,9 @@ export const OperationsPage: React.FC = () => {
           </div>
 
         </div>
-      </div>
-    </div>
+    </PageContainer>
   )
 }
+
 
 export default OperationsPage

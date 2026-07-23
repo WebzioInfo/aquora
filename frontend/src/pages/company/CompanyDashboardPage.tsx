@@ -1,3 +1,8 @@
+import PageContainer from '../../components/ui/layout/PageContainer';
+import PageHeader from '../../components/ui/layout/PageHeader';
+import Breadcrumb from '../../components/ui/layout/Breadcrumb';
+import KPICard from '../../components/ui/layout/KPICard';
+import FilterBar from '../../components/ui/layout/FilterBar';
 import React, { useState } from 'react'
 import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -1673,10 +1678,11 @@ export const CompanyDashboardPage: React.FC = () => {
 
   if (isSettingsView) {
     return (
-      <div className="flex flex-col gap-6">
-        <EnterpriseHeader
-          title="Company Profile Settings"
-          description="Manage configuration parameters for the current company tenant database schema."
+      <PageContainer>
+        <Breadcrumb items={[{ label: 'Company' }, { label: 'Company Settings' }]} />
+        <PageHeader
+          title="Company Settings"
+          description="Manage configuration parameters for the current company tenant."
         />
         <EnterpriseCard title="Tenant Setup Preferences">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -1765,7 +1771,7 @@ export const CompanyDashboardPage: React.FC = () => {
             </EnterpriseButton>
           )}
         </EnterpriseCard>
-      </div>
+      </PageContainer>
     )
   }
 
@@ -1885,31 +1891,30 @@ export const CompanyDashboardPage: React.FC = () => {
 
 
     return (
-      <div className="flex flex-col gap-3 font-sans text-slate-800 bg-[#F8FAFC] min-h-screen p-4">
-
-        {/* Compact Page Header */}
-        <div className="flex items-center justify-between bg-white border border-[#E5E7EB] rounded-xl px-4 py-2.5 shadow-sm">
-          <div>
-            <h1 className="text-[15px] font-bold text-slate-900 leading-tight">Production Console</h1>
-            <p className="text-[11px] text-slate-400 font-medium leading-none mt-0.5">Batch queue Ã¢â‚¬â€ monitor, filter, and manage active production runs</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] font-semibold text-slate-500 select-none">
-              {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} &bull; {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-            </span>
-            <button
-              onClick={() => {
-                if (productionLines.length > 0) setStartBatchLineId(productionLines[0].lineId)
-                if (allCatalogProducts.length > 0) setStartBatchProduct(allCatalogProducts[0].name)
-                setIsStartBatchModalOpen(true)
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg shadow-sm cursor-pointer transition-all active:scale-[0.98]"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Create Batch</span>
-            </button>
-          </div>
-        </div>
+      <PageContainer>
+        <Breadcrumb items={[{ label: 'Company' }, { label: 'Production' }]} />
+        <PageHeader
+          title="Production"
+          description="Batch queue — monitor, filter, and manage active production runs"
+          actions={
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] font-semibold text-slate-500 select-none">
+                {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              </span>
+              <button
+                onClick={() => {
+                  if (productionLines.length > 0) setStartBatchLineId(productionLines[0].lineId)
+                  if (allCatalogProducts.length > 0) setStartBatchProduct(allCatalogProducts[0].name)
+                  setIsStartBatchModalOpen(true)
+                }}
+                className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow-sm"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Create Batch</span>
+              </button>
+            </div>
+          }
+        />
 
         {/* Tab Switcher */}
         <div className="flex gap-0 border-b border-[#E5E7EB] select-none bg-white rounded-t-lg px-4 shadow-sm border border-[#E5E7EB]">
@@ -2348,7 +2353,7 @@ export const CompanyDashboardPage: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
+      </PageContainer>
     )
   }
 
@@ -2452,63 +2457,54 @@ export const CompanyDashboardPage: React.FC = () => {
     ]
 
     return (
-      <div className="flex flex-col gap-6 bg-[#F8FAFC] min-h-screen">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-[#E5E7EB] select-none">
-          <div>
-            <h1 className="text-2xl font-bold text-[#111827]">
-              Employee Directory & Employees
-            </h1>
-            <p className="text-sm text-[#6B7280] mt-1 font-normal">
-              Provision operator credentials and configure RBAC authorization roles.
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <EnterpriseButton 
-              onClick={() => setIsAddModalOpen(true)} 
-              className="flex items-center gap-2 !bg-[#2563EB] hover:!bg-[#1D4ED8] text-white !rounded-[10px] !h-[42px]"
+      <PageContainer>
+        <Breadcrumb items={[{ label: 'Company' }, { label: 'Employees' }]} />
+        <PageHeader
+          title="Employees"
+          description="Provision operator credentials and configure RBAC authorization roles."
+          actions={
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow-sm"
             >
-              <Plus className="w-4 h-4" />
-              <span>Add Employee</span>
-            </EnterpriseButton>
-          </div>
-        </div>
+              <Plus className="w-3.5 h-3.5" />
+              Add Employee
+            </button>
+          }
+        />
 
-        {/* Filters and Search Toolbar */}
-        <div className="bg-white border border-[#E5E7EB] p-4 flex flex-col md:flex-row gap-4 select-none rounded-[12px] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-          <div className="flex-1 relative">
+        {/* Filters */}
+        <FilterBar>
+          <div className="flex-1 relative min-w-[200px]">
             <input
               type="text"
               placeholder="Search by name, username, department..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-[44px] border border-[#D1D5DB] bg-white text-[#111827] placeholder-[#9CA3AF] text-xs pl-9 pr-4 rounded-[10px] focus:outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] transition-all"
+              className="w-full h-9 border border-slate-200 bg-white text-slate-800 placeholder-slate-400 text-xs pl-9 pr-4 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
             />
-            <Search className="w-4 h-4 text-[#9CA3AF] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
-
-          <div className="flex gap-3">
-            <EnterpriseSelect
-              value={roleFilter}
-              onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }}
-              className="!py-2 !bg-white !border-[#D1D5DB] !text-[#111827] hover:!bg-[#F9FAFB]"
-            >
-              <option value="" className="bg-white text-[#111827]">All Roles</option>
-              {roles.map((r: any) => (
-                <option key={r.id} value={r.code} className="bg-white text-[#111827]">{r.name}</option>
-              ))}
-            </EnterpriseSelect>
-
-            <EnterpriseSelect
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-              className="!py-2 !bg-white !border-[#D1D5DB] !text-[#111827] hover:!bg-[#F9FAFB]"
-            >
-              <option value="" className="bg-white text-[#111827]">All Statuses</option>
-              <option value="active" className="bg-white text-[#111827]">Active</option>
-              <option value="inactive" className="bg-white text-[#111827]">Inactive</option>
-            </EnterpriseSelect>
-          </div>
-        </div>
+          <select
+            value={roleFilter}
+            onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }}
+            className="h-9 border border-slate-200 bg-white text-slate-700 text-xs px-3 rounded-lg focus:outline-none focus:border-blue-500 cursor-pointer"
+          >
+            <option value="">All Roles</option>
+            {roles.map((r: any) => (
+              <option key={r.id} value={r.code}>{r.name}</option>
+            ))}
+          </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+            className="h-9 border border-slate-200 bg-white text-slate-700 text-xs px-3 rounded-lg focus:outline-none focus:border-blue-500 cursor-pointer"
+          >
+            <option value="">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </FilterBar>
 
         {/* Table Grid list */}
         {employeesLoading ? (
@@ -3033,13 +3029,9 @@ export const CompanyDashboardPage: React.FC = () => {
             </div>
           </form>
         </EnterpriseModal>
-      </div>
+      </PageContainer>
     )
   }
-
-
-
-
 
   const handleAdjustStockSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -3207,8 +3199,7 @@ export const CompanyDashboardPage: React.FC = () => {
 
   if (isDashboardView && isDashboardLoading) {
     return (
-      <div className="min-h-screen bg-white font-sans antialiased">
-        <div className="max-w-[1400px] mx-auto px-6 py-8 space-y-10">
+      <PageContainer>
           {/* Header Skeleton */}
           <div className="flex justify-between items-center pb-6 border-b border-gray-100 animate-pulse">
             <div className="space-y-2">
@@ -3219,9 +3210,9 @@ export const CompanyDashboardPage: React.FC = () => {
           </div>
 
           {/* KPIs Skeleton */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-8 gap-y-6 animate-pulse">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 animate-pulse">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="space-y-2">
+              <div key={i} className="bg-white rounded-xl border border-slate-200 p-4 space-y-2">
                 <div className="h-3 bg-gray-200 rounded w-20"></div>
                 <div className="h-9 bg-gray-200 rounded w-28"></div>
                 <div className="h-3 bg-gray-100 rounded w-16"></div>
@@ -3230,9 +3221,9 @@ export const CompanyDashboardPage: React.FC = () => {
           </div>
 
           {/* Ledger Skeleton */}
-          <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-6 animate-pulse space-y-4">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 animate-pulse space-y-4">
             <div className="h-4 bg-gray-200 rounded w-36"></div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-8 gap-y-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="space-y-2">
                   <div className="h-3 bg-gray-200 rounded w-24"></div>
@@ -3244,18 +3235,18 @@ export const CompanyDashboardPage: React.FC = () => {
           </div>
 
           {/* Grid Skeleton */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 animate-pulse">
-            <div className="lg:col-span-2 space-y-10">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-pulse">
+            <div className="lg:col-span-2 space-y-6">
               <div className="space-y-4">
                 <div className="h-4 bg-gray-200 rounded w-32"></div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {[...Array(3)].map((_, i) => (
-                    <div key={i} className="border border-gray-100 rounded-xl p-4 space-y-3 h-32"></div>
+                    <div key={i} className="border border-gray-200 bg-white rounded-xl p-4 space-y-3 h-32"></div>
                   ))}
                 </div>
               </div>
             </div>
-            <div className="space-y-10">
+            <div className="space-y-6">
               <div className="space-y-4">
                 <div className="h-4 bg-gray-200 rounded w-24"></div>
                 {[...Array(2)].map((_, i) => (
@@ -3264,36 +3255,28 @@ export const CompanyDashboardPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
-      </div>
+      </PageContainer>
     )
   }
-
-  // DEFAULT VIEW â€” Clean Executive Dashboard
+  // DEFAULT VIEW — Clean Executive Dashboard
   return (
-    <div className="min-h-screen bg-white font-sans antialiased">
-      <div className="max-w-[1400px] mx-auto px-6 py-8 space-y-10">
-
-        {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-gray-100">
-          <div>
-            <h1 className="text-[26px] font-semibold tracking-tight text-gray-900">
-              {getGreeting()}, {user?.fullName?.split(' ')[0] || 'Sinan'} ðŸ‘‹
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {user?.tenantName || 'Aquaflow Ltd'} &bull; Plant A &bull; {getShiftName(currentTime).split('(')[0].trim()} &bull; {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-mono text-gray-500 tabular-nums">
-              {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-            </span>
-            <div className="flex items-center gap-2 text-xs font-medium">
-              <span className={`w-2 h-2 rounded-full ${factoryStatus.variant === 'success' ? 'bg-green-500' : factoryStatus.variant === 'warning' ? 'bg-amber-500' : 'bg-gray-400'}`} />
-              <span className="text-gray-700">{factoryStatus.variant === 'success' ? 'Production Running' : factoryStatus.variant === 'warning' ? 'Production Paused' : 'Idle'}</span>
+    <>
+      <PageContainer>
+        <PageHeader 
+          title={`${getGreeting()}, ${user?.fullName?.split(' ')[0] || 'Sinan'} 👋`}
+          description={`${user?.tenantName || 'Aquaflow Ltd'} • Plant A • ${getShiftName(currentTime).split('(')[0].trim()} • ${currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`}
+          actions={
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-mono text-slate-500 tabular-nums">
+                {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+              <div className="flex items-center gap-2 text-xs font-medium bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
+                <span className={`w-2 h-2 rounded-full ${factoryStatus.variant === 'success' ? 'bg-green-500' : factoryStatus.variant === 'warning' ? 'bg-amber-500' : 'bg-slate-400'}`} />
+                <span className="text-slate-700">{factoryStatus.variant === 'success' ? 'Production Running' : factoryStatus.variant === 'warning' ? 'Production Paused' : 'Idle'}</span>
+              </div>
             </div>
-          </div>
-        </header>
+          }
+        />
 
         {/* —— Today's KPIs —————————————————————————————————————— */}
         <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-8 gap-y-6">
@@ -3468,7 +3451,7 @@ export const CompanyDashboardPage: React.FC = () => {
               )}
             </section>
 
-            {/* â”€â”€ Today's Batches â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+            {/* —————————————————————————————————————————————————————————————————————— */}
             <section>
               <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-5">Today's Batches</h2>
               <div className="border border-gray-100 rounded-xl overflow-hidden">
@@ -3529,7 +3512,7 @@ export const CompanyDashboardPage: React.FC = () => {
               </div>
             </section>
 
-            {/* â”€â”€ Quick Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+            {/* —————————————————————————————————————————————————————————————————————— */}
             <section>
               <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Quick Actions</h2>
               <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm">
@@ -3657,52 +3640,47 @@ export const CompanyDashboardPage: React.FC = () => {
 
           </div>
         </div>
-      </div>
 
-      {/* â”€â”€ Modals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* —————————————————————————————————————————————————————————————————————— */}
 
-      {/* Add Inventory */}
-      <EnterpriseModal isOpen={isDashboardAddInventoryOpen} onClose={() => setIsDashboardAddInventoryOpen(false)} title="Add Inventory Stock">
-        <form onSubmit={handleAdjustStockSubmit} className="flex flex-col gap-4">
-          <EnterpriseSelect label="Raw Material *" value={dashboardAdjustMatId} onChange={(e) => setDashboardAdjustMatId(e.target.value)} required>
-            {dashboardRawMaterials.map((mat: any) => (
-              <option key={mat.id} value={mat.id}>{mat.name} ({mat.category})</option>
-            ))}
-          </EnterpriseSelect>
-          <EnterpriseInput label="Quantity *" type="number" placeholder="e.g. 5000" value={dashboardAdjustQty} onChange={(e) => setDashboardAdjustQty(e.target.value)} required />
-          <EnterpriseInput label="Notes" placeholder="Reason for adjustment" value={dashboardAdjustNotes} onChange={(e) => setDashboardAdjustNotes(e.target.value)} />
-          <div className="flex gap-2 justify-end mt-2">
-            <EnterpriseButton type="button" onClick={() => setIsDashboardAddInventoryOpen(false)} variant="secondary">Cancel</EnterpriseButton>
-            <EnterpriseButton type="submit" loading={adjustStockMutation.isPending}>Update Stock</EnterpriseButton>
-          </div>
-        </form>
-      </EnterpriseModal>
+        {/* Add Inventory */}
+        <EnterpriseModal isOpen={isDashboardAddInventoryOpen} onClose={() => setIsDashboardAddInventoryOpen(false)} title="Add Inventory Stock">
+          <form onSubmit={handleAdjustStockSubmit} className="flex flex-col gap-4">
+            <EnterpriseSelect label="Raw Material *" value={dashboardAdjustMatId} onChange={(e) => setDashboardAdjustMatId(e.target.value)} required>
+              {dashboardRawMaterials.map((mat: any) => (
+                <option key={mat.id} value={mat.id}>{mat.name} ({mat.category})</option>
+              ))}
+            </EnterpriseSelect>
+            <EnterpriseInput label="Quantity *" type="number" placeholder="e.g. 5000" value={dashboardAdjustQty} onChange={(e) => setDashboardAdjustQty(e.target.value)} required />
+            <EnterpriseInput label="Notes" placeholder="Reason for adjustment" value={dashboardAdjustNotes} onChange={(e) => setDashboardAdjustNotes(e.target.value)} />
+            <div className="flex gap-2 justify-end mt-2">
+              <EnterpriseButton type="button" onClick={() => setIsDashboardAddInventoryOpen(false)} variant="secondary">Cancel</EnterpriseButton>
+              <EnterpriseButton type="submit" loading={adjustStockMutation.isPending}>Update Stock</EnterpriseButton>
+            </div>
+          </form>
+        </EnterpriseModal>
 
-
-
-
-      {/* Sales Order */}
-      <EnterpriseModal isOpen={isDashboardSalesOrderOpen} onClose={() => setIsDashboardSalesOrderOpen(false)} title="Create Sales Order">
-        <form onSubmit={handleSalesOrderSubmit} className="flex flex-col gap-4">
-          <EnterpriseInput label="Buyer *" value={dashboardSalesClient} onChange={(e) => setDashboardSalesClient(e.target.value)} required />
-          <EnterpriseSelect label="Product *" value={dashboardSalesProduct} onChange={(e) => setDashboardSalesProduct(e.target.value)} required>
-            {allCatalogProducts.map((prod: any) => (
-              <option key={prod.id} value={prod.name}>{prod.name}</option>
-            ))}
-          </EnterpriseSelect>
-          <div className="grid grid-cols-2 gap-4">
-            <EnterpriseInput label="Quantity (Cases) *" type="number" placeholder="500" value={dashboardSalesQty} onChange={(e) => setDashboardSalesQty(e.target.value)} required />
-            <EnterpriseInput label="Amount ($) *" type="number" placeholder="6000" value={dashboardSalesAmount} onChange={(e) => setDashboardSalesAmount(e.target.value)} required />
-          </div>
-          <div className="flex gap-2 justify-end mt-2">
-            <EnterpriseButton type="button" onClick={() => setIsDashboardSalesOrderOpen(false)} variant="secondary">Cancel</EnterpriseButton>
-            <EnterpriseButton type="submit">Create Order</EnterpriseButton>
-          </div>
-        </form>
-      </EnterpriseModal>
-
-    </div>
+        {/* Sales Order */}
+        <EnterpriseModal isOpen={isDashboardSalesOrderOpen} onClose={() => setIsDashboardSalesOrderOpen(false)} title="Create Sales Order">
+          <form onSubmit={handleSalesOrderSubmit} className="flex flex-col gap-4">
+            <EnterpriseInput label="Buyer *" value={dashboardSalesClient} onChange={(e) => setDashboardSalesClient(e.target.value)} required />
+            <EnterpriseSelect label="Product *" value={dashboardSalesProduct} onChange={(e) => setDashboardSalesProduct(e.target.value)} required>
+              {allCatalogProducts.map((prod: any) => (
+                <option key={prod.id} value={prod.name}>{prod.name}</option>
+              ))}
+            </EnterpriseSelect>
+            <div className="grid grid-cols-2 gap-4">
+              <EnterpriseInput label="Quantity (Cases) *" type="number" placeholder="500" value={dashboardSalesQty} onChange={(e) => setDashboardSalesQty(e.target.value)} required />
+              <EnterpriseInput label="Amount ($) *" type="number" placeholder="6000" value={dashboardSalesAmount} onChange={(e) => setDashboardSalesAmount(e.target.value)} required />
+            </div>
+            <div className="flex gap-2 justify-end mt-2">
+              <EnterpriseButton type="button" onClick={() => setIsDashboardSalesOrderOpen(false)} variant="secondary">Cancel</EnterpriseButton>
+              <EnterpriseButton type="submit">Create Order</EnterpriseButton>
+            </div>
+          </form>
+        </EnterpriseModal>
+      </PageContainer>
+    </>
   )
 }
 export default CompanyDashboardPage
-

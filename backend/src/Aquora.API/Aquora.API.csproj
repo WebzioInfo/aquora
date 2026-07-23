@@ -24,5 +24,10 @@
   <PropertyGroup>
     <DefaultItemExcludes>$(DefaultItemExcludes);Logs\**\*</DefaultItemExcludes>
   </PropertyGroup>
+  <ItemGroup>
+    <Watch Remove="Logs\**\*" />
+    <Content Update="Logs\**\*" Watch="false" />
+    <None Update="Logs\**\*" Watch="false" />
+  </ItemGroup>
 
 </Project>

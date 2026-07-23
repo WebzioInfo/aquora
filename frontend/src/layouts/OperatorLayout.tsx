@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/useAuthStore'
 import { useThemeStore } from '../store/useThemeStore'
 import { useNotificationStore } from '../store/useNotificationStore'
@@ -141,6 +141,47 @@ export const OperatorLayout: React.FC = () => {
     const timer = setInterval(updateTime, 60000) // update every minute is enough
     return () => clearInterval(timer)
   }, [])
+
+  const location = useLocation()
+
+  // Guard routing logic based on selected product and line/shift allocation
+  useEffect(() => {
+    if (location.pathname === '/access-denied') return
+
+    const path = location.pathname
+    
+    // Only guard if the route is part of operator
+    if (!path.startsWith('/operator')) return
+
+    // 1. If no product is selected, we MUST go to product selection
+    if (!selectedProduct) {
+      if (path !== '/operator/product-selection') {
+        navigate('/operator/product-selection', { replace: true })
+      }
+      return
+    }
+
+    // 2. If product is 20L Jar, redirect to /operator/jar
+    const isJar = selectedProduct.category?.toLowerCase() === '20l jar' || selectedProduct.name?.toLowerCase().includes('jar')
+    if (isJar) {
+      if (path !== '/operator/jar') {
+        navigate('/operator/jar', { replace: true })
+      }
+    } else {
+      // 3. For bottles/cans/other categories
+      if (path === '/operator/jar' || path === '/operator/product-selection') {
+        if (!selectedLine || !selectedShift) {
+          navigate('/operator/production-allocation', { replace: true })
+        } else {
+          navigate('/operator/dashboard', { replace: true })
+        }
+      } else if (path === '/operator/dashboard' && (!selectedLine || !selectedShift)) {
+        navigate('/operator/production-allocation', { replace: true })
+      } else if (path === '/operator/production-allocation' && (selectedLine && selectedShift)) {
+        navigate('/operator/dashboard', { replace: true })
+      }
+    }
+  }, [selectedProduct, selectedLine, selectedShift, location.pathname, navigate])
 
   // Dynamic fallback when linesData finishes loading if no line is currently selected
   useEffect(() => {
@@ -362,22 +403,24 @@ export const OperatorLayout: React.FC = () => {
             </div>
           )}
 
-          {/* Active Batch details displayed in a single unified global header */}
-          {selectedLine && lineTheme && activeBatchData?.canEnterProductionPage && (
+          {/* Selected Product info & Active Batch details displayed in header */}
+          {selectedProduct && (
             <>
               <span className="text-white/20 select-none hidden lg:inline">|</span>
               
               <div className="hidden lg:flex items-center gap-4 text-left animate-in fade-in slide-in-from-left-2 duration-200">
                 <div>
-                  <span className="text-white/60 text-[9px] uppercase tracking-wider block font-bold leading-none">Batch</span>
-                  <span className="text-white text-[13px] font-medium leading-tight block mt-0.5">{activeBatchData.batchNumber}</span>
-                </div>
-                <div>
                   <span className="text-white/60 text-[9px] uppercase tracking-wider block font-bold leading-none">Product</span>
-                  <span className="text-white text-[13px] font-bold leading-none block mt-0.5 truncate max-w-[150px]" title={activeBatchData.productName}>
-                    {activeBatchData.productName}
+                  <span className="text-white text-[13px] font-bold leading-none block mt-0.5 truncate max-w-[150px]" title={selectedProduct.name}>
+                    {selectedProduct.name}
                   </span>
                 </div>
+                {selectedLine && activeBatchData?.canEnterProductionPage && (
+                  <div>
+                    <span className="text-white/60 text-[9px] uppercase tracking-wider block font-bold leading-none">Batch</span>
+                    <span className="text-white text-[13px] font-medium leading-tight block mt-0.5">{activeBatchData.batchNumber}</span>
+                  </div>
+                )}
               </div>
             </>
           )}

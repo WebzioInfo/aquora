@@ -75,6 +75,10 @@ namespace Aquora.API.Controllers
                         SKU = p.SKU,
                         IsActive = p.IsActive,
                         CurrentStock = p.CurrentStock,
+                        Category = p.Category,
+                        DisplayOrder = p.DisplayOrder,
+                        BottleSize = p.BottleSize,
+                        ImageUrl = p.ImageUrl,
                         CreatedAt = p.CreatedAt,
                         UpdatedAt = p.UpdatedAt
                     })
@@ -112,6 +116,10 @@ namespace Aquora.API.Controllers
                     SKU = product.SKU,
                     IsActive = product.IsActive,
                     CurrentStock = product.CurrentStock,
+                    Category = product.Category,
+                    DisplayOrder = product.DisplayOrder,
+                    BottleSize = product.BottleSize,
+                    ImageUrl = product.ImageUrl,
                     CreatedAt = product.CreatedAt,
                     UpdatedAt = product.UpdatedAt
                 };
@@ -173,7 +181,11 @@ namespace Aquora.API.Controllers
                     BrandId = request.BrandId,
                     SKU = string.IsNullOrWhiteSpace(request.SKU) ? null : request.SKU.Trim(),
                     IsActive = request.IsActive,
-                    CurrentStock = 0.0m // Initialize to 0, balance engine will set it
+                    CurrentStock = 0.0m, // Initialize to 0, balance engine will set it
+                    Category = request.Category,
+                    DisplayOrder = request.DisplayOrder,
+                    BottleSize = request.BottleSize,
+                    ImageUrl = request.ImageUrl
                 };
 
                 var dbContext = _tenantContext as DbContext;
@@ -219,6 +231,10 @@ namespace Aquora.API.Controllers
                     SKU = product.SKU,
                     IsActive = product.IsActive,
                     CurrentStock = product.CurrentStock,
+                    Category = product.Category,
+                    DisplayOrder = product.DisplayOrder,
+                    BottleSize = product.BottleSize,
+                    ImageUrl = product.ImageUrl,
                     CreatedAt = product.CreatedAt,
                     UpdatedAt = product.UpdatedAt
                 };
@@ -292,6 +308,10 @@ namespace Aquora.API.Controllers
                     product.BrandId = request.BrandId;
                     product.SKU = string.IsNullOrWhiteSpace(request.SKU) ? null : request.SKU.Trim();
                     product.IsActive = request.IsActive;
+                    product.Category = request.Category;
+                    product.DisplayOrder = request.DisplayOrder;
+                    product.BottleSize = request.BottleSize;
+                    product.ImageUrl = request.ImageUrl;
 
                     if (request.CurrentStock.HasValue && request.CurrentStock.Value != product.CurrentStock)
                     {
@@ -326,6 +346,10 @@ namespace Aquora.API.Controllers
                     SKU = product.SKU,
                     IsActive = product.IsActive,
                     CurrentStock = product.CurrentStock,
+                    Category = product.Category,
+                    DisplayOrder = product.DisplayOrder,
+                    BottleSize = product.BottleSize,
+                    ImageUrl = product.ImageUrl,
                     CreatedAt = product.CreatedAt,
                     UpdatedAt = product.UpdatedAt
                 };

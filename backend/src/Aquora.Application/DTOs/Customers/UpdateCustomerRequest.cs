@@ -125,6 +125,7 @@ namespace Aquora.Application.DTOs.Customers
         public decimal JarDeposit { get; set; } = 0;
         public int OutstandingJars { get; set; } = 0;
         public int MaxJarLimit { get; set; } = 0;
+        public int ReservedEmptyJars { get; set; } = 0;
         public string? PreferredJarBrand { get; set; }
         public string? PreferredCapMaterial { get; set; }
         public bool SealRequired { get; set; } = false;

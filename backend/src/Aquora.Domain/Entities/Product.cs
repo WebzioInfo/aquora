@@ -11,6 +11,10 @@ namespace Aquora.Domain.Entities
         public string? SKU { get; set; }
         public bool IsActive { get; set; } = true;
         public decimal CurrentStock { get; set; } = 0;
+        public string Category { get; set; } = "Bottle";
+        public int DisplayOrder { get; set; } = 0;
+        public string? BottleSize { get; set; }
+        public string? ImageUrl { get; set; }
 
         // Auditable fields
         public DateTime CreatedAt { get; set; }

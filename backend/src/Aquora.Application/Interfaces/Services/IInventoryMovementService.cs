@@ -28,5 +28,27 @@ namespace Aquora.Application.Interfaces.Services
             Guid tenantId,
             Guid companyId,
             string createdBy);
+
+        Task<InventoryMovement> RecordOutstandingJarMovementAsync(
+            ITenantDbContext context,
+            Guid customerId,
+            int quantity,
+            string referenceType,
+            Guid referenceId,
+            string? notes,
+            Guid tenantId,
+            Guid companyId,
+            string createdBy);
+
+        Task<InventoryMovement> RecordReservedEmptyJarMovementAsync(
+            ITenantDbContext context,
+            Guid customerId,
+            int quantity,
+            string referenceType,
+            Guid referenceId,
+            string? notes,
+            Guid tenantId,
+            Guid companyId,
+            string createdBy);
     }
 }

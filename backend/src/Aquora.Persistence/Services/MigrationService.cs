@@ -133,6 +133,20 @@ namespace Aquora.Persistence.Services
                             {
                                 await tenantContext.SaveChangesAsync();
                             }
+
+                            // Auto-repair product categories for Jar products
+                            var jarProducts = await tenantContext.Products
+                                .Where(p => p.Name.ToLower().Contains("jar") && p.Category != "20L Jar")
+                                .ToListAsync();
+                            if (jarProducts.Any())
+                            {
+                                _logger.LogInformation($"[REPAIR] Found {jarProducts.Count} jar products in '{tenant.SchemaName}' with incorrect category. Fixing...");
+                                foreach (var jp in jarProducts)
+                                {
+                                    jp.Category = "20L Jar";
+                                }
+                                await tenantContext.SaveChangesAsync();
+                            }
                         }
                         _logger.LogInformation($"Tenant {tenant.Name} migrated successfully.");
                     }

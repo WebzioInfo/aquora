@@ -1,3 +1,8 @@
+import PageContainer from '../../components/ui/layout/PageContainer';
+import PageHeader from '../../components/ui/layout/PageHeader';
+import Breadcrumb from '../../components/ui/layout/Breadcrumb';
+import KPICard from '../../components/ui/layout/KPICard';
+import FilterBar from '../../components/ui/layout/FilterBar';
 ﻿import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueries } from '@tanstack/react-query'
@@ -219,7 +224,16 @@ export const BatchDetailsPage: React.FC = () => {
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-4 font-sans text-slate-900 bg-[#F8FAFC] p-4 min-h-screen">
+    <PageContainer>
+      <Breadcrumb
+        items={[
+          { label: 'Company' },
+          { label: 'Production', href: '/company/production' },
+          { label: batchMeta.batchNumber }
+        ]}
+        backHref="/company/production"
+        backLabel="Back to Production"
+      />
 
       {/* ══ HEADER ══════════════════════════════════════════════════════════ */}
       <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm overflow-hidden">
@@ -519,7 +533,7 @@ export const BatchDetailsPage: React.FC = () => {
         </div>
 
       </div>
-    </div>
+    </PageContainer>
   )
 }
 

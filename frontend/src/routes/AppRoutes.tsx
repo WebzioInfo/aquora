@@ -16,6 +16,8 @@ import PlatformManagementPage from '../pages/platform/PlatformManagementPage'
 import CompanyDashboardPage from '../pages/company/CompanyDashboardPage'
 import BatchDetailsPage from '../pages/company/BatchDetailsPage'
 import OperatorDashboardPage from '../pages/operator/OperatorDashboardPage'
+import ProductSelectionPage from '../pages/operator/ProductSelectionPage'
+import JarDashboardPage from '../pages/operator/JarDashboardPage'
 import AccessDeniedPage from '../pages/AccessDeniedPage'
 import OperationsPage from '../pages/company/OperationsPage'
 import ProvisioningPage from '../pages/ProvisioningPage'
@@ -41,7 +43,7 @@ export const getDefaultRouteForUser = (user: any): string => {
       return '/onboarding'
     }
     
-    if (roles.includes('Operator')) return '/operator/dashboard'
+    if (roles.includes('Operator')) return '/operator/product-selection'
     if (roles.includes('Worker')) return '/worker/dashboard'
     if (roles.some((r: string) => ['Store Keeper', 'StoreKeeper', 'STORE_KEEPER'].includes(r))) return '/store/dashboard'
     if (roles.includes('Sales')) return '/sales/dashboard'
@@ -307,8 +309,11 @@ export const AppRoutes: React.FC = () => {
           </OperatorRoute>
         }
       >
-        <Route index element={<Navigate to="/operator/dashboard" replace />} />
+        <Route index element={<Navigate to="/operator/product-selection" replace />} />
+        <Route path="product-selection" element={<ProductSelectionPage />} />
+        <Route path="production-allocation" element={<OperatorDashboardPage />} />
         <Route path="dashboard" element={<OperatorDashboardPage />} />
+        <Route path="jar" element={<JarDashboardPage />} />
       </Route>
 
       <Route

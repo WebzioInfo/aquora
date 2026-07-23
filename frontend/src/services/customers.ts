@@ -80,6 +80,7 @@ export interface Customer {
   // 20L Water Plant operations settings
   jarDeposit?: number
   outstandingJars?: number
+  reservedEmptyJars?: number
   maxJarLimit?: number
   preferredJarBrand?: string | null
   preferredCapMaterial?: string | null
@@ -165,6 +166,7 @@ export interface CreateCustomerRequest {
   // 20L Water Plant operations settings
   jarDeposit?: number
   outstandingJars?: number
+  reservedEmptyJars?: number
   maxJarLimit?: number
   preferredJarBrand?: string
   preferredCapMaterial?: string
@@ -249,6 +251,7 @@ export interface UpdateCustomerRequest {
   // 20L Water Plant operations settings
   jarDeposit?: number
   outstandingJars?: number
+  reservedEmptyJars?: number
   maxJarLimit?: number
   preferredJarBrand?: string
   preferredCapMaterial?: string

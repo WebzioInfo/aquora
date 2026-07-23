@@ -37,6 +37,9 @@ namespace Aquora.Application.Interfaces
         DbSet<OperationsQuarantine> OperationsQuarantines { get; }
         DbSet<OperationsFillingQueue> OperationsFillingQueues { get; }
         DbSet<OperationsLoading> OperationsLoadings { get; }
+        DbSet<OperationsReservedJar> OperationsReservedJars { get; }
+        DbSet<OperationsWashingLog> OperationsWashingLogs { get; }
+        DbSet<OperationsFillingLog> OperationsFillingLogs { get; }
 
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
