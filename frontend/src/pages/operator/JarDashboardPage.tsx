@@ -26,17 +26,135 @@ interface Distributor {
   assignedVehicle?: string
   assignedDriver?: string
   maxJarLimit: number
+  reservedEmptyJars?: number
 }
 
 interface DistributorContext {
   distributorId: string
   distributorName: string
   outstandingJars: number
+  reservedEmptyJars: number
   reservedEmpty: number
   reservedFilled: number
   condemnations: number
+  readyForFilling: number
   assignedVehicle: string
   assignedDriver: string
+}
+
+const ActionCard = ({ title, description, icon, count, countLabel, colorClass, iconColorClass, onClick }: any) => (
+  <button
+    onClick={onClick}
+    className={`group relative overflow-hidden flex flex-col text-left p-3.5 rounded-[12px] h-[115px] transition-all duration-150 cursor-pointer w-full hover:shadow-md hover:border-slate-300 active:scale-[0.99] ${colorClass}`}
+  >
+    <div className="flex flex-col h-full justify-between w-full relative z-10">
+      <div className="flex items-start gap-2.5">
+        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 shadow-none ${iconColorClass}`}>
+          {React.cloneElement(icon, { className: 'w-4.5 h-4.5' })}
+        </div>
+        <div className="pt-0.5 overflow-hidden">
+          <h3 className="text-[13px] font-semibold tracking-tight leading-tight text-slate-900 truncate">{title}</h3>
+          <p className="text-[11px] font-normal text-slate-500 mt-0.5 leading-tight truncate">{description}</p>
+        </div>
+      </div>
+
+      <div className="flex items-baseline justify-between mt-auto w-full pt-2 border-t border-slate-200/40">
+        <span className="text-[10px] font-medium text-slate-550 uppercase tracking-wider">{countLabel}</span>
+        <span className="text-[22px] font-bold leading-none text-slate-900">{count}</span>
+      </div>
+    </div>
+  </button>
+)
+
+const OperationModal = ({ isOpen, onClose, title, icon, colorClass, children, actionButton, maxWidth = "max-w-2xl" }: any) => {
+  if (!isOpen) return null
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className={`bg-white w-full ${maxWidth} max-h-[95vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200`}>
+        <div className={`px-5 py-3 border-b border-slate-100 flex items-center justify-between ${colorClass}`}>
+          <div className="flex items-center gap-2.5">
+            {icon}
+            {typeof title === 'string' ? (
+              <h2 className="text-[15px] font-semibold text-slate-800 tracking-tight">{title}</h2>
+            ) : (
+              title
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            {actionButton}
+            <button onClick={onClose} type="button" className="w-7 h-7 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10 transition-colors cursor-pointer">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-3 relative">
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const Stepper = ({ value, onChange, label, sublabel, max, onMaxExceeded }: any) => {
+  const atMax = max !== undefined && value >= max;
+
+  const handleIncrease = (amount: number) => {
+    if (max !== undefined) {
+      if (value >= max) {
+        if (onMaxExceeded) onMaxExceeded();
+        return;
+      }
+      const nextValue = value + amount;
+      if (nextValue > max) {
+        onChange(max);
+        if (onMaxExceeded) onMaxExceeded();
+      } else {
+        onChange(nextValue);
+      }
+    } else {
+      onChange(value + amount);
+    }
+  };
+
+  const handleInputChange = (e: any) => {
+    const val = parseInt(e.target.value) || 0;
+    if (max !== undefined && val > max) {
+      onChange(max);
+      if (onMaxExceeded) onMaxExceeded();
+    } else {
+      onChange(val);
+    }
+  };
+
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-[12px] bg-white border border-[#ECECEC] shadow-none">
+      {label && (
+        <div>
+          <div className="text-[13px] font-medium text-slate-800">{label}</div>
+          {sublabel && <div className="text-[11px] font-normal text-slate-500 mt-0.5">{sublabel}</div>}
+        </div>
+      )}
+      <div className="flex items-center gap-1.5 shrink-0">
+        <button type="button" onClick={() => onChange(Math.max(0, value - 1))} className="w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-600 cursor-pointer transition-colors">
+          <Minus className="w-3.5 h-3.5" />
+        </button>
+        <input
+          type="number"
+          value={value === undefined || value === null || Number.isNaN(value) ? 0 : value}
+          onChange={handleInputChange}
+          className="w-12 h-7 text-center font-semibold text-[15px] text-slate-800 bg-transparent border-none focus:ring-0"
+        />
+        <button type="button" onClick={() => handleIncrease(1)} className={`w-7 h-7 rounded-lg border border-slate-200 bg-white flex items-center justify-center cursor-pointer transition-colors ${atMax ? 'opacity-40 text-slate-400 bg-slate-50' : 'hover:bg-slate-50 text-slate-600'}`}>
+          <Plus className="w-3.5 h-3.5" />
+        </button>
+        <div className="flex items-center gap-1 ml-1">
+          <button type="button" onClick={() => handleIncrease(10)} className={`px-1.5 py-1 rounded-md text-[10px] font-medium cursor-pointer transition-colors ${atMax ? 'opacity-40 text-slate-400 bg-slate-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}>+10</button>
+          <button type="button" onClick={() => handleIncrease(25)} className={`px-1.5 py-1 rounded-md text-[10px] font-medium cursor-pointer transition-colors ${atMax ? 'opacity-40 text-slate-400 bg-slate-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}>+25</button>
+          <button type="button" onClick={() => handleIncrease(50)} className={`px-1.5 py-1 rounded-md text-[10px] font-medium cursor-pointer transition-colors ${atMax ? 'opacity-40 text-slate-400 bg-slate-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}>+50</button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 interface CounterProps {
@@ -299,13 +417,6 @@ export const JarDashboardPage: React.FC = () => {
     navigate('/operator/product-selection')
   }
 
-  // Increment counter helpers
-  const adjustJarCount = (field: keyof typeof initialClassifications, delta: number) => {
-    setJarCounts(prev => ({
-      ...prev,
-      [field]: Math.max(0, prev[field] + delta)
-    }))
-  }
 
   // Submit operations handlers
   const handleSaveUnloading = async (e: React.FormEvent) => {
