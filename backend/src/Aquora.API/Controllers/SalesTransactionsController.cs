@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -330,7 +330,7 @@ namespace Aquora.API.Controllers
                             
                             if (accountsReceivable != null && salesRevenue != null)
                             {
-                                var totalAmount = request.Cases * 15m; // Assume average $15 per case for ledger
+                                var totalAmount = request.Cases * product.SellingPrice; // Dynamic Revenue
                                 await financeService.CreateJournalEntryAsync(new CreateJournalEntryRequest
                                 {
                                     TransactionDate = transaction.TransactionDate,
@@ -375,6 +375,11 @@ namespace Aquora.API.Controllers
                 };
 
                 return Success(dto, "Sales transaction created successfully.");
+            }
+            catch (InvalidOperationException ex)
+            {
+                await dbTransaction.RollbackAsync();
+                return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure(ex.Message, "Validation Error", HttpContext.TraceIdentifier));
             }
             catch (Exception)
             {
@@ -526,6 +531,11 @@ namespace Aquora.API.Controllers
                 };
 
                 return Success(dto, "Sales transaction updated successfully.");
+            }
+            catch (InvalidOperationException ex)
+            {
+                await dbTransaction.RollbackAsync();
+                return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure(ex.Message, "Validation Error", HttpContext.TraceIdentifier));
             }
             catch (Exception)
             {

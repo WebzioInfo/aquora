@@ -60,7 +60,6 @@ namespace Aquora.Application.Services
                 CreatedBy = createdBy
             };
 
-            
             // Finance Hook: Finished Goods Inventory
             try
             {
@@ -74,7 +73,7 @@ namespace Aquora.Application.Services
                     
                     if (inventoryAcct != null && costAcct != null)
                     {
-                        var totalAmount = Math.Abs(quantity) * 5m; // Avg COGS $5
+                        var totalAmount = Math.Abs(quantity) * product.UnitCost; // Dynamic COGS
                         if (quantity < 0) // Dispatch / Sale
                         {
                             await financeService.CreateJournalEntryAsync(new CreateJournalEntryRequest
@@ -92,38 +91,7 @@ namespace Aquora.Application.Services
             }
             catch (Exception ex) { Console.WriteLine("Finance Hook failed: " + ex.Message); }
 
-            
-            // Finance Hook: Finished Goods Inventory
-            try
-            {
-                using var scope = _serviceProvider.CreateScope();
-                var financeService = scope.ServiceProvider.GetService<IFinanceService>();
-                if (financeService != null)
-                {
-                    var accounts = await financeService.GetAccountsAsync();
-                    var inventoryAcct = accounts.FirstOrDefault(a => a.AccountName == "Finished Goods Inventory");
-                    var costAcct = accounts.FirstOrDefault(a => a.AccountName == "Cost of Goods Sold");
-                    
-                    if (inventoryAcct != null && costAcct != null)
-                    {
-                        var totalAmount = Math.Abs(quantity) * 5m; // Avg COGS $5
-                        if (quantity < 0) // Dispatch / Sale
-                        {
-                            await financeService.CreateJournalEntryAsync(new CreateJournalEntryRequest
-                            {
-                                TransactionDate = DateTime.UtcNow, VoucherType = "Journal", ReferenceNumber = referenceId.ToString(), Remarks = $"Finished Goods Dispatch {quantity}",
-                                Lines = new List<CreateJournalEntryLineRequest>
-                                {
-                                    new CreateJournalEntryLineRequest { AccountId = costAcct.Id, DebitAmount = totalAmount, CreditAmount = 0, Description = "COGS" },
-                                    new CreateJournalEntryLineRequest { AccountId = inventoryAcct.Id, DebitAmount = 0, CreditAmount = totalAmount, Description = "Inventory reduction" }
-                                }
-                            });
-                        }
-                    }
-                }
-            }
-            catch (Exception ex) { Console.WriteLine("Finance Hook failed: " + ex.Message); }
-context.InventoryMovements.Add(movement);
+            context.InventoryMovements.Add(movement);
             return movement;
         }
 

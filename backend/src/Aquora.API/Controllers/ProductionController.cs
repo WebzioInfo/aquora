@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -456,14 +456,10 @@ namespace Aquora.API.Controllers
                 // Query the sku product matching request.Product, or fallback to first active product
                 var sku = await _tenantContext.Products
                     .FirstOrDefaultAsync(p => p.Name == request.Product && !p.IsDeleted);
-                if (sku == null)
-                {
-                    sku = await _tenantContext.Products.FirstOrDefaultAsync(p => !p.IsDeleted);
-                }
 
                 if (sku == null)
                 {
-                    return Failure<object>("No product configuration was found to initialize this batch.", "Validation failed");
+                    return Failure<object>($"Product '{request.Product}' could not be found.", "Validation failed");
                 }
 
                 var dbContext = _tenantContext as DbContext;

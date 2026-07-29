@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -52,6 +52,7 @@ namespace Aquora.API.Controllers
             {
                 var query = _tenantContext.Products
                     .Include(p => p.Brand)
+                    .AsNoTracking()
                     .Where(p => !p.IsDeleted)
                     .AsQueryable();
 

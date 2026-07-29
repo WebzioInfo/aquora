@@ -42,6 +42,7 @@ namespace Aquora.API.Middleware
                 UnauthorizedAccessException => HttpStatusCode.Unauthorized,
                 KeyNotFoundException => HttpStatusCode.NotFound,
                 ArgumentException => HttpStatusCode.BadRequest,
+                Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException => HttpStatusCode.Conflict,
                 InvalidOperationException => exception.Message == "ALREADY_VERIFIED" ? HttpStatusCode.Conflict : HttpStatusCode.BadRequest,
                 _ => HttpStatusCode.InternalServerError
             };
@@ -70,6 +71,7 @@ namespace Aquora.API.Middleware
                 {
                     UnauthorizedAccessException => "UNAUTHORIZED",
                     KeyNotFoundException => "NOT_FOUND",
+                    Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException => "CONCURRENCY_CONFLICT",
                     InvalidOperationException => exception.Message == "ALREADY_VERIFIED" ? "ALREADY_VERIFIED" : "INVALID_OPERATION",
                     _ => "BAD_REQUEST"
                 };

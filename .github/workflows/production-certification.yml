@@ -1,0 +1,54 @@
+name: Aquora ERP Production Certification
+
+on:
+  push:
+    branches: [ "main", "production" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  backend-cert:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+    - name: Restore dependencies
+      run: dotnet restore backend/src/Aquora.API/Aquora.API.csproj
+    - name: Build Backend
+      run: dotnet build backend/src/Aquora.API/Aquora.API.csproj --no-restore --configuration Release
+    - name: Run Unit Tests
+      run: dotnet test backend/src/Aquora.Tests/Aquora.Tests.csproj --no-build --verbosity normal
+
+  frontend-cert:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    - name: Install dependencies
+      run: cd frontend && npm install
+    - name: Type Check & Lint
+      run: cd frontend && npx tsc --noEmit
+    - name: Build Frontend
+      run: cd frontend && npm run build
+      
+  e2e-cert:
+    needs: [frontend-cert, backend-cert]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    - name: Install dependencies
+      run: cd frontend && npm install
+    - name: Install Playwright Browsers
+      run: cd frontend && npx playwright install --with-deps
+    - name: Run E2E Tests
+      run: cd frontend && npx playwright test
