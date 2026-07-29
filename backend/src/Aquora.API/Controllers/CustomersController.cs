@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -182,7 +182,7 @@ namespace Aquora.API.Controllers
                 var pagedResult = new PagedResult<CustomerDto>(items, totalCount, pageNumber, pageSize);
                 return Success(pagedResult, "Customers retrieved successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<PagedResult<CustomerDto>>("An internal error occurred.", "Failed to retrieve customers.");
             }
@@ -277,7 +277,7 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Customer details retrieved successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<CustomerDto>("An internal error occurred.", "Failed to retrieve customer.");
             }
@@ -751,7 +751,7 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Customer updated successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<CustomerDto>("An internal error occurred.", "Failed to update customer.");
             }
@@ -780,7 +780,7 @@ namespace Aquora.API.Controllers
 
                 return Success(true, "Customer deleted successfully (soft deleted).");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<bool>("An internal error occurred.", "Failed to delete customer.");
             }

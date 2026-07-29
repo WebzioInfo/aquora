@@ -43,6 +43,17 @@ namespace Aquora.Application.Interfaces
         DbSet<OperationsWashingLog> OperationsWashingLogs { get; }
         DbSet<OperationsFillingLog> OperationsFillingLogs { get; }
 
+        // God Mode Finance Module
+        DbSet<Aquora.Domain.Entities.Finance.AccountGroup> AccountGroups { get; }
+        DbSet<Aquora.Domain.Entities.Finance.Account> Accounts { get; }
+        DbSet<Aquora.Domain.Entities.Finance.JournalEntry> JournalEntries { get; }
+        DbSet<Aquora.Domain.Entities.Finance.JournalEntryLine> JournalEntryLines { get; }
+        DbSet<Aquora.Domain.Entities.Finance.Asset> Assets { get; }
+        DbSet<Aquora.Domain.Entities.Finance.ExpenseRecord> ExpenseRecords { get; }
+        DbSet<Aquora.Domain.Entities.Finance.BankAccount> BankAccounts { get; }
+        DbSet<Aquora.Domain.Entities.Finance.PettyCashSession> PettyCashSessions { get; }
+        
+        Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade Database { get; }
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }

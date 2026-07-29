@@ -1,0 +1,20 @@
+2026-07-30 00:43:54.115 +05:30 [INF] --------------------------------------------------
+2026-07-30 00:43:54.153 +05:30 [INF] PHASE 3: Application Startup Connection Audit Details:
+2026-07-30 00:43:54.154 +05:30 [INF]   Environment: Development
+2026-07-30 00:43:54.157 +05:30 [INF]   Database Host: aws-1-ap-northeast-2.pooler.supabase.com
+2026-07-30 00:43:54.157 +05:30 [INF]   Database Name: postgres
+2026-07-30 00:43:54.157 +05:30 [INF]   Database User: postgres.lxwherkjkjuhmfqzrziw
+2026-07-30 00:43:54.157 +05:30 [INF]   Provider: Npgsql.EntityFrameworkCore.PostgreSQL
+2026-07-30 00:43:54.157 +05:30 [INF]   Resolved Connection String (Masked): Host=aws-1-ap-northeast-2.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.lxwherkjkjuhmfqzrziw;Password=********;SSL Mode=Require;Trust Server Certificate=True;Command Timeout=120
+2026-07-30 00:43:54.158 +05:30 [INF]   Configuration Source: Microsoft.Extensions.Configuration.ChainedConfigurationProvider
+2026-07-30 00:43:54.158 +05:30 [INF]   Loaded Appsettings files: appsettings.json (true), appsettings.Development.json (true)
+2026-07-30 00:43:54.160 +05:30 [INF]   Loaded Environment Variables:
+2026-07-30 00:43:54.160 +05:30 [INF]     ASPNETCORE_ENVIRONMENT: Development
+2026-07-30 00:43:54.160 +05:30 [INF]     DOTNET_ENVIRONMENT: Development
+2026-07-30 00:43:54.160 +05:30 [INF]     DATABASE_URL: Not Set
+2026-07-30 00:43:54.160 +05:30 [INF]     POSTGRES_CONNECTION: Not Set
+2026-07-30 00:43:54.160 +05:30 [INF]     SUPABASE_DB: Not Set
+2026-07-30 00:43:54.160 +05:30 [INF]     SUPABASE_URL: Not Set
+2026-07-30 00:43:54.160 +05:30 [INF]     ConnectionStrings:DefaultConnection: Set (value masked)
+2026-07-30 00:43:54.160 +05:30 [INF]     ConnectionStrings:TenantConnection: Not Set
+2026-07-30 00:43:54.160 +05:30 [INF] --------------------------------------------------

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -66,7 +66,7 @@ namespace Aquora.API.Controllers
 
                 return Success(enabledStations, "Enabled production stations retrieved successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<List<string>>("An internal error occurred.", "Failed to retrieve production configurations.");
             }
@@ -97,7 +97,7 @@ namespace Aquora.API.Controllers
 
                 return Success(result, "All production station configurations retrieved successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<List<TenantProductionConfigurationDto>>("An internal error occurred.", "Failed to retrieve production configurations.");
             }
@@ -146,7 +146,7 @@ namespace Aquora.API.Controllers
                 await _platformContext.SaveChangesAsync();
                 return Success(true, "Production station configurations updated successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<bool>("An internal error occurred.", "Failed to update production configurations.");
             }
@@ -155,13 +155,13 @@ namespace Aquora.API.Controllers
 
     public class TenantProductionConfigurationDto
     {
-        public string StationName { get; set; }
+        public string StationName { get; set; } = string.Empty;
         public bool IsEnabled { get; set; }
     }
 
     public class UpdateProductionConfigurationRequest
     {
-        public string StationName { get; set; }
+        public string StationName { get; set; } = string.Empty;
         public bool IsEnabled { get; set; }
     }
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -135,7 +135,7 @@ namespace Aquora.API.Controllers
 
                 return Success<List<object>>(result, "Production lines loaded successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<List<object>>("An internal error occurred.", "Failed to load production lines.");
             }
@@ -185,7 +185,7 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Production dashboard stats loaded successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<ProductionDashboardDto>("An internal error occurred.", "Failed to load production dashboard stats.");
             }
@@ -223,7 +223,7 @@ namespace Aquora.API.Controllers
 
                 return Success<List<object>>(activeBatches.Cast<object>().ToList(), "Active batches loaded successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<List<object>>("An internal error occurred.", "Failed to load active batches.");
             }
@@ -307,7 +307,7 @@ namespace Aquora.API.Controllers
 
                 return Success<object>(response, "Active batch retrieved.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<object>("An internal error occurred.", "Failed to load active batch.");
             }
@@ -333,7 +333,7 @@ namespace Aquora.API.Controllers
                         .Include(s => s.ProductionEntries)
                         .FirstOrDefaultAsync(s => s.ProductionLineId == lineId && s.Status == "Running" && !s.IsDeleted);
                 }
-                catch (Exception ex) when ("An internal error occurred.".Contains("42703") || "An internal error occurred.".Contains("CapMaterialId"))
+                catch (Exception ex) when (ex.Message.Contains("42703") || ex.Message.Contains("CapMaterialId"))
                 {
                     // Graceful fallback for outdated tenant schemas missing new columns (e.g., CapMaterialId)
                     activeSession = await _tenantContext.ProductionSessions
@@ -402,7 +402,7 @@ namespace Aquora.API.Controllers
 
                 return Success<object>(response, "Production context loaded successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<object>("An internal error occurred.", "Failed to load production context.");
             }
@@ -567,13 +567,13 @@ namespace Aquora.API.Controllers
                         Status = newBatch.Status
                     }, "Production batch started successfully.");
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     await transaction.RollbackAsync();
                     return Failure<object>("An internal error occurred.", "Failed to start batch.");
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<object>("An internal error occurred.", "Failed to start batch.");
             }
@@ -634,7 +634,7 @@ namespace Aquora.API.Controllers
                     stationData.Efficiency
                 }, "Process parameters logged successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<object>("An internal error occurred.", "Failed to submit station parameters.");
             }
@@ -681,7 +681,7 @@ namespace Aquora.API.Controllers
                     CompletedAt = batch.CompletedAt
                 }, "Production batch completed and locked successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<object>("An internal error occurred.", "Failed to complete batch.");
             }
@@ -715,7 +715,7 @@ namespace Aquora.API.Controllers
                 await _tenantContext.SaveChangesAsync();
                 return Success<object>(new { BatchId = batch.Id, Status = batch.Status }, "Production batch paused.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<object>("An internal error occurred.", "Failed to pause batch.");
             }
@@ -749,7 +749,7 @@ namespace Aquora.API.Controllers
                 await _tenantContext.SaveChangesAsync();
                 return Success<object>(new { BatchId = batch.Id, Status = batch.Status }, "Production batch resumed.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<object>("An internal error occurred.", "Failed to resume batch.");
             }
@@ -788,7 +788,7 @@ namespace Aquora.API.Controllers
 
                 return Success<List<object>>(history.Cast<object>().ToList(), "Production history retrieved.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<List<object>>("An internal error occurred.", "Failed to retrieve history.");
             }
@@ -839,7 +839,7 @@ namespace Aquora.API.Controllers
 
                 return Success<object>(new { line.Id, line.Name, line.Code, line.IsActive }, "Production line created successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<object>("An internal error occurred.", "Failed to create production line.", System.Net.HttpStatusCode.InternalServerError);
             }
@@ -887,7 +887,7 @@ namespace Aquora.API.Controllers
 
                 return Success<object>(new { line.Id, line.Name, line.Code, line.IsActive }, "Production line updated successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<object>("An internal error occurred.", "Failed to update production line.", System.Net.HttpStatusCode.InternalServerError);
             }
@@ -916,7 +916,7 @@ namespace Aquora.API.Controllers
 
                 return Success<object>(null, "Production line deleted successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<object>("An internal error occurred.", "Failed to delete production line.", System.Net.HttpStatusCode.InternalServerError);
             }
@@ -953,7 +953,7 @@ namespace Aquora.API.Controllers
 
                 return Success<object>(null, "Line switch logged successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 Console.WriteLine($"[AUDIT LOG ERROR]: {"An internal error occurred."}");
                 return Failure<object>("An internal error occurred.", "Failed to log line switch.");
@@ -971,8 +971,8 @@ namespace Aquora.API.Controllers
 
     public class CreateLineRequest
     {
-        public string Name { get; set; }
-        public string Code { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
         public bool? IsActive { get; set; }
     }
 
@@ -986,15 +986,15 @@ namespace Aquora.API.Controllers
     public class StartBatchRequest
     {
         public Guid ProductionLineId { get; set; }
-        public string BatchNumber { get; set; }
-        public string Product { get; set; }
-        public string Shift { get; set; }
+        public string BatchNumber { get; set; } = string.Empty;
+        public string Product { get; set; } = string.Empty;
+        public string Shift { get; set; } = string.Empty;
         public int TargetQuantity { get; set; }
     }
 
     public class SubmitStationDataRequest
     {
-        public string StationCode { get; set; }
+        public string StationCode { get; set; } = string.Empty;
         public int InputQty { get; set; }
         public int OutputQty { get; set; }
         public int WastageQty { get; set; }

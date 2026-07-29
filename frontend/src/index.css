@@ -34,13 +34,13 @@
 }
 
 :root.dark {
-  --bg-app: #F7F9FC;
-  --bg-card: #FFFFFF;
-  --bg-sidebar: #FFFFFF;
-  --text-main: #101828;
-  --text-muted: #667085;
-  --border-ui: #E5E9F2;
-  --accent-soft: #EFF4FF;
+  --bg-app: #0B0F19;
+  --bg-card: #111827;
+  --bg-sidebar: #111827;
+  --text-main: #F9FAFB;
+  --text-muted: #9CA3AF;
+  --border-ui: #374151;
+  --accent-soft: rgba(26, 86, 219, 0.15);
 }
 
 body {

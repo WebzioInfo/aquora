@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -87,7 +87,7 @@ namespace Aquora.API.Controllers
                 var pagedResult = new PagedResult<ProductDto>(items, totalCount, pageNumber, pageSize);
                 return Success(pagedResult, "Products retrieved successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<PagedResult<ProductDto>>("An internal error occurred.", "Failed to retrieve products.");
             }
@@ -126,7 +126,7 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Product retrieved successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<ProductDto>("An internal error occurred.", "Failed to retrieve product.");
             }
@@ -241,7 +241,7 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Product created successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<ProductDto>("An internal error occurred.", "Failed to create product.");
             }
@@ -356,7 +356,7 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Product updated successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<ProductDto>("An internal error occurred.", "Failed to update product.");
             }
@@ -383,7 +383,7 @@ namespace Aquora.API.Controllers
 
                 return Success(true, "Product deleted successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<bool>("An internal error occurred.", "Failed to delete product.");
             }
@@ -406,7 +406,7 @@ namespace Aquora.API.Controllers
 
                 return Success(brands, "Brands loaded successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<List<BrandDto>>("An internal error occurred.", "Failed to load brands.");
             }
@@ -522,7 +522,7 @@ namespace Aquora.API.Controllers
                 var result = new PagedResult<InventoryMovementDto>(pagedDto, totalCount, pageNumber, pageSize);
                 return Success(result, "Product movements retrieved successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<PagedResult<InventoryMovementDto>>("An internal error occurred.", "Failed to retrieve product movements.");
             }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -87,7 +87,7 @@ namespace Aquora.API.Controllers
 
                 return Success(result, "Employees loaded successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<List<EmployeeDto>>("An internal error occurred.", "Failed to load employees.");
             }
@@ -219,7 +219,7 @@ namespace Aquora.API.Controllers
                     _platformContext.PlatformAuditLogs.Add(auditLog);
                     await _platformContext.SaveChangesAsync();
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     Console.WriteLine($"[AUDIT LOG FAILURE - NON-BLOCKING]: Failed to write employee creation platform audit: {"An internal error occurred."}");
                 }
@@ -365,7 +365,7 @@ namespace Aquora.API.Controllers
                     _platformContext.PlatformAuditLogs.Add(auditLog);
                     await _platformContext.SaveChangesAsync();
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     Console.WriteLine($"[AUDIT LOG FAILURE - NON-BLOCKING]: Failed to write employee update platform audit: {"An internal error occurred."}");
                 }
@@ -385,7 +385,7 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Employee updated successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<EmployeeDto>("An internal error occurred.", "Failed to update employee.");
             }
@@ -455,14 +455,14 @@ namespace Aquora.API.Controllers
                     _platformContext.PlatformAuditLogs.Add(auditLog);
                     await _platformContext.SaveChangesAsync();
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     Console.WriteLine($"[AUDIT LOG FAILURE - NON-BLOCKING]: Failed to write employee deletion platform audit: {"An internal error occurred."}");
                 }
 
                 return Success(true, "Employee soft-deleted successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<bool>("An internal error occurred.", "Failed to delete employee.");
             }
@@ -537,14 +537,14 @@ namespace Aquora.API.Controllers
                     _platformContext.PlatformAuditLogs.Add(auditLog);
                     await _platformContext.SaveChangesAsync();
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     Console.WriteLine($"[AUDIT LOG FAILURE - NON-BLOCKING]: Failed to write employee reset password platform audit: {"An internal error occurred."}");
                 }
 
                 return Success(true, "Password and PIN reset successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<bool>("An internal error occurred.", "Failed to reset password.");
             }
@@ -572,7 +572,7 @@ namespace Aquora.API.Controllers
 
                 return Success(true, "Security PIN updated successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<bool>("An internal error occurred.", "Failed to save security PIN.");
             }
@@ -587,7 +587,7 @@ namespace Aquora.API.Controllers
                 var hash = GetSecurityPinHash(tenantId);
                 return Success<object>(new { isPinSet = !string.IsNullOrEmpty(hash) }, "PIN status loaded successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<object>("An internal error occurred.", "Failed to load PIN status.");
             }
@@ -606,7 +606,7 @@ namespace Aquora.API.Controllers
                 }
                 return Success(isValid, "PIN verification checked.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<bool>("An internal error occurred.", "PIN verification failed.");
             }
@@ -643,7 +643,7 @@ namespace Aquora.API.Controllers
 
                 return Success(decrypted, "Password decrypted successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<string>("An internal error occurred.", "Failed to reveal password.");
             }
@@ -778,7 +778,7 @@ namespace Aquora.API.Controllers
                 _tenantContext.AuditLogs.Add(auditLog);
                 await _tenantContext.SaveChangesAsync();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 Console.WriteLine($"[SECURITY AUDIT LOG FAILURE - NON-BLOCKING]: {"An internal error occurred."}");
             }
@@ -794,7 +794,7 @@ namespace Aquora.API.Controllers
                     .ToListAsync();
                 return Success(roles, "Roles loaded successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<List<Role>>("An internal error occurred.", "Failed to load roles.");
             }
@@ -815,7 +815,7 @@ namespace Aquora.API.Controllers
 
                 return Success(dbDepartments, "Departments loaded successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<List<string>>("An internal error occurred.", "Failed to load departments.");
             }

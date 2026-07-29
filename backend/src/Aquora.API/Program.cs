@@ -131,25 +131,40 @@ builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
-// Controllers, SignalR and CORS
-builder.Services.AddControllers()
-    .ConfigureApiBehaviorOptions(options =>
+    // Rate Limiting
+    builder.Services.AddRateLimiter(options =>
     {
-        options.InvalidModelStateResponseFactory = context =>
-        {
-            var errors = new List<object>();
-            foreach (var state in context.ModelState)
-            {
-                foreach (var error in state.Value.Errors)
+        options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<Microsoft.AspNetCore.Http.HttpContext, string>(httpContext =>
+            System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: httpContext.User.Identity?.Name ?? httpContext.Request.Headers.Host.ToString(),
+                factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
                 {
-                    errors.Add(error.ErrorMessage);
-                }
-            }
-            var response = Aquora.Shared.Models.ApiResponse<object>.CreateFailure(errors, "Validation failed.", context.HttpContext.TraceIdentifier);
-            response.Code = "VALIDATION_ERROR";
-            return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(response);
-        };
+                    AutoReplenishment = true,
+                    PermitLimit = 100,
+                    QueueLimit = 0,
+                    Window = TimeSpan.FromMinutes(1)
+                }));
     });
+
+    // Controllers, SignalR and CORS
+    builder.Services.AddControllers()
+        .ConfigureApiBehaviorOptions(options =>
+        {
+            options.InvalidModelStateResponseFactory = context =>
+            {
+                var errors = new List<object>();
+                foreach (var state in context.ModelState)
+                {
+                    foreach (var error in state.Value.Errors)
+                    {
+                        errors.Add(error.ErrorMessage);
+                    }
+                }
+                var response = Aquora.Shared.Models.ApiResponse<object>.CreateFailure(errors, "Validation failed.", context.HttpContext.TraceIdentifier);
+                response.Code = "VALIDATION_ERROR";
+                return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(response);
+            };
+        });
 builder.Services.AddSignalR();
 builder.Services.AddTransient<Aquora.Application.Interfaces.Services.IProvisioningProgressReporter, Aquora.API.Services.ProvisioningProgressReporter>();
 builder.Services.AddEndpointsApiExplorer();
@@ -205,6 +220,8 @@ if (app.Environment.IsDevelopment() || true) // Enable Swagger in production con
 }
 
 app.UseCors("CorsPolicy");
+
+app.UseRateLimiter();
 
 if (!app.Environment.IsDevelopment())
 {

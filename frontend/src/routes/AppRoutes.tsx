@@ -6,22 +6,26 @@ import AuthLayout from '../layouts/AuthLayout'
 import PlatformLayout from '../layouts/PlatformLayout'
 import CompanyLayout from '../layouts/CompanyLayout'
 import OperatorLayout from '../layouts/OperatorLayout'
-import LoginPage from '../pages/LoginPage'
-import RegisterPage from '../pages/RegisterPage'
-import OtpVerificationPage from '../pages/OtpVerificationPage'
-import CompanyOnboardingPage from '../pages/CompanyOnboardingPage'
-import PlatformDashboardPage from '../pages/platform/PlatformDashboardPage'
-import PlatformManagementPage from '../pages/platform/PlatformManagementPage'
-import { SettingsPage } from '../pages/company/SettingsPage'
-import CompanyDashboardPage from '../pages/company/CompanyDashboardPage'
-import BatchDetailsPage from '../pages/company/BatchDetailsPage'
-import OperatorDashboardPage from '../pages/operator/OperatorDashboardPage'
-import ProductSelectionPage from '../pages/operator/ProductSelectionPage'
-import JarDashboardPage from '../pages/operator/JarDashboardPage'
-import InviteTeamPage from '../pages/InviteTeamPage'
-import AccessDeniedPage from '../pages/AccessDeniedPage'
-import OperationsPage from '../pages/company/OperationsPage'
-import ProvisioningPage from '../pages/ProvisioningPage'
+import FinanceDashboardPage from '../pages/company/finance/FinanceDashboardPage'
+import ChartOfAccountsPage from '../pages/company/finance/ChartOfAccountsPage'
+import JournalEntriesPage from '../pages/company/finance/JournalEntriesPage'
+import BusinessFinanceDashboard from '../pages/company/business-finance/BusinessFinanceDashboard'
+const LoginPage = React.lazy(() => import('../pages/LoginPage'))
+const RegisterPage = React.lazy(() => import('../pages/RegisterPage'))
+const OtpVerificationPage = React.lazy(() => import('../pages/OtpVerificationPage'))
+const CompanyOnboardingPage = React.lazy(() => import('../pages/CompanyOnboardingPage'))
+const PlatformDashboardPage = React.lazy(() => import('../pages/platform/PlatformDashboardPage'))
+const PlatformManagementPage = React.lazy(() => import('../pages/platform/PlatformManagementPage'))
+const SettingsPage = React.lazy(() => import('../pages/company/SettingsPage').then(module => ({ default: module.SettingsPage })))
+const CompanyDashboardPage = React.lazy(() => import('../pages/company/CompanyDashboardPage'))
+const BatchDetailsPage = React.lazy(() => import('../pages/company/BatchDetailsPage'))
+const OperatorDashboardPage = React.lazy(() => import('../pages/operator/OperatorDashboardPage'))
+const ProductSelectionPage = React.lazy(() => import('../pages/operator/ProductSelectionPage'))
+const JarDashboardPage = React.lazy(() => import('../pages/operator/JarDashboardPage'))
+const InviteTeamPage = React.lazy(() => import('../pages/InviteTeamPage'))
+const AccessDeniedPage = React.lazy(() => import('../pages/AccessDeniedPage'))
+const OperationsPage = React.lazy(() => import('../pages/company/OperationsPage'))
+const ProvisioningPage = React.lazy(() => import('../pages/ProvisioningPage'))
 
 export const getDefaultRouteForUser = (user: any): string => {
   const getRoute = () => {
@@ -242,7 +246,12 @@ export const AppRoutes: React.FC = () => {
   }
 
   return (
-    <Routes>
+    <React.Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-[#0B0F19] text-white">
+        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <Routes>
       {/* Root redirect */}
       <Route path="/" element={<Navigate to={user ? getDefaultRouteForUser(user) : '/login'} replace />} />
 
@@ -420,6 +429,10 @@ export const AppRoutes: React.FC = () => {
         <Route path="production/batches/:batchId" element={<BatchDetailsPage />} />
         <Route path="inventory" element={<CompanyDashboardPage />} />
         <Route path="sales" element={<CompanyDashboardPage />} />
+                <Route path="business-finance" element={<BusinessFinanceDashboard />} />
+        <Route path="finance" element={<FinanceDashboardPage />} />
+        <Route path="finance/accounts" element={<ChartOfAccountsPage />} />
+        <Route path="finance/journals" element={<JournalEntriesPage />} />
         <Route path="customers" element={<CompanyDashboardPage />} />
         <Route path="customers/profile/:customerId" element={<CompanyDashboardPage />} />
         <Route path="suppliers" element={<CompanyDashboardPage />} />
@@ -431,6 +444,7 @@ export const AppRoutes: React.FC = () => {
       {/* Fallback route */}
       <Route path="*" element={<Navigate to={user ? getDefaultRouteForUser(user) : '/login'} replace />} />
     </Routes>
+    </React.Suspense>
   )
 }
 

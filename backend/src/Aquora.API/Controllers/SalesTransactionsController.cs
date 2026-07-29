@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -9,6 +9,7 @@ using Aquora.Application.Interfaces;
 using Aquora.Application.Interfaces.Services;
 using Aquora.Domain.Entities;
 using Aquora.Shared.Models;
+using Aquora.Application.DTOs.Finance;
 
 namespace Aquora.API.Controllers
 {
@@ -154,7 +155,7 @@ namespace Aquora.API.Controllers
                 var pagedResult = new PagedResult<SalesTransactionDto>(dtos, totalCount, pageNumber, pageSize);
                 return Success(pagedResult, "Sales transactions retrieved successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<PagedResult<SalesTransactionDto>>("An internal error occurred.", "Failed to retrieve sales transactions.");
             }
@@ -210,7 +211,7 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Sales transaction retrieved successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<SalesTransactionDto>("An internal error occurred.", "Failed to retrieve sales transaction.");
             }
@@ -312,7 +313,44 @@ namespace Aquora.API.Controllers
                 _tenantContext.SalesTransactions.Add(transaction);
                 await _tenantContext.SaveChangesAsync();
 
+
                 await dbTransaction.CommitAsync();
+
+                // Auto-post to Finance Ledger
+                if (request.TransactionType == "Sales Dispatch")
+                {
+                    try
+                    {
+                        var financeService = HttpContext.RequestServices.GetService(typeof(IFinanceService)) as IFinanceService;
+                        if (financeService != null)
+                        {
+                            var accounts = await financeService.GetAccountsAsync();
+                            var accountsReceivable = accounts.FirstOrDefault(a => a.AccountName == "Accounts Receivable");
+                            var salesRevenue = accounts.FirstOrDefault(a => a.AccountName == "Sales Revenue");
+                            
+                            if (accountsReceivable != null && salesRevenue != null)
+                            {
+                                var totalAmount = request.Cases * 15m; // Assume average $15 per case for ledger
+                                await financeService.CreateJournalEntryAsync(new CreateJournalEntryRequest
+                                {
+                                    TransactionDate = transaction.TransactionDate,
+                                    VoucherType = "Sales",
+                                    ReferenceNumber = transaction.TransactionNumber,
+                                    Remarks = $"Sales Dispatch for {request.Cases} cases of {product.Name}",
+                                    Lines = new List<CreateJournalEntryLineRequest>
+                                    {
+                                        new CreateJournalEntryLineRequest { AccountId = accountsReceivable.Id, DebitAmount = totalAmount, CreditAmount = 0, Description = "Sale to Customer" },
+                                        new CreateJournalEntryLineRequest { AccountId = salesRevenue.Id, DebitAmount = 0, CreditAmount = totalAmount, Description = "Sale Revenue" }
+                                    }
+                                });
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Failed to auto-post journal entry: {ex.Message}");
+                    }
+                }
 
                 var dto = new SalesTransactionDto
                 {
@@ -338,7 +376,7 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Sales transaction created successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 await dbTransaction.RollbackAsync();
                 return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("An internal error occurred.", "Transaction Failed", HttpContext.TraceIdentifier));
@@ -462,6 +500,7 @@ namespace Aquora.API.Controllers
                 existingTxn.UpdatedBy = currentUserId;
 
                 await _tenantContext.SaveChangesAsync();
+
                 await dbTransaction.CommitAsync();
 
                 var dto = new SalesTransactionDto
@@ -488,7 +527,7 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Sales transaction updated successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 await dbTransaction.RollbackAsync();
                 return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("An internal error occurred.", "Transaction Failed", HttpContext.TraceIdentifier));
@@ -552,11 +591,12 @@ namespace Aquora.API.Controllers
                 transaction.DeletedBy = currentUserId;
 
                 await _tenantContext.SaveChangesAsync();
+
                 await dbTransaction.CommitAsync();
 
                 return Success<object>(null, "Sales transaction deleted and stock restored successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 await dbTransaction.RollbackAsync();
                 return BadRequest(ApiResponse<object>.CreateFailure("An internal error occurred.", "Transaction Failed", HttpContext.TraceIdentifier));
@@ -608,7 +648,7 @@ namespace Aquora.API.Controllers
 
                 return Success(dashboard, "Sales dashboard loaded successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<SalesDashboardDto>("An internal error occurred.", "Failed to load sales dashboard.");
             }

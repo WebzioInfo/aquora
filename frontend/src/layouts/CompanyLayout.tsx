@@ -40,6 +40,7 @@ export const CompanyLayout: React.FC = () => {
     { label: '20L Operations', path: '/company/operations', icon: <Truck className="w-5 h-5" /> },
     { label: 'Inventory', path: '/company/inventory', icon: <Package className="w-5 h-5" /> },
     { label: 'Sales', path: '/company/sales', icon: <TrendingUp className="w-5 h-5" /> },
+    { label: 'Business Intelligence', path: '/company/business-finance', icon: <TrendingUp className="w-5 h-5" /> },
     { label: 'Customers', path: '/company/customers', icon: <Users className="w-5 h-5" /> },
     { label: 'Employees', path: '/company/employees', icon: <Users className="w-5 h-5" /> },
     { label: 'Company Settings', path: '/company/settings', icon: <Settings className="w-5 h-5" /> },

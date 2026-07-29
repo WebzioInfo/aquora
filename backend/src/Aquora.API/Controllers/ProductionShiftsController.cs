@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -192,9 +192,9 @@ namespace Aquora.API.Controllers
     public class ProductionShiftDto
     {
         public Guid Id { get; set; }
-        public string Name { get; set; }
-        public string StartTime { get; set; }
-        public string EndTime { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string StartTime { get; set; } = string.Empty;
+        public string EndTime { get; set; } = string.Empty;
         public bool IsActive { get; set; }
         public Guid TenantId { get; set; }
         public DateTime CreatedAt { get; set; }
@@ -202,17 +202,17 @@ namespace Aquora.API.Controllers
 
     public class CreateProductionShiftDto
     {
-        public string Name { get; set; }
-        public string StartTime { get; set; }
-        public string EndTime { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string StartTime { get; set; } = string.Empty;
+        public string EndTime { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
     }
 
     public class UpdateProductionShiftDto
     {
-        public string Name { get; set; }
-        public string StartTime { get; set; }
-        public string EndTime { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string StartTime { get; set; } = string.Empty;
+        public string EndTime { get; set; } = string.Empty;
         public bool IsActive { get; set; }
     }
 }

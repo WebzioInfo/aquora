@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -87,7 +87,7 @@ namespace Aquora.API.Controllers
                 var pagedResult = new PagedResult<RawMaterialDto>(items, totalCount, pageNumber, pageSize);
                 return Success(pagedResult, "Raw materials retrieved successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<PagedResult<RawMaterialDto>>("An internal error occurred.", "Failed to retrieve raw materials.");
             }
@@ -120,7 +120,7 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Raw material retrieved successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<RawMaterialDto>("An internal error occurred.", "Failed to retrieve raw material.");
             }
@@ -250,7 +250,7 @@ namespace Aquora.API.Controllers
 
                     return Success(dto, "Raw material created successfully.");
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     await transaction.RollbackAsync();
                     throw;
@@ -376,7 +376,7 @@ namespace Aquora.API.Controllers
                     await _tenantContext.SaveChangesAsync();
                     await transaction.CommitAsync();
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     await transaction.RollbackAsync();
                     throw;
@@ -440,7 +440,7 @@ namespace Aquora.API.Controllers
 
                 return Success(true, "Raw material deleted successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<bool>("An internal error occurred.", "Failed to delete raw material.");
             }
@@ -507,7 +507,7 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Stock added successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 await transaction.RollbackAsync();
                 return Failure<RawMaterialDto>("An internal error occurred.", "Failed to add stock.");
@@ -627,7 +627,7 @@ namespace Aquora.API.Controllers
                 var result = new PagedResult<InventoryMovementDto>(pagedDto, totalCount, pageNumber, pageSize);
                 return Success(result, "Inventory movements retrieved successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Failure<PagedResult<InventoryMovementDto>>("An internal error occurred.", "Failed to retrieve inventory movements.");
             }

@@ -63,6 +63,16 @@ namespace Aquora.Persistence.Context
         public DbSet<OperationsWashingLog> OperationsWashingLogs => Set<OperationsWashingLog>();
         public DbSet<OperationsFillingLog> OperationsFillingLogs => Set<OperationsFillingLog>();
 
+        // God Mode Finance Module
+        public DbSet<Aquora.Domain.Entities.Finance.AccountGroup> AccountGroups => Set<Aquora.Domain.Entities.Finance.AccountGroup>();
+        public DbSet<Aquora.Domain.Entities.Finance.Account> Accounts => Set<Aquora.Domain.Entities.Finance.Account>();
+        public DbSet<Aquora.Domain.Entities.Finance.JournalEntry> JournalEntries => Set<Aquora.Domain.Entities.Finance.JournalEntry>();
+        public DbSet<Aquora.Domain.Entities.Finance.JournalEntryLine> JournalEntryLines => Set<Aquora.Domain.Entities.Finance.JournalEntryLine>();
+        public DbSet<Aquora.Domain.Entities.Finance.Asset> Assets => Set<Aquora.Domain.Entities.Finance.Asset>();
+        public DbSet<Aquora.Domain.Entities.Finance.ExpenseRecord> ExpenseRecords => Set<Aquora.Domain.Entities.Finance.ExpenseRecord>();
+        public DbSet<Aquora.Domain.Entities.Finance.BankAccount> BankAccounts => Set<Aquora.Domain.Entities.Finance.BankAccount>();
+        public DbSet<Aquora.Domain.Entities.Finance.PettyCashSession> PettyCashSessions => Set<Aquora.Domain.Entities.Finance.PettyCashSession>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

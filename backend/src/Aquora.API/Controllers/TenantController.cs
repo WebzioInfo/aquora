@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -56,6 +56,6 @@ namespace Aquora.API.Controllers
 
     public class OtpSendRequest
     {
-        public string Email { get; set; }
+        public string Email { get; set; } = string.Empty;
     }
 }

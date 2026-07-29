@@ -24,6 +24,8 @@ namespace Aquora.Application
             services.AddScoped<IDiscountGroupService, DiscountGroupService>();
 
             services.AddScoped<IProductionService, ProductionService>();
+            services.AddScoped<IFinanceService, FinanceService>();
+            services.AddScoped<IBusinessFinanceService, BusinessFinanceService>();
             return services;
         }
     }
