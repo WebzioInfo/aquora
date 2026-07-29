@@ -49,6 +49,8 @@ namespace Aquora.Persistence.Context
         public DbSet<OperatorContextLog> OperatorContextLogs => Set<OperatorContextLog>();
         public DbSet<Customer> Customers => Set<Customer>();
         public DbSet<SalesTransaction> SalesTransactions => Set<SalesTransaction>();
+        public DbSet<PriceList> PriceLists => Set<PriceList>();
+        public DbSet<DiscountGroup> DiscountGroups => Set<DiscountGroup>();
         
         // 20L Operations Module
         public DbSet<OperationsVisit> OperationsVisits => Set<OperationsVisit>();

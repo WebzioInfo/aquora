@@ -12,6 +12,8 @@ import { brandService } from '../../services/brands'
 import { rawMaterialsService } from '../../services/rawMaterials'
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown'
 import { useNotificationStore } from '../../store/useNotificationStore'
+import { priceListService } from '../../services/priceLists'
+import { discountGroupService } from '../../services/discountGroups'
 import { useAuthStore } from '../../store/useAuthStore'
 import EnterpriseHeader from '../../components/ui/EnterpriseHeader'
 import PageContainer from '../../components/ui/layout/PageContainer'
@@ -21,104 +23,17 @@ import FilterBar from '../../components/ui/layout/FilterBar'
 import EnterpriseBadge from '../../components/ui/EnterpriseBadge'
 import EnterpriseInput from '../../components/ui/EnterpriseInput'
 import EnterpriseSelect from '../../components/ui/EnterpriseSelect'
-import EnterpriseButton from '../../components/ui/EnterpriseButton'
 import EnterpriseModal from '../../components/ui/EnterpriseModal'
 import { CustomerProfilePage } from './CustomerProfilePage'
-
-// Premium theme components for a clean, Vercel/Stripe-like SaaS ERP styling
-const PremiumLabel: React.FC<{ label: string; required?: boolean }> = ({ label, required }) => {
-  const hasAsterisk = required || label.endsWith('*');
-  const cleanLabel = hasAsterisk ? label.replace('*', '').trim() : label;
-  
-  return (
-    <label className="text-[13px] font-semibold text-gray-700 select-none mb-1.5 flex items-center">
-      <span>{cleanLabel}</span>
-      {hasAsterisk && <span className="text-[#F04438] ml-1 font-bold text-xs select-none">*</span>}
-    </label>
-  );
-};
-
-interface PremiumInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label: string;
-  error?: string;
-  helpText?: string;
-}
-
-const PremiumInput: React.FC<PremiumInputProps> = ({ label, error, helpText, required, className = '', ...props }) => {
-  return (
-    <div className="flex flex-col w-full text-left">
-      <PremiumLabel label={label} required={required} />
-      <input
-        className={`w-full h-[44px] px-3.5 border text-[14px] text-gray-900 bg-white placeholder-gray-400 rounded-[10px] transition-all duration-150 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 hover:border-gray-300 disabled:bg-gray-50 disabled:text-gray-400 ${
-          error ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-100' : 'border-gray-200'
-        } ${className}`}
-        {...props}
-      />
-      {error && <span className="text-xs font-medium text-red-500 mt-1">{error}</span>}
-    </div>
-  );
-};
-
-interface PremiumSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  label: string;
-  error?: string;
-  helpText?: string;
-}
-
-const PremiumSelect: React.FC<PremiumSelectProps> = ({ label, error, helpText, required, className = '', children, ...props }) => {
-  return (
-    <div className="flex flex-col w-full text-left">
-      <PremiumLabel label={label} required={required} />
-      <div className="relative">
-        <select
-          className={`w-full h-[44px] px-3.5 pr-10 border text-[14px] text-gray-900 bg-white rounded-[10px] transition-all duration-150 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 hover:border-gray-300 disabled:bg-gray-50 disabled:text-gray-400 appearance-none cursor-pointer ${
-            error ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-100' : 'border-gray-200'
-          } ${className}`}
-          {...props}
-        >
-          {children}
-        </select>
-        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
-      </div>
-      {helpText && <p className="text-[10px] text-gray-400 mt-1 pl-1">{helpText}</p>}
-      {error && <p className="text-[10px] text-red-500 mt-1 font-medium pl-1">{error}</p>}
-    </div>
-  );
-};
-
-interface PremiumTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  label: string;
-  error?: string;
-}
-
-const PremiumTextarea: React.FC<PremiumTextareaProps> = ({ label, error, required, className = '', ...props }) => {
-  return (
-    <div className="flex flex-col w-full text-left">
-      <PremiumLabel label={label} required={required} />
-      <textarea
-        className={`w-full p-3.5 border text-[14px] text-gray-900 bg-white placeholder-gray-400 rounded-[10px] transition-all duration-150 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 hover:border-gray-300 disabled:bg-gray-50 disabled:text-gray-400 ${
-          error ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-100' : 'border-gray-200'
-        } ${className}`}
-        {...props}
-      />
-      {error && <span className="text-xs font-medium text-red-500 mt-1">{error}</span>}
-    </div>
-  );
-};
-
-const PremiumSectionHeading: React.FC<{ title: string }> = ({ title }) => {
-  return (
-    <div className="pt-2 pb-1.5 border-b border-gray-100 mb-4 select-none">
-      <h4 className="text-[15px] font-semibold text-gray-800 tracking-tight">
-        {title}
-      </h4>
-    </div>
-  );
-};
+import { GeneralTab } from './customers/GeneralTab'
+import { AddressTab } from './customers/AddressTab'
+import {
+  PremiumLabel,
+  PremiumInput,
+  PremiumSelect,
+  PremiumTextarea,
+  PremiumSectionHeading
+} from '../../components/ui/PremiumForms'
 
 const parseErrorResponse = (err: any): string => {
   const data = err.response?.data
@@ -207,7 +122,6 @@ export const CustomersPage: React.FC = () => {
     openingBalance: 0,
     balanceType: 'Zero',
     creditLimit: 0,
-    paymentTerms: 'COD',
     status: 'Active',
     remarks: '',
     internalNotes: '',
@@ -273,6 +187,16 @@ export const CustomersPage: React.FC = () => {
     queryKey: ['capMaterialsForDropdown'],
     queryFn: () => rawMaterialsService.getRawMaterials(1, 200),
     staleTime: 5 * 60 * 1000
+  })
+
+  const { data: priceLists } = useQuery({
+    queryKey: ['priceLists'],
+    queryFn: priceListService.getAll
+  })
+
+  const { data: discountGroups } = useQuery({
+    queryKey: ['discountGroups'],
+    queryFn: discountGroupService.getAll
   })
 
   const brandItems = React.useMemo(() => {
@@ -404,7 +328,6 @@ export const CustomersPage: React.FC = () => {
         openingBalance: customer.openingBalance,
         balanceType: customer.balanceType,
         creditLimit: customer.creditLimit,
-        paymentTerms: customer.paymentTerms,
         status: newStatus,
         isActive: newStatus === 'Active',
         remarks: customer.remarks ?? undefined
@@ -444,7 +367,6 @@ export const CustomersPage: React.FC = () => {
       openingBalance: 0,
       balanceType: 'Zero',
       creditLimit: 0,
-      paymentTerms: 'COD',
       status: 'Active',
       remarks: '',
       internalNotes: '',
@@ -528,7 +450,6 @@ export const CustomersPage: React.FC = () => {
       openingBalance: customer.openingBalance,
       balanceType: customer.balanceType,
       creditLimit: customer.creditLimit,
-      paymentTerms: customer.paymentTerms,
       status: customer.status,
       remarks: customer.remarks || '',
       internalNotes: '',
@@ -667,7 +588,6 @@ n[Internal Notes: ${formData.internalNotes.trim()}]`
         openingBalance: Number(formData.openingBalance),
         balanceType: formData.balanceType,
         creditLimit: Number(formData.creditLimit),
-        paymentTerms: formData.paymentTerms,
         status: formData.status,
         isActive: formData.status === 'Active',
         remarks: notesCombined || undefined,
@@ -739,7 +659,6 @@ n[Internal Notes: ${formData.internalNotes.trim()}]`
           openingBalance: Number(formData.openingBalance),
           balanceType: formData.balanceType,
           creditLimit: Number(formData.creditLimit),
-          paymentTerms: formData.paymentTerms,
           status: formData.status,
           isActive: formData.status === 'Active',
           remarks: notesCombined || undefined,
@@ -1079,207 +998,11 @@ n[Internal Notes: ${formData.internalNotes.trim()}]`
               <form onSubmit={handleFormSubmit} className="flex-1 overflow-y-auto p-8 space-y-8">
                 
                 {formTab === 'general' && (
-                  <div className="space-y-5 animate-in fade-in duration-200">
-                    <PremiumSectionHeading title="General Partner Information" />
-                    
-                    <div className="grid grid-cols-2 gap-5">
-                      <PremiumSelect
-                        label="Partner Type *"
-                        name="customerType"
-                        value={formData.customerType}
-                        onChange={handleFormChange}
-                        required
-                      >
-                        <option value="B2C">B2C (Individual / Retail)</option>
-                        <option value="B2B">B2B (Business / Corporate)</option>
-                        <option value="Distributor">Distributor / Logistics</option>
-                      </PremiumSelect>
-
-                      <PremiumInput
-                        label="Partner Name *"
-                        name="customerName"
-                        value={formData.customerName}
-                        onChange={handleFormChange}
-                        placeholder="e.g. John Doe / Apex Distributors"
-                        required
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-5">
-                      <PremiumInput
-                        label="Contact Person Name"
-                        name="contactPerson"
-                        value={formData.contactPerson}
-                        onChange={handleFormChange}
-                        placeholder="e.g. Vance R."
-                      />
-                      <PremiumInput
-                        label="Business Name"
-                        name="businessName"
-                        value={formData.businessName}
-                        onChange={handleFormChange}
-                        placeholder={formData.customerType === 'B2B' ? 'Required business name' : 'Optional'}
-                        required={formData.customerType === 'B2B'}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-5">
-                      <PremiumInput
-                        label="Primary Phone *"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleFormChange}
-                        placeholder="e.g. +91 9999999999"
-                        required
-                      />
-                      <PremiumInput
-                        label="WhatsApp Phone"
-                        name="whatsApp"
-                        value={formData.whatsApp}
-                        onChange={handleFormChange}
-                        placeholder="WhatsApp Number"
-                      />
-                      <PremiumInput
-                        label="Alternate Phone"
-                        name="alternatePhone"
-                        value={formData.alternatePhone}
-                        onChange={handleFormChange}
-                        placeholder="Optional alternate"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-5">
-                      <PremiumInput
-                        label="Email Address"
-                        name="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={handleFormChange}
-                        placeholder="e.g. name@domain.com"
-                      />
-                    </div>
-
-                    {formData.customerType === 'Distributor' && (
-                      <div className="pt-4 mt-6 border-t border-gray-100">
-                        <PremiumSectionHeading title="Distributor Information" />
-                        <div className="grid grid-cols-2 gap-5 mt-4">
-                          <PremiumSelect
-                            label="Distributor Type"
-                            name="distributorType"
-                            value={formData.distributorType}
-                            onChange={handleFormChange}
-                          >
-                            <option value="">-- Select Type --</option>
-                            <option value="Company Distributor">Company Distributor</option>
-                            <option value="Commission Distributor">Commission Distributor</option>
-                            <option value="Salary Distributor">Salary Distributor</option>
-                          </PremiumSelect>
-                          
-                          {formData.distributorType === 'Commission Distributor' && (
-                            <PremiumInput
-                              label="Commission Percentage"
-                              name="commissionPercentage"
-                              type="number"
-                              value={formData.commissionPercentage}
-                              onChange={handleFormChange}
-                            />
-                          )}
-                          {formData.distributorType === 'Salary Distributor' && (
-                            <PremiumInput
-                              label="Monthly Salary"
-                              name="monthlySalary"
-                              type="number"
-                              value={formData.monthlySalary}
-                              onChange={handleFormChange}
-                            />
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 gap-5 mt-4">
-                          <PremiumInput
-                            label="Route Name"
-                            name="assignedRoute"
-                            value={formData.assignedRoute}
-                            onChange={handleFormChange}
-                            placeholder="Optional route"
-                          />
-                          <PremiumInput
-                            label="Remarks"
-                            name="remarks"
-                            value={formData.remarks}
-                            onChange={handleFormChange}
-                            placeholder="Optional remarks"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <GeneralTab formData={formData} handleFormChange={handleFormChange} />
                 )}
 
                 {formTab === 'address' && (
-                  <div className="space-y-5 animate-in fade-in duration-200">
-                    <PremiumSectionHeading title="Primary Billing & Shipping Address" />
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <PremiumInput
-                        label="Address Line 1 *"
-                        name="addressLine1"
-                        value={formData.addressLine1}
-                        onChange={handleFormChange}
-                        placeholder="Building, street name"
-                        required
-                      />
-                      <PremiumInput
-                        label="Address Line 2"
-                        name="addressLine2"
-                        value={formData.addressLine2}
-                        onChange={handleFormChange}
-                        placeholder="Area, landmark"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-5">
-                      <PremiumInput
-                        label="District *"
-                        name="district"
-                        value={formData.district}
-                        onChange={handleFormChange}
-                        placeholder="District Name"
-                        required
-                      />
-                      <PremiumSelect
-                        label="State *"
-                        name="state"
-                        value={formData.state}
-                        onChange={handleFormChange}
-                        required
-                      >
-                        <option value="">Select State</option>
-                        {indianStates.map(state => (
-                          <option key={state} value={state}>{state}</option>
-                        ))}
-                      </PremiumSelect>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-5">
-                      <PremiumInput
-                        label="Country *"
-                        name="country"
-                        value={formData.country}
-                        onChange={handleFormChange}
-                        required
-                      />
-                      <PremiumInput
-                        label="PIN/Zip Code *"
-                        name="pinCode"
-                        value={formData.pinCode}
-                        onChange={handleFormChange}
-                        placeholder="6-digit PIN"
-                        required
-                      />
-                    </div>
-
-
-                  </div>
+                  <AddressTab formData={formData} handleFormChange={handleFormChange} indianStates={indianStates} />
                 )}
 
                 {formTab === 'financials' && (
@@ -1369,8 +1092,6 @@ n[Internal Notes: ${formData.internalNotes.trim()}]`
                     <div className="grid grid-cols-2 gap-5">
                       <PremiumSelect
                         label="Payment Terms *"
-                        name="paymentTerms"
-                        value={formData.paymentTerms}
                         onChange={handleFormChange}
                         required
                       >
@@ -1395,20 +1116,28 @@ n[Internal Notes: ${formData.internalNotes.trim()}]`
                     </div>
 
                     <div className="grid grid-cols-3 gap-5">
-                      <PremiumInput
+                      <PremiumSelect
                         label="Price List Code"
                         name="priceList"
                         value={formData.priceList}
                         onChange={handleFormChange}
-                        placeholder="e.g. DIST_PL_2"
-                      />
-                      <PremiumInput
+                      >
+                        <option value="">Select Price List</option>
+                        {priceLists?.filter(p => p.isActive).map(p => (
+                          <option key={p.id} value={p.code}>{p.code} - {p.description || 'No description'}</option>
+                        ))}
+                      </PremiumSelect>
+                      <PremiumSelect
                         label="Discount Group"
                         name="discountGroup"
                         value={formData.discountGroup}
                         onChange={handleFormChange}
-                        placeholder="e.g. GOLD_PARTNER"
-                      />
+                      >
+                        <option value="">Select Discount Group</option>
+                        {discountGroups?.filter(d => d.isActive).map(d => (
+                          <option key={d.id} value={d.code}>{d.code} - {d.description || 'No description'}</option>
+                        ))}
+                      </PremiumSelect>
                       <PremiumInput
                         label="Tax Category"
                         name="taxCategory"

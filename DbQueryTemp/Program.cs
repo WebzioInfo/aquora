@@ -1,36 +1,32 @@
 using System;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Npgsql;
 
-var connString = "Host=aws-1-ap-northeast-2.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.lxwherkjkjuhmfqzrziw;Password=aquoradb@2026;SSL Mode=Require;Trust Server Certificate=true;CommandTimeout=120;";
-await using var conn = new NpgsqlConnection(connString);
-await conn.OpenAsync();
-
-var schemas = new[] {
-    "aquora_tenant_code_company",
-    "aquora_tenant_developer_company",
-    "aquora_tenant_developer_company_2",
-    "aquora_tenant_developer_company_3",
-    "aquora_tenant_test_company",
-    "aquora_tenant_test_company_2"
-};
-
-foreach (var s in schemas)
+class Program
 {
-    Console.WriteLine($"\n--- Checking schema: {s} ---");
-    try
+    static async Task Main()
     {
-        await using var cmd = new NpgsqlCommand($"SELECT \"Id\", \"Code\", \"Name\", \"IsActive\", \"IsDeleted\", \"CreatedAt\" FROM \"{s}\".\"ProductionLines\"", conn);
-        await using var reader = await cmd.ExecuteReaderAsync();
-        bool found = false;
-        while (await reader.ReadAsync())
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(System.IO.Path.GetFullPath(@"..\src\Aquora.API"))
+            .AddJsonFile("appsettings.json")
+            .Build();
+
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+
+        try
         {
-            found = true;
-            Console.WriteLine($"Id: {reader["Id"]}, Code: {reader["Code"]}, Name: {reader["Name"]}, IsActive: {reader["IsActive"]}, IsDeleted: {reader["IsDeleted"]}, CreatedAt: {reader["CreatedAt"]}");
+            using var conn = new NpgsqlConnection(connectionString);
+            await conn.OpenAsync();
+            using var cmd = new NpgsqlCommand("INSERT INTO public.\"PlatformAuditLogs\" (\"Id\", \"TenantId\", \"UserId\", \"UserEmail\", \"Action\", \"TableName\", \"PrimaryKey\", \"OldValues\", \"NewValues\", \"Timestamp\", \"IpAddress\", \"Device\", \"Reason\", \"Module\") VALUES (@id, @tId, null, 'test', 'test', 'test', null, null, null, current_timestamp, null, null, null, null)", conn);
+            cmd.Parameters.AddWithValue("id", Guid.NewGuid());
+            cmd.Parameters.AddWithValue("tId", Guid.Empty);
+            await cmd.ExecuteNonQueryAsync();
+            Console.WriteLine("SUCCESS!");
         }
-        if (!found) Console.WriteLine("No records found.");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Error: {ex.Message}");
+        catch (Exception ex)
+        {
+            Console.WriteLine("DB EXCEPTION: " + ex.Message);
+        }
     }
 }

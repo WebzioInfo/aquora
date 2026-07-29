@@ -10,14 +10,15 @@ import LoginPage from '../pages/LoginPage'
 import RegisterPage from '../pages/RegisterPage'
 import OtpVerificationPage from '../pages/OtpVerificationPage'
 import CompanyOnboardingPage from '../pages/CompanyOnboardingPage'
-import InviteTeamPage from '../pages/InviteTeamPage'
 import PlatformDashboardPage from '../pages/platform/PlatformDashboardPage'
 import PlatformManagementPage from '../pages/platform/PlatformManagementPage'
+import { SettingsPage } from '../pages/company/SettingsPage'
 import CompanyDashboardPage from '../pages/company/CompanyDashboardPage'
 import BatchDetailsPage from '../pages/company/BatchDetailsPage'
 import OperatorDashboardPage from '../pages/operator/OperatorDashboardPage'
 import ProductSelectionPage from '../pages/operator/ProductSelectionPage'
 import JarDashboardPage from '../pages/operator/JarDashboardPage'
+import InviteTeamPage from '../pages/InviteTeamPage'
 import AccessDeniedPage from '../pages/AccessDeniedPage'
 import OperationsPage from '../pages/company/OperationsPage'
 import ProvisioningPage from '../pages/ProvisioningPage'
@@ -405,7 +406,6 @@ export const AppRoutes: React.FC = () => {
         <Route path="settings" element={<PlatformManagementPage />} />
       </Route>
 
-      {/* Company Administration Portal */}
       <Route
         path="/company"
         element={
@@ -424,7 +424,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="customers/profile/:customerId" element={<CompanyDashboardPage />} />
         <Route path="suppliers" element={<CompanyDashboardPage />} />
         <Route path="employees" element={<CompanyDashboardPage />} />
-        <Route path="settings" element={<CompanyDashboardPage />} />
+        <Route path="settings" element={<SettingsPage />} />
         <Route path="operations" element={<OperationsPage />} />
       </Route>
 

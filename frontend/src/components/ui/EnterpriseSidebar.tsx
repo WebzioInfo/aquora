@@ -28,10 +28,9 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
   const location = useLocation()
 
   return (
-    <aside 
-      className={`fixed top-0 bottom-0 left-0 z-40 flex flex-col border-r border-[#E5E9F2] bg-white transition-all duration-300 ${
-        collapsed ? 'w-20' : 'w-64'
-      }`}
+    <aside
+      className={`fixed top-0 bottom-0 left-0 z-40 flex flex-col border-r border-[#E5E9F2] bg-white transition-all duration-300 ${collapsed ? 'w-20' : 'w-64'
+        }`}
     >
       {/* Logo Banner */}
       <div className="h-16 flex items-center justify-between px-6 border-b border-[#E5E9F2]">
@@ -68,11 +67,10 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
             <Link
               key={item.path}
               to={item.path}
-              className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-[8px] transition-all relative ${
-                isActive 
-                  ? 'bg-[#EFF4FF] text-[#1A56DB] font-semibold pl-4' 
+              className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-[8px] transition-all relative ${isActive
+                  ? 'bg-[#EFF4FF] text-[#1A56DB] font-semibold pl-4'
                   : 'text-[#667085] hover:bg-slate-50 hover:text-slate-800'
-              }`}
+                }`}
             >
               {isActive && (
                 <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-[20px] bg-[#1A56DB] rounded-r-md" />
@@ -86,23 +84,6 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
 
       {/* Bottom controls */}
       <div className="p-3 border-t border-[#E5E9F2] flex flex-col gap-1 select-none">
-        <button
-          onClick={onToggleTheme}
-          className="flex items-center gap-3.5 w-full px-3.5 py-2.5 rounded text-xs font-semibold text-[#667085] hover:bg-slate-50 hover:text-[#101828] cursor-pointer transition-colors"
-        >
-          {theme === 'light' ? (
-            <>
-              <Moon className="w-5 h-5 shrink-0" />
-              {!collapsed && <span>Dark Mode</span>}
-            </>
-          ) : (
-            <>
-              <Sun className="w-5 h-5 shrink-0" />
-              {!collapsed && <span>Light Mode</span>}
-            </>
-          )}
-        </button>
-
         <button
           onClick={onLogout}
           className="flex items-center gap-3.5 w-full px-3.5 py-2.5 rounded text-xs font-semibold text-error hover:bg-red-500/10 cursor-pointer transition-colors"

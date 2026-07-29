@@ -29,6 +29,8 @@ namespace Aquora.Application.Interfaces
         DbSet<OperatorContextLog> OperatorContextLogs { get; }
         DbSet<Customer> Customers { get; }
         DbSet<SalesTransaction> SalesTransactions { get; }
+        DbSet<PriceList> PriceLists { get; }
+        DbSet<DiscountGroup> DiscountGroups { get; }
         
         // 20L Operations Module
         DbSet<OperationsVisit> OperationsVisits { get; }

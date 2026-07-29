@@ -16,6 +16,9 @@ namespace Aquora.Domain.Entities
         public string? BottleSize { get; set; }
         public string? ImageUrl { get; set; }
 
+        [System.ComponentModel.DataAnnotations.Timestamp]
+        public byte[] RowVersion { get; set; }
+
         // Auditable fields
         public DateTime CreatedAt { get; set; }
         public string CreatedBy { get; set; } = string.Empty;

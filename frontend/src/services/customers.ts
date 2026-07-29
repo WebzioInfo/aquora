@@ -34,7 +34,6 @@ export interface Customer {
   openingBalance: number
   balanceType: string // Receivable, Payable, Zero
   creditLimit: number
-  paymentTerms: string
 
   // Operations
   status: string // Active, Inactive
@@ -125,7 +124,6 @@ export interface CreateCustomerRequest {
   openingBalance: number
   balanceType: string
   creditLimit: number
-  paymentTerms: string
 
   status?: string
   isActive?: boolean
@@ -210,7 +208,6 @@ export interface UpdateCustomerRequest {
   openingBalance: number
   balanceType: string
   creditLimit: number
-  paymentTerms: string
 
   status?: string
   isActive?: boolean

@@ -3,6 +3,7 @@ using System;
 using Aquora.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Aquora.Persistence.Migrations.Tenant
 {
     [DbContext(typeof(TenantDbContext))]
-    partial class TenantDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260725073524_AddPriceListAndDiscountGroup")]
+    partial class AddPriceListAndDiscountGroup
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -410,6 +413,10 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("PANNumber")
                         .HasColumnType("text");
 
+                    b.Property<string>("PaymentTerms")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Phone")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -548,19 +555,10 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeletedBy")
-                        .HasColumnType("text");
-
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
                     b.Property<Guid>("TenantId")
@@ -1412,19 +1410,10 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeletedBy")
-                        .HasColumnType("text");
-
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
                     b.Property<Guid>("TenantId")
@@ -1496,12 +1485,6 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("bytea");
 
                     b.Property<string>("SKU")
                         .HasColumnType("text");
@@ -2098,12 +2081,6 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("bytea");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");

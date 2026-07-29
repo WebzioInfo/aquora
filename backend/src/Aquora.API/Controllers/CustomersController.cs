@@ -130,7 +130,6 @@ namespace Aquora.API.Controllers
                         OpeningBalance = c.OpeningBalance,
                         BalanceType = c.BalanceType,
                         CreditLimit = c.CreditLimit,
-                        PaymentTerms = c.PaymentTerms,
                         Status = c.Status,
                         IsActive = c.IsActive,
                         Remarks = c.Remarks,
@@ -228,7 +227,6 @@ namespace Aquora.API.Controllers
                     OpeningBalance = customer.OpeningBalance,
                     BalanceType = customer.BalanceType,
                     CreditLimit = customer.CreditLimit,
-                    PaymentTerms = customer.PaymentTerms,
                     Status = customer.Status,
                     IsActive = customer.IsActive,
                     Remarks = customer.Remarks,
@@ -400,7 +398,6 @@ namespace Aquora.API.Controllers
                     OpeningBalance = request.OpeningBalance,
                     BalanceType = request.BalanceType.Trim(),
                     CreditLimit = request.CreditLimit,
-                    PaymentTerms = request.PaymentTerms.Trim(),
                     Status = request.Status.Trim(),
                     IsActive = request.IsActive,
                     Remarks = request.Remarks?.Trim(),
@@ -476,7 +473,6 @@ namespace Aquora.API.Controllers
                     OpeningBalance = customer.OpeningBalance,
                     BalanceType = customer.BalanceType,
                     CreditLimit = customer.CreditLimit,
-                    PaymentTerms = customer.PaymentTerms,
                     Status = customer.Status,
                     IsActive = customer.IsActive,
                     Remarks = customer.Remarks,
@@ -631,7 +627,6 @@ namespace Aquora.API.Controllers
                 customer.OpeningBalance = request.OpeningBalance;
                 customer.BalanceType = request.BalanceType.Trim();
                 customer.CreditLimit = request.CreditLimit;
-                customer.PaymentTerms = request.PaymentTerms.Trim();
                 customer.Status = request.Status.Trim();
                 customer.IsActive = request.IsActive;
                 customer.Remarks = request.Remarks?.Trim();
@@ -706,7 +701,6 @@ namespace Aquora.API.Controllers
                     OpeningBalance = customer.OpeningBalance,
                     BalanceType = customer.BalanceType,
                     CreditLimit = customer.CreditLimit,
-                    PaymentTerms = customer.PaymentTerms,
                     Status = customer.Status,
                     IsActive = customer.IsActive,
                     Remarks = customer.Remarks,

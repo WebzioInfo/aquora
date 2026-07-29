@@ -22,17 +22,20 @@ namespace Aquora.API.Controllers
         private readonly IPlatformDbContext _platformContext;
         private readonly Microsoft.Extensions.Logging.ILogger<ProductionEntriesController> _logger;
         private readonly IInventoryMovementService _inventoryMovementService;
+        private readonly IProductionService _productionService;
 
         public ProductionEntriesController(
             ITenantDbContext tenantContext,
             IPlatformDbContext platformContext,
             Microsoft.Extensions.Logging.ILogger<ProductionEntriesController> logger,
-            IInventoryMovementService inventoryMovementService)
+            IInventoryMovementService inventoryMovementService,
+            IProductionService productionService)
         {
             _tenantContext = tenantContext;
             _platformContext = platformContext;
             _logger = logger;
             _inventoryMovementService = inventoryMovementService;
+            _productionService = productionService;
         }
 
         private Guid GetTenantId()
@@ -72,66 +75,12 @@ namespace Aquora.API.Controllers
         {
             try
             {
-                var todayUtc = DateTime.UtcNow.Date;
-                var query = _tenantContext.ProductionEntries
-                    .Include(e => e.Product)
-                    .Include(e => e.PreformMaterial)
-                    .Include(e => e.CapMaterial)
-                    .Include(e => e.LabelMaterial)
-                    .Include(e => e.ShrinkMaterial)
-                    .Include(e => e.GlueMaterial)
-                    .Where(e => !e.IsDeleted && e.ProductionLineId == lineId && e.Date == todayUtc);
-
-                if (!string.IsNullOrEmpty(shift))
-                {
-                    query = query.Where(e => e.Shift == shift);
-                }
-
-                List<Aquora.Domain.Entities.ProductionEntry> entries;
-                try
-                {
-                    entries = await query
-                        .OrderByDescending(e => e.CreatedAt)
-                        .ToListAsync();
-                }
-                catch (Exception ex) when ("An internal error occurred.".Contains("42703") || "An internal error occurred.".Contains("CapMaterialId"))
-                {
-                    return Failure<List<object>>("Tenant schema is outdated. Pending migration detected.", "Schema Error");
-                }
-
-                var result = entries.Select(e => new
-                {
-                    e.Id,
-                    e.OperatorName,
-                    e.Shift,
-                    SkuName = e.Product?.Name ?? "Unknown Product",
-                    CaseConfigurationName = "N/A",
-                    e.CasesProduced,
-                    PreformName = e.PreformMaterial?.Name ?? "Unknown Preform",
-                    e.PreformUsage,
-                    e.PreformWastage,
-                    PreformUnit = e.PreformMaterial?.Unit ?? "PCS",
-                    CapName = e.CapMaterial?.Name,
-                    e.CapUsage,
-                    e.CapWastage,
-                    CapUnit = e.CapMaterial?.Unit ?? "BOX",
-                    LabelName = e.LabelMaterial?.Name ?? "Unknown Label",
-                    e.LabelUsage,
-                    e.LabelWastage,
-                    LabelUnit = e.LabelMaterial?.Unit ?? "PCS",
-                    ShrinkName = e.ShrinkMaterial?.Name ?? "Unknown Shrink",
-                    e.ShrinkUsage,
-                    e.ShrinkWastage,
-                    ShrinkUnit = e.ShrinkMaterial?.Unit ?? "KG",
-                    GlueName = e.GlueMaterial?.Name,
-                    e.GlueUsage,
-                    GlueUnit = e.GlueMaterial?.Unit ?? "KG",
-                    e.InkUsed,
-                    e.MakeupUsed,
-                    e.CreatedAt
-                }).Cast<object>().ToList();
-
+                var result = await _productionService.GetTodayEntriesAsync(lineId, shift);
                 return Success<List<object>>(result, "Today's production entries loaded successfully.");
+            }
+            catch (Exception ex) when (ex.Message.Contains("42703") || ex.Message.Contains("CapMaterialId"))
+            {
+                return Failure<List<object>>("Tenant schema is outdated. Pending migration detected.", "Schema Error");
             }
             catch (Exception ex)
             {
@@ -145,65 +94,16 @@ namespace Aquora.API.Controllers
         {
             try
             {
-                var query = _tenantContext.ProductionEntries
-                    .Include(e => e.Product)
-                    .Include(e => e.PreformMaterial)
-                    .Include(e => e.CapMaterial)
-                    .Include(e => e.LabelMaterial)
-                    .Include(e => e.ShrinkMaterial)
-                    .Include(e => e.GlueMaterial)
-                    .Where(e => !e.IsDeleted && e.ProductionSessionId == sessionId);
-
-                List<Aquora.Domain.Entities.ProductionEntry> entries;
-                try
-                {
-                    entries = await query
-                        .OrderByDescending(e => e.CreatedAt)
-                        .ToListAsync();
-                }
-                catch (Exception ex) when ("An internal error occurred.".Contains("42703") || "An internal error occurred.".Contains("CapMaterialId"))
-                {
-                    return Failure<List<object>>("Tenant schema is outdated. Pending migration detected.", "Schema Error");
-                }
-
-                var result = entries.Select(e => new
-                {
-                    e.Id,
-                    e.OperatorName,
-                    e.Shift,
-                    SkuName = e.Product?.Name ?? "Unknown Product",
-                    CaseConfigurationName = "N/A",
-                    e.CasesProduced,
-                    PreformName = e.PreformMaterial?.Name ?? "Unknown Preform",
-                    e.PreformUsage,
-                    e.PreformWastage,
-                    PreformUnit = e.PreformMaterial?.Unit ?? "PCS",
-                    CapName = e.CapMaterial?.Name,
-                    e.CapUsage,
-                    e.CapWastage,
-                    CapUnit = e.CapMaterial?.Unit ?? "BOX",
-                    LabelName = e.LabelMaterial?.Name ?? "Unknown Label",
-                    e.LabelUsage,
-                    e.LabelWastage,
-                    LabelUnit = e.LabelMaterial?.Unit ?? "PCS",
-                    ShrinkName = e.ShrinkMaterial?.Name ?? "Unknown Shrink",
-                    e.ShrinkUsage,
-                    e.ShrinkWastage,
-                    ShrinkUnit = e.ShrinkMaterial?.Unit ?? "KG",
-                    GlueName = e.GlueMaterial?.Name,
-                    e.GlueUsage,
-                    GlueUnit = e.GlueMaterial?.Unit ?? "KG",
-                    e.InkUsed,
-                    e.MakeupUsed,
-                    e.CreatedAt
-                }).Cast<object>().ToList();
-
-                return Success<List<object>>(result, "Session entries loaded successfully.");
+                var result = await _productionService.GetSessionEntriesAsync(sessionId);
+                return Success<List<object>>(result, "Session production entries loaded successfully.");
+            }
+            catch (Exception ex) when (ex.Message.Contains("42703") || ex.Message.Contains("CapMaterialId"))
+            {
+                return Failure<List<object>>("Tenant schema is outdated. Pending migration detected.", "Schema Error");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to load entries for session {SessionId}.", sessionId);
-                return Failure<List<object>>("An internal error occurred.", "Failed to load session entries.");
+                return Failure<List<object>>("An internal error occurred.", "Failed to load session production entries.");
             }
         }
 

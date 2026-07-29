@@ -20,7 +20,10 @@ namespace Aquora.Application
             services.AddScoped<IHierarchyService, HierarchyService>();
             services.AddScoped<ISchemaNameGenerator, SchemaNameGenerator>();
             services.AddScoped<IInventoryMovementService, InventoryMovementService>();
+            services.AddScoped<IPriceListService, PriceListService>();
+            services.AddScoped<IDiscountGroupService, DiscountGroupService>();
 
+            services.AddScoped<IProductionService, ProductionService>();
             return services;
         }
     }

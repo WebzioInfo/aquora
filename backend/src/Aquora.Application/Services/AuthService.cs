@@ -233,7 +233,8 @@ namespace Aquora.Application.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AUDIT LOG EXCEPTION] Failed to log login attempt: {ex.Message}");
+                var innerMsg = ex.InnerException != null ? $" Inner: {ex.InnerException.Message}" : "";
+                Console.WriteLine($"[AUDIT LOG EXCEPTION] Failed to log login attempt: {ex.Message}{innerMsg}");
             }
         }
 

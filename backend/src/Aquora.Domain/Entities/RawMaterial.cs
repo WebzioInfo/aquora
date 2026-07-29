@@ -14,6 +14,9 @@ namespace Aquora.Domain.Entities
         public decimal CurrentStock { get; set; } = 0.0m;
         public bool IsActive { get; set; } = true;
 
+        [System.ComponentModel.DataAnnotations.Timestamp]
+        public byte[] RowVersion { get; set; }
+
         // Multi-tenant mappings
         public Guid TenantId { get; set; }
         public Guid CompanyId { get; set; }

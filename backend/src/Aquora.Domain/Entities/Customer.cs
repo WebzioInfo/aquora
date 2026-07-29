@@ -38,7 +38,6 @@ namespace Aquora.Domain.Entities
         public decimal OpeningBalance { get; set; } = 0;
         public string BalanceType { get; set; } = "Zero"; // Receivable, Payable, Zero
         public decimal CreditLimit { get; set; } = 0;
-        public string PaymentTerms { get; set; } = string.Empty;
 
         // Expanded Business Partner Profiles
         public string? WhatsApp { get; set; }
