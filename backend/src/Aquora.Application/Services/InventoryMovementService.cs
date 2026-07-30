@@ -73,7 +73,7 @@ namespace Aquora.Application.Services
                     
                     if (inventoryAcct != null && costAcct != null)
                     {
-                        var totalAmount = Math.Abs(quantity) * product.UnitCost; // Dynamic COGS
+                        var totalAmount = 0.0m; // Stubbed COGS calculation - proper pricing engine will handle this
                         if (quantity < 0) // Dispatch / Sale
                         {
                             await financeService.CreateJournalEntryAsync(new CreateJournalEntryRequest

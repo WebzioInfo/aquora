@@ -23,7 +23,6 @@ namespace Aquora.Application.Services
         public async Task<IEnumerable<PriceList>> GetAllPriceListsAsync()
         {
             return await _context.PriceLists
-                .Where(x => !x.IsDeleted)
                 .OrderBy(x => x.Code)
                 .ToListAsync();
         }
@@ -31,7 +30,7 @@ namespace Aquora.Application.Services
         public async Task<PriceList?> GetPriceListByIdAsync(Guid id)
         {
             return await _context.PriceLists
-                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+                .FirstOrDefaultAsync(x => x.Id == id);
         }
 
         public async Task<PriceList> CreatePriceListAsync(PriceList priceList)
@@ -49,7 +48,7 @@ namespace Aquora.Application.Services
         public async Task<PriceList> UpdatePriceListAsync(Guid id, PriceList priceList)
         {
             var existing = await _context.PriceLists
-                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+                .FirstOrDefaultAsync(x => x.Id == id);
 
             if (existing == null)
                 throw new KeyNotFoundException("Price list not found.");
@@ -65,11 +64,11 @@ namespace Aquora.Application.Services
         public async Task DeletePriceListAsync(Guid id)
         {
             var existing = await _context.PriceLists
-                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+                .FirstOrDefaultAsync(x => x.Id == id);
 
             if (existing != null)
             {
-                existing.IsDeleted = true;
+                _context.PriceLists.Remove(existing);
                 await _context.SaveChangesAsync();
             }
         }

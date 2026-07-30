@@ -97,21 +97,27 @@ namespace Aquora.Application.Services
             }
 
             // 2. Retrieve OTP verification record
+            var email = request.Email.Trim().ToLower();
+            Console.WriteLine($"[TENANT OTP VERIFY INITIATED]: Email '{email}'.");
+
             var otp = await _platformContext.OTPVerifications
-                .FirstOrDefaultAsync(o => o.Email.ToLower() == request.Email.ToLower() && !o.IsVerified);
+                .FirstOrDefaultAsync(o => o.Email.ToLower() == email && !o.IsVerified);
 
             if (otp == null)
             {
+                Console.WriteLine($"[TENANT OTP VERIFY FAILED]: No unverified OTP found for Email '{email}'.");
                 throw new InvalidOperationException("No verification code found for this email.");
             }
 
             if (otp.ExpiryTime <= DateTime.UtcNow)
             {
+                Console.WriteLine($"[TENANT OTP VERIFY FAILED]: OTP expired for Email '{email}'.");
                 throw new InvalidOperationException("Verification code has expired.");
             }
 
             if (otp.Attempts >= 5)
             {
+                Console.WriteLine($"[TENANT OTP VERIFY FAILED]: Max attempts ({otp.Attempts}) reached for Email '{email}'.");
                 throw new InvalidOperationException("Maximum verification attempts exceeded. Please request a new OTP.");
             }
 
@@ -119,11 +125,13 @@ namespace Aquora.Application.Services
             {
                 otp.Attempts++;
                 await _platformContext.SaveChangesAsync();
+                Console.WriteLine($"[TENANT OTP VERIFY FAILED]: Invalid PIN for Email '{email}', attempt {otp.Attempts}/5.");
                 throw new InvalidOperationException("Invalid verification code.");
             }
 
             otp.IsVerified = true;
             await _platformContext.SaveChangesAsync();
+            Console.WriteLine($"[TENANT OTP VERIFY SUCCESS]: OTP verified for Email '{email}'.");
 
              // 3. Create User record globally
              var user = new User

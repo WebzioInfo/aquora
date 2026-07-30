@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -13,7 +13,7 @@ namespace Aquora.Persistence.Migrations.Tenant
         {
             migrationBuilder.CreateTable(
                 name: "AccountGroups",
-                schema: "public",
+                
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -36,13 +36,13 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_AccountGroups_AccountGroups_ParentGroupId",
                         column: x => x.ParentGroupId,
-                        principalSchema: "public",
+
                         principalTable: "AccountGroups",
                         principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_AccountGroups_Companies_CompanyId",
                         column: x => x.CompanyId,
-                        principalSchema: "public",
+
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -50,7 +50,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateTable(
                 name: "Assets",
-                schema: "public",
+                
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -87,7 +87,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_Assets_Companies_CompanyId",
                         column: x => x.CompanyId,
-                        principalSchema: "public",
+
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -95,7 +95,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateTable(
                 name: "JournalEntries",
-                schema: "public",
+                
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -126,21 +126,21 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_JournalEntries_Companies_CompanyId",
                         column: x => x.CompanyId,
-                        principalSchema: "public",
+
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_JournalEntries_Users_ApprovedById",
                         column: x => x.ApprovedById,
-                        principalSchema: "public",
+
                         principalTable: "Users",
                         principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "PettyCashSessions",
-                schema: "public",
+                
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -167,7 +167,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_PettyCashSessions_Companies_CompanyId",
                         column: x => x.CompanyId,
-                        principalSchema: "public",
+
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -175,7 +175,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateTable(
                 name: "Accounts",
-                schema: "public",
+                
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -206,28 +206,28 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_Accounts_AccountGroups_AccountGroupId",
                         column: x => x.AccountGroupId,
-                        principalSchema: "public",
+
                         principalTable: "AccountGroups",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_Accounts_Companies_CompanyId",
                         column: x => x.CompanyId,
-                        principalSchema: "public",
+
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_Accounts_Customers_LinkedCustomerId",
                         column: x => x.LinkedCustomerId,
-                        principalSchema: "public",
+
                         principalTable: "Customers",
                         principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "ExpenseRecords",
-                schema: "public",
+                
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -259,21 +259,21 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_ExpenseRecords_Companies_CompanyId",
                         column: x => x.CompanyId,
-                        principalSchema: "public",
+
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_ExpenseRecords_JournalEntries_LinkedJournalEntryId",
                         column: x => x.LinkedJournalEntryId,
-                        principalSchema: "public",
+
                         principalTable: "JournalEntries",
                         principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "BankAccounts",
-                schema: "public",
+                
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -300,14 +300,14 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_BankAccounts_Accounts_LinkedLedgerAccountId",
                         column: x => x.LinkedLedgerAccountId,
-                        principalSchema: "public",
+
                         principalTable: "Accounts",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_BankAccounts_Companies_CompanyId",
                         column: x => x.CompanyId,
-                        principalSchema: "public",
+
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -315,7 +315,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateTable(
                 name: "JournalEntryLines",
-                schema: "public",
+                
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -333,14 +333,14 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_JournalEntryLines_Accounts_AccountId",
                         column: x => x.AccountId,
-                        principalSchema: "public",
+
                         principalTable: "Accounts",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_JournalEntryLines_JournalEntries_JournalEntryId",
                         column: x => x.JournalEntryId,
-                        principalSchema: "public",
+
                         principalTable: "JournalEntries",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -348,91 +348,91 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateIndex(
                 name: "IX_AccountGroups_CompanyId",
-                schema: "public",
+                
                 table: "AccountGroups",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_AccountGroups_ParentGroupId",
-                schema: "public",
+                
                 table: "AccountGroups",
                 column: "ParentGroupId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Accounts_AccountGroupId",
-                schema: "public",
+                
                 table: "Accounts",
                 column: "AccountGroupId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Accounts_CompanyId",
-                schema: "public",
+                
                 table: "Accounts",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Accounts_LinkedCustomerId",
-                schema: "public",
+                
                 table: "Accounts",
                 column: "LinkedCustomerId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Assets_CompanyId",
-                schema: "public",
+                
                 table: "Assets",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BankAccounts_CompanyId",
-                schema: "public",
+                
                 table: "BankAccounts",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BankAccounts_LinkedLedgerAccountId",
-                schema: "public",
+                
                 table: "BankAccounts",
                 column: "LinkedLedgerAccountId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ExpenseRecords_CompanyId",
-                schema: "public",
+                
                 table: "ExpenseRecords",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ExpenseRecords_LinkedJournalEntryId",
-                schema: "public",
+                
                 table: "ExpenseRecords",
                 column: "LinkedJournalEntryId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_JournalEntries_ApprovedById",
-                schema: "public",
+                
                 table: "JournalEntries",
                 column: "ApprovedById");
 
             migrationBuilder.CreateIndex(
                 name: "IX_JournalEntries_CompanyId",
-                schema: "public",
+                
                 table: "JournalEntries",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_JournalEntryLines_AccountId",
-                schema: "public",
+                
                 table: "JournalEntryLines",
                 column: "AccountId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_JournalEntryLines_JournalEntryId",
-                schema: "public",
+                
                 table: "JournalEntryLines",
                 column: "JournalEntryId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PettyCashSessions_CompanyId",
-                schema: "public",
+                
                 table: "PettyCashSessions",
                 column: "CompanyId");
         }

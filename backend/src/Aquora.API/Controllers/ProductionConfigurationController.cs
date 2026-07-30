@@ -1,12 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Aquora.Application.Interfaces;
-using Aquora.Domain.Entities;
+using Aquora.Application.Interfaces.Services;
 using Aquora.Shared.Models;
 
 namespace Aquora.API.Controllers
@@ -16,14 +15,14 @@ namespace Aquora.API.Controllers
     [Route("api/v1/production-configuration")]
     public class ProductionConfigurationController : ApiControllerBase
     {
-        private readonly IPlatformDbContext _platformContext;
+        private readonly IStationConfigurationService _stationConfigService;
         private readonly ICurrentUserContext _currentUserContext;
 
         public ProductionConfigurationController(
-            IPlatformDbContext platformContext,
+            IStationConfigurationService stationConfigService,
             ICurrentUserContext currentUserContext)
         {
-            _platformContext = platformContext;
+            _stationConfigService = stationConfigService;
             _currentUserContext = currentUserContext;
         }
 
@@ -37,38 +36,30 @@ namespace Aquora.API.Controllers
             return tenantId;
         }
 
-        private string GetCurrentUserId()
-        {
-            return User.FindFirst("user_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "System";
-        }
-
         [HttpGet]
         public async Task<ActionResult<ApiResponse<List<string>>>> GetEnabledStations()
         {
             try
             {
                 var tenantId = GetTenantId();
-                var configs = await _platformContext.TenantProductionConfigurations
-                    .Where(c => c.TenantId == tenantId)
-                    .ToListAsync();
-
-                var allStations = new[] { "Blowing", "Filling", "Labeling", "Packing" };
-                var enabledStations = new List<string>();
-
-                foreach (var station in allStations)
+                var configs = await _stationConfigService.GetStationConfigurationsAsync(tenantId);
+                var enabled = configs.Where(c => c.IsEnabled).Select(c => c.Name).ToList();
+                
+                // Add alternate spelling for UI safety
+                if (enabled.Contains("Labelling") && !enabled.Contains("Labeling"))
                 {
-                    var isEnabled = !configs.Any(c => c.StationName.Equals(station, StringComparison.OrdinalIgnoreCase) && !c.IsEnabled);
-                    if (isEnabled)
-                    {
-                        enabledStations.Add(station);
-                    }
+                    enabled.Add("Labeling");
+                }
+                else if (enabled.Contains("Labeling") && !enabled.Contains("Labelling"))
+                {
+                    enabled.Add("Labelling");
                 }
 
-                return Success(enabledStations, "Enabled production stations retrieved successfully.");
+                return Success(enabled, "Enabled production stations retrieved successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<List<string>>("An internal error occurred.", "Failed to retrieve production configurations.");
+                return Failure<List<string>>(ex.Message, "Failed to retrieve production configurations.");
             }
         }
 
@@ -78,28 +69,18 @@ namespace Aquora.API.Controllers
             try
             {
                 var tenantId = GetTenantId();
-                var configs = await _platformContext.TenantProductionConfigurations
-                    .Where(c => c.TenantId == tenantId)
-                    .ToListAsync();
-
-                var allStations = new[] { "Blowing", "Filling", "Labeling", "Packing" };
-                var result = new List<TenantProductionConfigurationDto>();
-
-                foreach (var station in allStations)
+                var configs = await _stationConfigService.GetStationConfigurationsAsync(tenantId);
+                var result = configs.Select(c => new TenantProductionConfigurationDto
                 {
-                    var config = configs.FirstOrDefault(c => c.StationName.Equals(station, StringComparison.OrdinalIgnoreCase));
-                    result.Add(new TenantProductionConfigurationDto
-                    {
-                        StationName = station,
-                        IsEnabled = config == null || config.IsEnabled
-                    });
-                }
+                    StationName = c.Name,
+                    IsEnabled = c.IsEnabled
+                }).ToList();
 
                 return Success(result, "All production station configurations retrieved successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<List<TenantProductionConfigurationDto>>("An internal error occurred.", "Failed to retrieve production configurations.");
+                return Failure<List<TenantProductionConfigurationDto>>(ex.Message, "Failed to retrieve production configurations.");
             }
         }
 
@@ -115,40 +96,18 @@ namespace Aquora.API.Controllers
                 }
 
                 var tenantId = GetTenantId();
-                var currentUserId = GetCurrentUserId();
-
-                foreach (var req in requests)
+                var configsDto = requests.Select(r => new StationConfigDto
                 {
-                    var config = await _platformContext.TenantProductionConfigurations
-                        .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.StationName.ToLower() == req.StationName.ToLower());
+                    Name = r.StationName,
+                    IsEnabled = r.IsEnabled
+                }).ToList();
 
-                    if (config == null)
-                    {
-                        config = new TenantProductionConfiguration
-                        {
-                            Id = Guid.NewGuid(),
-                            TenantId = tenantId,
-                            StationName = req.StationName,
-                            IsEnabled = req.IsEnabled,
-                            CreatedAt = DateTime.UtcNow,
-                            CreatedBy = currentUserId
-                        };
-                        _platformContext.TenantProductionConfigurations.Add(config);
-                    }
-                    else
-                    {
-                        config.IsEnabled = req.IsEnabled;
-                        config.UpdatedAt = DateTime.UtcNow;
-                        config.UpdatedBy = currentUserId;
-                    }
-                }
-
-                await _platformContext.SaveChangesAsync();
+                await _stationConfigService.UpdateStationConfigurationsAsync(tenantId, configsDto);
                 return Success(true, "Production station configurations updated successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<bool>("An internal error occurred.", "Failed to update production configurations.");
+                return Failure<bool>(ex.Message, "Failed to update production configurations.");
             }
         }
     }

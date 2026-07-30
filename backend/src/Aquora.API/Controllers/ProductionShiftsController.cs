@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -51,6 +51,7 @@ namespace Aquora.API.Controllers
                     Name = s.Name,
                     StartTime = s.StartTime,
                     EndTime = s.EndTime,
+                    Description = s.Description,
                     IsActive = s.IsActive,
                     TenantId = s.TenantId,
                     CreatedAt = s.CreatedAt
@@ -78,9 +79,9 @@ namespace Aquora.API.Controllers
 
             // Check duplicate name
             var exists = await _tenantContext.ProductionShifts
-                .AnyAsync(s => !s.IsDeleted && s.TenantId == tenantId && s.Name.ToLower() == request.Name.ToLower());
+                .AnyAsync(s => !s.IsDeleted && s.TenantId == tenantId && s.Name.ToLower() == request.Name.Trim().ToLower());
             if (exists)
-                return Conflict(ApiResponse<ProductionShiftDto>.CreateFailure("A shift with this name already exists."));
+                return BadRequest(ApiResponse<ProductionShiftDto>.CreateFailure("A shift with this name already exists."));
 
             var shift = new ProductionShift
             {
@@ -90,6 +91,7 @@ namespace Aquora.API.Controllers
                 Name = request.Name.Trim(),
                 StartTime = request.StartTime,
                 EndTime = request.EndTime,
+                Description = request.Description?.Trim(),
                 IsActive = request.IsActive,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = userIdStr,
@@ -105,6 +107,7 @@ namespace Aquora.API.Controllers
                 Name = shift.Name,
                 StartTime = shift.StartTime,
                 EndTime = shift.EndTime,
+                Description = shift.Description,
                 IsActive = shift.IsActive,
                 TenantId = shift.TenantId,
                 CreatedAt = shift.CreatedAt
@@ -137,13 +140,14 @@ namespace Aquora.API.Controllers
 
             // Check duplicate name
             var exists = await _tenantContext.ProductionShifts
-                .AnyAsync(s => s.Id != id && !s.IsDeleted && s.TenantId == tenantId && s.Name.ToLower() == request.Name.ToLower());
+                .AnyAsync(s => s.Id != id && !s.IsDeleted && s.TenantId == tenantId && s.Name.ToLower() == request.Name.Trim().ToLower());
             if (exists)
-                return Conflict(ApiResponse<ProductionShiftDto>.CreateFailure("A shift with this name already exists."));
+                return BadRequest(ApiResponse<ProductionShiftDto>.CreateFailure("A shift with this name already exists."));
 
             shift.Name = request.Name.Trim();
             shift.StartTime = request.StartTime;
             shift.EndTime = request.EndTime;
+            shift.Description = request.Description?.Trim();
             shift.IsActive = request.IsActive;
             shift.UpdatedAt = DateTime.UtcNow;
             shift.UpdatedBy = userIdStr;
@@ -157,12 +161,47 @@ namespace Aquora.API.Controllers
                 Name = shift.Name,
                 StartTime = shift.StartTime,
                 EndTime = shift.EndTime,
+                Description = shift.Description,
                 IsActive = shift.IsActive,
                 TenantId = shift.TenantId,
                 CreatedAt = shift.CreatedAt
             };
 
             return Ok(ApiResponse<ProductionShiftDto>.CreateSuccess(dto, "Shift updated successfully."));
+        }
+
+        [HttpPatch("{id}/status")]
+        public async Task<ActionResult<ApiResponse<ProductionShiftDto>>> PatchStatus(Guid id, [FromBody] PatchProductionShiftStatusDto request)
+        {
+            var tenantId = GetTenantId();
+            var userIdStr = User.FindFirst("user_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            var shift = await _tenantContext.ProductionShifts
+                .FirstOrDefaultAsync(s => s.Id == id && s.TenantId == tenantId && !s.IsDeleted);
+
+            if (shift == null)
+                return NotFound(ApiResponse<ProductionShiftDto>.CreateFailure("Requested resource not found."));
+
+            shift.IsActive = request.IsActive;
+            shift.UpdatedAt = DateTime.UtcNow;
+            shift.UpdatedBy = userIdStr;
+
+            _tenantContext.ProductionShifts.Update(shift);
+            await _tenantContext.SaveChangesAsync();
+
+            var dto = new ProductionShiftDto
+            {
+                Id = shift.Id,
+                Name = shift.Name,
+                StartTime = shift.StartTime,
+                EndTime = shift.EndTime,
+                Description = shift.Description,
+                IsActive = shift.IsActive,
+                TenantId = shift.TenantId,
+                CreatedAt = shift.CreatedAt
+            };
+
+            return Ok(ApiResponse<ProductionShiftDto>.CreateSuccess(dto, "Shift status updated successfully."));
         }
 
         [HttpDelete("{id}")]
@@ -176,6 +215,17 @@ namespace Aquora.API.Controllers
 
             if (shift == null)
                 return NotFound(ApiResponse<bool>.CreateFailure("Requested resource not found."));
+
+            // Check if shift is used in production batches or entries
+            var isUsedInBatches = await _tenantContext.ProductionBatches
+                .AnyAsync(b => b.TenantId == tenantId && b.Shift.ToLower() == shift.Name.ToLower());
+            var isUsedInEntries = await _tenantContext.ProductionEntries
+                .AnyAsync(e => e.TenantId == tenantId && e.Shift.ToLower() == shift.Name.ToLower());
+
+            if (isUsedInBatches || isUsedInEntries)
+            {
+                return BadRequest(ApiResponse<bool>.CreateFailure($"Cannot delete '{shift.Name}' because active production batches or logs reference it."));
+            }
 
             shift.IsDeleted = true;
             shift.DeletedAt = DateTime.UtcNow;
@@ -195,7 +245,9 @@ namespace Aquora.API.Controllers
         public string Name { get; set; } = string.Empty;
         public string StartTime { get; set; } = string.Empty;
         public string EndTime { get; set; } = string.Empty;
+        public string? Description { get; set; }
         public bool IsActive { get; set; }
+        public int EmployeesAssigned { get; set; }
         public Guid TenantId { get; set; }
         public DateTime CreatedAt { get; set; }
     }
@@ -205,6 +257,7 @@ namespace Aquora.API.Controllers
         public string Name { get; set; } = string.Empty;
         public string StartTime { get; set; } = string.Empty;
         public string EndTime { get; set; } = string.Empty;
+        public string? Description { get; set; }
         public bool IsActive { get; set; } = true;
     }
 
@@ -213,6 +266,12 @@ namespace Aquora.API.Controllers
         public string Name { get; set; } = string.Empty;
         public string StartTime { get; set; } = string.Empty;
         public string EndTime { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    public class PatchProductionShiftStatusDto
+    {
         public bool IsActive { get; set; }
     }
 }

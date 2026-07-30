@@ -3,11 +3,13 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { motion } from 'framer-motion'
 import { authService } from '../services/auth'
 import { useNotificationStore } from '../store/useNotificationStore'
-import { Shield, Eye, EyeOff, UserPlus, CheckCircle, XCircle } from 'lucide-react'
-import EnterpriseInput from '../components/ui/EnterpriseInput'
-import EnterpriseButton from '../components/ui/EnterpriseButton'
+import { 
+  Droplet, User, Mail, Lock, Eye, EyeOff, 
+  CheckCircle2, XCircle, ArrowRight, Loader2 
+} from 'lucide-react'
 
 const registerSchema = z.object({
   fullName: z.string().min(1, 'Full name is required').max(100, 'Name is too long'),
@@ -21,7 +23,7 @@ const registerSchema = z.object({
     .regex(/[0-9]/, 'Must include at least one number'),
   confirmPassword: z.string().min(1, 'Confirm password is required'),
   agree: z.boolean().refine((val) => val === true, {
-    message: 'You must certify authorization to register',
+    message: 'You must agree to the Terms & Privacy Policy',
   }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Passwords do not match',
@@ -56,24 +58,12 @@ export const RegisterPage: React.FC = () => {
 
   const passwordVal = watch('password', '')
 
-  // Password requirements validation state
   const rules = {
     length: passwordVal.length >= 8,
     upper: /[A-Z]/.test(passwordVal),
     lower: /[a-z]/.test(passwordVal),
     number: /[0-9]/.test(passwordVal),
   }
-
-  const getStrengthScore = () => {
-    let score = 0
-    if (rules.length) score++
-    if (rules.upper) score++
-    if (rules.lower) score++
-    if (rules.number) score++
-    return score
-  }
-
-  const strengthScore = getStrengthScore()
 
   const handleCapsLock = (e: React.KeyboardEvent) => {
     if (e.getModifierState('CapsLock')) {
@@ -109,205 +99,222 @@ export const RegisterPage: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6 w-full animate-fade-in">
-      {/* Title */}
-      <div className="flex flex-col items-center text-center select-none">
-        <div className="w-12 h-12 bg-gradient-to-tr from-blue-600 to-cyan-500 rounded-xl flex items-center justify-center shadow-[0_4px_20px_rgba(37,99,235,0.3)] mb-4">
-          <UserPlus className="w-6 h-6 text-white" />
-        </div>
-        <h1 className="text-xl font-bold text-white tracking-tight">Create Operator Profile</h1>
-        <p className="text-[11px] text-slate-400 mt-1 uppercase tracking-widest font-semibold">
-          Establish System Clearance credentials
-        </p>
-      </div>
-
-      {/* Caps Lock warning */}
-      {capsLockActive && (
-        <div className="bg-amber-950/40 border border-amber-800/60 rounded-lg p-2.5 text-xs text-amber-300 flex items-center gap-2 select-none">
-          <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-          <span>CAPS LOCK IS ACTIVE</span>
-        </div>
-      )}
-
-      {/* Form Area */}
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 text-left">
-        {/* Full Name */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-slate-350 select-none">Corporate Full Name *</label>
-          <EnterpriseInput 
-            id="fullName"
-            placeholder="John Doe"
-            disabled={loading}
-            error={errors.fullName?.message}
-            {...register('fullName')}
-            className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-sm p-2.5 transition-all w-full"
-            autoFocus
-          />
-        </div>
-
-        {/* Email */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-slate-350 select-none">Corporate Email Address *</label>
-          <EnterpriseInput 
-            id="email"
-            type="email"
-            placeholder="name@company.com"
-            disabled={loading}
-            error={errors.email?.message}
-            {...register('email')}
-            className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-sm p-2.5 transition-all w-full"
-          />
-        </div>
-
-        {/* Security Password */}
-        <div className="relative w-full flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-slate-350 select-none">Security Password *</label>
-          <div className="relative">
-            <input 
-              id="password"
-              type={showPass ? 'text' : 'password'}
-              placeholder="••••••••"
-              disabled={loading}
-              onKeyDown={handleCapsLock}
-              {...register('password')}
-              className="bg-slate-950/40 border border-slate-800/80 text-white placeholder:text-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-sm p-2.5 pr-10 transition-all w-full outline-none"
-            />
-            <button
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-blue-400 transition-colors cursor-pointer select-none"
-              onClick={() => setShowPass(!showPass)}
-              type="button"
-            >
-              {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
+    <div className="w-full flex justify-center items-center font-sans">
+      
+      {/* FRESH WHITE SURFACE */}
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl shadow-xs p-8 sm:p-9 space-y-4 relative"
+      >
+        
+        {/* Header */}
+        <div className="flex flex-col items-center text-center space-y-1.5 select-none">
+          <div className="w-9 h-9 rounded-xl bg-[#2563EB] text-white flex items-center justify-center shadow-xs">
+            <Droplet className="w-4.5 h-4.5 fill-white" />
           </div>
-          {errors.password?.message && (
-            <span className="text-[11px] font-semibold text-red-400 mt-1">{errors.password.message}</span>
-          )}
+          <div>
+            <h2 className="text-xl font-extrabold text-[#111827] tracking-tight">
+              Create Account
+            </h2>
+            <p className="text-xs font-medium text-[#6B7280] mt-0.5">
+              Register your enterprise workspace
+            </p>
+          </div>
         </div>
 
-        {/* Password Strength Meter */}
-        {passwordVal && (
-          <div className="flex flex-col gap-2 p-3 rounded-lg bg-slate-950/20 border border-slate-900/60 select-none">
-            <div className="flex justify-between items-center text-[10px] font-bold tracking-wider">
-              <span className="text-slate-400 uppercase">Password Strength</span>
-              <span className={
-                strengthScore <= 1 ? 'text-red-400' :
-                strengthScore === 2 ? 'text-amber-400' :
-                strengthScore === 3 ? 'text-blue-400' : 'text-emerald-400'
-              }>
-                {strengthScore <= 1 ? 'WEAK' :
-                 strengthScore === 2 ? 'FAIR' :
-                 strengthScore === 3 ? 'GOOD' : 'STRONG'}
-              </span>
-            </div>
-            {/* Strength Bars */}
-            <div className="grid grid-cols-4 gap-1.5">
-              {[1, 2, 3, 4].map((i) => (
-                <div 
-                  key={i} 
-                  className={`h-1 rounded-full transition-all duration-350 ${
-                    i <= strengthScore 
-                      ? strengthScore <= 1 ? 'bg-red-500' 
-                      : strengthScore === 2 ? 'bg-amber-500' 
-                      : strengthScore === 3 ? 'bg-blue-500' : 'bg-emerald-500'
-                      : 'bg-slate-800'
-                  }`}
-                />
-              ))}
-            </div>
-            {/* Checklist */}
-            <div className="grid grid-cols-2 gap-x-2 gap-y-1 mt-1 text-[10px]">
-              <div className="flex items-center gap-1.5">
-                {rules.length ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> : <XCircle className="w-3.5 h-3.5 text-slate-600" />}
-                <span className={rules.length ? 'text-slate-200' : 'text-slate-500'}>8+ Characters</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {rules.upper ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> : <XCircle className="w-3.5 h-3.5 text-slate-600" />}
-                <span className={rules.upper ? 'text-slate-200' : 'text-slate-500'}>Uppercase Letter</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {rules.lower ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> : <XCircle className="w-3.5 h-3.5 text-slate-600" />}
-                <span className={rules.lower ? 'text-slate-200' : 'text-slate-500'}>Lowercase Letter</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {rules.number ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> : <XCircle className="w-3.5 h-3.5 text-slate-600" />}
-                <span className={rules.number ? 'text-slate-200' : 'text-slate-500'}>Contains Number</span>
-              </div>
-            </div>
+        {/* Caps Lock Alert */}
+        {capsLockActive && (
+          <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-amber-800 text-xs font-semibold select-none">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+            <span>Caps Lock is ON</span>
           </div>
         )}
 
-        {/* Confirm Password */}
-        <div className="relative w-full flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-slate-350 select-none">Confirm Security Password *</label>
-          <div className="relative">
-            <input 
-              id="confirmPassword"
-              type={showConfirmPass ? 'text' : 'password'}
-              placeholder="••••••••"
-              disabled={loading}
-              {...register('confirmPassword')}
-              className="bg-slate-950/40 border border-slate-800/80 text-white placeholder:text-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-sm p-2.5 pr-10 transition-all w-full outline-none"
-            />
-            <button
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-blue-400 transition-colors cursor-pointer select-none"
-              onClick={() => setShowConfirmPass(!showConfirmPass)}
-              type="button"
-            >
-              {showConfirmPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
+        {/* Form */}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+
+          {/* Full Name */}
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-[#111827] select-none">Full Name</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#9CA3AF]">
+                <User className="w-4.5 h-4.5" />
+              </div>
+              <input
+                type="text"
+                disabled={loading}
+                placeholder="Jane Smith"
+                {...register('fullName')}
+                className={`w-full pl-10 pr-3.5 h-12 bg-white border ${
+                  errors.fullName ? 'border-rose-400 focus:ring-rose-500/20' : 'border-[#E5E7EB] focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]'
+                } rounded-xl text-xs font-medium text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none transition-all`}
+                autoFocus
+              />
+            </div>
+            {errors.fullName?.message && (
+              <p className="text-[11px] font-medium text-rose-600 pl-1">{errors.fullName.message}</p>
+            )}
           </div>
-          {errors.confirmPassword?.message && (
-            <span className="text-[11px] font-semibold text-red-400 mt-1">{errors.confirmPassword.message}</span>
+
+          {/* Corporate Email */}
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-[#111827] select-none">Corporate Email</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#9CA3AF]">
+                <Mail className="w-4.5 h-4.5" />
+              </div>
+              <input
+                type="email"
+                disabled={loading}
+                placeholder="jane@company.com"
+                {...register('email')}
+                className={`w-full pl-10 pr-3.5 h-12 bg-white border ${
+                  errors.email ? 'border-rose-400 focus:ring-rose-500/20' : 'border-[#E5E7EB] focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]'
+                } rounded-xl text-xs font-medium text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none transition-all`}
+              />
+            </div>
+            {errors.email?.message && (
+              <p className="text-[11px] font-medium text-rose-600 pl-1">{errors.email.message}</p>
+            )}
+          </div>
+
+          {/* Password */}
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-[#111827] select-none">Password</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#9CA3AF]">
+                <Lock className="w-4.5 h-4.5" />
+              </div>
+              <input
+                type={showPass ? 'text' : 'password'}
+                disabled={loading}
+                onKeyDown={handleCapsLock}
+                placeholder="••••••••"
+                {...register('password')}
+                className={`w-full pl-10 pr-10 h-12 bg-white border ${
+                  errors.password ? 'border-rose-400 focus:ring-rose-500/20' : 'border-[#E5E7EB] focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]'
+                } rounded-xl text-xs font-medium text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none transition-all`}
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setShowPass(!showPass)}
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#9CA3AF] hover:text-[#111827] transition-colors"
+              >
+                {showPass ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+              </button>
+            </div>
+            {errors.password?.message && (
+              <p className="text-[11px] font-medium text-rose-600 pl-1">{errors.password.message}</p>
+            )}
+          </div>
+
+          {/* Password Rules */}
+          {passwordVal && (
+            <div className="p-2.5 rounded-xl bg-[#FAFBFC] border border-[#E5E7EB] space-y-1 select-none text-[10px]">
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                <div className="flex items-center gap-1.5">
+                  {rules.length ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <XCircle className="w-3.5 h-3.5 text-slate-400" />}
+                  <span className={rules.length ? 'text-[#111827] font-semibold' : 'text-[#6B7280]'}>8+ Characters</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {rules.upper ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <XCircle className="w-3.5 h-3.5 text-slate-400" />}
+                  <span className={rules.upper ? 'text-[#111827] font-semibold' : 'text-[#6B7280]'}>Uppercase Letter</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {rules.lower ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <XCircle className="w-3.5 h-3.5 text-slate-400" />}
+                  <span className={rules.lower ? 'text-[#111827] font-semibold' : 'text-[#6B7280]'}>Lowercase Letter</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {rules.number ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <XCircle className="w-3.5 h-3.5 text-slate-400" />}
+                  <span className={rules.number ? 'text-[#111827] font-semibold' : 'text-[#6B7280]'}>Contains Number</span>
+                </div>
+              </div>
+            </div>
           )}
+
+          {/* Confirm Password */}
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-[#111827] select-none">Confirm Password</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#9CA3AF]">
+                <Lock className="w-4.5 h-4.5" />
+              </div>
+              <input
+                type={showConfirmPass ? 'text' : 'password'}
+                disabled={loading}
+                placeholder="••••••••"
+                {...register('confirmPassword')}
+                className={`w-full pl-10 pr-10 h-12 bg-white border ${
+                  errors.confirmPassword ? 'border-rose-400 focus:ring-rose-500/20' : 'border-[#E5E7EB] focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]'
+                } rounded-xl text-xs font-medium text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none transition-all`}
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setShowConfirmPass(!showConfirmPass)}
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#9CA3AF] hover:text-[#111827] transition-colors"
+              >
+                {showConfirmPass ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+              </button>
+            </div>
+            {errors.confirmPassword?.message && (
+              <p className="text-[11px] font-medium text-rose-600 pl-1">{errors.confirmPassword.message}</p>
+            )}
+          </div>
+
+          {/* Terms Certification */}
+          <div className="space-y-1 pt-0.5 select-none">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                disabled={loading}
+                {...register('agree')}
+                className="w-4 h-4 mt-0.5 rounded border-[#E5E7EB] text-[#2563EB] focus:ring-[#2563EB]/20"
+              />
+              <span className="text-xs text-[#6B7280] leading-snug">
+                I agree to the Terms of Service & Privacy Policy.
+              </span>
+            </label>
+            {errors.agree?.message && (
+              <p className="text-[11px] font-medium text-rose-600 pl-1">{errors.agree.message}</p>
+            )}
+          </div>
+
+          {/* Submit Button */}
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            type="submit"
+            disabled={loading}
+            className="w-full h-[54px] bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer mt-1"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                <span>Creating Account...</span>
+              </>
+            ) : (
+              <>
+                <span>Register Account</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </motion.button>
+
+        </form>
+
+        {/* Existing account link */}
+        <div className="pt-2 border-t border-[#E5E7EB] text-center text-xs text-[#6B7280]">
+          Already have an account?{' '}
+          <Link to="/login" className="font-bold text-[#2563EB] hover:text-[#1D4ED8] transition-colors">
+            Sign in
+          </Link>
         </div>
 
-        {/* Certification Checkbox */}
-        <div className="flex flex-col gap-1 select-none mt-1">
-          <label className="flex items-start gap-2.5 text-xs text-slate-400 cursor-pointer group">
-            <input
-              type="checkbox"
-              className="mt-0.5 rounded border-slate-800 text-blue-600 focus:ring-blue-500 cursor-pointer transition-all bg-slate-950/40"
-              disabled={loading}
-              {...register('agree')}
-            />
-            <span className="group-hover:text-blue-400 transition-colors leading-relaxed">
-              I certify that I am an authorized representative of my organization.
-            </span>
-          </label>
-          {errors.agree?.message && (
-            <span className="text-[11px] font-semibold text-red-400 mt-1">{errors.agree.message}</span>
-          )}
-        </div>
+      </motion.div>
 
-        {/* Register Button */}
-        <EnterpriseButton
-          type="submit"
-          loading={loading}
-          className="w-full mt-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 border-none shadow-[0_4px_20px_rgba(37,99,235,0.25)] transition-all font-bold text-white text-sm"
-        >
-          Register Account
-        </EnterpriseButton>
-      </form>
-
-      {/* Switch modes */}
-      <div className="text-center text-xs select-none">
-        <span className="text-slate-500">Already registered?</span>
-        <Link
-          to="/login"
-          className="text-blue-400 font-bold hover:text-blue-300 transition-colors ml-1.5 hover:underline cursor-pointer"
-        >
-          Sign In
-        </Link>
-      </div>
-
-      {/* Security badge */}
-      <div className="pt-5 border-t border-slate-800/80 text-center flex flex-col items-center gap-2 select-none">
-        <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 uppercase tracking-widest bg-emerald-950/30 px-3 py-1 rounded-full border border-emerald-900/40">
-          <Shield className="w-3 h-3 text-emerald-400" />
-          <span>AES-256 Encrypted Portal</span>
-        </div>
-      </div>
     </div>
   )
 }

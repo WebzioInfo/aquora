@@ -9,7 +9,7 @@ namespace Aquora.Domain.Entities
         
         public string StartTime { get; set; }
         public string EndTime { get; set; }
-        
+        public string? Description { get; set; }
         public bool IsActive { get; set; } = true;
 
         // Multi-tenant mappings

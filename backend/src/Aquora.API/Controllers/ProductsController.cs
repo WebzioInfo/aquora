@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Aquora.Application.Interfaces;
 using Aquora.Application.DTOs.Products;
 using Aquora.Domain.Entities;
@@ -23,17 +24,20 @@ namespace Aquora.API.Controllers
         private readonly ICurrentUserContext _currentUserContext;
         private readonly IPlatformDbContext _platformContext;
         private readonly IInventoryMovementService _inventoryMovementService;
+        private readonly ILogger<ProductsController> _logger;
 
         public ProductsController(
             ITenantDbContext tenantContext, 
             ICurrentUserContext currentUserContext,
             IPlatformDbContext platformContext,
-            IInventoryMovementService inventoryMovementService)
+            IInventoryMovementService inventoryMovementService,
+            ILogger<ProductsController> logger)
         {
             _tenantContext = tenantContext;
             _currentUserContext = currentUserContext;
             _platformContext = platformContext;
             _inventoryMovementService = inventoryMovementService;
+            _logger = logger;
         }
 
         private bool IsAuthorizedToWrite()
@@ -88,9 +92,10 @@ namespace Aquora.API.Controllers
                 var pagedResult = new PagedResult<ProductDto>(items, totalCount, pageNumber, pageSize);
                 return Success(pagedResult, "Products retrieved successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<PagedResult<ProductDto>>("An internal error occurred.", "Failed to retrieve products.");
+                _logger.LogError(ex, "An error occurred in ProductsController.");
+                return Failure<PagedResult<ProductDto>>(ex.Message, "Failed to retrieve products.");
             }
         }
 
@@ -127,9 +132,10 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Product retrieved successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<ProductDto>("An internal error occurred.", "Failed to retrieve product.");
+                _logger.LogError(ex, "An error occurred in ProductsController.");
+                return Failure<ProductDto>(ex.Message, "Failed to retrieve product.");
             }
         }
 
@@ -168,7 +174,7 @@ namespace Aquora.API.Controllers
 
                 if (!string.IsNullOrWhiteSpace(request.SKU))
                 {
-                    var skuExists = await _tenantContext.Products.AnyAsync(p => p.SKU.ToLower() == request.SKU.Trim().ToLower() && !p.IsDeleted);
+                    var skuExists = await _tenantContext.Products.AnyAsync(p => p.SKU != null && p.SKU.ToLower() == request.SKU.Trim().ToLower() && !p.IsDeleted);
                     if (skuExists)
                     {
                         return BadRequest(ApiResponse<ProductDto>.CreateFailure("SKU must be unique.", "Validation Error", HttpContext.TraceIdentifier));
@@ -217,10 +223,29 @@ namespace Aquora.API.Controllers
                     await _tenantContext.SaveChangesAsync();
                     await transaction.CommitAsync();
                 }
-                catch (Exception)
+                catch (DbUpdateException ex)
                 {
                     await transaction.RollbackAsync();
-                    throw;
+                    var innerMessage = ex.InnerException?.Message ?? ex.Message;
+                    _logger.LogError(ex, "Database update error during product creation. TenantId: {TenantId}, UserId: {UserId}, Error: {Error}", _currentUserContext.TenantId, _currentUserContext.UserId, innerMessage);
+                    
+                    if (innerMessage.Contains("42703") || innerMessage.Contains("does not exist"))
+                    {
+                        return BadRequest(ApiResponse<ProductDto>.CreateFailure($"Database schema mismatch: {innerMessage}. Please contact support.", "Schema Error", HttpContext.TraceIdentifier));
+                    }
+                    if (innerMessage.Contains("23505")) // Unique constraint
+                    {
+                        return BadRequest(ApiResponse<ProductDto>.CreateFailure("A unique constraint violation occurred (e.g., duplicate SKU or Name).", "Validation Error", HttpContext.TraceIdentifier));
+                    }
+                    
+                    return BadRequest(ApiResponse<ProductDto>.CreateFailure($"Database error: {innerMessage}", "Database Error", HttpContext.TraceIdentifier));
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    var innerMessage = ex.InnerException?.Message ?? ex.Message;
+                    _logger.LogError(ex, "Transaction error in ProductsController CreateProduct. TenantId: {TenantId}, UserId: {UserId}, DTO: {@Request}", _currentUserContext.TenantId, _currentUserContext.UserId, request);
+                    return BadRequest(ApiResponse<ProductDto>.CreateFailure($"Transaction failed: {innerMessage}", "Transaction Error", HttpContext.TraceIdentifier));
                 }
 
                 var dto = new ProductDto
@@ -242,9 +267,11 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Product created successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<ProductDto>("An internal error occurred.", "Failed to create product.");
+                var innerMessage = ex.InnerException?.Message ?? ex.Message;
+                _logger.LogError(ex, "An unexpected error occurred in ProductsController CreateProduct. TenantId: {TenantId}, UserId: {UserId}, DTO: {@Request}", _currentUserContext.TenantId, _currentUserContext.UserId, request);
+                return BadRequest(ApiResponse<ProductDto>.CreateFailure($"An unexpected error occurred: {innerMessage}", "System Error", HttpContext.TraceIdentifier));
             }
         }
 
@@ -289,7 +316,7 @@ namespace Aquora.API.Controllers
 
                 if (!string.IsNullOrWhiteSpace(request.SKU))
                 {
-                    var skuExists = await _tenantContext.Products.AnyAsync(p => p.Id != id && p.SKU.ToLower() == request.SKU.Trim().ToLower() && !p.IsDeleted);
+                    var skuExists = await _tenantContext.Products.AnyAsync(p => p.Id != id && p.SKU != null && p.SKU.ToLower() == request.SKU.Trim().ToLower() && !p.IsDeleted);
                     if (skuExists)
                     {
                         return BadRequest(ApiResponse<ProductDto>.CreateFailure("SKU must be unique.", "Validation Error", HttpContext.TraceIdentifier));
@@ -332,10 +359,29 @@ namespace Aquora.API.Controllers
                     await _tenantContext.SaveChangesAsync();
                     await transaction.CommitAsync();
                 }
-                catch (Exception)
+                catch (DbUpdateException ex)
                 {
                     await transaction.RollbackAsync();
-                    throw;
+                    var innerMessage = ex.InnerException?.Message ?? ex.Message;
+                    _logger.LogError(ex, "Database update error during product update. TenantId: {TenantId}, ProductId: {ProductId}, Error: {Error}", _currentUserContext.TenantId, id, innerMessage);
+                    
+                    if (innerMessage.Contains("42703") || innerMessage.Contains("does not exist"))
+                    {
+                        return BadRequest(ApiResponse<ProductDto>.CreateFailure($"Database schema mismatch: {innerMessage}. Please contact support.", "Schema Error", HttpContext.TraceIdentifier));
+                    }
+                    if (innerMessage.Contains("23505")) // Unique constraint
+                    {
+                        return BadRequest(ApiResponse<ProductDto>.CreateFailure("A unique constraint violation occurred (e.g., duplicate SKU or Name).", "Validation Error", HttpContext.TraceIdentifier));
+                    }
+                    
+                    return BadRequest(ApiResponse<ProductDto>.CreateFailure($"Database error: {innerMessage}", "Database Error", HttpContext.TraceIdentifier));
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    var innerMessage = ex.InnerException?.Message ?? ex.Message;
+                    _logger.LogError(ex, "Transaction error in ProductsController UpdateProduct. TenantId: {TenantId}, ProductId: {ProductId}", _currentUserContext.TenantId, id);
+                    return BadRequest(ApiResponse<ProductDto>.CreateFailure($"Transaction failed: {innerMessage}", "Transaction Error", HttpContext.TraceIdentifier));
                 }
 
                 var dto = new ProductDto
@@ -357,9 +403,11 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Product updated successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<ProductDto>("An internal error occurred.", "Failed to update product.");
+                var innerMessage = ex.InnerException?.Message ?? ex.Message;
+                _logger.LogError(ex, "An unexpected error occurred in ProductsController UpdateProduct. TenantId: {TenantId}, ProductId: {ProductId}", _currentUserContext.TenantId, id);
+                return BadRequest(ApiResponse<ProductDto>.CreateFailure($"An unexpected error occurred: {innerMessage}", "System Error", HttpContext.TraceIdentifier));
             }
         }
 
@@ -384,9 +432,10 @@ namespace Aquora.API.Controllers
 
                 return Success(true, "Product deleted successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<bool>("An internal error occurred.", "Failed to delete product.");
+                _logger.LogError(ex, "An error occurred in ProductsController.");
+                return Failure<bool>(ex.Message, "Failed to delete product.");
             }
         }
 
@@ -407,9 +456,10 @@ namespace Aquora.API.Controllers
 
                 return Success(brands, "Brands loaded successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<List<BrandDto>>("An internal error occurred.", "Failed to load brands.");
+                _logger.LogError(ex, "An error occurred in ProductsController.");
+                return Failure<List<BrandDto>>(ex.Message, "Failed to load brands.");
             }
         }
 
@@ -497,9 +547,13 @@ namespace Aquora.API.Controllers
                     }
                     else if (Guid.TryParse(m.CreatedBy, out var userGuid))
                     {
-                        if (!usersMap.TryGetValue(userGuid, out opName))
+                        if (!usersMap.TryGetValue(userGuid, out string? mappedName) || mappedName == null)
                         {
                             opName = "Unknown User";
+                        }
+                        else
+                        {
+                            opName = mappedName;
                         }
                     }
                     else
@@ -523,9 +577,10 @@ namespace Aquora.API.Controllers
                 var result = new PagedResult<InventoryMovementDto>(pagedDto, totalCount, pageNumber, pageSize);
                 return Success(result, "Product movements retrieved successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<PagedResult<InventoryMovementDto>>("An internal error occurred.", "Failed to retrieve product movements.");
+                _logger.LogError(ex, "An error occurred in ProductsController.");
+                return Failure<PagedResult<InventoryMovementDto>>(ex.Message, "Failed to retrieve product movements.");
             }
         }
     }

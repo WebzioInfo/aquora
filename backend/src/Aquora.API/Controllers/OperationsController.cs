@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -481,7 +481,7 @@ namespace Aquora.API.Controllers
             }
 
             await _tenantContext.SaveChangesAsync(default);
-            return Success<object>(null, "Reservations claimed successfully");
+            return Success<object?>(null, "Reservations claimed successfully");
         }
 
         [HttpGet("dashboard-extended")]

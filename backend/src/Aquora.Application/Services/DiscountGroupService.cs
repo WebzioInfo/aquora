@@ -23,7 +23,6 @@ namespace Aquora.Application.Services
         public async Task<IEnumerable<DiscountGroup>> GetAllDiscountGroupsAsync()
         {
             return await _context.DiscountGroups
-                .Where(x => !x.IsDeleted)
                 .OrderBy(x => x.Code)
                 .ToListAsync();
         }
@@ -31,7 +30,7 @@ namespace Aquora.Application.Services
         public async Task<DiscountGroup?> GetDiscountGroupByIdAsync(Guid id)
         {
             return await _context.DiscountGroups
-                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+                .FirstOrDefaultAsync(x => x.Id == id);
         }
 
         public async Task<DiscountGroup> CreateDiscountGroupAsync(DiscountGroup discountGroup)
@@ -49,7 +48,7 @@ namespace Aquora.Application.Services
         public async Task<DiscountGroup> UpdateDiscountGroupAsync(Guid id, DiscountGroup discountGroup)
         {
             var existing = await _context.DiscountGroups
-                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+                .FirstOrDefaultAsync(x => x.Id == id);
 
             if (existing == null)
                 throw new KeyNotFoundException("Discount group not found.");
@@ -65,11 +64,11 @@ namespace Aquora.Application.Services
         public async Task DeleteDiscountGroupAsync(Guid id)
         {
             var existing = await _context.DiscountGroups
-                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+                .FirstOrDefaultAsync(x => x.Id == id);
 
             if (existing != null)
             {
-                existing.IsDeleted = true;
+                _context.DiscountGroups.Remove(existing);
                 await _context.SaveChangesAsync();
             }
         }

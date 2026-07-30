@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -182,9 +182,9 @@ namespace Aquora.API.Controllers
                 var pagedResult = new PagedResult<CustomerDto>(items, totalCount, pageNumber, pageSize);
                 return Success(pagedResult, "Customers retrieved successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<PagedResult<CustomerDto>>("An internal error occurred.", "Failed to retrieve customers.");
+                return Failure<PagedResult<CustomerDto>>(ex.Message, "Failed to retrieve customers.");
             }
         }
 
@@ -277,9 +277,9 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Customer details retrieved successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<CustomerDto>("An internal error occurred.", "Failed to retrieve customer.");
+                return Failure<CustomerDto>(ex.Message, "Failed to retrieve customer.");
             }
         }
 
@@ -390,11 +390,11 @@ namespace Aquora.API.Controllers
                     GSTState = isB2B ? request.GSTState?.Trim() : null,
                     AddressLine1 = request.AddressLine1.Trim(),
                     AddressLine2 = request.AddressLine2?.Trim(),
-                    City = request.City.Trim(),
-                    District = request.District.Trim(),
-                    State = request.State.Trim(),
-                    Country = request.Country.Trim(),
-                    PinCode = request.PinCode.Trim(),
+                    City = request.City?.Trim() ?? "",
+                    District = request.District?.Trim() ?? "",
+                    State = request.State?.Trim() ?? "",
+                    Country = request.Country?.Trim() ?? "",
+                    PinCode = request.PinCode?.Trim() ?? "",
                     OpeningBalance = request.OpeningBalance,
                     BalanceType = request.BalanceType.Trim(),
                     CreditLimit = request.CreditLimit,
@@ -524,7 +524,7 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                var fullErrorMessage = "An internal error occurred.";
+                var fullErrorMessage = ex.Message;
                 if (ex.InnerException != null)
                 {
                     fullErrorMessage += $" (Inner Exception: {ex.InnerException.Message})";
@@ -619,11 +619,11 @@ namespace Aquora.API.Controllers
                 customer.GSTState = isB2B ? request.GSTState?.Trim() : null;
                 customer.AddressLine1 = request.AddressLine1.Trim();
                 customer.AddressLine2 = request.AddressLine2?.Trim();
-                customer.City = request.City.Trim();
-                customer.District = request.District.Trim();
-                customer.State = request.State.Trim();
-                customer.Country = request.Country.Trim();
-                customer.PinCode = request.PinCode.Trim();
+                customer.City = request.City?.Trim() ?? "";
+                customer.District = request.District?.Trim() ?? "";
+                customer.State = request.State?.Trim() ?? "";
+                customer.Country = request.Country?.Trim() ?? "";
+                customer.PinCode = request.PinCode?.Trim() ?? "";
                 customer.OpeningBalance = request.OpeningBalance;
                 customer.BalanceType = request.BalanceType.Trim();
                 customer.CreditLimit = request.CreditLimit;
@@ -751,9 +751,9 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Customer updated successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<CustomerDto>("An internal error occurred.", "Failed to update customer.");
+                return Failure<CustomerDto>(ex.Message, "Failed to update customer.");
             }
         }
 
@@ -780,9 +780,9 @@ namespace Aquora.API.Controllers
 
                 return Success(true, "Customer deleted successfully (soft deleted).");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<bool>("An internal error occurred.", "Failed to delete customer.");
+                return Failure<bool>(ex.Message, "Failed to delete customer.");
             }
         }
     }

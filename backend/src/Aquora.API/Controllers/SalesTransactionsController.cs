@@ -155,9 +155,9 @@ namespace Aquora.API.Controllers
                 var pagedResult = new PagedResult<SalesTransactionDto>(dtos, totalCount, pageNumber, pageSize);
                 return Success(pagedResult, "Sales transactions retrieved successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<PagedResult<SalesTransactionDto>>("An internal error occurred.", "Failed to retrieve sales transactions.");
+                return Failure<PagedResult<SalesTransactionDto>>(ex.Message, "Failed to retrieve sales transactions.");
             }
         }
 
@@ -211,9 +211,9 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Sales transaction retrieved successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<SalesTransactionDto>("An internal error occurred.", "Failed to retrieve sales transaction.");
+                return Failure<SalesTransactionDto>(ex.Message, "Failed to retrieve sales transaction.");
             }
         }
 
@@ -330,7 +330,7 @@ namespace Aquora.API.Controllers
                             
                             if (accountsReceivable != null && salesRevenue != null)
                             {
-                                var totalAmount = request.Cases * product.SellingPrice; // Dynamic Revenue
+                                var totalAmount = request.Cases * 0.0m; // Stubbed Revenue - proper pricing engine will handle this
                                 await financeService.CreateJournalEntryAsync(new CreateJournalEntryRequest
                                 {
                                     TransactionDate = transaction.TransactionDate,
@@ -381,10 +381,10 @@ namespace Aquora.API.Controllers
                 await dbTransaction.RollbackAsync();
                 return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure(ex.Message, "Validation Error", HttpContext.TraceIdentifier));
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 await dbTransaction.RollbackAsync();
-                return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("An internal error occurred.", "Transaction Failed", HttpContext.TraceIdentifier));
+                return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure(ex.Message, "Transaction Failed", HttpContext.TraceIdentifier));
             }
         }
 
@@ -537,10 +537,10 @@ namespace Aquora.API.Controllers
                 await dbTransaction.RollbackAsync();
                 return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure(ex.Message, "Validation Error", HttpContext.TraceIdentifier));
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 await dbTransaction.RollbackAsync();
-                return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("An internal error occurred.", "Transaction Failed", HttpContext.TraceIdentifier));
+                return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure(ex.Message, "Transaction Failed", HttpContext.TraceIdentifier));
             }
         }
 
@@ -604,12 +604,12 @@ namespace Aquora.API.Controllers
 
                 await dbTransaction.CommitAsync();
 
-                return Success<object>(null, "Sales transaction deleted and stock restored successfully.");
+                return Success<object?>(null, "Sales transaction deleted and stock restored successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 await dbTransaction.RollbackAsync();
-                return BadRequest(ApiResponse<object>.CreateFailure("An internal error occurred.", "Transaction Failed", HttpContext.TraceIdentifier));
+                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Transaction Failed", HttpContext.TraceIdentifier));
             }
         }
 
@@ -658,9 +658,9 @@ namespace Aquora.API.Controllers
 
                 return Success(dashboard, "Sales dashboard loaded successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<SalesDashboardDto>("An internal error occurred.", "Failed to load sales dashboard.");
+                return Failure<SalesDashboardDto>(ex.Message, "Failed to load sales dashboard.");
             }
         }
     }

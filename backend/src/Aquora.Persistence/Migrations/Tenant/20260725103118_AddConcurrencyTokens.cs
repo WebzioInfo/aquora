@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -12,7 +12,7 @@ namespace Aquora.Persistence.Migrations.Tenant
         {
             migrationBuilder.AddColumn<byte[]>(
                 name: "RowVersion",
-                schema: "public",
+                
                 table: "RawMaterials",
                 type: "bytea",
                 rowVersion: true,
@@ -21,7 +21,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<byte[]>(
                 name: "RowVersion",
-                schema: "public",
+                
                 table: "Products",
                 type: "bytea",
                 rowVersion: true,
@@ -34,12 +34,12 @@ namespace Aquora.Persistence.Migrations.Tenant
         {
             migrationBuilder.DropColumn(
                 name: "RowVersion",
-                schema: "public",
+                
                 table: "RawMaterials");
 
             migrationBuilder.DropColumn(
                 name: "RowVersion",
-                schema: "public",
+                
                 table: "Products");
         }
     }

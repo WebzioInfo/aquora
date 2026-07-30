@@ -1,15 +1,14 @@
 import React, { useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { 
-  Plus, Search, Filter, RefreshCw, Eye, Edit3, Trash2, MoreVertical, 
-  Download, Upload, ChevronLeft, ChevronRight, ShieldAlert, Building, Users 
+  Plus, Search, RefreshCw, Eye, Edit3, Trash2, MoreVertical, 
+  Download, ChevronLeft, ChevronRight, Building, Users 
 } from 'lucide-react'
 import { api } from '../../services/api'
 import EnterpriseHeader from '../../components/ui/EnterpriseHeader'
 import EnterpriseCard from '../../components/ui/EnterpriseCard'
 import EnterpriseBadge from '../../components/ui/EnterpriseBadge'
-import EnterpriseInput from '../../components/ui/EnterpriseInput'
 import EnterpriseButton from '../../components/ui/EnterpriseButton'
 
 import TenantDetailsDrawer from '../../components/platform/TenantDetailsDrawer'
@@ -30,9 +29,6 @@ export const PlatformManagementPage: React.FC = () => {
   const isTenants = path.includes('/tenants') || path === '/platform' || path === '/platform/'
   const isUsers = path.includes('/users')
   const isSubscriptions = path.includes('/subscriptions')
-  const isHealth = path.includes('/system-health')
-  const isDatabase = path.includes('/database')
-  const isAudit = path.includes('/audit')
 
   // TENANT QUERY STATE
   const [tenantSearch, setTenantSearch] = useState('')
@@ -85,15 +81,13 @@ export const PlatformManagementPage: React.FC = () => {
         }
       })
       
-      console.log('Raw tenant API response:', res.data);
+      const d = res.data
+      if (d?.data?.items) return d.data
+      if (d?.items) return d
+      if (Array.isArray(d?.data)) return { items: d.data, totalCount: d.data.length, totalPages: 1 }
+      if (Array.isArray(d)) return { items: d, totalCount: d.length, totalPages: 1 }
       
-      const d = res.data;
-      if (d?.data?.items) return d.data;
-      if (d?.items) return d;
-      if (Array.isArray(d?.data)) return { items: d.data, totalCount: d.data.length, totalPages: 1 };
-      if (Array.isArray(d)) return { items: d, totalCount: d.length, totalPages: 1 };
-      
-      return d?.data || { items: [], totalCount: 0, totalPages: 0 };
+      return d?.data || { items: [], totalCount: 0, totalPages: 0 }
     },
     enabled: isTenants
   })
@@ -113,15 +107,13 @@ export const PlatformManagementPage: React.FC = () => {
         }
       })
       
-      console.log('Raw user API response:', res.data);
+      const d = res.data
+      if (d?.data?.items) return d.data
+      if (d?.items) return d
+      if (Array.isArray(d?.data)) return { items: d.data, totalCount: d.data.length, totalPages: 1 }
+      if (Array.isArray(d)) return { items: d, totalCount: d.length, totalPages: 1 }
       
-      const d = res.data;
-      if (d?.data?.items) return d.data;
-      if (d?.items) return d;
-      if (Array.isArray(d?.data)) return { items: d.data, totalCount: d.data.length, totalPages: 1 };
-      if (Array.isArray(d)) return { items: d, totalCount: d.length, totalPages: 1 };
-      
-      return d?.data || { items: [], totalCount: 0, totalPages: 0 };
+      return d?.data || { items: [], totalCount: 0, totalPages: 0 }
     },
     enabled: isUsers
   })
@@ -137,19 +129,13 @@ export const PlatformManagementPage: React.FC = () => {
   }
 
   const handleDeleteTenant = async (reason: string) => {
-    if (!deletingTenant) {
-      console.error('[DELETE ERROR] No tenant selected for deletion.')
-      return
-    }
-    console.log('[DELETE START] Requesting delete for Tenant ID:', deletingTenant.id, 'with reason:', reason)
+    if (!deletingTenant) return
     try {
-      const res = await api.delete(`/api/v1/platform/tenants/${deletingTenant.id}`, {
+      await api.delete(`/api/v1/platform/tenants/${deletingTenant.id}`, {
         params: { reason }
       })
-      console.log('[DELETE RESPONSE SUCCESS]:', res.data)
       queryClient.invalidateQueries({ queryKey: ['platformTenants'] })
     } catch (err: any) {
-      console.error('[DELETE RESPONSE ERROR]:', err?.response || err)
       throw err
     }
   }
@@ -242,8 +228,8 @@ export const PlatformManagementPage: React.FC = () => {
     const totalPages = tenantsResult?.totalPages || (Math.ceil(totalCount / tenantPageSize) || 1)
 
     return (
-      <div className="flex flex-col gap-6 select-none">
-        {/* Header */}
+      <div className="flex flex-col gap-6 select-none bg-[#F8FAFC] min-h-screen -m-6 p-6">
+        {/* Light Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <EnterpriseHeader 
             title="Tenant Registry Console" 
@@ -252,7 +238,7 @@ export const PlatformManagementPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setImportExportModal({ isOpen: true, type: 'tenant' })}
-              className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2"
+              className="px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-xs"
             >
               <Download className="w-4 h-4 text-blue-600" /> Export / Import
             </button>
@@ -263,22 +249,22 @@ export const PlatformManagementPage: React.FC = () => {
         </div>
 
         {/* Filter & Search Bar */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xs flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1 min-w-[280px]">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+              <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Global search by tenant name, schema, subdomain, owner email..."
+                placeholder="Search by tenant name, schema, subdomain, owner email..."
                 value={tenantSearch}
                 onChange={(e) => { setTenantSearch(e.target.value); setTenantPage(1); }}
-                className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:ring-2 focus:ring-blue-600 text-slate-900 dark:text-white"
+                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-900 placeholder:text-slate-400"
               />
             </div>
             <select
               value={tenantStatus}
               onChange={(e) => { setTenantStatus(e.target.value); setTenantPage(1); }}
-              className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300"
+              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
             >
               <option value="">All Statuses</option>
               <option value="Active">Active</option>
@@ -287,7 +273,7 @@ export const PlatformManagementPage: React.FC = () => {
             <select
               value={tenantPlan}
               onChange={(e) => { setTenantPlan(e.target.value); setTenantPage(1); }}
-              className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300"
+              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
             >
               <option value="">All Plans</option>
               <option value="Starter">Starter Tier</option>
@@ -299,7 +285,7 @@ export const PlatformManagementPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => refetchTenants()}
-              className="p-2 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
+              className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-600 transition-colors"
               title="Refresh Grid"
             >
               <RefreshCw className="w-4 h-4" />
@@ -317,7 +303,7 @@ export const PlatformManagementPage: React.FC = () => {
             <div className="overflow-x-auto w-full">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="h-[48px] border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-semibold bg-slate-50 dark:bg-slate-950">
+                  <tr className="h-[48px] border-b border-slate-200 text-slate-600 font-semibold bg-slate-50/80">
                     <th className="py-3 px-4">Tenant & Subdomain</th>
                     <th className="py-3 px-4">PostgreSQL Schema</th>
                     <th className="py-3 px-4">Owner Contact</th>
@@ -327,34 +313,34 @@ export const PlatformManagementPage: React.FC = () => {
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody className="divide-y divide-slate-100">
                   {tenantsList.map((t: any) => (
-                    <tr key={t.id} className="h-[52px] hover:bg-slate-50/80 dark:hover:bg-slate-950/60 transition-colors">
+                    <tr key={t.id} className="h-[52px] hover:bg-slate-50/80 transition-colors">
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-blue-600/10 text-blue-600 font-bold flex items-center justify-center text-sm">
-                            {t.name.charAt(0)}
+                          <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 font-bold flex items-center justify-center text-xs">
+                            {t.name ? t.name.charAt(0).toUpperCase() : 'T'}
                           </div>
                           <div>
-                            <span className="font-bold text-slate-900 dark:text-white block">{t.name}</span>
+                            <span className="font-bold text-slate-900 block">{t.name}</span>
                             <span className="text-slate-400 font-mono text-[11px]">{t.subdomain}.aquora.com</span>
                           </div>
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <span className="font-mono text-slate-700 dark:text-slate-300 font-medium px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded">
+                        <span className="font-mono text-slate-700 font-medium px-2 py-0.5 bg-slate-100 border border-slate-200/60 rounded">
                           {t.schemaName}
                         </span>
                       </td>
                       <td className="py-3 px-4">
                         <div>
-                          <span className="font-medium text-slate-900 dark:text-white block">{t.ownerName || 'Not Available'}</span>
+                          <span className="font-medium text-slate-900 block">{t.ownerName || 'Not Available'}</span>
                           <span className="text-slate-400 text-[11px]">{t.ownerEmail || 'Not Available'}</span>
                         </div>
                       </td>
                       <td className="py-3 px-4">
                         <EnterpriseBadge variant={t.subscriptionPlan === 'Enterprise' ? 'purple' : t.subscriptionPlan === 'Professional' ? 'primary' : 'secondary'}>
-                          {t.subscriptionPlan || 'Not Available'}
+                          {t.subscriptionPlan || 'Starter'}
                         </EnterpriseBadge>
                       </td>
                       <td className="py-3 px-4">
@@ -362,7 +348,7 @@ export const PlatformManagementPage: React.FC = () => {
                           {t.status || (t.isActive ? 'Active' : 'Inactive')}
                         </EnterpriseBadge>
                       </td>
-                      <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
+                      <td className="py-3 px-4 font-semibold text-slate-700">
                         {t.activeUsersCount !== undefined && t.activeUsersCount !== null ? `${t.activeUsersCount} Users` : 'Not Available'}
                       </td>
 
@@ -372,21 +358,21 @@ export const PlatformManagementPage: React.FC = () => {
                           <button
                             onClick={() => setActiveTenantDetails(t)}
                             className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="View Full Details"
+                            title="View Details"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => { setEditingTenant(t); setIsTenantModalOpen(true); }}
                             className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                            title="Edit Tenant Configuration"
+                            title="Edit Tenant"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => setDeletingTenant(t)}
                             className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                            title="Hard Delete Tenant Schema"
+                            title="Delete Tenant"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -401,16 +387,16 @@ export const PlatformManagementPage: React.FC = () => {
                             <MoreVertical className="w-4 h-4" />
                           </button>
                           {mobileMenuRowId === t.id && (
-                            <div className="absolute right-0 mt-1 w-36 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-20 p-1 text-left text-xs">
+                            <div className="absolute right-0 mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-xl z-20 p-1 text-left text-xs">
                               <button
                                 onClick={() => { setActiveTenantDetails(t); setMobileMenuRowId(null); }}
-                                className="w-full px-3 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg flex items-center gap-2"
+                                className="w-full px-3 py-2 text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-2"
                               >
-                                <Eye className="w-3.5 h-3.5 text-blue-600" /> View Details
+                                <Eye className="w-3.5 h-3.5 text-blue-600" /> Details
                               </button>
                               <button
                                 onClick={() => { setEditingTenant(t); setIsTenantModalOpen(true); setMobileMenuRowId(null); }}
-                                className="w-full px-3 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg flex items-center gap-2"
+                                className="w-full px-3 py-2 text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-2"
                               >
                                 <Edit3 className="w-3.5 h-3.5 text-amber-600" /> Edit
                               </button>
@@ -436,20 +422,20 @@ export const PlatformManagementPage: React.FC = () => {
           )}
 
           {/* Server-Side Pagination Bar */}
-          <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500">
+          <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500">
             <span>Showing page <strong>{tenantPage}</strong> of <strong>{totalPages}</strong> ({totalCount} total tenants)</span>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setTenantPage(p => Math.max(1, p - 1))}
                 disabled={tenantPage === 1}
-                className="px-3 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg disabled:opacity-40 hover:bg-slate-100 flex items-center gap-1"
+                className="px-3 py-1.5 border border-slate-200 bg-white rounded-xl disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1 shadow-xs"
               >
                 <ChevronLeft className="w-4 h-4" /> Previous
               </button>
               <button
                 onClick={() => setTenantPage(p => Math.min(totalPages, p + 1))}
                 disabled={tenantPage >= totalPages}
-                className="px-3 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg disabled:opacity-40 hover:bg-slate-100 flex items-center gap-1"
+                className="px-3 py-1.5 border border-slate-200 bg-white rounded-xl disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1 shadow-xs"
               >
                 Next <ChevronRight className="w-4 h-4" />
               </button>
@@ -514,7 +500,7 @@ export const PlatformManagementPage: React.FC = () => {
     }
 
     return (
-      <div className="flex flex-col gap-6 select-none">
+      <div className="flex flex-col gap-6 select-none bg-[#F8FAFC] min-h-screen -m-6 p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <EnterpriseHeader 
@@ -524,7 +510,7 @@ export const PlatformManagementPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setImportExportModal({ isOpen: true, type: 'user' })}
-              className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2"
+              className="px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-xs"
             >
               <Download className="w-4 h-4 text-blue-600" /> Export / Import
             </button>
@@ -542,22 +528,22 @@ export const PlatformManagementPage: React.FC = () => {
         />
 
         {/* Search & Filters Bar */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xs flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1 min-w-[280px]">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+              <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Global search by user name, email, phone, role, department..."
+                placeholder="Search by user name, email, phone, role, department..."
                 value={userSearch}
                 onChange={(e) => { setUserSearch(e.target.value); setUserPage(1); }}
-                className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:ring-2 focus:ring-blue-600 text-slate-900 dark:text-white"
+                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-900 placeholder:text-slate-400"
               />
             </div>
             <select
               value={userRole}
               onChange={(e) => { setUserRole(e.target.value); setUserPage(1); }}
-              className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300"
+              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
             >
               <option value="">All Roles</option>
               <option value="SuperAdmin">SuperAdmin</option>
@@ -570,7 +556,7 @@ export const PlatformManagementPage: React.FC = () => {
             <select
               value={userStatus}
               onChange={(e) => { setUserStatus(e.target.value); setUserPage(1); }}
-              className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300"
+              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
             >
               <option value="">All Statuses</option>
               <option value="Active">Active</option>
@@ -580,7 +566,8 @@ export const PlatformManagementPage: React.FC = () => {
 
           <button
             onClick={() => refetchUsers()}
-            className="p-2 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors"
+            className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-600 transition-colors"
+            title="Refresh User List"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -596,7 +583,7 @@ export const PlatformManagementPage: React.FC = () => {
             <div className="overflow-x-auto w-full">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="h-[48px] border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-semibold bg-slate-50 dark:bg-slate-950">
+                  <tr className="h-[48px] border-b border-slate-200 text-slate-600 font-semibold bg-slate-50/80">
                     <th className="py-3 px-4 w-10">
                       <input
                         type="checkbox"
@@ -614,9 +601,9 @@ export const PlatformManagementPage: React.FC = () => {
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody className="divide-y divide-slate-100">
                   {usersList.map((u: any) => (
-                    <tr key={u.id} className="h-[52px] hover:bg-slate-50/80 dark:hover:bg-slate-950/60 transition-colors">
+                    <tr key={u.id} className="h-[52px] hover:bg-slate-50/80 transition-colors">
                       <td className="py-3 px-4">
                         <input
                           type="checkbox"
@@ -627,19 +614,19 @@ export const PlatformManagementPage: React.FC = () => {
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-blue-600/10 text-blue-600 font-bold flex items-center justify-center text-xs">
-                            {(u.firstName || u.name || 'U').charAt(0)}
+                          <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100 text-blue-600 font-bold flex items-center justify-center text-xs">
+                            {(u.firstName || u.name || 'U').charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <span className="font-bold text-slate-900 dark:text-white block">{u.name || u.email}</span>
+                            <span className="font-bold text-slate-900 block">{u.name || u.email}</span>
                             <span className="text-slate-400 text-[11px] font-mono">@{u.username || 'user'}</span>
                           </div>
                         </div>
                       </td>
                       <td className="py-3 px-4">
                         <div>
-                          <span className="text-slate-900 dark:text-white font-medium block">{u.email}</span>
-                          <span className="text-slate-400 text-[11px]">{u.phone || '+1 (555) 010-0921'}</span>
+                          <span className="text-slate-900 font-medium block">{u.email}</span>
+                          {u.phone && <span className="text-slate-400 text-[11px]">{u.phone}</span>}
                         </div>
                       </td>
                       <td className="py-3 px-4">
@@ -647,7 +634,7 @@ export const PlatformManagementPage: React.FC = () => {
                           {u.roleName || 'Standard'}
                         </EnterpriseBadge>
                       </td>
-                      <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
+                      <td className="py-3 px-4 font-semibold text-slate-700">
                         {u.department || 'Operations'}
                       </td>
                       <td className="py-3 px-4">
@@ -655,7 +642,7 @@ export const PlatformManagementPage: React.FC = () => {
                           {u.status || (u.isActive ? 'Active' : 'Inactive')}
                         </EnterpriseBadge>
                       </td>
-                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400 font-medium">
+                      <td className="py-3 px-4 text-slate-600 font-medium">
                         {u.tenantName || 'Global Platform'}
                       </td>
                       <td className="py-3 px-4 text-right">
@@ -663,7 +650,7 @@ export const PlatformManagementPage: React.FC = () => {
                           <button
                             onClick={() => setActiveUserDetails(u)}
                             className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="View Full Profile"
+                            title="View Profile"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
@@ -677,7 +664,7 @@ export const PlatformManagementPage: React.FC = () => {
                           <button
                             onClick={() => setDeletingUser(u)}
                             className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                            title="Delete User Account"
+                            title="Delete User"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -695,20 +682,20 @@ export const PlatformManagementPage: React.FC = () => {
           )}
 
           {/* Pagination */}
-          <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500">
+          <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500">
             <span>Showing page <strong>{userPage}</strong> of <strong>{totalPages}</strong> ({totalCount} total users)</span>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setUserPage(p => Math.max(1, p - 1))}
                 disabled={userPage === 1}
-                className="px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-100 flex items-center gap-1"
+                className="px-3 py-1.5 border border-slate-200 bg-white rounded-xl disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1 shadow-xs"
               >
                 <ChevronLeft className="w-4 h-4" /> Previous
               </button>
               <button
                 onClick={() => setUserPage(p => Math.min(totalPages, p + 1))}
                 disabled={userPage >= totalPages}
-                className="px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-100 flex items-center gap-1"
+                className="px-3 py-1.5 border border-slate-200 bg-white rounded-xl disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1 shadow-xs"
               >
                 Next <ChevronRight className="w-4 h-4" />
               </button>
@@ -754,24 +741,24 @@ export const PlatformManagementPage: React.FC = () => {
   // OTHER PLATFORM TABS
   if (isSubscriptions) {
     return (
-      <div className="flex flex-col gap-6 select-none">
+      <div className="flex flex-col gap-6 select-none bg-[#F8FAFC] min-h-screen -m-6 p-6">
         <EnterpriseHeader title="Subscription Tiers" description="Manage plans, resource limits, and production line quotas." />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white border border-[#E5E9F2] p-6 rounded-[12px] shadow-xs flex flex-col gap-4">
-            <span className="text-xs font-semibold text-[#667085] uppercase tracking-wider block">Starter Tier</span>
-            <span className="text-[28px] font-bold text-[#101828] block">$199 / mo</span>
-            <p className="text-sm text-[#667085] leading-relaxed">Up to 3 production lines, 10 active machines, and basic telemetry reports.</p>
+          <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs flex flex-col gap-4">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Starter Tier</span>
+            <span className="text-[28px] font-bold text-slate-900 block">$199 / mo</span>
+            <p className="text-sm text-slate-500 leading-relaxed">Up to 3 production lines, 10 active machines, and basic telemetry reports.</p>
           </div>
-          <div className="bg-white border-2 border-[#1A56DB] p-6 rounded-[12px] shadow-xs flex flex-col gap-4 relative">
-            <span className="absolute top-3 right-3 text-[10px] font-bold text-[#1A56DB] bg-[#EFF4FF] px-2 py-0.5 rounded-full uppercase">Popular</span>
-            <span className="text-xs font-semibold text-[#1A56DB] uppercase tracking-wider block">Professional Tier</span>
-            <span className="text-[28px] font-bold text-[#101828] block">$499 / mo</span>
-            <p className="text-sm text-[#667085] leading-relaxed">Up to 10 production lines, 50 machines, custom domains, and automated checklists.</p>
+          <div className="bg-white border-2 border-blue-600 p-6 rounded-2xl shadow-xs flex flex-col gap-4 relative">
+            <span className="absolute top-3 right-3 text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-0.5 rounded-full uppercase">Popular</span>
+            <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider block">Professional Tier</span>
+            <span className="text-[28px] font-bold text-slate-900 block">$499 / mo</span>
+            <p className="text-sm text-slate-500 leading-relaxed">Up to 10 production lines, 50 machines, custom domains, and automated checklists.</p>
           </div>
-          <div className="bg-white border border-[#E5E9F2] p-6 rounded-[12px] shadow-xs flex flex-col gap-4">
-            <span className="text-xs font-semibold text-[#667085] uppercase tracking-wider block">Enterprise Tier</span>
-            <span className="text-[28px] font-bold text-[#101828] block">Custom Pricing</span>
-            <p className="text-sm text-[#667085] leading-relaxed">Unlimited resources, dedicated DB cluster support, and 24/7 priority SLA.</p>
+          <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs flex flex-col gap-4">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Enterprise Tier</span>
+            <span className="text-[28px] font-bold text-slate-900 block">Custom Pricing</span>
+            <p className="text-sm text-slate-500 leading-relaxed">Unlimited resources, dedicated DB cluster support, and 24/7 priority SLA.</p>
           </div>
         </div>
       </div>
@@ -779,7 +766,7 @@ export const PlatformManagementPage: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6 select-none">
+    <div className="flex flex-col gap-6 select-none bg-[#F8FAFC] min-h-screen -m-6 p-6">
       <EnterpriseHeader title="System Telemetry & Settings" description="Global SaaS platform preferences and APIs." />
       <EnterpriseCard title="Platform Settings">
         <p className="text-sm text-slate-500">Select Tenant Console or User Directory from the navigation tree to manage enterprise resources.</p>

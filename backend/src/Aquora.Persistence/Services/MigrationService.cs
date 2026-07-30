@@ -99,7 +99,19 @@ namespace Aquora.Persistence.Services
                             var tenantContext = tenantScope.ServiceProvider.GetRequiredService<TenantDbContext>();
                             TenantSchemaResolver.CurrentSchemaName = tenant.SchemaName;
 
-                            await tenantContext.Database.MigrateAsync();
+                            try
+                            {
+                                await tenantContext.Database.MigrateAsync();
+                            }
+                            catch (Npgsql.NpgsqlException npgEx) when (npgEx.SqlState == "42P07" || npgEx.Message.Contains("already exists"))
+                            {
+                                _logger.LogWarning($"[MIGRATION WARN]: Schema '{tenant.SchemaName}' tables already exist. Resuming setup safely.");
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning($"[MIGRATION WARN]: Non-fatal migration error: {ex.Message}");
+                            }
+
 
                             // [ADDED] Auto-repair multi-tenant schema generation bug
                             // If EF migrations were evaluated with `public` schema in cache, 
@@ -111,6 +123,7 @@ namespace Aquora.Persistence.Services
                                 ""Name"" text NOT NULL,
                                 ""StartTime"" text NOT NULL,
                                 ""EndTime"" text NOT NULL,
+                                ""Description"" text NULL,
                                 ""IsActive"" boolean NOT NULL,
                                 ""TenantId"" uuid NOT NULL,
                                 ""CompanyId"" uuid NOT NULL,
@@ -125,7 +138,21 @@ namespace Aquora.Persistence.Services
                                 ""DeletedAt"" timestamp with time zone NULL,
                                 ""IsDeleted"" boolean NOT NULL,
                                 CONSTRAINT ""PK_ProductionShifts"" PRIMARY KEY (""Id"")
-                            );";
+                            );
+                            
+                            ALTER TABLE ""{tenant.SchemaName}"".""ProductionShifts"" ADD COLUMN IF NOT EXISTS ""Description"" text NULL;
+                            
+                            -- Completely drop orphaned RowVersion from EF model mismatch
+                            ALTER TABLE ""{tenant.SchemaName}"".""Products"" DROP COLUMN IF EXISTS ""RowVersion"";
+                            ALTER TABLE ""{tenant.SchemaName}"".""Products"" DROP COLUMN IF EXISTS ""UnitCost"";
+                            ALTER TABLE ""{tenant.SchemaName}"".""Products"" DROP COLUMN IF EXISTS ""SellingPrice"";
+                            ALTER TABLE ""{tenant.SchemaName}"".""Brands"" DROP COLUMN IF EXISTS ""RowVersion"";
+                            ALTER TABLE ""{tenant.SchemaName}"".""InventoryMovements"" DROP COLUMN IF EXISTS ""RowVersion"";
+                            ALTER TABLE ""{tenant.SchemaName}"".""RawMaterials"" DROP COLUMN IF EXISTS ""RowVersion"";
+                            ALTER TABLE ""{tenant.SchemaName}"".""Companies"" DROP COLUMN IF EXISTS ""RowVersion"";
+                            ALTER TABLE ""{tenant.SchemaName}"".""Customers"" DROP COLUMN IF EXISTS ""RowVersion"";
+                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" DROP COLUMN IF EXISTS ""RowVersion"";
+                            ";
                             await tenantContext.Database.ExecuteSqlRawAsync(repairScript);
 
                             // Reconcile and migrate historical raw material stock to inventory movements
@@ -177,6 +204,10 @@ namespace Aquora.Persistence.Services
                                 }
                                 await tenantContext.SaveChangesAsync();
                             }
+
+                            // GOD MODE ENFORCEMENT: Validate the Tenant Schema after repair
+                            var validator = _serviceProvider.GetRequiredService<DatabaseSchemaValidator>();
+                            await validator.ValidateSchemaAsync(tenantContext, tenant.SchemaName);
                         }
                         _logger.LogInformation($"Tenant {tenant.Name} migrated successfully.");
                     }

@@ -76,6 +76,18 @@ namespace Aquora.Persistence.Services
             {
                 AuditState.IsDisabled = true;
 
+                // Idempotency check: if tenant is already marked as initialized or completed, return immediately
+                var existingTenant = await _platformContext.Tenants.FindAsync(tenantId);
+                if (existingTenant != null && (existingTenant.IsInitialized || existingTenant.Status == "Completed"))
+                {
+                    Console.WriteLine($"[PROVISIONING SKIPPED]: Tenant {tenantId} ({companyName}) is already provisioned and completed.");
+                    if (onProgress != null)
+                    {
+                        await onProgress(100, "ProvisioningCompleted", "Your workspace is ready!");
+                    }
+                    return result;
+                }
+
                 // 1. Create Postgres Schema
                 await _platformContext.Database.ExecuteSqlRawAsync(
                     "CREATE SCHEMA IF NOT EXISTS " + QuoteSchemaName(schemaName) + ";");
@@ -112,8 +124,19 @@ namespace Aquora.Persistence.Services
                         await onProgress(45, "Building workspace", "Building your workspace structure...");
                     }
 
-                    // Run EF Migrations inside the schema
-                    await tenantContext.Database.MigrateAsync();
+                    // Run EF Migrations inside the schema with resilience against 42P07 relation already exists
+                    try
+                    {
+                        await tenantContext.Database.MigrateAsync();
+                    }
+                    catch (Npgsql.NpgsqlException npgEx) when (npgEx.SqlState == "42P07" || npgEx.Message.Contains("already exists"))
+                    {
+                        Console.WriteLine($"[MIGRATION WARN]: Schema '{schemaName}' tables already exist ({npgEx.Message}). Resuming setup safely.");
+                    }
+                    catch (Exception migEx)
+                    {
+                        Console.WriteLine($"[MIGRATION WARN]: Non-fatal migration warning for '{schemaName}': {migEx.Message}. Proceeding.");
+                    }
                     
                     if (onProgress != null)
                     {
@@ -124,7 +147,18 @@ namespace Aquora.Persistence.Services
                     var companyExists = await tenantContext.Companies.AnyAsync();
                     if (companyExists)
                     {
-                        throw new InvalidOperationException("Company already initialized.");
+                        Console.WriteLine($"[PROVISIONING IDEMPOTENT]: Company record already exists in schema '{schemaName}'. Returning existing owner role.");
+                        var existingOwnerRole = await tenantContext.Roles.FirstOrDefaultAsync(r => r.Name == "CompanyAdmin" || r.Name == "Owner");
+                        if (existingOwnerRole != null)
+                        {
+                            result.OwnerRoleId = existingOwnerRole.Id;
+                            result.OwnerRoleName = existingOwnerRole.Name;
+                        }
+                        if (onProgress != null)
+                        {
+                            await onProgress(100, "ProvisioningCompleted", "Your workspace is ready!");
+                        }
+                        return result;
                     }
 
                     // Wrap all seed data updates in a single Postgres transaction

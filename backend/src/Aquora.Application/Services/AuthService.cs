@@ -98,23 +98,33 @@ namespace Aquora.Application.Services
         public async Task<bool> SendOtpAsync(SendOtpRequest request)
         {
             var email = request.Email.Trim().ToLowerInvariant();
-            var purpose = string.IsNullOrWhiteSpace(request.Purpose) ? "Registration" : request.Purpose.Trim();
+            var rawPurpose = string.IsNullOrWhiteSpace(request.Purpose) ? "Registration" : request.Purpose.Trim();
+            var purpose = rawPurpose.Equals("EmailVerification", StringComparison.OrdinalIgnoreCase) ? "Registration" : rawPurpose;
             var now = DateTime.UtcNow;
 
             var user = await _platformContext.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email && !u.IsDeleted);
             if (purpose == "Registration" && user != null && user.EmailVerified)
             {
+                Console.WriteLine($"[OTP SEND REJECTED]: User '{email}' is already verified.");
                 throw new InvalidOperationException("ALREADY_VERIFIED");
             }
 
             var existing = await _platformContext.OTPVerifications
-                .FirstOrDefaultAsync(o => o.Email.ToLower() == email && o.Purpose == purpose && !o.IsVerified);
+                .FirstOrDefaultAsync(o => o.Email.ToLower() == email && 
+                    (o.Purpose == purpose || (purpose == "Registration" && o.Purpose == "EmailVerification")) && 
+                    !o.IsVerified);
 
             if (existing != null && existing.LastSentAt.HasValue && existing.LastSentAt.Value.AddMinutes(1) > now)
+            {
+                Console.WriteLine($"[OTP RATE LIMIT]: Cooldown active for '{email}'.");
                 throw new InvalidOperationException("Please wait before requesting another OTP.");
+            }
 
             if (existing != null && existing.CreatedAt.AddHours(1) > now && existing.SendCount >= 5)
+            {
+                Console.WriteLine($"[OTP RATE LIMIT]: Maximum hourly send count reached for '{email}'.");
                 throw new InvalidOperationException("OTP rate limit exceeded. Try again later.");
+            }
 
             // Generate cryptographically secure OTP
             var code = System.Security.Cryptography.RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
@@ -130,6 +140,7 @@ namespace Aquora.Application.Services
                 _platformContext.OTPVerifications.Add(existing);
             }
 
+            existing.Purpose = purpose; // Ensure normalized purpose
             existing.OtpHash = _passwordHasher.HashPassword(code);
             existing.ExpiryTime = now.AddMinutes(10);
             existing.Attempts = 0;
@@ -139,6 +150,8 @@ namespace Aquora.Application.Services
 
             await _platformContext.SaveChangesAsync();
             
+            Console.WriteLine($"[OTP GENERATED & PERSISTED]: OTP generated for email '{email}', Purpose '{purpose}', Expiry '{existing.ExpiryTime}', RequestId '{existing.RequestId}'.");
+
             // Queue the OTP email in background worker
             _taskQueue.QueueOtpJob(email, code, 10);
             
@@ -148,31 +161,50 @@ namespace Aquora.Application.Services
         public async Task<LoginResponse> VerifyOtpAsync(VerifyOtpRequest request)
         {
             var email = request.Email.Trim().ToLowerInvariant();
-            var purpose = string.IsNullOrWhiteSpace(request.Purpose) ? "Registration" : request.Purpose.Trim();
+            var rawPurpose = string.IsNullOrWhiteSpace(request.Purpose) ? "Registration" : request.Purpose.Trim();
+            var purpose = rawPurpose.Equals("EmailVerification", StringComparison.OrdinalIgnoreCase) ? "Registration" : rawPurpose;
+
+            Console.WriteLine($"[OTP VERIFY INITIATED]: Email '{email}', Requested Purpose '{rawPurpose}', Normalized Purpose '{purpose}'.");
 
             var user = await _platformContext.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email && !u.IsDeleted);
             if (user == null)
+            {
+                Console.WriteLine($"[OTP VERIFY FAILED]: User '{email}' not found.");
                 throw new InvalidOperationException("User not found.");
+            }
 
             if (purpose == "Registration" && user.EmailVerified)
             {
+                Console.WriteLine($"[OTP VERIFY]: User '{email}' is already verified.");
                 throw new InvalidOperationException("ALREADY_VERIFIED");
             }
 
             var otp = await _platformContext.OTPVerifications
-                .FirstOrDefaultAsync(o => o.Email.ToLower() == email && o.Purpose == purpose && !o.IsVerified);
+                .FirstOrDefaultAsync(o => o.Email.ToLower() == email && 
+                    (o.Purpose == purpose || (purpose == "Registration" && o.Purpose == "EmailVerification")) && 
+                    !o.IsVerified);
 
             if (otp == null)
+            {
+                Console.WriteLine($"[OTP VERIFY FAILED]: No unverified OTP record found in database for Email '{email}', Purpose '{purpose}'.");
                 throw new InvalidOperationException("No verification code found for this email.");
+            }
             if (otp.ExpiryTime <= DateTime.UtcNow)
+            {
+                Console.WriteLine($"[OTP VERIFY FAILED]: OTP expired for Email '{email}', ExpiryTime '{otp.ExpiryTime}', CurrentTime '{DateTime.UtcNow}'.");
                 throw new InvalidOperationException("Verification code has expired.");
+            }
             if (otp.Attempts >= 5)
+            {
+                Console.WriteLine($"[OTP VERIFY FAILED]: Maximum verification attempts ({otp.Attempts}) exceeded for Email '{email}'.");
                 throw new InvalidOperationException("Maximum verification attempts exceeded.");
+            }
             
             if (!_passwordHasher.VerifyPassword(request.Code, otp.OtpHash))
             {
                 otp.Attempts++;
                 await _platformContext.SaveChangesAsync();
+                Console.WriteLine($"[OTP VERIFY FAILED]: Invalid verification PIN entered for Email '{email}'. Attempt {otp.Attempts}/5.");
                 throw new InvalidOperationException("Invalid verification code.");
             }
 
@@ -186,6 +218,8 @@ namespace Aquora.Application.Services
             user.RefreshToken = refreshToken;
             user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
             await _platformContext.SaveChangesAsync();
+
+            Console.WriteLine($"[OTP VERIFICATION SUCCESS]: Email '{email}' verified successfully. User ID '{user.Id}'.");
 
             string companyName = "";
             if (user.TenantId.HasValue)
@@ -542,48 +576,70 @@ namespace Aquora.Application.Services
 
             if (user.TenantId.HasValue)
             {
-                var tenant = await _platformContext.Tenants.FindAsync(user.TenantId.Value);
-                if (tenant != null)
+                try
                 {
-                    using (var scope = _scopeFactory.CreateScope())
+                    var tenant = await _platformContext.Tenants.FindAsync(user.TenantId.Value);
+                    if (tenant != null && tenant.IsInitialized)
                     {
-                        var tenantProvider = scope.ServiceProvider.GetRequiredService<ITenantProvider>();
-                        tenantProvider.SetTenantId(user.TenantId.Value);
-                        tenantProvider.SetTenantSchemaName(tenant.SchemaName);
-
-                        var tenantContext = scope.ServiceProvider.GetRequiredService<ITenantDbContext>();
-
-                        var userRoles = await tenantContext.UserRoles
-                            .Where(ur => ur.UserId == user.Id)
-                            .Include(ur => ur.Role)
-                            .ToListAsync();
-
-                        foreach (var ur in userRoles)
+                        using (var scope = _scopeFactory.CreateScope())
                         {
-                            if (ur.Role != null)
+                            var tenantProvider = scope.ServiceProvider.GetRequiredService<ITenantProvider>();
+                            tenantProvider.SetTenantId(user.TenantId.Value);
+                            tenantProvider.SetTenantSchemaName(tenant.SchemaName);
+
+                            var tenantContext = scope.ServiceProvider.GetRequiredService<ITenantDbContext>();
+
+                            var userRoles = await tenantContext.UserRoles
+                                .Where(ur => ur.UserId == user.Id)
+                                .Include(ur => ur.Role)
+                                .ToListAsync();
+
+                            foreach (var ur in userRoles)
                             {
-                                var roleCode = (ur.Role.Code == "OWNER" || ur.Role.Name.Equals("Owner", StringComparison.OrdinalIgnoreCase)) 
-                                    ? "CompanyAdmin" 
-                                    : ur.Role.Name;
-
-                                roles.Add(roleCode);
-
-                                var rolePerms = await tenantContext.RolePermissions
-                                    .Where(rp => rp.RoleId == ur.RoleId)
-                                    .Include(rp => rp.Permission)
-                                    .ToListAsync();
-
-                                foreach (var rp in rolePerms)
+                                if (ur.Role != null)
                                 {
-                                    if (rp.Permission != null)
+                                    var roleCode = (ur.Role.Code == "OWNER" || ur.Role.Name.Equals("Owner", StringComparison.OrdinalIgnoreCase)) 
+                                        ? "CompanyAdmin" 
+                                        : ur.Role.Name;
+
+                                    roles.Add(roleCode);
+
+                                    var rolePerms = await tenantContext.RolePermissions
+                                        .Where(rp => rp.RoleId == ur.RoleId)
+                                        .Include(rp => rp.Permission)
+                                        .ToListAsync();
+
+                                    foreach (var rp in rolePerms)
                                     {
-                                        permissions.Add(rp.Permission.Code);
+                                        if (rp.Permission != null)
+                                        {
+                                            permissions.Add(rp.Permission.Code);
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+                    else
+                    {
+                        // Tenant schema is currently provisioning/initializing — assign default onboarding owner role
+                        Console.WriteLine($"[AUTH SERVICE]: Tenant {user.TenantId} is currently initializing ({tenant?.Status ?? "Provisioning"}). Assigning default onboarding role 'CompanyAdmin'.");
+                        roles.Add("CompanyAdmin");
+                    }
                 }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[AUTH SERVICE WARN]: Could not query tenant roles/permissions for tenant {user.TenantId}: {ex.Message}. Falling back to default 'CompanyAdmin'.");
+                    if (!roles.Contains("CompanyAdmin"))
+                    {
+                        roles.Add("CompanyAdmin");
+                    }
+                }
+            }
+
+            if (roles.Count == 0)
+            {
+                roles.Add(!string.IsNullOrWhiteSpace(user.RoleName) ? user.RoleName : "CompanyAdmin");
             }
 
             Console.WriteLine($"[AUTH SERVICE] Authenticated User: {user.Email}, TenantId: {user.TenantId}, Loaded Roles: [{string.Join(", ", roles)}], Permissions Count: {permissions.Count}");

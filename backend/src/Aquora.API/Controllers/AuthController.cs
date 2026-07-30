@@ -63,11 +63,24 @@ namespace Aquora.API.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                return Unauthorized(Failure<UserSessionResponse>("User identity claim not found.", "Unauthorized access."));
             }
 
-            var result = await _authService.GetSessionAsync(userId);
-            return Success(result, "User session state loaded successfully.");
+            try
+            {
+                var result = await _authService.GetSessionAsync(userId);
+                return Success(result, "User session state loaded successfully.");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Console.WriteLine($"[AUTH CONTROLLER 401]: Session request unauthorized: {ex.Message}");
+                return Unauthorized(Failure<UserSessionResponse>(ex.Message, "Unauthorized access."));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AUTH CONTROLLER ERROR]: Unexpected error in Session endpoint: {ex.Message}");
+                return StatusCode(500, Failure<UserSessionResponse>("An unexpected error occurred loading session.", ex.Message));
+            }
         }
 
         [HttpPost("login")]
@@ -104,7 +117,7 @@ namespace Aquora.API.Controllers
             {
                 await _authService.LogoutAsync(userId);
             }
-            return Success<object>(null, "Logged out successfully.");
+            return Success<object?>(null, "Logged out successfully.");
         }
     }
 }

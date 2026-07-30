@@ -29,6 +29,8 @@ const LiveDuration: React.FC<{ startedAt: string; endedAt?: string | null }> = (
   return <span className="font-mono">{val}</span>
 }
 
+import { formatRawMaterialUsage, formatRawMaterialWastage } from '../../utils/rawMaterialFormatting'
+
 // ─── Material Card ─────────────────────────────────────────────────────────────
 interface MatCardProps {
   accent: string
@@ -38,26 +40,31 @@ interface MatCardProps {
   waste?: number | string | null
   unit?: string | null
 }
-const MatCard: React.FC<MatCardProps> = ({ accent, label, name, used, waste, unit }) => (
-  <div className={`border-l-4 ${accent} border border-[#E5E7EB] rounded-lg bg-white p-3 flex flex-col gap-2`}>
-    <div className="flex items-baseline justify-between gap-2">
-      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0">{label}</span>
-      <span className="text-[12px] font-semibold text-slate-700 truncate text-right" title={name ?? undefined}>
-        {name || <span className="text-slate-300 italic text-[11px]">Not Selected</span>}
-      </span>
-    </div>
-    <div className="flex gap-4 border-t border-[#F1F5F9] pt-2">
-      <div className="flex flex-col flex-1">
-        <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Used</span>
-        <span className="text-[13px] font-bold text-blue-600">{used ?? 0} {unit || ''}</span>
+const MatCard: React.FC<MatCardProps> = ({ accent, label, name, used, waste, unit }) => {
+  const formattedUsed = formatRawMaterialUsage(used ?? 0, label, unit || '')
+  const formattedWaste = formatRawMaterialWastage(waste ?? 0, label, unit || '')
+
+  return (
+    <div className={`border-l-4 ${accent} border border-[#E5E7EB] rounded-lg bg-white p-3 flex flex-col gap-2`}>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0">{label}</span>
+        <span className="text-[12px] font-semibold text-slate-700 truncate text-right" title={name ?? undefined}>
+          {name || <span className="text-slate-300 italic text-[11px]">Not Selected</span>}
+        </span>
       </div>
-      <div className="flex flex-col flex-1">
-        <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Waste</span>
-        <span className="text-[13px] font-bold text-red-600">{waste ?? 0} {unit || ''}</span>
+      <div className="flex gap-4 border-t border-[#F1F5F9] pt-2">
+        <div className="flex flex-col flex-1">
+          <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Used</span>
+          <span className="text-[13px] font-bold text-blue-600">{formattedUsed}</span>
+        </div>
+        <div className="flex flex-col flex-1">
+          <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Waste</span>
+          <span className="text-[13px] font-bold text-red-600">{formattedWaste}</span>
+        </div>
       </div>
     </div>
-  </div>
-)
+  )
+}
 
 // ─── Status Badge ──────────────────────────────────────────────────────────────
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
@@ -197,12 +204,19 @@ export const BatchDetailsPage: React.FC = () => {
     },
     ...[...entries]
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-      .map((e, i) => ({
-        title: `Entry #${i + 1} Logged`,
-        desc: `${e.casesProduced} cases recorded`,
-        time: new Date(e.createdAt),
-        color: 'green',
-      })),
+      .map((e, i) => {
+        const details = []
+        if (e.preformName) details.push(`Preform: ${formatRawMaterialUsage(e.preformUsage, 'PREFORM', 'Bag')} (Waste: ${formatRawMaterialWastage(e.preformWastage, 'PREFORM')})`)
+        if (e.capName && (e.capUsage > 0 || e.capWastage > 0)) details.push(`Cap: ${formatRawMaterialUsage(e.capUsage, 'CAP', e.capUnit)} (Waste: ${formatRawMaterialWastage(e.capWastage, 'CAP')})`)
+        if (e.labelName) details.push(`Label: ${formatRawMaterialUsage(e.labelUsage, 'LABEL', e.labelUnit)} (Waste: ${formatRawMaterialWastage(e.labelWastage, 'LABEL')})`)
+        if (e.shrinkName) details.push(`Shrink: ${formatRawMaterialUsage(e.shrinkUsage, 'SHRINK', 'KG')} (Waste: ${formatRawMaterialWastage(e.shrinkWastage, 'SHRINK')})`)
+        return {
+          title: `Entry #${i + 1} Logged`,
+          desc: `${e.casesProduced} cases recorded${details.length ? ` · ${details.join(' · ')}` : ''}`,
+          time: new Date(e.createdAt),
+          color: 'green',
+        }
+      }),
     ...(isCompleted
       ? [
           {

@@ -62,11 +62,52 @@ namespace Aquora.Application.Services
                 throw new InvalidOperationException("Email verification is required before company onboarding.");
             }
 
-            var ownsCompany = user.TenantId.HasValue && await _platformContext.Tenants
-                .AnyAsync(t => t.Id == user.TenantId.Value && !t.IsDeleted);
-            if (ownsCompany)
+            if (user.TenantId.HasValue)
             {
-                throw new InvalidOperationException("User already owns a company.");
+                var existingTenant = await _platformContext.Tenants.FirstOrDefaultAsync(t => t.Id == user.TenantId.Value && !t.IsDeleted);
+                if (existingTenant != null)
+                {
+                    if (existingTenant.IsInitialized || existingTenant.Status == "Completed")
+                    {
+                        Console.WriteLine($"[ONBOARDING]: User {userId} requested onboarding but Tenant {existingTenant.Id} is already initialized.");
+                        var defaultRoles = new System.Collections.Generic.List<string> { "CompanyAdmin" };
+                        var defaultPerms = new System.Collections.Generic.List<string> { Permissions.DashboardRead };
+                        var accToken = _tokenService.GenerateAccessToken(user, defaultRoles, defaultPerms);
+                        var refToken = _tokenService.GenerateRefreshToken();
+                        return new CompanyOnboardingResponse
+                        {
+                            TenantId = existingTenant.Id,
+                            CompanyName = existingTenant.Name,
+                            SchemaName = existingTenant.SchemaName,
+                            OwnerRole = "CompanyAdmin",
+                            ProvisioningStatus = "Completed",
+                            AccessToken = accToken,
+                            RefreshToken = refToken,
+                            ExpiresIn = 3600,
+                            Permissions = defaultPerms
+                        };
+                    }
+                    else
+                    {
+                        // Provisioning in progress — return active state without duplicating tenant entry
+                        var defaultRoles = new System.Collections.Generic.List<string> { "CompanyAdmin" };
+                        var defaultPerms = new System.Collections.Generic.List<string>();
+                        var accToken = _tokenService.GenerateAccessToken(user, defaultRoles, defaultPerms);
+                        var refToken = _tokenService.GenerateRefreshToken();
+                        return new CompanyOnboardingResponse
+                        {
+                            TenantId = existingTenant.Id,
+                            CompanyName = existingTenant.Name,
+                            SchemaName = existingTenant.SchemaName,
+                            OwnerRole = "CompanyAdmin",
+                            ProvisioningStatus = existingTenant.Status ?? "Provisioning",
+                            AccessToken = accToken,
+                            RefreshToken = refToken,
+                            ExpiresIn = 3600,
+                            Permissions = defaultPerms
+                        };
+                    }
+                }
             }
 
             var companyCode = await GenerateUniqueCompanyCodeAsync(request.CompanyName);
@@ -279,13 +320,60 @@ namespace Aquora.Application.Services
                 };
             }
 
+            var isDone = tenant.IsInitialized || tenant.Status == "Completed";
+            var currentStepKey = tenant.CurrentStep ?? (isDone ? "ProvisioningCompleted" : "TenantCreated");
+            var isFailed = tenant.Status == "Failed";
+
+            var pipelineSteps = new[]
+            {
+                new { key = "TenantCreated", name = "Create Tenant Workspace Entry" },
+                new { key = "DatabaseCreated", name = "Create Multi-Tenant Database Schema" },
+                new { key = "SchemaMigrationsRun", name = "Run Core System Migrations" },
+                new { key = "SystemDataSeeded", name = "Seed Master System Data" },
+                new { key = "DefaultRolesCreated", name = "Create Default Roles & Permissions" },
+                new { key = "AdministratorUserInitialized", name = "Initialize Company Admin Account" },
+                new { key = "ManufacturingModulesInitialized", name = "Configure Bottling & Production Lines" },
+                new { key = "TenantSettingsSaved", name = "Configure Regional & Industrial Settings" },
+                new { key = "ProvisioningCompleted", name = "Finalize Workspace Initialization" },
+            };
+
+            int currentStepIndex = Array.FindIndex(pipelineSteps, s => s.key.Equals(currentStepKey, StringComparison.OrdinalIgnoreCase));
+            if (currentStepIndex < 0) currentStepIndex = isDone ? pipelineSteps.Length - 1 : 0;
+
+            var stepsResult = pipelineSteps.Select((s, index) =>
+            {
+                string status = "Pending";
+                if (isDone || index < currentStepIndex)
+                {
+                    status = "Completed";
+                }
+                else if (index == currentStepIndex)
+                {
+                    status = isFailed ? "Failed" : (isDone ? "Completed" : "Running");
+                }
+
+                return new
+                {
+                    key = s.key,
+                    name = s.name,
+                    status,
+                    errorMessage = (status == "Failed") ? tenant.FailureReason : null
+                };
+            }).ToList();
+
+            int completedCount = stepsResult.Count(s => s.status == "Completed");
+            int calculatedProgress = isDone ? 100 : (int)Math.Round((double)completedCount / pipelineSteps.Length * 100);
+
             return new
             {
-                Status = tenant.IsInitialized ? "Completed" : tenant.Status ?? "Provisioning",
-                Progress = tenant.IsInitialized ? 100 : tenant.Progress,
-                Step = tenant.CurrentStep,
-                Message = tenant.IsInitialized ? "Your workspace is ready!" : (tenant.FailureReason ?? $"{tenant.CurrentStep}..."),
-                FailureReason = tenant.FailureReason
+                TenantId = tenant.Id,
+                Status = isDone ? "Completed" : (isFailed ? "Failed" : "Provisioning"),
+                Progress = calculatedProgress,
+                CurrentStep = currentStepKey,
+                Message = isDone ? "Your workspace is ready!" : (isFailed ? (tenant.FailureReason ?? "Provisioning failed.") : $"{pipelineSteps[currentStepIndex].name}..."),
+                FailureReason = tenant.FailureReason,
+                Steps = stepsResult,
+                EstimatedRemainingSeconds = isDone ? 0 : Math.Max(3, (pipelineSteps.Length - completedCount) * 2)
             };
         }
 

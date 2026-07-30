@@ -8,7 +8,7 @@ namespace Aquora.API.Controllers
     [Route("api/v{version:apiVersion}/[controller]")]
     public abstract class ApiControllerBase : ControllerBase
     {
-        protected ActionResult<ApiResponse<T>> Success<T>(T data, string message = null)
+        protected ActionResult<ApiResponse<T>> Success<T>(T data, string? message = null)
         {
             var response = ApiResponse<T>.CreateSuccess(data, message);
             return Ok(response);

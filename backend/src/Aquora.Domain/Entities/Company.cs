@@ -9,6 +9,12 @@ namespace Aquora.Domain.Entities
         public string Code { get; set; }
         public bool IsActive { get; set; } = true;
 
+        // Profile Details
+        // (Removed due to schema mismatch)
+
+        // System Preferences
+        // (Removed due to schema mismatch)
+
         // Tenant mapping
         public Guid TenantId { get; set; }
 
@@ -26,4 +32,3 @@ namespace Aquora.Domain.Entities
         public string? DeletedBy { get; set; }
     }
 }
-

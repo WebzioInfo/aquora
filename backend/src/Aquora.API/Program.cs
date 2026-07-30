@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
@@ -17,6 +18,15 @@ using Aquora.Infrastructure;
 using Aquora.Persistence;
 using Aquora.Persistence.Context;
 using Aquora.Domain.Entities;
+
+// Ensure single instance of the API to prevent port binding issues
+bool createdNew;
+var mutex = new Mutex(true, "Global\\AquoraApiInstance", out createdNew);
+if (!createdNew)
+{
+    Console.WriteLine("[STARTUP] Another instance of Aquora.API is already running. Exiting gracefully to prevent port conflict.");
+    return;
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -167,6 +177,7 @@ builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler
         });
 builder.Services.AddSignalR();
 builder.Services.AddTransient<Aquora.Application.Interfaces.Services.IProvisioningProgressReporter, Aquora.API.Services.ProvisioningProgressReporter>();
+builder.Services.AddTransient<Aquora.Persistence.Services.DatabaseSchemaValidator>();
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen(c =>
@@ -196,14 +207,11 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddCors(options =>
 {
-    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-        ?? new[] { "http://localhost:5173", "http://localhost:5174", "http://localhost:3000" };
-
     options.AddPolicy("CorsPolicy", policy =>
     {
-        policy.WithOrigins(allowedOrigins)
-              .WithHeaders("Authorization", "Content-Type", "Accept", "X-Tenant-Id", "X-Tenant-Code", "X-Tenant", "X-Requested-With")
-              .WithMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
+        policy.SetIsOriginAllowed(_ => true)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
               .AllowCredentials();
     });
 });
@@ -237,7 +245,9 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<NotificationHub>("/hub/notifications");
+app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHub<ProvisioningHub>("/hub/provisioning");
+app.MapHub<ProvisioningHub>("/hubs/provisioning");
 
 // Database migration and seeding
 using (var scope = app.Services.CreateScope())
@@ -300,30 +310,54 @@ PHASE 4: Active Database Instance Verification:
         bool autoMigrate = builder.Configuration.GetValue<bool>("AUTO_MIGRATE_ON_STARTUP");
         bool isMigrateCommand = args.Contains("migrate", StringComparer.OrdinalIgnoreCase);
 
+        Log.Information("--------------------------------------------------");
+        Log.Information("STARTUP AUDIT:");
+        Log.Information("  1. Database Connectivity: VERIFIED");
+        Log.Information("  2. Auto Migration Policy: AUTO_MIGRATE_ON_STARTUP = {AutoMigrate}", autoMigrate);
+        Log.Information("  3. CLI Migration Command: {IsMigrateCommand}", isMigrateCommand);
+        Log.Information("  4. Background Workers: TenantProvisioningWorker, QueuedHostedService, OtpEmailWorker");
+        Log.Information("--------------------------------------------------");
+
         if (autoMigrate || isMigrateCommand)
         {
             try
             {
-                Log.Information("Migration execution started (AutoMigrate: {AutoMigrate}, Command: {Command})", autoMigrate, isMigrateCommand);
+                Log.Information("[DATABASE MIGRATION]: Migration execution initiated (AutoMigrate: {AutoMigrate}, CLI Command: {Command})", autoMigrate, isMigrateCommand);
                 var migrationService = services.GetRequiredService<IMigrationService>();
                 await migrationService.MigrateAllAsync();
                 
                 if (isMigrateCommand)
                 {
-                    Log.Information("Migration command completed successfully. Exiting application.");
-                    return; // Exit the app since it was just run for migrations
+                    Log.Information("[DATABASE MIGRATION]: CLI Command 'migrate' completed successfully. Exiting process.");
+                    return;
                 }
             }
             catch (Exception migrationEx)
             {
-                Log.Fatal(migrationEx, "A fatal error occurred during database migrations.");
+                Log.Fatal(migrationEx, "[DATABASE MIGRATION ERROR]: A fatal error occurred during database migration execution.");
                 throw;
             }
         }
         else
         {
-            Log.Information("Skipping automatic database migrations (AUTO_MIGRATE_ON_STARTUP is false).");
+            Log.Information("[STARTUP]: Skipping automatic database migrations & schema modification. AUTO_MIGRATE_ON_STARTUP is false.");
         }
+
+        // --- GOD MODE SCHEMA VALIDATION ---
+        Log.Information("--------------------------------------------------");
+        Log.Information("PHASE 5: Enforcing strict schema validation...");
+        try
+        {
+            var validator = services.GetRequiredService<Aquora.Persistence.Services.DatabaseSchemaValidator>();
+            await validator.ValidateSchemaAsync(platformContext, "public");
+            Log.Information("Schema validation passed successfully. No orphans or mismatches detected.");
+        }
+        catch (Exception schemaEx)
+        {
+            Log.Fatal(schemaEx, "STARTUP ABORTED: Database Schema Validation Failed.");
+            throw; // Fail fast
+        }
+        Log.Information("--------------------------------------------------");
     }
     catch (System.Net.Sockets.SocketException socketEx)
     {

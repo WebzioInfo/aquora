@@ -12,6 +12,7 @@ import EnterpriseCard from '../../components/ui/EnterpriseCard'
 import EnterpriseButton from '../../components/ui/EnterpriseButton'
 import { getLineTheme } from '../../utils/lineTheme'
 import { RAW_MATERIAL_CATEGORIES } from '../../utils/rawMaterialCategories'
+import { formatRawMaterialUsage, formatRawMaterialWastage } from '../../utils/rawMaterialFormatting'
 
 interface SkuProduct {
   id: string
@@ -148,14 +149,15 @@ export const OperatorDashboardPage: React.FC = () => {
       if (activeShifts.length === 1) {
         setLocalShift(activeShifts[0].name)
       } else if (activeShifts.length > 1) {
-        const hour = new Date().getHours()
-        let guess = ''
-        if (hour >= 6 && hour < 14) guess = 'Morning'
-        else if (hour >= 14 && hour < 22) guess = 'Evening'
-        else guess = 'Night'
-        if (activeShifts.find((s: any) => s.name === guess)) {
-          setLocalShift(guess)
-        }
+        const matched = activeShifts.find((s: any) => {
+          const name = s.name.toLowerCase()
+          const hour = new Date().getHours()
+          if (hour >= 6 && hour < 14 && (name.includes('morning') || name.includes('day') || name.includes('a'))) return true
+          if (hour >= 14 && hour < 22 && (name.includes('evening') || name.includes('afternoon') || name.includes('b'))) return true
+          if ((hour >= 22 || hour < 6) && (name.includes('night') || name.includes('c'))) return true
+          return false
+        })
+        setLocalShift(matched ? matched.name : activeShifts[0].name)
       }
     }
   }, [productionShifts, localShift])
@@ -690,52 +692,48 @@ export const OperatorDashboardPage: React.FC = () => {
   useEffect(() => {
     const errors: { [key: string]: string } = {}
 
-    // Preform check
+    // Preform check (Usage only deducts stock)
     if (selectedPreformId) {
       const mat = preforms.find(p => p.id === selectedPreformId)
       const usageVal = parseFloat(preformUsage) || 0
-      const wasteVal = parseFloat(preformWastage) || 0
       if (mat) {
-        const required = (usageVal * mat.conversionFactor) + wasteVal
+        const required = usageVal * mat.conversionFactor
         if (required > mat.currentStock) {
           errors.preform = `Insufficient preforms. Available: ${mat.currentStock} ${mat.baseUnit}`
         }
       }
     }
 
-    // Cap check
+    // Cap check (Usage only deducts stock)
     if (selectedCapId) {
       const mat = caps.find(c => c.id === selectedCapId)
       const usageVal = parseFloat(capUsage) || 0
-      const wasteVal = parseFloat(capWastage) || 0
       if (mat) {
-        const required = (usageVal * mat.conversionFactor) + wasteVal
+        const required = usageVal * mat.conversionFactor
         if (required > mat.currentStock) {
           errors.cap = `Insufficient caps. Available: ${mat.currentStock} ${mat.baseUnit}`
         }
       }
     }
 
-    // Label check
+    // Label check (Usage only deducts stock)
     if (selectedLabelId) {
       const mat = labels.find(l => l.id === selectedLabelId)
       const usageVal = parseFloat(labelUsage) || 0
-      const wasteVal = parseFloat(labelWastage) || 0
       if (mat) {
-        const required = (usageVal * mat.conversionFactor) + wasteVal
+        const required = usageVal * mat.conversionFactor
         if (required > mat.currentStock) {
           errors.label = `Insufficient labels. Available: ${mat.currentStock} ${mat.baseUnit}`
         }
       }
     }
 
-    // Shrink check
+    // Shrink check (Usage only deducts stock)
     if (selectedShrinkId) {
       const mat = shrinks.find(s => s.id === selectedShrinkId)
       const usageVal = parseFloat(shrinkUsage) || 0
-      const wasteVal = parseFloat(shrinkWastage) || 0
       if (mat) {
-        const required = (usageVal * mat.conversionFactor) + wasteVal
+        const required = usageVal * mat.conversionFactor
         if (required > mat.currentStock) {
           errors.shrink = `Insufficient film. Available: ${mat.currentStock} ${mat.baseUnit}`
         }
@@ -1958,7 +1956,8 @@ export const OperatorDashboardPage: React.FC = () => {
                               type="number"
                               min="0"
                               step="1"
-                              placeholder="Waste"
+                              placeholder="Waste (PCS)"
+                              title="Enter damaged preform count. Example: 10 = 10 preforms."
                               value={preformWastage}
                               onChange={(e) => {
                                 const val = e.target.value
@@ -2010,7 +2009,8 @@ export const OperatorDashboardPage: React.FC = () => {
                               type="number"
                               min="0"
                               step="1"
-                              placeholder="Waste"
+                              placeholder="Waste (PCS)"
+                              title="Enter damaged cap count. Example: 25 = 25 caps."
                               value={capWastage}
                               onChange={(e) => {
                                 const val = e.target.value
@@ -2061,8 +2061,9 @@ export const OperatorDashboardPage: React.FC = () => {
                             <input
                               type="number"
                               min="0"
-                              step="0.01"
+                              step="0.001"
                               placeholder="Waste"
+                              title="Enter label wastage weight. Example: 0.250 = 250 GM, 2.5 = 2.5 KG."
                               value={labelWastage}
                               onChange={(e) => setLabelWastage(e.target.value)}
                               className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
@@ -2110,10 +2111,14 @@ export const OperatorDashboardPage: React.FC = () => {
                             <input
                               type="number"
                               min="0"
-                              step="0.01"
-                              placeholder="Waste"
+                              step="1"
+                              placeholder="Waste (PCS)"
+                              title="Enter damaged wrapper count. Example: 20 = 20 wrappers."
                               value={shrinkWastage}
-                              onChange={(e) => setShrinkWastage(e.target.value)}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                if (val === '' || /^\d+$/.test(val)) setShrinkWastage(val)
+                              }}
                               className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
                             />
                           </td>
@@ -2166,6 +2171,9 @@ export const OperatorDashboardPage: React.FC = () => {
                   </table>
                 </div>
               </div>
+              <p className="text-[11px] text-slate-500 italic mt-1 px-1">
+                <span className="font-semibold text-slate-700">Stock Rule:</span> Inventory stock is deducted ONLY by Usage. Wastage entries capture material loss for quality reporting and do not alter inventory stock.
+              </p>
             </div>
 
             {/* Toggle sliders: Ink and Makeup */}
@@ -2294,9 +2302,9 @@ export const OperatorDashboardPage: React.FC = () => {
                       </div>
 
                       <div className="text-[8px] font-bold text-[#344054] grid grid-cols-2 gap-x-2 gap-y-0.5 pt-1 border-t border-[#F1F5F9]">
-                        {enabledStations.includes('Blowing') && <div>Preform: {entry.preformUsage} {entry.preformUnit}</div>}
-                        {enabledStations.includes('Filling') && entry.capUsage > 0 && <div>Cap: {entry.capUsage} {entry.capUnit}</div>}
-                        {enabledStations.includes('Labeling') && <div>Label: {entry.labelUsage} {entry.labelUnit}</div>}
+                        {enabledStations.includes('Blowing') && entry.preformName && <div>Preform: {formatRawMaterialUsage(entry.preformUsage, 'PREFORM', 'Bag')}</div>}
+                        {enabledStations.includes('Filling') && entry.capUsage > 0 && entry.capName && <div>Cap: {formatRawMaterialUsage(entry.capUsage, 'CAP', entry.capUnit)}</div>}
+                        {enabledStations.includes('Labeling') && entry.labelName && <div>Label: {formatRawMaterialUsage(entry.labelUsage, 'LABEL', entry.labelUnit)}</div>}
                       </div>
                     </div>
 
@@ -2310,22 +2318,22 @@ export const OperatorDashboardPage: React.FC = () => {
                         <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 font-semibold">
                           {enabledStations.includes('Blowing') && entry.preformName && (
                             <div className="col-span-2">
-                              <span className="text-[#6B7280]">Preform:</span> {entry.preformName} ({entry.preformUsage} Bag, Waste: {entry.preformWastage} PCS)
+                              <span className="text-[#6B7280]">Preform:</span> {entry.preformName} ({formatRawMaterialUsage(entry.preformUsage, 'PREFORM', 'Bag')}, Waste: {formatRawMaterialWastage(entry.preformWastage, 'PREFORM')})
                             </div>
                           )}
-                          {enabledStations.includes('Filling') && entry.capUsage > 0 && entry.capName && (
+                          {enabledStations.includes('Filling') && (entry.capUsage > 0 || entry.capWastage > 0) && entry.capName && (
                             <div className="col-span-2">
-                              <span className="text-[#6B7280]">Cap:</span> {entry.capName} ({entry.capUsage} {entry.capUnit}, Waste: {entry.capWastage})
+                              <span className="text-[#6B7280]">Cap:</span> {entry.capName} ({formatRawMaterialUsage(entry.capUsage, 'CAP', entry.capUnit)}, Waste: {formatRawMaterialWastage(entry.capWastage, 'CAP')})
                             </div>
                           )}
                           {enabledStations.includes('Labeling') && entry.labelName && (
                             <div className="col-span-2">
-                              <span className="text-[#6B7280]">Label:</span> {entry.labelName} ({entry.labelUsage} {entry.labelUnit}, Waste: {entry.labelWastage})
+                              <span className="text-[#6B7280]">Label:</span> {entry.labelName} ({formatRawMaterialUsage(entry.labelUsage, 'LABEL', entry.labelUnit)}, Waste: {formatRawMaterialWastage(entry.labelWastage, 'LABEL')})
                             </div>
                           )}
                           {enabledStations.includes('Packing') && entry.shrinkName && (
                             <div className="col-span-2">
-                              <span className="text-[#6B7280]">Shrink Film:</span> {entry.shrinkName} ({entry.shrinkUsage} KG, Waste: {entry.shrinkWastage})
+                              <span className="text-[#6B7280]">Shrink Film:</span> {entry.shrinkName} ({formatRawMaterialUsage(entry.shrinkUsage, 'SHRINK', 'KG')}, Waste: {formatRawMaterialWastage(entry.shrinkWastage, 'SHRINK')})
                             </div>
                           )}
                           {enabledStations.includes('Packing') && entry.glueUsage > 0 && entry.glueName && (

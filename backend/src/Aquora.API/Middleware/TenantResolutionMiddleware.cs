@@ -27,7 +27,7 @@ namespace Aquora.API.Middleware
             }
 
             Guid? resolvedTenantId = null;
-            string resolvedSchemaName = null;
+            string? resolvedSchemaName = null;
 
             // 1. Resolve by Host Subdomain / Custom Domain
             var host = context.Request.Host.Host;
@@ -108,8 +108,8 @@ namespace Aquora.API.Middleware
             if (resolvedTenantId != null)
             {
                 tenantProvider.SetTenantId(resolvedTenantId.Value);
-                tenantProvider.SetTenantSchemaName(resolvedSchemaName);
-                context.Response.Headers.Add("X-Resolved-Tenant-Schema", resolvedSchemaName);
+                tenantProvider.SetTenantSchemaName(resolvedSchemaName ?? "public");
+                context.Response.Headers.Append("X-Resolved-Tenant-Schema", resolvedSchemaName ?? "public");
                 Console.WriteLine($"[TENANT RESOLVED] Tenant ID: {resolvedTenantId.Value}, Schema: {resolvedSchemaName}, Host: {host}");
             }
 

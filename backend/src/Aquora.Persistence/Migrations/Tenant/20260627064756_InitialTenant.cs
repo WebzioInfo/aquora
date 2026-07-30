@@ -66,7 +66,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_Companies_Tenants_TenantId",
                         column: x => x.TenantId,
-                        principalSchema: "public",
+
                         principalTable: "Tenants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -113,7 +113,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_Roles_Tenants_TenantId",
                         column: x => x.TenantId,
-                        principalSchema: "public",
+
                         principalTable: "Tenants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -136,7 +136,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_TenantDomain_Tenants_TenantId",
                         column: x => x.TenantId,
-                        principalSchema: "public",
+
                         principalTable: "Tenants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -174,7 +174,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_Plants_Tenants_TenantId",
                         column: x => x.TenantId,
-                        principalSchema: "public",
+
                         principalTable: "Tenants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -214,7 +214,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_RolePermissions_Tenants_TenantId",
                         column: x => x.TenantId,
-                        principalSchema: "public",
+
                         principalTable: "Tenants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -247,14 +247,14 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_UserRoles_Tenants_TenantId",
                         column: x => x.TenantId,
-                        principalSchema: "public",
+
                         principalTable: "Tenants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_UserRoles_Users_UserId",
                         column: x => x.UserId,
-                        principalSchema: "public",
+
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -300,7 +300,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_Departments_Tenants_TenantId",
                         column: x => x.TenantId,
-                        principalSchema: "public",
+
                         principalTable: "Tenants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -354,7 +354,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_ProductionLines_Tenants_TenantId",
                         column: x => x.TenantId,
-                        principalSchema: "public",
+
                         principalTable: "Tenants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -408,7 +408,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_Stations_Tenants_TenantId",
                         column: x => x.TenantId,
-                        principalSchema: "public",
+
                         principalTable: "Tenants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -462,7 +462,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_Machines_Tenants_TenantId",
                         column: x => x.TenantId,
-                        principalSchema: "public",
+
                         principalTable: "Tenants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);

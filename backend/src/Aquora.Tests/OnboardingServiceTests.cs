@@ -131,6 +131,7 @@ namespace Aquora.Tests
             
             // Verify user was updated with the tenant ID
             var updatedUser = await platformContext.Users.FindAsync(user.Id);
+            Assert.NotNull(updatedUser);
             Assert.NotNull(updatedUser.TenantId);
         }
 

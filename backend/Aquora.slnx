@@ -8,4 +8,6 @@
     <Project Path="src/Aquora.Shared/Aquora.Shared.csproj" />
     <Project Path="src/Aquora.Tests/Aquora.Tests.csproj" />
   </Folder>
+  <!-- sdf -->
 </Solution>
+

@@ -1,8 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Building, Globe, Mail, Phone, MapPin, DollarSign, Clock, ShieldCheck, X } from 'lucide-react'
-import EnterpriseInput from '../ui/EnterpriseInput'
-import EnterpriseSelect from '../ui/EnterpriseSelect'
-import EnterpriseButton from '../ui/EnterpriseButton'
+import { Building, Globe, Mail, Phone, MapPin, X } from 'lucide-react'
 
 interface TenantModalProps {
   isOpen: boolean
@@ -31,12 +28,7 @@ export const TenantModal: React.FC<TenantModalProps> = ({
     panNumber: '',
     licenseNumber: '',
     subscriptionPlan: 'Starter',
-    status: 'Active',
-    timezone: 'UTC',
-    currency: 'USD',
-    language: 'en',
-    theme: 'light',
-    logoUrl: ''
+    status: 'Active'
   })
 
   const [loading, setLoading] = useState(false)
@@ -56,12 +48,7 @@ export const TenantModal: React.FC<TenantModalProps> = ({
         panNumber: initialData.panNumber || '',
         licenseNumber: initialData.licenseNumber || '',
         subscriptionPlan: initialData.subscriptionPlan || 'Starter',
-        status: initialData.status || (initialData.isActive ? 'Active' : 'Inactive'),
-        timezone: initialData.timezone || 'UTC',
-        currency: initialData.currency || 'USD',
-        language: initialData.language || 'en',
-        theme: initialData.theme || 'light',
-        logoUrl: initialData.logoUrl || ''
+        status: initialData.status || (initialData.isActive ? 'Active' : 'Inactive')
       })
     } else {
       setFormData({
@@ -76,12 +63,7 @@ export const TenantModal: React.FC<TenantModalProps> = ({
         panNumber: '',
         licenseNumber: '',
         subscriptionPlan: 'Starter',
-        status: 'Active',
-        timezone: 'UTC',
-        currency: 'USD',
-        language: 'en',
-        theme: 'light',
-        logoUrl: ''
+        status: 'Active'
       })
     }
     setError(null)
@@ -126,192 +108,160 @@ export const TenantModal: React.FC<TenantModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 select-none">
-      <div onClick={onClose} className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" />
+      {/* Backdrop */}
+      <div onClick={onClose} className="fixed inset-0 bg-slate-900/30 backdrop-blur-xs transition-opacity" />
 
-      <div className="relative w-full max-w-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+      {/* Modal Container */}
+      <div className="relative w-full max-w-2xl bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
         
-        {/* Modal Header */}
-        <div className="px-6 py-4 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        {/* Header */}
+        <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
             <Building className="w-5 h-5 text-blue-600" />
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              {isEditing ? 'Edit Tenant & Company Configuration' : 'Provision New Enterprise Tenant'}
+            <h3 className="text-base font-bold text-slate-900">
+              {isEditing ? 'Edit Tenant Configuration' : 'Provision New Enterprise Tenant'}
             </h3>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
+          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-700 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Form */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6">
+        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 text-xs">
 
           {error && (
-            <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs font-semibold text-rose-700">
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 font-semibold">
               {error}
             </div>
           )}
 
-          {/* Section 1: Company Profile */}
-          <div className="space-y-4">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-              <Building className="w-4 h-4 text-blue-600" /> Corporate Profile & Subdomain
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <EnterpriseInput 
-                label="Company Name *" 
-                value={formData.companyName}
-                onChange={(e) => handleCompanyNameChange(e.target.value)}
-                placeholder="e.g. Acme Aqua Industries"
-                required
-              />
-              <EnterpriseInput 
-                label="Subdomain Prefix *" 
-                value={formData.subdomain}
-                onChange={(e) => setFormData({ ...formData, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
-                placeholder="acme"
-                required
-              />
-              <EnterpriseInput 
-                label="Company Code" 
-                value={formData.companyCode}
-                onChange={(e) => setFormData({ ...formData, companyCode: e.target.value.toUpperCase() })}
-                placeholder="ACME_CORP"
-              />
-              <EnterpriseInput 
-                label="GST / Tax Registration Number" 
-                value={formData.gstNumber}
-                onChange={(e) => setFormData({ ...formData, gstNumber: e.target.value })}
-                placeholder="29ABCDE1234F1ZH"
-              />
-              <EnterpriseInput 
-                label="PAN Identifier" 
-                value={formData.panNumber}
-                onChange={(e) => setFormData({ ...formData, panNumber: e.target.value })}
-                placeholder="ABCDE1234F"
-              />
-              <EnterpriseInput 
-                label="SaaS License Number" 
-                value={formData.licenseNumber}
-                onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
-                placeholder="LIC-2026-9910"
-              />
+          {/* Section 1: Tenant Identity */}
+          <div className="space-y-3">
+            <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tenant Identity</h4>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Company Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.companyName}
+                  onChange={(e) => handleCompanyNameChange(e.target.value)}
+                  placeholder="e.g. Acme Corporation"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-900 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Subdomain Prefix *</label>
+                <div className="flex items-center">
+                  <input
+                    type="text"
+                    required
+                    disabled={isEditing}
+                    value={formData.subdomain}
+                    onChange={(e) => setFormData({ ...formData, subdomain: e.target.value })}
+                    placeholder="acme"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-l-xl bg-white text-slate-900 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 font-mono"
+                  />
+                  <span className="px-3 py-2 bg-slate-100 border border-l-0 border-slate-200 rounded-r-xl text-slate-500 font-mono text-[11px]">
+                    .aquora.com
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Section 2: Owner Contact Details */}
-          <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-              <Mail className="w-4 h-4 text-emerald-600" /> Primary Owner / Super Admin Contact
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <EnterpriseInput 
-                label="Owner Full Name *" 
-                value={formData.ownerName}
-                onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
-                placeholder="John Doe"
-                required
-              />
-              <EnterpriseInput 
-                label="Owner Corporate Email *" 
-                type="email"
-                value={formData.ownerEmail}
-                onChange={(e) => setFormData({ ...formData, ownerEmail: e.target.value })}
-                placeholder="admin@acme.com"
-                required
-              />
-              <EnterpriseInput 
-                label="Owner Phone Number" 
-                value={formData.ownerPhone}
-                onChange={(e) => setFormData({ ...formData, ownerPhone: e.target.value })}
-                placeholder="+1 (555) 019-2834"
-              />
-            </div>
-            <EnterpriseInput 
-              label="Headquarters Address" 
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              placeholder="100 Enterprise Boulevard, Suite 400"
-            />
-          </div>
+          <div className="space-y-3 pt-3 border-t border-slate-100">
+            <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Owner Contact Details</h4>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Owner Name</label>
+                <input
+                  type="text"
+                  value={formData.ownerName}
+                  onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
+                  placeholder="John Doe"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-900 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                />
+              </div>
 
-          {/* Section 3: Subscription & Localization Settings */}
-          <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-purple-600" /> Subscription & Regional Preferences
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <EnterpriseSelect
-                label="Subscription Plan Tier"
-                value={formData.subscriptionPlan}
-                onChange={(val) => setFormData({ ...formData, subscriptionPlan: val })}
-                options={[
-                  { label: 'Starter Tier ($199/mo)', value: 'Starter' },
-                  { label: 'Professional Tier ($499/mo)', value: 'Professional' },
-                  { label: 'Enterprise Custom SLA', value: 'Enterprise' }
-                ]}
-              />
-              <EnterpriseSelect
-                label="Clearance Status"
-                value={formData.status}
-                onChange={(val) => setFormData({ ...formData, status: val })}
-                options={[
-                  { label: 'Active (Provisioned)', value: 'Active' },
-                  { label: 'Inactive (Suspended)', value: 'Inactive' }
-                ]}
-              />
-              <EnterpriseSelect
-                label="System Timezone"
-                value={formData.timezone}
-                onChange={(val) => setFormData({ ...formData, timezone: val })}
-                options={[
-                  { label: 'UTC (Coordinated Universal Time)', value: 'UTC' },
-                  { label: 'Asia/Kolkata (IST +05:30)', value: 'Asia/Kolkata' },
-                  { label: 'America/New_York (EST -05:00)', value: 'America/New_York' },
-                  { label: 'Europe/London (GMT +00:00)', value: 'Europe/London' }
-                ]}
-              />
-              <EnterpriseSelect
-                label="Default Currency"
-                value={formData.currency}
-                onChange={(val) => setFormData({ ...formData, currency: val })}
-                options={[
-                  { label: 'USD ($)', value: 'USD' },
-                  { label: 'INR (₹)', value: 'INR' },
-                  { label: 'EUR (€)', value: 'EUR' },
-                  { label: 'GBP (£)', value: 'GBP' }
-                ]}
-              />
-              <EnterpriseSelect
-                label="System UI Theme"
-                value={formData.theme}
-                onChange={(val) => setFormData({ ...formData, theme: val })}
-                options={[
-                  { label: 'Light Theme', value: 'light' },
-                  { label: 'Dark Mode', value: 'dark' }
-                ]}
-              />
-              <EnterpriseInput 
-                label="Logo Image URL" 
-                value={formData.logoUrl}
-                onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                placeholder="https://cdn.aquora.com/logos/acme.png"
-              />
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Owner Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={formData.ownerEmail}
+                  onChange={(e) => setFormData({ ...formData, ownerEmail: e.target.value })}
+                  placeholder="owner@acme.com"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-900 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Phone Number</label>
+                <input
+                  type="text"
+                  value={formData.ownerPhone}
+                  onChange={(e) => setFormData({ ...formData, ownerPhone: e.target.value })}
+                  placeholder="+1 (555) 000-0000"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-900 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Modal Footer Actions */}
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">
+          {/* Section 3: Status Configuration */}
+          <div className="space-y-3 pt-3 border-t border-slate-100">
+            <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Status & Configuration</h4>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Status</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-900 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Subscription Plan</label>
+                <select
+                  value={formData.subscriptionPlan}
+                  onChange={(e) => setFormData({ ...formData, subscriptionPlan: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-900 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                >
+                  <option value="Starter">Starter Tier</option>
+                  <option value="Professional">Professional Tier</option>
+                  <option value="Enterprise">Enterprise Tier</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Modal Footer */}
+          <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              className="px-4 py-2 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-100 transition-colors"
             >
               Cancel
             </button>
-            <EnterpriseButton type="submit" disabled={loading}>
-              {loading ? 'Provisioning...' : isEditing ? 'Save Changes' : 'Provision Database Schema'}
-            </EnterpriseButton>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Saving...' : isEditing ? 'Save Changes' : 'Provision Tenant'}
+            </button>
           </div>
 
         </form>

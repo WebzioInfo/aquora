@@ -3,7 +3,7 @@ using Aquora.Domain.Common;
 
 namespace Aquora.Domain.Entities
 {
-    public class PriceList : BaseEntity, IMultiTenant, IAuditable, ISoftDelete
+    public class PriceList : BaseEntity, IMultiTenant, IAuditable
     {
         public string Code { get; set; } = string.Empty;
         public string? Description { get; set; }
@@ -19,9 +19,5 @@ namespace Aquora.Domain.Entities
         public DateTime? UpdatedAt { get; set; }
         public string? UpdatedBy { get; set; }
         public string? UpdatedByIP { get; set; }
-        
-        public bool IsDeleted { get; set; }
-        public DateTime? DeletedAt { get; set; }
-        public string? DeletedBy { get; set; }
     }
 }

@@ -85,7 +85,8 @@ namespace Aquora.Infrastructure
                     {
                         var accessToken = context.Request.Query["access_token"];
                         var path = context.HttpContext.Request.Path;
-                        if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hub"))
+                        if (!string.IsNullOrEmpty(accessToken) && 
+                            (path.StartsWithSegments("/hub") || path.StartsWithSegments("/hubs") || path.Value?.Contains("provisioning") == true))
                         {
                             context.Token = accessToken;
                         }

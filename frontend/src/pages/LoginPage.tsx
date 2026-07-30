@@ -1,47 +1,51 @@
 import React, { useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../store/useAuthStore'
 import { useNotificationStore } from '../store/useNotificationStore'
 import { authService } from '../services/auth'
 import { getDefaultRouteForUser } from '../routes/AppRoutes'
-import { Droplet, Lock, Eye, EyeOff, Mail, CheckCircle, XCircle } from 'lucide-react'
-import EnterpriseInput from '../components/ui/EnterpriseInput'
-import EnterpriseButton from '../components/ui/EnterpriseButton'
+import { 
+  Droplet, Lock, Eye, EyeOff, Mail, AlertCircle, 
+  Loader2, KeyRound, ArrowRight, X 
+} from 'lucide-react'
 
 const loginSchema = z.object({
-  email: z.string().min(1, 'Username or Email is required'),
-  password: z.string().min(1, 'Password or PIN is required').min(4, 'Password or PIN must be at least 4 characters'),
+  email: z.string().min(1, 'Email or Username is required'),
+  password: z.string().min(1, 'Password is required').min(4, 'Password must be at least 4 characters'),
 })
 
 type LoginFormInputs = z.infer<typeof loginSchema>
-
-type AuthMode = 'signin' | 'forgot' | 'reset'
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate()
   const { setAuth } = useAuthStore()
   const { showToast } = useNotificationStore()
-  const [loading, setLoading] = useState(false)
-  const [authMode, setAuthMode] = useState<AuthMode>('signin')
-  const [showPassword, setShowPassword] = useState(false)
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const [capsLockActive, setCapsLockActive] = useState(false)
 
-  // Forgot password & reset password inputs
+  const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [capsLockActive, setCapsLockActive] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [shakeError, setShakeError] = useState(false)
+
+  // Forgot password modal state
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false)
+  const [forgotStep, setForgotStep] = useState<'request' | 'verify'>('request')
   const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotLoading, setForgotLoading] = useState(false)
   const [resetCode, setResetCode] = useState<string[]>(Array(6).fill(''))
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showNewPassword, setShowNewPassword] = useState(false)
   const codeRefs = useRef<(HTMLInputElement | null)[]>([])
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-    reset,
   } = useForm<LoginFormInputs>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -49,25 +53,6 @@ export const LoginPage: React.FC = () => {
       password: '',
     },
   })
-
-  // Watch/Check new password strength rules
-  const rules = {
-    length: newPassword.length >= 8,
-    upper: /[A-Z]/.test(newPassword),
-    lower: /[a-z]/.test(newPassword),
-    number: /[0-9]/.test(newPassword),
-  }
-
-  const getStrengthScore = () => {
-    let score = 0
-    if (rules.length) score++
-    if (rules.upper) score++
-    if (rules.lower) score++
-    if (rules.number) score++
-    return score
-  }
-
-  const strengthScore = getStrengthScore()
 
   const handleCapsLock = (e: React.KeyboardEvent) => {
     if (e.getModifierState('CapsLock')) {
@@ -77,16 +62,22 @@ export const LoginPage: React.FC = () => {
     }
   }
 
-  // Handle standard login
+  // Handle Login Submit
   const onLoginSubmit = async (data: LoginFormInputs) => {
     if (loading) return
     setLoading(true)
+    setErrorMessage(null)
+    setShakeError(false)
+
     try {
       const response = await authService.login(data)
       const result = response.data
       
       if (response.success && result) {
-        const { accessToken, refreshToken, userId, email, firstName, lastName, tenantId, roles, permissions, assignedProductionLineId, companyName } = result
+        const { 
+          accessToken, refreshToken, userId, email, firstName, 
+          lastName, tenantId, roles, permissions, assignedProductionLineId, companyName 
+        } = result
         
         localStorage.setItem('tenantCode', 'DEFAULT')
         
@@ -106,7 +97,7 @@ export const LoginPage: React.FC = () => {
           tenantName: companyName
         })
 
-        showToast(`Welcome back, ${firstName}!`, 'success')
+        showToast(`Welcome back, ${firstName || 'User'}!`, 'success')
         
         const targetRoute = getDefaultRouteForUser({
           roles,
@@ -116,42 +107,46 @@ export const LoginPage: React.FC = () => {
         })
         navigate(targetRoute)
       } else {
-        showToast(response.message || 'Login failed.', 'error')
+        triggerError(response.message || 'Invalid credentials. Please verify your email and password.')
       }
     } catch (error: any) {
-      const errMsg = error.response?.data?.message || error.message || 'Authentication failed.'
-      showToast(errMsg, 'error')
+      const msg = error.response?.data?.message || error.message || 'Authentication failed. Please check your credentials.'
+      triggerError(msg)
     } finally {
       setLoading(false)
     }
   }
 
-  // Handle forgot password OTP request
+  const triggerError = (msg: string) => {
+    setErrorMessage(msg)
+    setShakeError(true)
+    setTimeout(() => setShakeError(false), 500)
+  }
+
+  // Forgot password handlers
   const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!forgotEmail) {
-      showToast('Please enter your email address.', 'error')
+      showToast('Please enter your corporate email address.', 'error')
       return
     }
-    setLoading(true)
+    setForgotLoading(true)
     try {
       const response = await authService.sendOtp(forgotEmail, 'PasswordReset')
       if (response.success) {
-        showToast('Password recovery pin dispatched to your email.', 'success')
-        setAuthMode('reset')
+        showToast('Password recovery PIN sent to your email.', 'success')
+        setForgotStep('verify')
         setResetCode(Array(6).fill(''))
       } else {
-        showToast(response.message || 'Failed to dispatch recovery pin.', 'error')
+        showToast(response.message || 'Failed to send recovery code.', 'error')
       }
     } catch (error: any) {
-      const errMsg = error.response?.data?.message || error.message || 'Verification code dispatch failed.'
-      showToast(errMsg, 'error')
+      showToast(error.response?.data?.message || 'Failed to send recovery code.', 'error')
     } finally {
-      setLoading(false)
+      setForgotLoading(false)
     }
   }
 
-  // Handle OTP digit navigation
   const handleCodeChange = (val: string, index: number) => {
     const clean = val.replace(/[^0-9]/g, '')
     if (!clean) {
@@ -171,17 +166,11 @@ export const LoginPage: React.FC = () => {
   }
 
   const handleCodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
-    if (e.key === 'Backspace') {
-      if (!resetCode[index] && index > 0) {
-        const newCode = [...resetCode]
-        newCode[index - 1] = ''
-        setResetCode(newCode)
-        codeRefs.current[index - 1]?.focus()
-      } else {
-        const newCode = [...resetCode]
-        newCode[index] = ''
-        setResetCode(newCode)
-      }
+    if (e.key === 'Backspace' && !resetCode[index] && index > 0) {
+      const newCode = [...resetCode]
+      newCode[index - 1] = ''
+      setResetCode(newCode)
+      codeRefs.current[index - 1]?.focus()
     }
   }
 
@@ -194,12 +183,11 @@ export const LoginPage: React.FC = () => {
     }
   }
 
-  // Handle password reset verification & submission
   const handleResetSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const codeStr = resetCode.join('')
     if (codeStr.length < 6) {
-      showToast('Please enter the full 6-digit confirmation pin.', 'error')
+      showToast('Please enter the complete 6-digit confirmation pin.', 'error')
       return
     }
     if (!newPassword || newPassword.length < 8) {
@@ -211,9 +199,8 @@ export const LoginPage: React.FC = () => {
       return
     }
 
-    setLoading(true)
+    setForgotLoading(true)
     try {
-      // 1. Verify verification code
       const verifyRes = await authService.verifyOtp({
         email: forgotEmail,
         code: codeStr,
@@ -221,326 +208,348 @@ export const LoginPage: React.FC = () => {
       })
 
       if (verifyRes.success) {
-        // 2. Perform password update
         const resetRes = await authService.resetPassword(forgotEmail, newPassword)
         if (resetRes.success) {
-          showToast('Credentials updated successfully. Please sign in.', 'success')
-          setAuthMode('signin')
-          reset()
+          showToast('Password updated successfully. Please sign in.', 'success')
+          setIsForgotModalOpen(false)
+          setForgotStep('request')
+          setForgotEmail('')
           setNewPassword('')
           setConfirmPassword('')
-          setForgotEmail('')
         } else {
-          showToast(resetRes.message || 'Credentials update failed.', 'error')
+          showToast(resetRes.message || 'Password update failed.', 'error')
         }
       } else {
-        showToast(verifyRes.message || 'Invalid verification code.', 'error')
+        showToast(verifyRes.message || 'Invalid verification PIN.', 'error')
       }
     } catch (error: any) {
-      const errMsg = error.response?.data?.message || error.message || 'Verification or update failed.'
-      showToast(errMsg, 'error')
+      showToast(error.response?.data?.message || 'Reset failed.', 'error')
     } finally {
-      setLoading(false)
+      setForgotLoading(false)
     }
   }
 
   return (
-    <div className="flex flex-col gap-6 w-full animate-fade-in text-left">
-      {/* Title */}
-      <div className="flex flex-col items-center text-center select-none">
-        <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-md mb-4">
-          <Droplet className="w-6 h-6 text-white fill-white animate-pulse" />
-        </div>
-        <h1 className="text-xl font-bold text-[#111827] tracking-tight">
-          {authMode === 'signin' && 'Sign In to Portal'}
-          {authMode === 'forgot' && 'Reset Security Credentials'}
-          {authMode === 'reset' && 'Create New Password'}
-        </h1>
-        <p className="text-[11px] text-slate-500 mt-1 uppercase tracking-widest font-bold">
-          {authMode === 'signin' && 'Authorized Operator Access'}
-          {authMode === 'forgot' && 'Initiate Account Recovery'}
-          {authMode === 'reset' && 'Establish Secure Password'}
-        </p>
-      </div>
+    <div className="w-full flex justify-center items-center font-sans">
 
-      {/* Caps Lock warning */}
-      {capsLockActive && authMode === 'signin' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-xs text-amber-850 flex items-center gap-2 select-none">
-          <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-          <span>CAPS LOCK IS ACTIVE</span>
-        </div>
-      )}
-
-      {/* MODE 1: Standard Sign In */}
-      {authMode === 'signin' && (
-        <form onSubmit={handleSubmit(onLoginSubmit)} className="flex flex-col gap-4">
-          {/* Email / Username */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-slate-700 select-none">Email or Username *</label>
-            <EnterpriseInput 
-              id="email"
-              placeholder="operator@company.com"
-              disabled={loading}
-              error={errors.email?.message}
-              {...register('email')}
-              className="bg-white border-[#D0D5DD] text-[#111827] placeholder:text-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-sm p-2.5 transition-all w-full"
-              autoFocus
-            />
+      {/* FRESH WHITE AUTHENTICATION SURFACE (440px width, 16px rounded, soft border) */}
+      <motion.div 
+        animate={shakeError ? { x: [-8, 8, -6, 6, -3, 3, 0] } : {}}
+        transition={{ duration: 0.4 }}
+        className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl shadow-xs p-8 sm:p-9 space-y-5 relative"
+      >
+        
+        {/* Header */}
+        <div className="flex flex-col items-center text-center space-y-2 select-none">
+          <div className="w-10 h-10 rounded-xl bg-[#2563EB] text-white flex items-center justify-center shadow-xs">
+            <Droplet className="w-5 h-5 fill-white" />
           </div>
+          <div>
+            <h2 className="text-xl font-extrabold text-[#111827] tracking-tight">
+              Welcome Back
+            </h2>
+            <p className="text-xs font-medium text-[#6B7280] mt-0.5">
+              Sign in to continue to Aquora ERP
+            </p>
+          </div>
+        </div>
 
-          {/* Password */}
-          <div className="relative w-full flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-slate-700 select-none">Password or PIN *</label>
+        {/* Caps Lock Alert */}
+        <AnimatePresence>
+          {capsLockActive && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2.5 text-amber-800 text-xs font-semibold select-none"
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+              <span>Caps Lock is ON</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Inline Error Alert */}
+        <AnimatePresence>
+          {errorMessage && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-rose-800 text-xs leading-relaxed select-none"
+            >
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <span className="font-bold block mb-0.5">Authentication Failed</span>
+                <span>{errorMessage}</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Form Controls */}
+        <form onSubmit={handleSubmit(onLoginSubmit)} className="space-y-4">
+
+          {/* Email / Username Field (54px Height) */}
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-[#111827] select-none">
+              Email or Username
+            </label>
             <div className="relative">
-              <input 
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#9CA3AF]">
+                <Mail className="w-4.5 h-4.5" />
+              </div>
+              <input
+                id="email"
+                type="text"
+                autoComplete="username"
                 disabled={loading}
-                onKeyDown={handleCapsLock}
-                {...register('password')}
-                className="bg-white border border-[#D0D5DD] text-[#111827] placeholder:text-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-sm p-2.5 pr-10 transition-all w-full outline-none"
+                placeholder="name@company.com"
+                {...register('email')}
+                className={`w-full pl-10 pr-3.5 h-[54px] bg-white border ${
+                  errors.email ? 'border-rose-400 focus:ring-rose-500/20' : 'border-[#E5E7EB] focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]'
+                } rounded-xl text-xs font-medium text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none transition-all`}
+                autoFocus
               />
-              <button
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors cursor-pointer select-none"
-                onClick={() => setShowPassword(!showPassword)}
-                type="button"
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
             </div>
-            {errors.password?.message && (
-              <span className="text-[11px] font-semibold text-red-650 mt-1">{errors.password.message}</span>
+            {errors.email?.message && (
+              <p className="text-[11px] font-medium text-rose-600 pl-1">
+                {errors.email.message}
+              </p>
             )}
           </div>
 
-          {/* Actions */}
-          <div className="flex justify-between items-center select-none text-[11px] font-semibold">
-            <label className="flex items-center gap-2 cursor-pointer group">
+          {/* Password Field (54px Height) */}
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-[#111827] select-none">
+              Password
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#9CA3AF]">
+                <Lock className="w-4.5 h-4.5" />
+              </div>
               <input
-                className="w-3.5 h-3.5 border-[#D0D5DD] text-blue-600 focus:ring-blue-500 rounded transition-all cursor-pointer bg-white"
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                disabled={loading}
+                onKeyDown={handleCapsLock}
+                placeholder="••••••••"
+                {...register('password')}
+                className={`w-full pl-10 pr-10 h-[54px] bg-white border ${
+                  errors.password ? 'border-rose-400 focus:ring-rose-500/20' : 'border-[#E5E7EB] focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]'
+                } rounded-xl text-xs font-medium text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none transition-all`}
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#9CA3AF] hover:text-[#111827] transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+              </button>
+            </div>
+            {errors.password?.message && (
+              <p className="text-[11px] font-medium text-rose-600 pl-1">
+                {errors.password.message}
+              </p>
+            )}
+          </div>
+
+          {/* Remember Me & Forgot Password Row */}
+          <div className="flex items-center justify-between text-xs select-none">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
                 type="checkbox"
                 disabled={loading}
+                className="w-4 h-4 rounded border-[#E5E7EB] text-[#2563EB] focus:ring-[#2563EB]/20"
               />
-              <span className="text-slate-500 group-hover:text-slate-800 transition-colors">
-                Remember operator session
-              </span>
+              <span className="text-[#6B7280] font-medium">Remember me</span>
             </label>
+
             <button
               type="button"
               onClick={() => {
-                setAuthMode('forgot')
+                setIsForgotModalOpen(true)
+                setForgotStep('request')
               }}
-              className="text-blue-600 hover:text-blue-700 transition-colors cursor-pointer hover:underline"
+              className="font-semibold text-[#2563EB] hover:text-[#1D4ED8] transition-colors"
             >
               Forgot Password?
             </button>
           </div>
 
-          {/* Submit */}
-          <EnterpriseButton
+          {/* Primary Action Button (Solid Blue #2563EB, 54px Height) */}
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
             type="submit"
-            loading={loading}
-            className="w-full mt-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 border-none shadow-[0_4px_20px_rgba(37,99,235,0.15)] transition-all font-bold text-white text-sm"
+            disabled={loading}
+            className="w-full h-[54px] bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer mt-1"
           >
-            Authorize Access
-          </EnterpriseButton>
+            {loading ? (
+              <>
+                <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                <span>Authenticating...</span>
+              </>
+            ) : (
+              <>
+                <span>Sign In</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </motion.button>
+
         </form>
-      )}
 
-      {/* MODE 2: Forgot Password */}
-      {authMode === 'forgot' && (
-        <form onSubmit={handleForgotSubmit} className="flex flex-col gap-4 animate-fade-in">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-slate-700 select-none">Account Corporate Email *</label>
-            <div className="relative">
-              <input 
-                type="email"
-                required
-                placeholder="operator@company.com"
-                value={forgotEmail}
-                onChange={(e) => setForgotEmail(e.target.value)}
-                disabled={loading}
-                className="bg-white border border-[#D0D5DD] text-[#111827] placeholder:text-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-sm p-2.5 pl-10 transition-all w-full outline-none"
-                autoFocus
-              />
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 pointer-events-none" />
-            </div>
-            <p className="text-[10px] text-slate-500 leading-relaxed mt-1 select-none">
-              A 6-digit identity confirmation pin will be dispatched to this corporate address.
-            </p>
-          </div>
+        {/* Register Account Link */}
+        <div className="pt-2 border-t border-[#E5E7EB] text-center text-xs text-[#6B7280] select-none">
+          Don't have an enterprise account?{' '}
+          <Link to="/register" className="font-bold text-[#2563EB] hover:text-[#1D4ED8] transition-colors">
+            Register here
+          </Link>
+        </div>
 
-          <EnterpriseButton
-            type="submit"
-            loading={loading}
-            className="w-full mt-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 border-none shadow-[0_4px_20px_rgba(37,99,235,0.15)] transition-all font-bold text-white text-sm"
-          >
-            Dispatch Recovery Code
-          </EnterpriseButton>
+      </motion.div>
 
-          <button
-            type="button"
-            onClick={() => setAuthMode('signin')}
-            className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors text-center cursor-pointer select-none"
-          >
-            Return to Login
-          </button>
-        </form>
-      )}
-
-      {/* MODE 3: Reset Password (Enter Code & Password) */}
-      {authMode === 'reset' && (
-        <form onSubmit={handleResetSubmit} className="flex flex-col gap-4 animate-fade-in">
-          {/* OTP inputs */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold text-slate-700 select-none text-left">
-              Verification Code sent to <strong className="text-slate-800">{forgotEmail}</strong> *
-            </label>
-            <div className="flex justify-between items-center gap-2" onPaste={handleCodePaste}>
-              {resetCode.map((digit, idx) => (
-                <input
-                  key={idx}
-                  type="text"
-                  maxLength={1}
-                  value={digit}
-                  disabled={loading}
-                  ref={(el) => { codeRefs.current[idx] = el; }}
-                  onChange={(e) => handleCodeChange(e.target.value, idx)}
-                  onKeyDown={(e) => handleCodeKeyDown(e, idx)}
-                  className="w-12 h-12 text-center text-lg font-bold bg-white border border-[#D0D5DD] rounded-lg text-[#111827] placeholder:text-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all outline-none"
-                  placeholder="0"
-                  autoFocus={idx === 0}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* New Password */}
-          <div className="relative w-full flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-slate-700 select-none">New Security Password *</label>
-            <div className="relative">
-              <input 
-                type={showNewPassword ? 'text' : 'password'}
-                placeholder="••••••••"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                disabled={loading}
-                className="bg-white border border-[#D0D5DD] text-[#111827] placeholder:text-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-sm p-2.5 pr-10 transition-all w-full outline-none"
-              />
-              <button
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors cursor-pointer select-none"
-                onClick={() => setShowNewPassword(!showNewPassword)}
-                type="button"
-              >
-                {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-
-          {/* Strength meter */}
-          {newPassword && (
-            <div className="flex flex-col gap-2 p-3 rounded-lg bg-[#F8FAFC] border border-[#E5E7EB] select-none">
-              <div className="flex justify-between items-center text-[10px] font-bold tracking-wider">
-                <span className="text-slate-500 uppercase">Strength Score</span>
-                <span className={
-                  strengthScore <= 1 ? 'text-red-500' :
-                  strengthScore === 2 ? 'text-amber-500' :
-                  strengthScore === 3 ? 'text-blue-500' : 'text-emerald-500'
-                }>
-                  {strengthScore <= 1 ? 'WEAK' :
-                   strengthScore === 2 ? 'FAIR' :
-                   strengthScore === 3 ? 'GOOD' : 'STRONG'}
-                </span>
-              </div>
-              <div className="grid grid-cols-4 gap-1.5">
-                {[1, 2, 3, 4].map((i) => (
-                  <div 
-                    key={i} 
-                    className={`h-1 rounded-full transition-all duration-350 ${
-                      i <= strengthScore 
-                        ? strengthScore <= 1 ? 'bg-red-500' 
-                        : strengthScore === 2 ? 'bg-amber-500' 
-                        : strengthScore === 3 ? 'bg-blue-500' : 'bg-emerald-500'
-                        : 'bg-slate-200'
-                    }`}
-                  />
-                ))}
-              </div>
-              {/* Checklist */}
-              <div className="grid grid-cols-2 gap-x-2 gap-y-1 mt-1 text-[10px]">
-                <div className="flex items-center gap-1.5">
-                  {rules.length ? <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> : <XCircle className="w-3.5 h-3.5 text-slate-400" />}
-                  <span className={rules.length ? 'text-slate-800' : 'text-slate-500'}>8+ Characters</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {rules.upper ? <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> : <XCircle className="w-3.5 h-3.5 text-slate-400" />}
-                  <span className={rules.upper ? 'text-slate-800' : 'text-slate-500'}>Uppercase Letter</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {rules.lower ? <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> : <XCircle className="w-3.5 h-3.5 text-slate-400" />}
-                  <span className={rules.lower ? 'text-slate-800' : 'text-slate-500'}>Lowercase Letter</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {rules.number ? <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> : <XCircle className="w-3.5 h-3.5 text-slate-400" />}
-                  <span className={rules.number ? 'text-slate-800' : 'text-slate-500'}>Contains Number</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Confirm Password */}
-          <div className="relative w-full flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-slate-700 select-none">Confirm New Password *</label>
-            <input 
-              type="password"
-              placeholder="••••••••"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              disabled={loading}
-              className="bg-white border border-[#D0D5DD] text-[#111827] placeholder:text-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-sm p-2.5 transition-all w-full outline-none"
+      {/* FORGOT PASSWORD MODAL */}
+      <AnimatePresence>
+        {isForgotModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 select-none">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsForgotModalOpen(false)} 
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs" 
             />
+
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-md bg-white border border-[#E5E7EB] rounded-2xl shadow-2xl overflow-hidden z-10"
+            >
+              
+              {/* Header */}
+              <div className="px-6 py-4 bg-[#FAFBFC] border-b border-[#E5E7EB] flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <KeyRound className="w-5 h-5 text-[#2563EB]" />
+                  <h3 className="text-sm font-bold text-[#111827]">
+                    {forgotStep === 'request' ? 'Reset Password' : 'Verify Recovery PIN'}
+                  </h3>
+                </div>
+                <button 
+                  onClick={() => setIsForgotModalOpen(false)} 
+                  className="p-1 rounded-xl text-[#9CA3AF] hover:text-[#111827] transition-colors"
+                >
+                  <X className="w-4.5 h-4.5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-5 text-xs">
+
+                {forgotStep === 'request' ? (
+                  <form onSubmit={handleForgotSubmit} className="space-y-4">
+                    <p className="text-[#6B7280] leading-relaxed">
+                      Enter your corporate email address. We will send you a 6-digit confirmation PIN to reset your password.
+                    </p>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[#111827] font-semibold">Corporate Email</label>
+                      <input
+                        type="email"
+                        required
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        placeholder="name@company.com"
+                        className="w-full px-3.5 h-[54px] bg-white border border-[#E5E7EB] rounded-xl text-[#111827] text-xs focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={forgotLoading}
+                      className="w-full h-[54px] bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {forgotLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Recovery Code'}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleResetSubmit} className="space-y-4">
+                    <p className="text-[#6B7280] leading-relaxed">
+                      Enter the 6-digit PIN sent to <strong className="text-[#111827]">{forgotEmail}</strong> and set your new password.
+                    </p>
+
+                    {/* OTP Digits */}
+                    <div className="flex justify-between items-center gap-2" onPaste={handleCodePaste}>
+                      {resetCode.map((digit, idx) => (
+                        <input
+                          key={idx}
+                          type="text"
+                          maxLength={1}
+                          value={digit}
+                          ref={(el) => { codeRefs.current[idx] = el }}
+                          onChange={(e) => handleCodeChange(e.target.value, idx)}
+                          onKeyDown={(e) => handleCodeKeyDown(e, idx)}
+                          className="w-10 h-11 text-center font-bold text-base bg-white border border-[#E5E7EB] rounded-xl text-[#111827] focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]"
+                        />
+                      ))}
+                    </div>
+
+                    {/* New Password */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[#111827] font-semibold">New Password</label>
+                      <div className="relative">
+                        <input
+                          type={showNewPassword ? 'text' : 'password'}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full px-3.5 h-[54px] bg-white border border-[#E5E7EB] rounded-xl text-[#111827] text-xs focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#9CA3AF]"
+                        >
+                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Confirm Password */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[#111827] font-semibold">Confirm New Password</label>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full px-3.5 h-[54px] bg-white border border-[#E5E7EB] rounded-xl text-[#111827] text-xs focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={forgotLoading || resetCode.join('').length < 6 || !newPassword}
+                      className="w-full h-[54px] bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {forgotLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Set New Password'}
+                    </button>
+                  </form>
+                )}
+
+              </div>
+
+            </motion.div>
           </div>
+        )}
+      </AnimatePresence>
 
-          <EnterpriseButton
-            type="submit"
-            loading={loading}
-            disabled={!newPassword || newPassword !== confirmPassword || resetCode.join('').length < 6}
-            className="w-full mt-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 border-none shadow-[0_4px_20px_rgba(37,99,235,0.15)] transition-all font-bold text-white text-sm"
-          >
-            Update Credentials
-          </EnterpriseButton>
-
-          <button
-            type="button"
-            onClick={() => setAuthMode('signin')}
-            className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors text-center cursor-pointer select-none"
-          >
-            Cancel and Return
-          </button>
-        </form>
-      )}
-
-      {/* Info Footer */}
-      <div className="pt-5 border-t border-[#E5E7EB] text-center flex flex-col items-center gap-3 select-none">
-        <p className="text-[10px] leading-relaxed text-slate-500 font-medium">
-          Proprietary Industrial Resource Planning Environment.
-        </p>
-        <div className="flex items-center gap-1.5 text-[9px] font-bold text-red-600 uppercase tracking-widest bg-red-50 border border-red-200 px-2.5 py-1 rounded-full">
-          <Lock className="w-2.5 h-2.5" />
-          <span>Secure Access Only</span>
-        </div>
-      </div>
-
-      {/* Demo Credentials Box */}
-      {authMode === 'signin' && (
-        <div className="p-3.5 rounded-lg bg-[#F8FAFC] border border-[#E5E7EB] text-[11px] text-slate-500 leading-relaxed select-none">
-          <span className="font-bold text-slate-800 block mb-1">Clearance Demo Account:</span>
-          <span className="block font-medium">Email: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-blue-600 font-mono">admin@aquora.com</code></span>
-          <span className="block font-medium">Password: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-blue-600 font-mono">Admin@12345</code></span>
-        </div>
-      )}
     </div>
   )
 }
+
 export default LoginPage

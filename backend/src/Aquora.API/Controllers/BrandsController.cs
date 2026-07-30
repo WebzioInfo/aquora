@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -67,9 +67,9 @@ namespace Aquora.API.Controllers
                 var pagedResult = new PagedResult<BrandDto>(items, totalCount, pageNumber, pageSize);
                 return Success(pagedResult, "Brands retrieved successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<PagedResult<BrandDto>>("An internal error occurred.", "Failed to retrieve brands.");
+                return Failure<PagedResult<BrandDto>>(ex.Message, "Failed to retrieve brands.");
             }
         }
 
@@ -97,9 +97,9 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Brand retrieved successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<BrandDto>("An internal error occurred.", "Failed to retrieve brand.");
+                return Failure<BrandDto>(ex.Message, "Failed to retrieve brand.");
             }
         }
 
@@ -156,9 +156,9 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Brand created successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<BrandDto>("An internal error occurred.", "Failed to create brand.");
+                return Failure<BrandDto>(ex.Message, "Failed to create brand.");
             }
         }
 
@@ -221,9 +221,9 @@ namespace Aquora.API.Controllers
 
                 return Success(dto, "Brand updated successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<BrandDto>("An internal error occurred.", "Failed to update brand.");
+                return Failure<BrandDto>(ex.Message, "Failed to update brand.");
             }
         }
 
@@ -248,9 +248,9 @@ namespace Aquora.API.Controllers
                 
                 return Success(true, "Brand deleted successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<bool>("An internal error occurred.", "Failed to delete brand.");
+                return Failure<bool>(ex.Message, "Failed to delete brand.");
             }
         }
     }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -13,7 +13,7 @@ namespace Aquora.Persistence.Migrations.Tenant
         {
             migrationBuilder.CreateTable(
                 name: "DiscountGroups",
-                schema: "public",
+                
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -34,7 +34,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_DiscountGroups_Tenants_TenantId",
                         column: x => x.TenantId,
-                        principalSchema: "public",
+
                         principalTable: "Tenants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -42,7 +42,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateTable(
                 name: "PriceLists",
-                schema: "public",
+                
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -63,7 +63,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                     table.ForeignKey(
                         name: "FK_PriceLists_Tenants_TenantId",
                         column: x => x.TenantId,
-                        principalSchema: "public",
+
                         principalTable: "Tenants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -71,13 +71,13 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateIndex(
                 name: "IX_DiscountGroups_TenantId",
-                schema: "public",
+                
                 table: "DiscountGroups",
                 column: "TenantId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PriceLists_TenantId",
-                schema: "public",
+                
                 table: "PriceLists",
                 column: "TenantId");
         }

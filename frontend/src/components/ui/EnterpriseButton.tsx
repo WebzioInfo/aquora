@@ -19,10 +19,10 @@ export const EnterpriseButton: React.FC<EnterpriseButtonProps> = ({
   
   const variants = {
     primary: 'bg-[#2563EB] text-white hover:bg-[#1D4ED8] active:bg-[#1E40AF] disabled:bg-[#F2F4F7] disabled:text-[#98A2B3] disabled:shadow-none !rounded-[10px] !h-[42px]',
-    secondary: 'border border-[#D0D5DD] bg-white text-[#344054] hover:bg-[#F9FAFB] active:bg-[#F2F4F7] disabled:border-[#F2F4F7] disabled:text-[#98A2B3] dark:bg-slate-900 dark:text-slate-200 dark:border-slate-700',
+    secondary: 'border border-[#D0D5DD] bg-white text-[#344054] hover:bg-[#F9FAFB] active:bg-[#F2F4F7] disabled:border-[#F2F4F7] disabled:text-[#98A2B3]',
     danger: 'bg-[#F04438] text-white hover:bg-[#D92D20] active:bg-[#B42318] disabled:bg-[#F2F4F7] disabled:text-[#98A2B3]',
     success: 'bg-[#17B26A] text-white hover:bg-[#079455] active:bg-[#067647] disabled:bg-[#F2F4F7] disabled:text-[#98A2B3]',
-    ghost: 'text-[#667085] hover:bg-[#EFF4FF] hover:text-[#1A56DB] dark:hover:bg-slate-800 dark:hover:text-white'
+    ghost: 'text-[#667085] hover:bg-[#EFF4FF] hover:text-[#1A56DB]'
   }
 
   const sizes = {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -82,9 +82,9 @@ namespace Aquora.API.Controllers
             {
                 return Failure<List<object>>("Tenant schema is outdated. Pending migration detected.", "Schema Error");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<List<object>>("An internal error occurred.", "Failed to load today's production entries.");
+                return Failure<List<object>>(ex.Message, "Failed to load today's production entries.");
             }
         }
 
@@ -101,9 +101,9 @@ namespace Aquora.API.Controllers
             {
                 return Failure<List<object>>("Tenant schema is outdated. Pending migration detected.", "Schema Error");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<List<object>>("An internal error occurred.", "Failed to load session production entries.");
+                return Failure<List<object>>(ex.Message, "Failed to load session production entries.");
             }
         }
 
@@ -186,6 +186,13 @@ namespace Aquora.API.Controllers
                         return Failure<object>("Selected Preform material not found.", "Validation failed");
                     }
                 }
+                else
+                {
+                    if ((request.PreformMaterialId.HasValue && request.PreformMaterialId != Guid.Empty) || request.PreformUsage > 0 || request.PreformWastage > 0)
+                    {
+                        return Failure<object>("Blowing station is disabled. Preforms input is not allowed.", "Validation failed");
+                    }
+                }
 
                 RawMaterial? cap = null;
                 if (fillingEnabled)
@@ -203,6 +210,13 @@ namespace Aquora.API.Controllers
                         return Failure<object>("Cap material must be selected when usage or wastage is greater than 0.", "Validation failed");
                     }
                 }
+                else
+                {
+                    if ((request.CapMaterialId.HasValue && request.CapMaterialId != Guid.Empty) || request.CapUsage > 0 || request.CapWastage > 0)
+                    {
+                        return Failure<object>("Filling station is disabled. Caps input is not allowed.", "Validation failed");
+                    }
+                }
 
                 RawMaterial? label = null;
                 if (labelingEnabled)
@@ -217,6 +231,13 @@ namespace Aquora.API.Controllers
                         return Failure<object>("Selected Label material not found.", "Validation failed");
                     }
                 }
+                else
+                {
+                    if ((request.LabelMaterialId.HasValue && request.LabelMaterialId != Guid.Empty) || request.LabelUsage > 0 || request.LabelWastage > 0)
+                    {
+                        return Failure<object>("Labelling station is disabled. Labels input is not allowed.", "Validation failed");
+                    }
+                }
 
                 RawMaterial? shrink = null;
                 if (packingEnabled)
@@ -229,6 +250,13 @@ namespace Aquora.API.Controllers
                     if (shrink == null)
                     {
                         return Failure<object>("Selected Shrink Film material not found.", "Validation failed");
+                    }
+                }
+                else
+                {
+                    if ((request.ShrinkMaterialId.HasValue && request.ShrinkMaterialId != Guid.Empty) || request.ShrinkUsage > 0 || request.ShrinkWastage > 0 || (request.GlueMaterialId.HasValue && request.GlueMaterialId != Guid.Empty) || request.InkUsed || request.MakeupUsed)
+                    {
+                        return Failure<object>("Packing station is disabled. Shrink Film, Glue, Ink, and Makeup input is not allowed.", "Validation failed");
                     }
                 }
 
@@ -272,33 +300,33 @@ namespace Aquora.API.Controllers
                     }
                 }
 
-                // 4. Stock validation checks & conversions
+                // 4. Stock validation checks & conversions (Stock deduction = Usage ONLY, Wastage is for reporting count only)
                 decimal preformDeduction = 0;
                 if (blowingEnabled && preform != null)
                 {
-                    preformDeduction = (request.PreformUsage * preform.ConversionFactor) + request.PreformWastage;
-                    if (preformDeduction < 0) return Failure<object>("Preform usage and wastage cannot be negative.", "Validation failed");
+                    preformDeduction = request.PreformUsage * preform.ConversionFactor;
+                    if (preformDeduction < 0) return Failure<object>("Preform usage cannot be negative.", "Validation failed");
                 }
 
                 decimal capDeduction = 0;
                 if (fillingEnabled && cap != null)
                 {
-                    capDeduction = (request.CapUsage * cap.ConversionFactor) + request.CapWastage;
-                    if (capDeduction < 0) return Failure<object>("Cap usage and wastage cannot be negative.", "Validation failed");
+                    capDeduction = request.CapUsage * cap.ConversionFactor;
+                    if (capDeduction < 0) return Failure<object>("Cap usage cannot be negative.", "Validation failed");
                 }
 
                 decimal labelDeduction = 0;
                 if (labelingEnabled && label != null)
                 {
-                    labelDeduction = (request.LabelUsage * label.ConversionFactor) + request.LabelWastage;
-                    if (labelDeduction < 0) return Failure<object>("Label usage and wastage cannot be negative.", "Validation failed");
+                    labelDeduction = request.LabelUsage * label.ConversionFactor;
+                    if (labelDeduction < 0) return Failure<object>("Label usage cannot be negative.", "Validation failed");
                 }
 
                 decimal shrinkDeduction = 0;
                 if (packingEnabled && shrink != null)
                 {
-                    shrinkDeduction = (request.ShrinkUsage * shrink.ConversionFactor) + request.ShrinkWastage;
-                    if (shrinkDeduction < 0) return Failure<object>("Shrink Film usage and wastage cannot be negative.", "Validation failed");
+                    shrinkDeduction = request.ShrinkUsage * shrink.ConversionFactor;
+                    if (shrinkDeduction < 0) return Failure<object>("Shrink Film usage cannot be negative.", "Validation failed");
                 }
 
                 decimal glueDeduction = 0;
@@ -531,7 +559,7 @@ namespace Aquora.API.Controllers
                 {
                     await transaction.RollbackAsync();
                     stopwatch.Stop();
-                    var errorMsg = ex.InnerException?.Message ?? "An internal error occurred.";
+                    var errorMsg = ex.InnerException?.Message ?? ex.Message;
                     
                     _logger.LogError(ex, "CreateProductionEntry unexpected exception. Tenant: {TenantId}, LineId: {LineId}, ElapsedMs: {ElapsedMs}, CorrelationId: {CorrelationId}", 
                         GetTenantId(), request.ProductionLineId, stopwatch.ElapsedMilliseconds, correlationId);
@@ -612,9 +640,9 @@ namespace Aquora.API.Controllers
 
                 return Success<object>(result, "Active production session loaded successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<object>("An internal error occurred.", "Failed to load active production session.");
+                return Failure<object>(ex.Message, "Failed to load active production session.");
             }
         }
 
@@ -842,7 +870,7 @@ namespace Aquora.API.Controllers
                 // Detailed error logging in Development
                 Serilog.Log.Error(ex, "Failed to start production session. DTO: {@Request}", request);
 
-                return Failure<object>("An internal error occurred.", "Failed to start production session.");
+                return Failure<object>(ex.Message, "Failed to start production session.");
             }
         }
 
@@ -942,10 +970,10 @@ namespace Aquora.API.Controllers
                     Status = session.Status
                 }, "Production Batch successfully closed.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return Failure<object>("An internal error occurred.", "Failed to close production batch.");
+                return Failure<object>(ex.Message, "Failed to close production batch.");
             }
         }
 
@@ -1191,9 +1219,9 @@ namespace Aquora.API.Controllers
 
                 return Success<object>(summary, "Session summary loaded successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<object>("An internal error occurred.", "Failed to load session summary.");
+                return Failure<object>(ex.Message, "Failed to load session summary.");
             }
         }
 
@@ -1260,9 +1288,9 @@ namespace Aquora.API.Controllers
 
                 return Success<List<object>>(skusList.Cast<object>().ToList(), "SKU products loaded successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<List<object>>("An internal error occurred.", "Failed to load SKU products.");
+                return Failure<List<object>>(ex.Message, "Failed to load SKU products.");
             }
         }
 
@@ -1279,9 +1307,9 @@ namespace Aquora.API.Controllers
                     .ToListAsync();
                 return Success<List<object>>(configs.Cast<object>().ToList(), "Case configurations loaded successfully.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Failure<List<object>>("An internal error occurred.", "Failed to load case configurations.");
+                return Failure<List<object>>(ex.Message, "Failed to load case configurations.");
             }
         }
 
@@ -1329,7 +1357,7 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to load raw materials.");
-                return Failure<List<object>>("An internal error occurred.", "Failed to load raw materials.");
+                return Failure<List<object>>(ex.Message, "Failed to load raw materials.");
             }
         }
 

@@ -19,8 +19,10 @@ import { productionShiftsService } from '../../services/productionShifts'
 import { ProductionShiftsManager } from './ProductionShiftsManager'
 import {
   Factory, ShieldCheck, Wrench, CheckCircle,
-  ArrowUpRight, CloudSun, Play, Search, Plus, Eye, Key, Trash2, Edit2, ToggleLeft, ToggleRight,
-  Pause, ExternalLink, Clock, Users, TrendingUp, Package, Settings, X
+  ArrowUpRight, ArrowDownRight, CloudSun, Play, Search, Plus, Eye, Key, Trash2, Edit2, ToggleLeft, ToggleRight,
+  Pause, ExternalLink, Clock, Users, TrendingUp, Package, Settings, X,
+  AlertTriangle, Activity, ChevronDown, Droplets, Beaker, Truck, Receipt,
+  ClipboardCheck, FileText, UserCheck, BarChart3, Zap, Box, Shield
 } from 'lucide-react'
 import EnterpriseHeader from '../../components/ui/EnterpriseHeader'
 import EnterpriseCard from '../../components/ui/EnterpriseCard'
@@ -35,6 +37,7 @@ import EnterpriseButton from '../../components/ui/EnterpriseButton'
 import { InventoryPage } from '../../modules/inventory/InventoryPage'
 import { CustomersPage } from './CustomersPage'
 import { SalesPage } from './SalesPage'
+import { useStationConfig } from '../../hooks/useStationConfig'
 
 export const CompanyDashboardPage: React.FC = () => {
   const location = useLocation()
@@ -44,9 +47,10 @@ export const CompanyDashboardPage: React.FC = () => {
   const queryClient = useQueryClient()
   const { showToast } = useNotificationStore()
   const { user } = useAuthStore()
-  const isCompanyAdmin = user?.roles?.includes('CompanyAdmin')
+  const { isBlowingEnabled, isFillingEnabled, isLabelingEnabled, isPackingEnabled } = useStationConfig()
 
   // --- DASHBOARD QUICK ACTION STATES & HANDLERS ---
+  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false)
   const [isDashboardAddInventoryOpen, setIsDashboardAddInventoryOpen] = useState(false)
   const [dashboardAdjustMatId, setDashboardAdjustMatId] = useState('')
   const [dashboardAdjustQty, setDashboardAdjustQty] = useState('')
@@ -357,6 +361,10 @@ export const CompanyDashboardPage: React.FC = () => {
     ['CompanyAdmin', 'Admin', 'Manager', 'Accountant'].includes(role)
   ) ?? false
 
+  const isCompanyAdmin = user?.roles?.some((role: string) =>
+    ['CompanyAdmin', 'SuperAdmin', 'PlatformAdmin'].includes(role)
+  ) ?? false
+
   // Fetch Products List
   const { data: productsData, isLoading: productsLoading } = useQuery({
     queryKey: ['productsList', productsPage, productsSearch],
@@ -505,6 +513,7 @@ export const CompanyDashboardPage: React.FC = () => {
     onSuccess: () => {
       showToast('Production stations configuration updated successfully.', 'success')
       queryClient.invalidateQueries({ queryKey: ['productionStationConfigs'] })
+      queryClient.invalidateQueries({ queryKey: ['enabledProductionStations'] })
     },
     onError: (err: any) => {
       const msg = err.response?.data?.message || 'Failed to update production stations.'
@@ -1895,7 +1904,7 @@ export const CompanyDashboardPage: React.FC = () => {
         <Breadcrumb items={[{ label: 'Company' }, { label: 'Production' }]} />
         <PageHeader
           title="Production"
-          description="Batch queue — monitor, filter, and manage active production runs"
+          description="Batch queue - monitor, filter, and manage active production runs"
           actions={
             <div className="flex items-center gap-3">
               <span className="text-[11px] font-semibold text-slate-500 select-none">
@@ -1938,6 +1947,16 @@ export const CompanyDashboardPage: React.FC = () => {
           >
             Production Lines
           </button>
+          <button
+            onClick={() => setProductionTab('shifts')}
+            className={`py-2 px-4 text-[12px] font-bold border-b-2 transition-all cursor-pointer ${
+              productionTab === 'shifts'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-400 hover:text-slate-700'
+            }`}
+          >
+            Production Shifts
+          </button>
         </div>
 
         {productionTab === 'batches' ? (
@@ -1954,12 +1973,12 @@ export const CompanyDashboardPage: React.FC = () => {
               ].map((kpi, i) => (
                 <div key={i} className="bg-white border border-[#E5E7EB] rounded-lg py-2 px-3 shadow-sm text-center">
                   <div className="text-[18px] font-black text-slate-900 leading-tight">{kpi.value}</div>
-                  <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5">{kpi.label}</div>
+                    <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5">{kpi.label}</div>
                 </div>
               ))}
             </div>
 
-            {/* Filter Toolbar Ã¢â‚¬â€ 40px height */}
+            {/* Filter Toolbar - 40px height */}
             <div className="flex flex-wrap items-center justify-between gap-2 bg-white border border-[#E5E7EB] rounded-xl px-3 shadow-sm" style={{ minHeight: '40px' }}>
               <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
                 {/* Search */}
@@ -2099,7 +2118,7 @@ export const CompanyDashboardPage: React.FC = () => {
               </div>
             )}
           </>
-        ) : (
+        ) : productionTab === 'lines' ? (
           <>
             {/* Production Lines Table */}
             <div className="flex items-center justify-between mb-1 px-1">
@@ -2173,6 +2192,8 @@ export const CompanyDashboardPage: React.FC = () => {
               </div>
             )}
           </>
+        ) : (
+          <ProductionShiftsManager />
         )}
 
         {/* Add Production Line Modal */}
@@ -2232,7 +2253,7 @@ export const CompanyDashboardPage: React.FC = () => {
               <div className="flex items-start justify-between pb-4 border-b border-gray-100">
                 <div>
                   <h3 id="batch-modal-title" className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                    <span className="text-xl">🏭</span> Create Production Batch
+                    <Factory className="w-5 h-5 text-slate-500" /> Create Production Batch
                   </h3>
                   <p className="text-sm text-gray-500 mt-1">
                     Initialize a new water run on the production floor.
@@ -3144,16 +3165,16 @@ export const CompanyDashboardPage: React.FC = () => {
 
   // Dynamic alerts generation based on true material levels
   const alerts: { title: string; desc: string }[] = []
-  if (stockPreforms < 50000) {
+  if (isBlowingEnabled && stockPreforms < 50000) {
     alerts.push({ title: 'Preforms stock low', desc: `${stockPreforms.toLocaleString()} units • Below safe level` })
   }
-  if (stockCaps < 100000) {
+  if (isFillingEnabled && stockCaps < 100000) {
     alerts.push({ title: 'Caps stock low', desc: `${stockCaps.toLocaleString()} units • Below safe level` })
   }
-  if (stockLabels < 40000) {
+  if (isLabelingEnabled && stockLabels < 40000) {
     alerts.push({ title: 'Labels stock low', desc: `${stockLabels.toLocaleString()} units • Below safe level` })
   }
-  if (stockShrinkRolls < 5000) {
+  if (isPackingEnabled && stockShrinkRolls < 5000) {
     alerts.push({ title: 'Shrink Film stock low', desc: `${stockShrinkRolls.toLocaleString()} units • Below safe level` })
   }
   if (stockFinishedGoods < 10000) {
@@ -3189,498 +3210,679 @@ export const CompanyDashboardPage: React.FC = () => {
     return 'Good Evening'
   }
 
-  const isDashboardLoading = 
-    linesLoading || 
-    batchesLoading || 
-    salesLoading || 
-    dashboardRawMaterialsLoading || 
-    dashboardProductsLoading || 
-    productionDashboardLoading
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// FACTORY COCKPIT â€” Dashboard Loading Skeleton
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+const isDashboardLoading = 
+  linesLoading || 
+  batchesLoading || 
+  salesLoading || 
+  dashboardRawMaterialsLoading || 
+  dashboardProductsLoading || 
+  productionDashboardLoading
 
-  if (isDashboardView && isDashboardLoading) {
-    return (
-      <PageContainer>
-          {/* Header Skeleton */}
-          <div className="flex justify-between items-center pb-6 border-b border-gray-100 animate-pulse">
-            <div className="space-y-2">
-              <div className="h-8 bg-gray-200 rounded w-64"></div>
-              <div className="h-4 bg-gray-100 rounded w-48"></div>
-            </div>
-            <div className="h-8 bg-gray-200 rounded w-32"></div>
+if (isDashboardView && isDashboardLoading) {
+  return (
+    <PageContainer>
+      <div className="space-y-6 animate-pulse">
+        {/* Header skeleton */}
+        <div className="flex justify-between items-start">
+          <div className="space-y-2">
+            <div className="h-7 bg-gray-200 rounded-lg w-72" />
+            <div className="h-4 bg-gray-100 rounded w-96" />
           </div>
-
-          {/* KPIs Skeleton */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 animate-pulse">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-white rounded-xl border border-slate-200 p-4 space-y-2">
-                <div className="h-3 bg-gray-200 rounded w-20"></div>
-                <div className="h-9 bg-gray-200 rounded w-28"></div>
-                <div className="h-3 bg-gray-100 rounded w-16"></div>
-              </div>
+          <div className="flex gap-3">
+            <div className="h-9 bg-gray-200 rounded-xl w-36" />
+            <div className="h-9 bg-gray-100 rounded-xl w-28" />
+          </div>
+        </div>
+        {/* KPI cards skeleton */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-[#E5E7EB] p-5 space-y-3">
+              <div className="h-3 bg-gray-200 rounded w-24" />
+              <div className="h-8 bg-gray-200 rounded w-20" />
+              <div className="h-3 bg-gray-100 rounded w-16" />
+            </div>
+          ))}
+        </div>
+        {/* Priority center skeleton */}
+        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-6 space-y-3">
+          <div className="h-4 bg-gray-200 rounded w-40" />
+          <div className="space-y-2">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-12 bg-gray-50 rounded-xl" />
             ))}
           </div>
-
-          {/* Ledger Skeleton */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 animate-pulse space-y-4">
-            <div className="h-4 bg-gray-200 rounded w-36"></div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="space-y-2">
-                  <div className="h-3 bg-gray-200 rounded w-24"></div>
-                  <div className="h-8 bg-gray-200 rounded w-20"></div>
-                  <div className="h-3 bg-gray-100 rounded w-16"></div>
-                </div>
-              ))}
-            </div>
+        </div>
+        {/* Production lines skeleton */}
+        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-6 space-y-3">
+          <div className="h-4 bg-gray-200 rounded w-48" />
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-40 bg-gray-50 rounded-xl" />
+            ))}
           </div>
+        </div>
+        {/* Operations skeleton */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-[#E5E7EB] p-5 h-28" />
+          ))}
+        </div>
+      </div>
+    </PageContainer>
+  )
+}
 
-          {/* Grid Skeleton */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-pulse">
-            <div className="lg:col-span-2 space-y-6">
-              <div className="space-y-4">
-                <div className="h-4 bg-gray-200 rounded w-32"></div>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className="border border-gray-200 bg-white rounded-xl p-4 space-y-3 h-32"></div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <div className="h-4 bg-gray-200 rounded w-24"></div>
-                {[...Array(2)].map((_, i) => (
-                  <div key={i} className="h-16 bg-gray-100 rounded-xl"></div>
-                ))}
-              </div>
-            </div>
-          </div>
-      </PageContainer>
-    )
-  }
-  // DEFAULT VIEW — Clean Executive Dashboard
-  return (
-    <>
-      <PageContainer>
-        <PageHeader 
-          title={`${getGreeting()}, ${user?.fullName?.split(' ')[0] || 'Sinan'} 👋`}
-          description={`${user?.tenantName || 'Aquaflow Ltd'} • Plant A • ${getShiftName(currentTime).split('(')[0].trim()} • ${currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`}
-          actions={
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-mono text-slate-500 tabular-nums">
-                {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-              </span>
-              <div className="flex items-center gap-2 text-xs font-medium bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
-                <span className={`w-2 h-2 rounded-full ${factoryStatus.variant === 'success' ? 'bg-green-500' : factoryStatus.variant === 'warning' ? 'bg-amber-500' : 'bg-slate-400'}`} />
-                <span className="text-slate-700">{factoryStatus.variant === 'success' ? 'Production Running' : factoryStatus.variant === 'warning' ? 'Production Paused' : 'Idle'}</span>
-              </div>
-            </div>
-          }
-        />
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// FACTORY COCKPIT â€” Main Dashboard View
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-        {/* —— Today's KPIs —————————————————————————————————————— */}
-        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-8 gap-y-6">
-          <div>
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Today's Production</p>
-            <p className="text-[32px] font-semibold tracking-tight text-gray-900 leading-tight tabular-nums mt-1">
-              {totalAchieved.toLocaleString()}
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5">cases produced</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Target</p>
-            <p className="text-[32px] font-semibold tracking-tight text-gray-900 leading-tight tabular-nums mt-1">
-              {totalTarget.toLocaleString()}
-            </p>
-            <p className="text-xs mt-0.5">
-              <span className={`font-medium ${todayProgressPercent >= 80 ? 'text-green-600' : todayProgressPercent >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
-                {todayProgressPercent}% achieved
-              </span>
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">This Week</p>
-            <p className="text-[32px] font-semibold tracking-tight text-gray-900 leading-tight tabular-nums mt-1">
-              {stats.weeklyProduction.toLocaleString()}
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5">cases</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">This Month</p>
-            <p className="text-[32px] font-semibold tracking-tight text-gray-900 leading-tight tabular-nums mt-1">
-              {stats.monthlyProduction.toLocaleString()}
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5">cases</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Today's Sales</p>
-            <p className="text-[32px] font-semibold tracking-tight text-gray-900 leading-tight tabular-nums mt-1">
-              ₹{salesDashboard?.todaySalesCases ? ((salesDashboard.todaySalesCases * 12.5 * 83) / 100000).toFixed(1) : '0'}L
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5">estimated revenue</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Pending Dispatch</p>
-            <p className="text-[32px] font-semibold tracking-tight text-gray-900 leading-tight tabular-nums mt-1">
-              {stats.pendingDispatch}
-            </p>
-            <p className={`text-xs font-medium mt-0.5 ${stats.pendingDispatchHighPriority > 0 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
-              {stats.pendingDispatchHighPriority} high priority
-            </p>
-          </div>
-        </section>
 
-        {/* Sales & Dispatch Metrics Section */}
-        <section className="bg-slate-50/50 border border-slate-100 rounded-2xl p-6">
-          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-5">Sales & Dispatch Ledger</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-8 gap-y-6">
-            <div>
-              <p className="text-xs font-medium text-gray-550">Today's Dispatched Cases</p>
-              <p className="text-[28px] font-black tracking-tight text-slate-800 leading-tight tabular-nums mt-1.5">
-                {(salesDashboard?.todaySalesCases || 0).toLocaleString()}
-              </p>
-              <p className="text-[10px] text-blue-600 font-semibold mt-0.5">Finished Goods Released</p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-gray-550">Today's Returns</p>
-              <p className="text-[28px] font-black tracking-tight text-emerald-600 leading-tight tabular-nums mt-1.5">
-                {(salesDashboard?.todayReturns || 0).toLocaleString()}
-              </p>
-              <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">Stock Restored</p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-gray-550">Today's Damages</p>
-              <p className="text-[28px] font-black tracking-tight text-rose-500 leading-tight tabular-nums mt-1.5">
-                {(salesDashboard?.todayDamage || 0).toLocaleString()}
-              </p>
-              <p className="text-[10px] text-rose-500 font-semibold mt-0.5">Inventory Deducted</p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-gray-550">Month-to-Date Releases</p>
-              <p className="text-[28px] font-black tracking-tight text-slate-800 leading-tight tabular-nums mt-1.5">
-                {(salesDashboard?.monthlyDispatch || 0).toLocaleString()}
-              </p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Cases Dispatched</p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-gray-550">Total Releases (All-Time)</p>
-              <p className="text-[28px] font-black tracking-tight text-slate-800 leading-tight tabular-nums mt-1.5">
-                {(salesDashboard?.totalDispatch || 0).toLocaleString()}
-              </p>
-              <p className="text-[10px] text-slate-405 mt-0.5">Log Release Aggregate</p>
-            </div>
-          </div>
-        </section>
+return (
+  <>
+    <PageContainer>
+      <div className="space-y-6">
 
-        {/* —————————————————————————————————————————————————————————————————————— */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-
-          {/* Left Column */}
-          <div className="lg:col-span-2 space-y-10">
-
-            {/* Production Lines */}
-            <section>
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-5">Production Lines</h2>
-              {displayLines.length === 0 ? (
-                <div className="border border-dashed border-gray-150 rounded-xl p-8 text-center text-gray-500">
-                  <p className="text-sm font-medium">No Production Lines Configured</p>
-                  <p className="text-xs text-gray-400 mt-1">Configure production lines in Settings</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {displayLines.map((line: any) => {
-                    const batch = displayBatches.find((b: any) => b.productionLineId === line.lineId)
-                    const isRunning = line.isActive && batch?.status === 'Active'
-                    const isPaused = line.isActive && batch?.status === 'Paused'
-                    const statusDot = isRunning ? 'bg-green-500' : isPaused ? 'bg-amber-500' : 'bg-gray-300'
-                    const statusText = isRunning ? 'Running' : isPaused ? 'Paused' : 'Idle'
-                    const produced = batch?.producedQuantity || 0
-                    const target = batch?.targetQuantity || 0
-                    const pct = target > 0 ? Math.round((produced / target) * 100) : 0
-
-                    return (
-                      <div key={line.lineId} className="border border-gray-100 rounded-xl p-4 space-y-3 hover:border-gray-200 transition-colors">
-                        {/* Line header */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${statusDot}`} />
-                            <span className="text-sm font-semibold text-gray-900">{line.name}</span>
-                          </div>
-                          <span className="text-[11px] font-medium text-gray-400">{statusText}</span>
-                        </div>
-
-                        {batch ? (
-                          <>
-                            {/* Batch details */}
-                            <div className="grid grid-cols-2 gap-y-2 text-[12px]">
-                              <div>
-                                <span className="text-gray-400">Batch</span>
-                                <p className="font-mono font-semibold text-gray-800">{batch.batchNumber}</p>
-                              </div>
-                              <div>
-                                <span className="text-gray-400">Operator</span>
-                                <p className="font-medium text-gray-800">{batch.operatorName || '—'}</p>
-                              </div>
-                              <div>
-                                <span className="text-gray-400">Product</span>
-                                <p className="font-medium text-gray-800 truncate pr-2">{batch.product || '—'}</p>
-                              </div>
-                              <div>
-                                <span className="text-gray-400">ETA</span>
-                                <p className="font-medium text-gray-800">{isRunning ? '~2h' : '—'}</p>
-                              </div>
-                            </div>
-                            {/* Progress */}
-                            <div className="space-y-1.5">
-                              <div className="flex justify-between text-[11px]">
-                                <span className="text-gray-500 tabular-nums">{produced.toLocaleString()} / {target.toLocaleString()} cases</span>
-                                <span className="font-semibold text-gray-700 tabular-nums">{pct}%</span>
-                              </div>
-                              <div className="w-full bg-gray-100 rounded-full h-1.5">
-                                <div className={`h-1.5 rounded-full ${isRunning ? 'bg-blue-500' : 'bg-amber-400'}`} style={{ width: `${pct}%` }} />
-                              </div>
-                            </div>
-                          </>
-                        ) : (
-                          <p className="text-xs text-gray-400 py-3">No active batch</p>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </section>
-
-            {/* —————————————————————————————————————————————————————————————————————— */}
-            <section>
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-5">Today's Batches</h2>
-              <div className="border border-gray-100 rounded-xl overflow-hidden">
-                <table className="w-full text-left text-[13px]">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
-                      <th className="py-3 px-4">Batch</th>
-                      <th className="py-3 px-4">Product</th>
-                      <th className="py-3 px-4">Line</th>
-                      <th className="py-3 px-4">Started</th>
-                      <th className="py-3 px-4">Progress</th>
-                      <th className="py-3 px-4">Operator</th>
-                      <th className="py-3 px-4 text-center">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {displayBatches.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="py-8 text-center text-gray-400 text-xs">
-                          No Production Today
-                        </td>
-                      </tr>
-                    ) : (
-                      displayBatches.map((batch: any) => {
-                        const pct = Math.round((batch.producedQuantity / batch.targetQuantity) * 100)
-                        return (
-                          <tr key={batch.id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="py-3 px-4 font-mono font-semibold text-gray-900">{batch.batchNumber}</td>
-                            <td className="py-3 px-4 text-gray-600 truncate max-w-[160px]">{batch.product}</td>
-                            <td className="py-3 px-4 text-gray-600">{batch.productionLineName}</td>
-                            <td className="py-3 px-4 font-mono text-gray-500 text-[12px]">
-                              {new Date(batch.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <div className="w-16 bg-gray-100 rounded-full h-1.5">
-                                  <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
-                                </div>
-                                <span className="font-mono text-[11px] font-semibold text-gray-500 tabular-nums">{pct}%</span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 text-gray-600">{batch.operatorName || '—'}</td>
-                            <td className="py-3 px-4 text-center">
-                              <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
-                                batch.status === 'Active'
-                                  ? 'bg-green-50 text-green-700'
-                                  : 'bg-amber-50 text-amber-700'
-                              }`}>
-                                {batch.status}
-                              </span>
-                            </td>
-                          </tr>
-                        )
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            {/* —————————————————————————————————————————————————————————————————————— */}
-            <section>
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Quick Actions</h2>
-              <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm">
-                <button
-                  onClick={() => {
-                    if (productionLines.length > 0) setStartBatchLineId(productionLines[0].lineId)
-                    if (allCatalogProducts.length > 0) setStartBatchProduct(allCatalogProducts[0].name)
-                    setIsStartBatchModalOpen(true)
-                  }}
-                  className="text-blue-600 hover:text-blue-800 font-medium cursor-pointer px-1"
-                >
-                  Start Batch
-                </button>
-                <span className="text-gray-300">&middot;</span>
-                <button
-                  onClick={() => {
-                    if (dashboardRawMaterials.length > 0) setDashboardAdjustMatId(dashboardRawMaterials[0].id)
-                    setIsDashboardAddInventoryOpen(true)
-                  }}
-                  className="text-blue-600 hover:text-blue-800 font-medium cursor-pointer px-1"
-                >
-                  Add Inventory
-                </button>
-                <span className="text-gray-300">&middot;</span>
-                <button onClick={() => setIsDashboardSalesOrderOpen(true)} className="text-blue-600 hover:text-blue-800 font-medium cursor-pointer px-1">
-                  Sales Order
-                </button>
-              </div>
-            </section>
-          </div>
-
-          {/* Right Column */}
-          <div className="space-y-10">
-
-            {/* Alerts */}
-            <section>
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">
-                Alerts {alerts.length > 0 && <span className="text-red-500 font-bold">{alerts.length}</span>}
-              </h2>
-              {alerts.length > 0 ? (
-                <div className="space-y-3">
-                  {alerts.map((alert, idx) => (
-                    <div key={idx} className="flex gap-3 items-start text-[13px]">
-                      <span className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 shrink-0" />
-                      <div>
-                        <p className="font-medium text-gray-900">{alert.title}</p>
-                        <p className="text-gray-500 text-xs mt-0.5">{alert.desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-gray-400">No Alerts</p>
-              )}
-            </section>
-
-            {/* Inventory Health */}
-            <section>
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Raw Material Health</h2>
-              <div className="space-y-4">
-                {[
-                  { name: 'Preforms', current: stockPreforms, safe: 50000 },
-                  { name: 'Caps', current: stockCaps, safe: 100000 },
-                  { name: 'Labels', current: stockLabels, safe: 40000 },
-                  { name: 'Shrink Film', current: stockShrinkRolls, safe: 5000 },
-                  { name: 'Finished Goods', current: stockFinishedGoods, safe: 10000 }
-                ].map(item => {
-                  const pct = Math.min(100, Math.round((item.current / item.safe) * 100))
-                  const status = getStockStatus(item.current, item.safe)
-                  return (
-                    <div key={item.name} className="space-y-1.5">
-                      <div className="flex justify-between items-baseline text-[13px]">
-                        <span className="font-medium text-gray-800">{item.name}</span>
-                        <span className={`text-[11px] font-semibold ${status.color}`}>{status.label}</span>
-                      </div>
-                      <div className="w-full bg-gray-100 rounded-full h-1.5">
-                        <div className={`${status.barColor} h-1.5 rounded-full`} style={{ width: `${pct}%` }} />
-                      </div>
-                      <div className="flex justify-between text-[11px] text-gray-400 tabular-nums">
-                        <span>{item.current.toLocaleString()}</span>
-                        <span>/ {item.safe.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </section>
-
-            {/* Pending Work */}
-            <section>
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Pending Work</h2>
-              {stats.pendingDispatch > 0 ? (
-                <div className="space-y-2.5">
-                  <label className="flex gap-3 items-start cursor-pointer group py-0.5">
-                    <input type="checkbox" className="mt-1 h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
-                    <div>
-                      <p className="text-[13px] font-medium text-gray-700 group-hover:text-gray-900 leading-snug">
-                        {stats.pendingDispatch} orders awaiting dispatch
-                      </p>
-                      <p className="text-[11px] text-gray-400 font-medium">Dispatch</p>
-                    </div>
-                  </label>
-                </div>
-              ) : (
-                <p className="text-xs text-gray-400">No Pending Dispatch</p>
-              )}
-            </section>
-
-            {/* Recent Activity */}
-            <section>
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Recent Activity</h2>
-              {activities.length > 0 ? (
-                <div className="space-y-3">
-                  {activities.map((item, i) => (
-                    <div key={i} className="flex gap-3 items-baseline text-[13px]">
-                      <span className="text-[11px] font-mono text-gray-400 tabular-nums w-10 shrink-0">{item.time}</span>
-                      <span className="text-gray-600">{item.text}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-gray-400">No recent activity</p>
-              )}
-            </section>
-
+      {/* â•â•â•â•â•â•â•â•â•â•â• ROW 0: COMMAND HEADER â•â•â•â•â•â•â•â•â•â•â• */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        {/* Left: Greeting + Context */}
+        <div>
+          <h1 className="text-[22px] font-bold text-[#111827] tracking-tight">
+            {getGreeting()}, {user?.fullName?.split(' ')[0] || 'Admin'}
+          </h1>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+            <span className="text-[13px] font-medium text-[#374151]">{user?.tenantName || 'Aquaflow Ltd'}</span>
+            <span className="text-gray-300">•</span>
+            <span className="text-[13px] text-[#6B7280]">Plant A</span>
+            <span className="text-gray-300">•</span>
+            <span className="text-[13px] text-[#6B7280]">{getShiftName(currentTime).split('(')[0].trim()}</span>
+            <span className="text-gray-300">•</span>
+            <span className="text-[13px] text-[#6B7280]">
+              {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </span>
           </div>
         </div>
 
-        {/* —————————————————————————————————————————————————————————————————————— */}
+        {/* Right: Plant Status + Last Updated + Quick Actions */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {/* Plant Status */}
+          <div className={`flex items-center gap-2 text-xs font-semibold px-3.5 py-2 rounded-xl border ${
+            factoryStatus.variant === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+              : factoryStatus.variant === 'warning'
+              ? 'bg-amber-50 border-amber-200 text-amber-700'
+              : 'bg-gray-50 border-gray-200 text-gray-500'
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${
+              factoryStatus.variant === 'success' ? 'bg-emerald-500 animate-pulse' 
+              : factoryStatus.variant === 'warning' ? 'bg-amber-500' 
+              : 'bg-gray-400'
+            }`} />
+            {factoryStatus.variant === 'success' ? 'Operational' : factoryStatus.variant === 'warning' ? 'Paused' : 'Idle'}
+          </div>
 
-        {/* Add Inventory */}
-        <EnterpriseModal isOpen={isDashboardAddInventoryOpen} onClose={() => setIsDashboardAddInventoryOpen(false)} title="Add Inventory Stock">
-          <form onSubmit={handleAdjustStockSubmit} className="flex flex-col gap-4">
-            <EnterpriseSelect label="Raw Material *" value={dashboardAdjustMatId} onChange={(e) => setDashboardAdjustMatId(e.target.value)} required>
-              {dashboardRawMaterials.map((mat: any) => (
-                <option key={mat.id} value={mat.id}>{mat.name} ({mat.category})</option>
-              ))}
-            </EnterpriseSelect>
-            <EnterpriseInput label="Quantity *" type="number" placeholder="e.g. 5000" value={dashboardAdjustQty} onChange={(e) => setDashboardAdjustQty(e.target.value)} required />
-            <EnterpriseInput label="Notes" placeholder="Reason for adjustment" value={dashboardAdjustNotes} onChange={(e) => setDashboardAdjustNotes(e.target.value)} />
-            <div className="flex gap-2 justify-end mt-2">
-              <EnterpriseButton type="button" onClick={() => setIsDashboardAddInventoryOpen(false)} variant="secondary">Cancel</EnterpriseButton>
-              <EnterpriseButton type="submit" loading={adjustStockMutation.isPending}>Update Stock</EnterpriseButton>
-            </div>
-          </form>
-        </EnterpriseModal>
+          {/* Last Updated */}
+          <div className="text-[11px] text-[#9CA3AF] font-mono tabular-nums">
+            {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+          </div>
 
-        {/* Sales Order */}
-        <EnterpriseModal isOpen={isDashboardSalesOrderOpen} onClose={() => setIsDashboardSalesOrderOpen(false)} title="Create Sales Order">
-          <form onSubmit={handleSalesOrderSubmit} className="flex flex-col gap-4">
-            <EnterpriseInput label="Buyer *" value={dashboardSalesClient} onChange={(e) => setDashboardSalesClient(e.target.value)} required />
-            <EnterpriseSelect label="Product *" value={dashboardSalesProduct} onChange={(e) => setDashboardSalesProduct(e.target.value)} required>
-              {allCatalogProducts.map((prod: any) => (
-                <option key={prod.id} value={prod.name}>{prod.name}</option>
+          {/* Quick Actions Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsQuickActionsOpen(!isQuickActionsOpen)}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-xl transition-colors shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Quick Actions
+              <ChevronDown className={`w-3 h-3 transition-transform ${isQuickActionsOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {isQuickActionsOpen && (
+              <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-[#E5E7EB] rounded-xl shadow-lg z-50 py-1.5">
+                {[
+                  { label: 'Start Batch', icon: Play, action: () => {
+                    if (productionLines.length > 0) setStartBatchLineId(productionLines[0].lineId)
+                    if (allCatalogProducts.length > 0) setStartBatchProduct(allCatalogProducts[0].name)
+                    setIsStartBatchModalOpen(true)
+                    setIsQuickActionsOpen(false)
+                  }},
+                  { label: 'Add Inventory', icon: Package, action: () => {
+                    if (dashboardRawMaterials.length > 0) setDashboardAdjustMatId(dashboardRawMaterials[0].id)
+                    setIsDashboardAddInventoryOpen(true)
+                    setIsQuickActionsOpen(false)
+                  }},
+                  { label: 'Sales Order', icon: Receipt, action: () => {
+                    setIsDashboardSalesOrderOpen(true)
+                    setIsQuickActionsOpen(false)
+                  }},
+                  { label: 'View Production', icon: Factory, action: () => { navigate('/company/production'); setIsQuickActionsOpen(false) }},
+                  { label: 'View Inventory', icon: Box, action: () => { navigate('/company/inventory'); setIsQuickActionsOpen(false) }},
+                  { label: 'View Employees', icon: Users, action: () => { navigate('/company/employees'); setIsQuickActionsOpen(false) }},
+                ].map((item) => (
+                  <button
+                    key={item.label}
+                    onClick={item.action}
+                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-[13px] text-[#374151] hover:bg-[#F3F4F6] transition-colors text-left"
+                  >
+                    <item.icon className="w-4 h-4 text-[#9CA3AF]" />
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+
+      {/* â•â•â•â•â•â•â•â•â•â•â• ROW 1: EXECUTIVE KPI CARDS â•â•â•â•â•â•â•â•â•â•â• */}
+      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        {/* Today's Production */}
+        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-wider">Today's Production</p>
+          <p className="text-[28px] font-bold text-[#111827] tabular-nums leading-tight mt-1.5">
+            {(totalAchieved || 0).toLocaleString()}
+          </p>
+          <div className="flex items-center gap-1.5 mt-1.5">
+            {totalTarget > 0 ? (
+              <>
+                <span className={`text-[11px] font-semibold ${todayProgressPercent >= 80 ? 'text-emerald-600' : todayProgressPercent >= 50 ? 'text-amber-600' : 'text-red-500'}`}>
+                  {todayProgressPercent}%
+                </span>
+                <span className="text-[11px] text-[#9CA3AF]">of {totalTarget.toLocaleString()} target</span>
+              </>
+            ) : (
+              <span className="text-[11px] text-[#9CA3AF] italic">No target set</span>
+            )}
+          </div>
+        </div>
+
+        {/* Today's Dispatch */}
+        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-wider">Today's Dispatch</p>
+          <p className="text-[28px] font-bold text-[#111827] tabular-nums leading-tight mt-1.5">
+            {(salesDashboard?.todaySalesCases || 0).toLocaleString()}
+          </p>
+          <span className="text-[11px] text-[#9CA3AF]">cases released</span>
+        </div>
+
+        {/* Today's Sales */}
+        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-wider">Today's Revenue</p>
+          <p className="text-[28px] font-bold text-[#111827] tabular-nums leading-tight mt-1.5">
+            {`₹${Math.round((salesDashboard?.todaySalesCases || 0) * 12.5 * 83).toLocaleString('en-IN')}`}
+          </p>
+          <span className="text-[11px] text-[#9CA3AF]">estimated revenue</span>
+        </div>
+
+        {/* Production Efficiency */}
+        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-wider">Efficiency</p>
+          <p className={`text-[28px] font-bold tabular-nums leading-tight mt-1.5 ${
+            todayProgressPercent >= 80 ? 'text-emerald-600' : todayProgressPercent >= 50 ? 'text-amber-600' : totalTarget > 0 ? 'text-red-500' : 'text-[#111827]'
+          }`}>
+            {totalTarget > 0 ? `${todayProgressPercent}%` : '0%'}
+          </p>
+          <span className="text-[11px] text-[#9CA3AF]">of daily target</span>
+        </div>
+
+        {/* Active Lines */}
+        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-wider">Active Lines</p>
+          <p className="text-[28px] font-bold text-[#111827] tabular-nums leading-tight mt-1.5">
+            {displayBatches.filter((b: any) => b.status === 'Active').length}
+            <span className="text-[18px] font-normal text-[#9CA3AF]"> / {displayLines.filter((l: any) => l.isActive).length}</span>
+          </p>
+          <span className="text-[11px] text-[#9CA3AF]">lines running</span>
+        </div>
+
+        {/* Critical Alerts */}
+        <div className={`rounded-2xl border p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${
+          activeAlertsCount > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-[#E5E7EB]'
+        }`}>
+          <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-wider">Alerts</p>
+          <p className={`text-[28px] font-bold tabular-nums leading-tight mt-1.5 ${
+            activeAlertsCount > 0 ? 'text-red-600' : 'text-[#111827]'
+          }`}>
+            {activeAlertsCount || 0}
+          </p>
+          <span className={`text-[11px] ${activeAlertsCount > 0 ? 'text-red-500 font-medium' : 'text-[#9CA3AF]'}`}>
+            {activeAlertsCount > 0 ? 'needs attention' : 'all clear'}
+          </span>
+        </div>
+      </section>
+
+
+      {/* â•â•â•â•â•â•â•â•â•â•â• ROW 2: PRIORITY CENTER â•â•â•â•â•â•â•â•â•â•â• */}
+      <section className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="flex items-center gap-2 mb-4">
+          <AlertTriangle className="w-4 h-4 text-amber-500" />
+          <h2 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Priority Center</h2>
+          {activeAlertsCount > 0 && (
+            <span className="text-[10px] font-bold text-white bg-red-500 rounded-full px-2 py-0.5 ml-1">{activeAlertsCount}</span>
+          )}
+        </div>
+
+        {alerts.length > 0 ? (
+          <div className="space-y-2.5">
+            {alerts.map((alert, idx) => {
+              const isCritical = alert.title.toLowerCase().includes('critical') || alert.desc.includes('Below safe level')
+              return (
+                <div key={idx} className={`flex items-start gap-3 p-3.5 rounded-xl border transition-colors ${
+                  isCritical ? 'bg-red-50/60 border-red-100' : 'bg-amber-50/60 border-amber-100'
+                }`}>
+                  <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${isCritical ? 'bg-red-500' : 'bg-amber-500'}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-[13px] font-semibold ${isCritical ? 'text-red-800' : 'text-amber-800'}`}>{alert.title}</p>
+                    <p className="text-[11px] text-[#6B7280] mt-0.5">{alert.desc}</p>
+                  </div>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md flex-shrink-0 ${
+                    isCritical ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {isCritical ? 'Critical' : 'Warning'}
+                  </span>
+                </div>
+              )
+            })}
+
+            {/* Pending dispatch alert */}
+            {stats.pendingDispatch > 0 && (
+              <div className="flex items-start gap-3 p-3.5 rounded-xl border bg-blue-50/60 border-blue-100">
+                <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0 bg-blue-500" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-semibold text-blue-800">{stats.pendingDispatch} orders awaiting dispatch</p>
+                  <p className="text-[11px] text-[#6B7280] mt-0.5">{stats.pendingDispatchHighPriority} high priority</p>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 flex-shrink-0">
+                  Pending
+                </span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 py-4">
+            <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
+              <CheckCircle className="w-4 h-4 text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-[13px] font-medium text-[#374151]">No critical alerts</p>
+              <p className="text-[11px] text-[#9CA3AF]">All systems operational - inventory levels within safe thresholds</p>
+            </div>
+          </div>
+        )}
+      </section>
+
+
+      {/* â•â•â•â•â•â•â•â•â•â•â• ROW 3: LIVE PRODUCTION LINE MONITOR â•â•â•â•â•â•â•â•â•â•â• */}
+      <section className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-[#2563EB]" />
+            <h2 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Live Production Monitor</h2>
+          </div>
+          <button
+            onClick={() => navigate('/company/production')}
+            className="text-[11px] font-semibold text-[#2563EB] hover:text-[#1D4ED8] transition-colors"
+          >
+            View All →
+          </button>
+        </div>
+
+        {displayLines.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <div className="w-12 h-12 bg-[#F3F4F6] rounded-xl flex items-center justify-center mb-3">
+              <Factory className="w-6 h-6 text-[#9CA3AF]" />
+            </div>
+            <p className="text-[13px] font-medium text-[#374151]">No production lines configured</p>
+            <p className="text-[11px] text-[#9CA3AF] mt-1">Set up production lines in Settings to start monitoring</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {displayLines.map((line: any) => {
+              const batch = displayBatches.find((b: any) => b.productionLineId === line.lineId)
+              const isRunning = line.isActive && batch?.status === 'Active'
+              const isPaused = line.isActive && batch?.status === 'Paused'
+              const produced = batch?.producedQuantity || 0
+              const target = batch?.targetQuantity || 0
+              const pct = target > 0 ? Math.round((produced / target) * 100) : 0
+
+              return (
+                <div key={line.lineId} className={`rounded-xl border p-4 space-y-3 transition-all ${
+                  isRunning ? 'border-emerald-200 bg-emerald-50/30' : isPaused ? 'border-amber-200 bg-amber-50/30' : 'border-[#E5E7EB] bg-[#F9FAFB]'
+                }`}>
+                  {/* Line header */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-emerald-500 animate-pulse' : isPaused ? 'bg-amber-500' : 'bg-gray-300'}`} />
+                      <span className="text-[13px] font-bold text-[#111827]">{line.name}</span>
+                    </div>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                      isRunning ? 'bg-emerald-100 text-emerald-700' : isPaused ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {isRunning ? 'Running' : isPaused ? 'Paused' : 'Idle'}
+                    </span>
+                  </div>
+
+                  {batch ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-y-2 text-[12px]">
+                        <div>
+                          <span className="text-[#9CA3AF]">Batch</span>
+                          <p className="font-mono font-semibold text-[#111827]">{batch.batchNumber}</p>
+                        </div>
+                        <div>
+                          <span className="text-[#9CA3AF]">Operator</span>
+                          <p className="font-medium text-[#111827]">{batch.operatorName || '-'}</p>
+                        </div>
+                        <div>
+                          <span className="text-[#9CA3AF]">Product</span>
+                          <p className="font-medium text-[#111827] truncate pr-2">{batch.product || '-'}</p>
+                        </div>
+                        <div>
+                          <span className="text-[#9CA3AF]">Duration</span>
+                          <p className="font-medium text-[#111827]">
+                            {batch.startedAt ? <RunningDurationCell startedAt={batch.startedAt} /> : '-'}
+                          </p>
+                        </div>
+                      </div>
+                      {/* Progress bar */}
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[11px]">
+                          <span className="text-[#6B7280] tabular-nums">{produced.toLocaleString()} / {target.toLocaleString()} cases</span>
+                          <span className={`font-bold tabular-nums ${pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-[#374151]'}`}>{pct}%</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2">
+                          <div className={`h-2 rounded-full transition-all duration-500 ${isRunning ? 'bg-[#2563EB]' : 'bg-amber-400'}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="py-3">
+                      <p className="text-[12px] text-[#9CA3AF] italic">No active batch</p>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
+
+      {/* â•â•â•â•â•â•â•â•â•â•â• ROW 4: TODAY'S OPERATIONS â•â•â•â•â•â•â•â•â•â•â• */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Production', value: totalAchieved, unit: 'cases', icon: Factory, color: 'text-[#2563EB]', bgColor: 'bg-blue-50' },
+          { label: 'Dispatch', value: salesDashboard?.todaySalesCases || 0, unit: 'cases', icon: Truck, color: 'text-emerald-600', bgColor: 'bg-emerald-50' },
+          { label: 'Returns', value: salesDashboard?.todayReturns || 0, unit: 'cases', icon: Package, color: 'text-amber-600', bgColor: 'bg-amber-50' },
+          { label: 'Damages', value: salesDashboard?.todayDamage || 0, unit: 'cases', icon: AlertTriangle, color: 'text-red-500', bgColor: 'bg-red-50' },
+        ].map((item) => (
+          <div key={item.label} className="bg-white rounded-2xl border border-[#E5E7EB] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-wider">{item.label}</p>
+              <div className={`w-8 h-8 ${item.bgColor} rounded-lg flex items-center justify-center`}>
+                <item.icon className={`w-4 h-4 ${item.color}`} />
+              </div>
+            </div>
+            <p className="text-[24px] font-bold text-[#111827] tabular-nums leading-tight">
+              {item.value > 0 ? item.value.toLocaleString() : '—'}
+            </p>
+            <p className="text-[11px] text-[#9CA3AF] mt-1">
+              {item.value > 0 ? `${item.unit} today` : `No ${item.label.toLowerCase()} today`}
+            </p>
+          </div>
+        ))}
+      </section>
+
+
+      {/* â•â•â•â•â•â•â•â•â•â•â• ROW 5: INVENTORY HEALTH â•â•â•â•â•â•â•â•â•â•â• */}
+      <section className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <Box className="w-4 h-4 text-[#2563EB]" />
+            <h2 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Inventory Health</h2>
+          </div>
+          <button onClick={() => navigate('/company/inventory')} className="text-[11px] font-semibold text-[#2563EB] hover:text-[#1D4ED8] transition-colors">
+            Manage Inventory →
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+          {[
+            { name: 'Preforms', current: stockPreforms, safe: 50000, icon: 'ðŸ”©' },
+            { name: 'Caps', current: stockCaps, safe: 100000, icon: 'ðŸ§¢' },
+            { name: 'Labels', current: stockLabels, safe: 40000, icon: 'ðŸ·ï¸' },
+            { name: 'Shrink Film', current: stockShrinkRolls, safe: 5000, icon: 'ðŸ“¦' },
+            { name: 'Finished Goods', current: stockFinishedGoods, safe: 10000, icon: 'ðŸ’§' },
+          ].map(item => {
+            const pct = Math.min(100, Math.round((item.current / item.safe) * 100))
+            const status = getStockStatus(item.current, item.safe)
+            return (
+              <div key={item.name} className="space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">{item.icon}</span>
+                  <span className="text-[13px] font-semibold text-[#111827]">{item.name}</span>
+                </div>
+                <div className="w-full bg-[#F3F4F6] rounded-full h-2">
+                  <div className={`${status.barColor} h-2 rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                </div>
+                <div className="flex justify-between items-baseline">
+                  <span className="text-[11px] text-[#6B7280] tabular-nums">{item.current.toLocaleString()} / {item.safe.toLocaleString()}</span>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${status.color}`}>{status.label}</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
+
+      {/* â•â•â•â•â•â•â•â•â•â•â• ROW 6: QUALITY DASHBOARD â•â•â•â•â•â•â•â•â•â•â• */}
+      <section className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="flex items-center gap-2 mb-4">
+          <Shield className="w-4 h-4 text-[#2563EB]" />
+          <h2 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Quality Control</h2>
+        </div>
+        <div className="flex items-center gap-3 py-4">
+          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+            <Beaker className="w-5 h-5 text-[#2563EB]" />
+          </div>
+          <div>
+            <p className="text-[13px] font-medium text-[#374151]">Quality module coming soon</p>
+            <p className="text-[11px] text-[#9CA3AF]">QC tests, water analysis, microbiology results, and release status will appear here once configured</p>
+          </div>
+        </div>
+      </section>
+
+
+      {/* â•â•â•â•â•â•â•â•â•â•â• ROW 7: SALES & DISTRIBUTION â•â•â•â•â•â•â•â•â•â•â• */}
+      <section className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-[#2563EB]" />
+            <h2 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Sales & Distribution</h2>
+          </div>
+          <button onClick={() => navigate('/company/sales')} className="text-[11px] font-semibold text-[#2563EB] hover:text-[#1D4ED8] transition-colors">
+            View Sales →
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">
+          {[
+            { label: "Today's Dispatched", value: salesDashboard?.todaySalesCases || 0, sub: 'Cases Released', color: 'text-[#111827]' },
+            { label: "Today's Returns", value: salesDashboard?.todayReturns || 0, sub: 'Stock Restored', color: 'text-emerald-600' },
+            { label: "Today's Damages", value: salesDashboard?.todayDamage || 0, sub: 'Inventory Loss', color: 'text-red-500' },
+            { label: 'Monthly Dispatch', value: salesDashboard?.monthlyDispatch || 0, sub: 'This Month', color: 'text-[#111827]' },
+            { label: 'Total Releases', value: salesDashboard?.totalDispatch || 0, sub: 'All-Time', color: 'text-[#111827]' },
+          ].map((item) => (
+            <div key={item.label}>
+              <p className="text-[11px] font-medium text-[#9CA3AF] uppercase tracking-wider">{item.label}</p>
+              <p className={`text-[24px] font-bold tabular-nums leading-tight mt-1.5 ${item.color}`}>
+                {(item.value || 0).toLocaleString()}
+              </p>
+              <p className="text-[10px] text-[#9CA3AF] mt-0.5">{item.value > 0 ? item.sub : 'No data yet'}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+
+      {/* â•â•â•â•â•â•â•â•â•â•â• ROW 8: EMPLOYEE OVERVIEW â•â•â•â•â•â•â•â•â•â•â• */}
+      <section className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-[#2563EB]" />
+            <h2 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Employee Overview</h2>
+          </div>
+          <button onClick={() => navigate('/company/employees')} className="text-[11px] font-semibold text-[#2563EB] hover:text-[#1D4ED8] transition-colors">
+            Manage Team →
+          </button>
+        </div>
+        <div className="flex items-center gap-3 py-4">
+          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+            <UserCheck className="w-5 h-5 text-[#2563EB]" />
+          </div>
+          <div>
+            <p className="text-[13px] font-medium text-[#374151]">Attendance tracking coming soon</p>
+            <p className="text-[11px] text-[#9CA3AF]">Present, absent, late counts, shift assignments, and operator status will appear here</p>
+          </div>
+        </div>
+      </section>
+
+
+      {/* â•â•â•â•â•â•â•â•â•â•â• ROW 9: APPROVAL CENTER + RECENT ACTIVITY â•â•â•â•â•â•â•â•â•â•â• */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Approval Center */}
+        <section className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <div className="flex items-center gap-2 mb-4">
+            <ClipboardCheck className="w-4 h-4 text-[#2563EB]" />
+            <h2 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Approval Center</h2>
+          </div>
+          <div className="flex items-center gap-3 py-4">
+            <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
+              <CheckCircle className="w-5 h-5 text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-[13px] font-medium text-[#374151]">No pending approvals</p>
+              <p className="text-[11px] text-[#9CA3AF]">Purchase orders, expenses, leave requests, and stock adjustments will appear here</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Recent Activity */}
+        <section className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-4 h-4 text-[#2563EB]" />
+            <h2 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Recent Activity</h2>
+          </div>
+
+          {activities.length > 0 ? (
+            <div className="space-y-3">
+              {activities.map((item, i) => (
+                <div key={i} className="flex items-baseline gap-3 text-[13px]">
+                  <span className="text-[11px] font-mono text-[#9CA3AF] tabular-nums w-12 flex-shrink-0">{item.time}</span>
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#2563EB] mt-1.5 flex-shrink-0" />
+                  <span className="text-[#374151]">{item.text}</span>
+                </div>
               ))}
-            </EnterpriseSelect>
-            <div className="grid grid-cols-2 gap-4">
-              <EnterpriseInput label="Quantity (Cases) *" type="number" placeholder="500" value={dashboardSalesQty} onChange={(e) => setDashboardSalesQty(e.target.value)} required />
-              <EnterpriseInput label="Amount ($) *" type="number" placeholder="6000" value={dashboardSalesAmount} onChange={(e) => setDashboardSalesAmount(e.target.value)} required />
             </div>
-            <div className="flex gap-2 justify-end mt-2">
-              <EnterpriseButton type="button" onClick={() => setIsDashboardSalesOrderOpen(false)} variant="secondary">Cancel</EnterpriseButton>
-              <EnterpriseButton type="submit">Create Order</EnterpriseButton>
+          ) : (
+            <div className="flex items-center gap-3 py-4">
+              <div className="w-10 h-10 bg-[#F3F4F6] rounded-xl flex items-center justify-center">
+                <Clock className="w-5 h-5 text-[#9CA3AF]" />
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-[#374151]">No recent activity</p>
+                <p className="text-[11px] text-[#9CA3AF]">Production events and system activities will appear here</p>
+              </div>
             </div>
-          </form>
-        </EnterpriseModal>
-      </PageContainer>
-    </>
+          )}
+        </section>
+      </div>
+
+      </div>{/* end space-y-6 wrapper */}
+
+      {/* â•â•â•â•â•â•â•â•â•â•â• MODALS (preserved) â•â•â•â•â•â•â•â•â•â•â• */}
+
+      {/* Start Batch Modal */}
+      <EnterpriseModal isOpen={isStartBatchModalOpen} onClose={() => setIsStartBatchModalOpen(false)} title="Start Production Batch">
+        <form onSubmit={(e: React.FormEvent) => {
+          e.preventDefault()
+          if (!startBatchLineId) { showToast('Production line is required.', 'warning'); return }
+          if (!startBatchNumber.trim()) { showToast('Batch number is required.', 'warning'); return }
+          if (!startBatchProduct) { showToast('Product selection is required.', 'warning'); return }
+          if (!startBatchTargetQty || Number(startBatchTargetQty) <= 0) { showToast('Target quantity must be greater than zero.', 'warning'); return }
+          startBatchMutation.mutate({
+            productionLineId: startBatchLineId,
+            batchNumber: startBatchNumber.trim(),
+            product: startBatchProduct,
+            shift: startBatchShift,
+            targetQuantity: Number(startBatchTargetQty)
+          })
+        }} className="flex flex-col gap-4">
+          <EnterpriseSelect label="Production Line *" value={startBatchLineId} onChange={(e) => setStartBatchLineId(e.target.value)} required>
+            {productionLines.filter((l: any) => l.isActive).map((line: any) => (
+              <option key={line.lineId} value={line.lineId}>{line.name}</option>
+            ))}
+          </EnterpriseSelect>
+          <EnterpriseInput label="Batch Number *" placeholder="e.g. B-001" value={startBatchNumber} onChange={(e) => setStartBatchNumber(e.target.value)} required />
+          <EnterpriseSelect label="Product *" value={startBatchProduct} onChange={(e) => setStartBatchProduct(e.target.value)} required>
+            {allCatalogProducts.map((prod: any) => (
+              <option key={prod.id} value={prod.name}>{prod.name}</option>
+            ))}
+          </EnterpriseSelect>
+          <EnterpriseSelect label="Shift" value={startBatchShift} onChange={(e) => setStartBatchShift(e.target.value)}>
+            {productionShifts.map((s: any) => (
+              <option key={s.id} value={s.name}>{s.name}</option>
+            ))}
+          </EnterpriseSelect>
+          <EnterpriseInput label="Target Quantity (Cases) *" type="number" placeholder="e.g. 500" value={String(startBatchTargetQty)} onChange={(e) => setStartBatchTargetQty(e.target.value)} required />
+          <div className="flex gap-2 justify-end mt-2">
+            <EnterpriseButton type="button" onClick={() => setIsStartBatchModalOpen(false)} variant="secondary">Cancel</EnterpriseButton>
+            <EnterpriseButton type="submit" loading={startBatchMutation.isPending}>Start Batch</EnterpriseButton>
+          </div>
+        </form>
+      </EnterpriseModal>
+
+      {/* Add Inventory */}
+      <EnterpriseModal isOpen={isDashboardAddInventoryOpen} onClose={() => setIsDashboardAddInventoryOpen(false)} title="Add Inventory Stock">
+        <form onSubmit={handleAdjustStockSubmit} className="flex flex-col gap-4">
+          <EnterpriseSelect label="Raw Material *" value={dashboardAdjustMatId} onChange={(e) => setDashboardAdjustMatId(e.target.value)} required>
+            {dashboardRawMaterials.map((mat: any) => (
+              <option key={mat.id} value={mat.id}>{mat.name} ({mat.category})</option>
+            ))}
+          </EnterpriseSelect>
+          <EnterpriseInput label="Quantity *" type="number" placeholder="e.g. 5000" value={dashboardAdjustQty} onChange={(e) => setDashboardAdjustQty(e.target.value)} required />
+          <EnterpriseInput label="Notes" placeholder="Reason for adjustment" value={dashboardAdjustNotes} onChange={(e) => setDashboardAdjustNotes(e.target.value)} />
+          <div className="flex gap-2 justify-end mt-2">
+            <EnterpriseButton type="button" onClick={() => setIsDashboardAddInventoryOpen(false)} variant="secondary">Cancel</EnterpriseButton>
+            <EnterpriseButton type="submit" loading={adjustStockMutation.isPending}>Update Stock</EnterpriseButton>
+          </div>
+        </form>
+      </EnterpriseModal>
+
+      {/* Sales Order */}
+      <EnterpriseModal isOpen={isDashboardSalesOrderOpen} onClose={() => setIsDashboardSalesOrderOpen(false)} title="Create Sales Order">
+        <form onSubmit={handleSalesOrderSubmit} className="flex flex-col gap-4">
+          <EnterpriseInput label="Buyer *" value={dashboardSalesClient} onChange={(e) => setDashboardSalesClient(e.target.value)} required />
+          <EnterpriseSelect label="Product *" value={dashboardSalesProduct} onChange={(e) => setDashboardSalesProduct(e.target.value)} required>
+            {allCatalogProducts.map((prod: any) => (
+              <option key={prod.id} value={prod.name}>{prod.name}</option>
+            ))}
+          </EnterpriseSelect>
+          <div className="grid grid-cols-2 gap-4">
+            <EnterpriseInput label="Quantity (Cases) *" type="number" placeholder="500" value={dashboardSalesQty} onChange={(e) => setDashboardSalesQty(e.target.value)} required />
+            <EnterpriseInput label="Amount (₹) *" type="number" placeholder="6000" value={dashboardSalesAmount} onChange={(e) => setDashboardSalesAmount(e.target.value)} required />
+          </div>
+          <div className="flex gap-2 justify-end mt-2">
+            <EnterpriseButton type="button" onClick={() => setIsDashboardSalesOrderOpen(false)} variant="secondary">Cancel</EnterpriseButton>
+            <EnterpriseButton type="submit">Create Order</EnterpriseButton>
+          </div>
+        </form>
+      </EnterpriseModal>
+    </PageContainer>
+  </>
   )
 }
 export default CompanyDashboardPage
