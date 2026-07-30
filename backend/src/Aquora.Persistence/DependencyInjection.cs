@@ -58,6 +58,7 @@ namespace Aquora.Persistence
 
             services.AddScoped<ITenantDatabaseService, Aquora.Persistence.Services.TenantDatabaseService>();
             services.AddScoped<IMigrationService, Aquora.Persistence.Services.MigrationService>();
+            services.AddScoped<Aquora.Application.Interfaces.Services.IPlatformManagementService, Aquora.Persistence.Services.PlatformManagementService>();
 
             return services;
         }

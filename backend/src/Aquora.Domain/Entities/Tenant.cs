@@ -13,6 +13,23 @@ namespace Aquora.Domain.Entities
         public string? CustomDomain { get; set; }
         public bool IsActive { get; set; } = true;
 
+        // Enterprise Company Details
+        public string? OwnerName { get; set; }
+        public string? OwnerEmail { get; set; }
+        public string? OwnerPhone { get; set; }
+        public string? Address { get; set; }
+        public string? GstNumber { get; set; }
+        public string? PanNumber { get; set; }
+        public string? LicenseNumber { get; set; }
+        public string SubscriptionPlan { get; set; } = "Starter"; // Starter, Professional, Enterprise
+        public string Timezone { get; set; } = "UTC";
+        public string Currency { get; set; } = "USD";
+        public string Language { get; set; } = "en";
+        public string? LogoUrl { get; set; }
+        public string Theme { get; set; } = "light";
+        public double StorageUsedMb { get; set; } = 0.0;
+        public int ActiveUsersCount { get; set; } = 0;
+
         public bool IsInitialized { get; set; } = false;
         public DateTime? InitializedAt { get; set; }
         public string? InitializedBy { get; set; }

@@ -1,5 +1,6 @@
 # Logs
 *.log
+**/Logs/
 
 # .NET / C# build artifacts
 [Bb]in/

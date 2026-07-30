@@ -22,6 +22,16 @@ namespace Aquora.Domain.Entities
         public int TokenVersion { get; set; }
         public bool IsPlatformAdmin { get; set; }
 
+        // User Directory Metadata
+        public string? Phone { get; set; }
+        public string? RoleName { get; set; }
+        public string? Designation { get; set; }
+        public string? Shift { get; set; }
+        public decimal? Salary { get; set; }
+        public DateTime? JoiningDate { get; set; }
+        public string? PhotoUrl { get; set; }
+        public int DevicesCount { get; set; } = 1;
+
         public Guid? TenantId { get; set; }
         public virtual Tenant Tenant { get; set; }
 

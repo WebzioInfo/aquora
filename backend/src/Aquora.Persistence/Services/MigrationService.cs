@@ -31,6 +31,36 @@ namespace Aquora.Persistence.Services
                 await _platformContext.Database.MigrateAsync();
                 _logger.LogInformation("Platform Database Migrations applied successfully.");
 
+                // Auto-repair missing columns in public."Tenants" and public."Users" tables
+                _logger.LogInformation("[SCHEMA REPAIR] Ensuring missing columns exist on public.Tenants and public.Users...");
+                var platformRepairScript = @"
+                ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""OwnerName"" text NULL;
+                ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""OwnerEmail"" text NULL;
+                ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""OwnerPhone"" text NULL;
+                ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""Address"" text NULL;
+                ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""GstNumber"" text NULL;
+                ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""PanNumber"" text NULL;
+                ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""LicenseNumber"" text NULL;
+                ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""SubscriptionPlan"" text NOT NULL DEFAULT 'Starter';
+                ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""Timezone"" text NOT NULL DEFAULT 'UTC';
+                ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""Currency"" text NOT NULL DEFAULT 'USD';
+                ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""Language"" text NOT NULL DEFAULT 'en';
+                ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""LogoUrl"" text NULL;
+                ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""Theme"" text NOT NULL DEFAULT 'light';
+                ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""StorageUsedMb"" double precision NOT NULL DEFAULT 0.0;
+                ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""ActiveUsersCount"" integer NOT NULL DEFAULT 0;
+
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""Phone"" text NULL;
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""RoleName"" text NULL;
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""Designation"" text NULL;
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""Shift"" text NULL;
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""Salary"" numeric NULL;
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""JoiningDate"" timestamp with time zone NULL;
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""PhotoUrl"" text NULL;
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""DevicesCount"" integer NOT NULL DEFAULT 1;
+                ";
+                await _platformContext.Database.ExecuteSqlRawAsync(platformRepairScript);
+
                 _logger.LogInformation("Executing Tenant Database Migrations for active tenants...");
                 var tenants = await _platformContext.Set<Aquora.Domain.Entities.Tenant>()
                     .Where(t => t.IsActive && !t.IsDeleted)
