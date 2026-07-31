@@ -248,6 +248,8 @@ app.MapHub<NotificationHub>("/hub/notifications");
 app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHub<ProvisioningHub>("/hub/provisioning");
 app.MapHub<ProvisioningHub>("/hubs/provisioning");
+app.MapHub<DashboardHub>("/hub/dashboard");
+app.MapHub<DashboardHub>("/hubs/dashboard");
 
 // Database migration and seeding
 using (var scope = app.Services.CreateScope())

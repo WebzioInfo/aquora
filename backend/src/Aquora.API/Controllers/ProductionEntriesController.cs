@@ -11,6 +11,9 @@ using Aquora.Domain.Entities;
 using Aquora.Shared.Models;
 using Aquora.Application.Interfaces.Services;
 
+using Microsoft.AspNetCore.SignalR;
+using Aquora.API.Hubs;
+
 namespace Aquora.API.Controllers
 {
     [Authorize]
@@ -23,19 +26,41 @@ namespace Aquora.API.Controllers
         private readonly Microsoft.Extensions.Logging.ILogger<ProductionEntriesController> _logger;
         private readonly IInventoryMovementService _inventoryMovementService;
         private readonly IProductionService _productionService;
+        private readonly IHubContext<DashboardHub> _dashboardHub;
 
         public ProductionEntriesController(
             ITenantDbContext tenantContext,
             IPlatformDbContext platformContext,
             Microsoft.Extensions.Logging.ILogger<ProductionEntriesController> logger,
             IInventoryMovementService inventoryMovementService,
-            IProductionService productionService)
+            IProductionService productionService,
+            IHubContext<DashboardHub> dashboardHub)
         {
             _tenantContext = tenantContext;
             _platformContext = platformContext;
             _logger = logger;
             _inventoryMovementService = inventoryMovementService;
             _productionService = productionService;
+            _dashboardHub = dashboardHub;
+        }
+
+        private async Task NotifyDashboardAsync(string eventName, object? data = null)
+        {
+            try
+            {
+                var tenantId = GetTenantId().ToString();
+                await _dashboardHub.Clients.Group($"tenant_{tenantId}").SendAsync("DashboardEvent", new
+                {
+                    event_type = eventName,
+                    tenant_id = tenantId,
+                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    payload = data
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SIGNALR WARNING]: Failed to emit dashboard event '{eventName}': {ex.Message}");
+            }
         }
 
         private Guid GetTenantId()
@@ -537,6 +562,8 @@ namespace Aquora.API.Controllers
                 }
 
                 await transaction.CommitAsync();
+
+                await NotifyDashboardAsync("production-entry-created");
 
                 // Detailed transaction success log
                     Serilog.Log.Information(

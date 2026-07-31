@@ -10,6 +10,9 @@ using Aquora.Application.Interfaces;
 using Aquora.Domain.Entities;
 using Aquora.Shared.Models;
 
+using Microsoft.AspNetCore.SignalR;
+using Aquora.API.Hubs;
+
 namespace Aquora.API.Controllers
 {
     [Authorize]
@@ -19,13 +22,36 @@ namespace Aquora.API.Controllers
     {
         private readonly IPlatformDbContext _platformContext;
         private readonly ITenantDbContext _tenantContext;
+        private readonly IHubContext<DashboardHub> _dashboardHub;
 
         public ProductionController(
             IPlatformDbContext platformContext,
-            ITenantDbContext tenantContext)
+            ITenantDbContext tenantContext,
+            IHubContext<DashboardHub> dashboardHub)
         {
             _platformContext = platformContext;
             _tenantContext = tenantContext;
+            _dashboardHub = dashboardHub;
+        }
+
+        private async Task NotifyDashboardAsync(string eventName, object? data = null)
+        {
+            try
+            {
+                var tenantId = GetTenantId().ToString();
+                await _dashboardHub.Clients.Group($"tenant_{tenantId}").SendAsync("DashboardEvent", new
+                {
+                    event_type = eventName,
+                    tenant_id = tenantId,
+                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    payload = data
+                });
+            }
+            catch (Exception ex)
+            {
+                // Non-blocking telemetry warning
+                Console.WriteLine($"[SIGNALR WARNING]: Failed to emit dashboard event '{eventName}': {ex.Message}");
+            }
         }
 
         private Guid GetTenantId()
@@ -137,6 +163,504 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 return Failure<List<ProductionLineDto>>(ex.Message, "Failed to load production lines.");
+            }
+        }
+
+        [HttpGet("cockpit-reporting")]
+        public async Task<ActionResult<ApiResponse<CockpitReportingDto>>> GetCockpitReporting(
+            [FromQuery] string range = "today",
+            [FromQuery] int tzOffset = -330)
+        {
+            try
+            {
+                var tenantId = GetTenantId();
+                var nowUtc = DateTime.UtcNow;
+                var dateFilter = (range ?? "today").ToLower().Trim();
+
+                var userOffset = TimeSpan.FromMinutes(-tzOffset);
+                var nowLocal = nowUtc.Add(userOffset);
+                var todayLocalStart = nowLocal.Date;
+
+                DateTime queryUtcStart;
+                if (dateFilter == "7days")
+                {
+                    queryUtcStart = todayLocalStart.AddDays(-6).Subtract(userOffset);
+                }
+                else if (dateFilter == "30days")
+                {
+                    queryUtcStart = todayLocalStart.AddDays(-29).Subtract(userOffset);
+                }
+                else // "today"
+                {
+                    queryUtcStart = todayLocalStart.Subtract(userOffset);
+                }
+
+                DateTime ToLocal(DateTime dt)
+                {
+                    if (dt == default) return nowLocal;
+                    var utc = dt.Kind == DateTimeKind.Utc ? dt : DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                    return utc.Add(userOffset);
+                }
+
+                DateTime GetTransactionLocalTime(SalesTransaction s)
+                {
+                    if (s.CreatedAt != default)
+                    {
+                        var localCreated = ToLocal(s.CreatedAt);
+                        if (s.TransactionDate != default)
+                        {
+                            var localTxnDate = ToLocal(s.TransactionDate);
+                            if (localTxnDate.TimeOfDay != TimeSpan.Zero)
+                            {
+                                return localTxnDate;
+                            }
+                        }
+                        return localCreated;
+                    }
+                    return ToLocal(s.TransactionDate != default ? s.TransactionDate : nowUtc);
+                }
+
+                // 1. Fetch Production Batches in range
+                var batches = await _tenantContext.ProductionBatches
+                    .Include(b => b.ProductionLine)
+                    .Where(b => b.TenantId == tenantId && !b.IsDeleted && 
+                                (b.StartedAt >= queryUtcStart || (b.CompletedAt.HasValue && b.CompletedAt.Value >= queryUtcStart) || b.CreatedAt >= queryUtcStart))
+                    .ToListAsync();
+
+                // 2. Fetch Production Entries in range (Primary Source for Production Entries)
+                var entries = await _tenantContext.ProductionEntries
+                    .Include(e => e.Product)
+                    .Where(e => e.TenantId == tenantId && !e.IsDeleted && 
+                                (e.CreatedAt >= queryUtcStart || e.Date >= queryUtcStart.Date))
+                    .ToListAsync();
+
+                // 3. Fetch Sales Transactions in range
+                var salesTxns = await _tenantContext.SalesTransactions
+                    .Include(s => s.Product)
+                    .Include(s => s.Customer)
+                    .Where(s => s.TenantId == tenantId && !s.IsDeleted && 
+                                (s.TransactionDate >= queryUtcStart || s.CreatedAt >= queryUtcStart))
+                    .ToListAsync();
+
+                // 4. Fetch Active Production Lines
+                var activeLines = await _tenantContext.ProductionLines
+                    .Where(l => l.TenantId == tenantId && !l.IsDeleted && l.IsActive)
+                    .ToListAsync();
+
+                var prodTrendPoints = new List<ProductionTrendPointDto>();
+                var dispatchTrendPoints = new List<DispatchTrendPointDto>();
+
+                if (dateFilter == "today")
+                {
+                    var localEntries = entries.Select(e => new { Entry = e, LocalDt = ToLocal(e.CreatedAt != default ? e.CreatedAt : e.Date) })
+                                              .Where(x => x.LocalDt.Date == todayLocalStart)
+                                              .OrderBy(x => x.LocalDt)
+                                              .ToList();
+
+                    var localBatches = batches.Select(b => new { Batch = b, LocalDt = ToLocal(b.StartedAt != default ? b.StartedAt : b.CreatedAt) })
+                                              .Where(x => x.LocalDt.Date == todayLocalStart)
+                                              .ToList();
+
+                    // Generate event-driven points for Production Trend
+                    int cumulativeProduction = 0;
+                    foreach (var item in localEntries)
+                    {
+                        var e = item.Entry;
+                        var pName = e.Product?.Name ?? "Standard Bottled Water";
+                        var timeFormatted = item.LocalDt.ToString("hh:mm tt");
+                        var dateStr = item.LocalDt.ToString("dd MMM yyyy");
+                        
+                        var activeBatch = batches.FirstOrDefault(b => b.ProductionLineId == e.ProductionLineId && b.StartedAt <= e.CreatedAt && (b.CompletedAt == null || b.CompletedAt >= e.CreatedAt));
+                        string batchNumber = activeBatch?.BatchNumber ?? "-";
+
+                        cumulativeProduction += e.CasesProduced;
+
+                        prodTrendPoints.Add(new ProductionTrendPointDto
+                        {
+                            Label = timeFormatted,
+                            DateStr = dateStr,
+                            Hour = item.LocalDt.Hour,
+                            TotalCases = cumulativeProduction,
+                            LoggedCases = e.CasesProduced,
+                            EntriesCount = 1,
+                            RecordedTimes = new List<string> { timeFormatted },
+                            Products = new List<ProductBreakdownDto>
+                            {
+                                new ProductBreakdownDto
+                                {
+                                    ProductName = pName,
+                                    Cases = e.CasesProduced,
+                                    EntriesCount = 1,
+                                    RecordedTimes = new List<string> { timeFormatted }
+                                }
+                            },
+                            OperatorName = !string.IsNullOrWhiteSpace(e.OperatorName) ? e.OperatorName : activeBatch?.OperatorName ?? "-",
+                            Shift = !string.IsNullOrWhiteSpace(e.Shift) ? e.Shift : activeBatch?.Shift ?? "-",
+                            BatchNumber = batchNumber,
+                            Timestamp = new DateTimeOffset(item.LocalDt).ToUnixTimeMilliseconds()
+                        });
+                    }
+
+                    // Generate event-driven points for Dispatch Trend
+                    var localDispatches = salesTxns
+                        .Select(s => new { Txn = s, LocalDt = GetTransactionLocalTime(s) })
+                        .Where(x => x.LocalDt.Date == todayLocalStart)
+                        .OrderBy(x => x.LocalDt)
+                        .ToList();
+
+                    int runningNetTotal = 0;
+                    int runningDispatchedTotal = 0;
+                    int runningReturnedTotal = 0;
+                    int runningDamageTotal = 0;
+
+                    foreach (var item in localDispatches)
+                    {
+                        var s = item.Txn;
+                        var pName = s.Product?.Name ?? "Standard Bottled Water";
+                        var cName = s.Customer?.CustomerName ?? s.Customer?.BusinessName ?? "General Customer";
+                        var timeFormatted = item.LocalDt.ToString("hh:mm tt");
+                        var dateStr = item.LocalDt.ToString("dd MMM yyyy");
+                        var dayOfWeekStr = item.LocalDt.ToString("dddd");
+                        int casesInt = Convert.ToInt32(s.Cases);
+
+                        bool isReturn = s.TransactionType == "Customer Return";
+                        bool isDamage = s.TransactionType == "Damage";
+
+                        if (isReturn)
+                        {
+                            runningReturnedTotal += casesInt;
+                            runningNetTotal = Math.Max(0, runningNetTotal - casesInt);
+                        }
+                        else if (isDamage)
+                        {
+                            runningDamageTotal += casesInt;
+                        }
+                        else
+                        {
+                            runningDispatchedTotal += casesInt;
+                            runningNetTotal += casesInt;
+                        }
+
+                        dispatchTrendPoints.Add(new DispatchTrendPointDto
+                        {
+                            Label = timeFormatted,
+                            DateStr = dateStr,
+                            DayOfWeek = dayOfWeekStr,
+                            Hour = item.LocalDt.Hour,
+                            DispatchedCases = runningDispatchedTotal,
+                            LoggedDispatched = (!isReturn && !isDamage) ? casesInt : 0,
+                            ReturnedCases = runningReturnedTotal,
+                            LoggedReturned = isReturn ? casesInt : 0,
+                            DamageCases = runningDamageTotal,
+                            LoggedDamage = isDamage ? casesInt : 0,
+                            NetDispatchCases = runningNetTotal,
+                            EntriesCount = 1,
+                            RecordedTimes = new List<string> { timeFormatted },
+                            TransactionType = s.TransactionType,
+                            TransactionNumber = !string.IsNullOrWhiteSpace(s.TransactionNumber) ? s.TransactionNumber : (s.ReferenceNumber ?? "-"),
+                            CustomerName = cName,
+                            ProductName = pName,
+                            Quantity = casesInt,
+                            RunningTotal = runningNetTotal,
+                            Timestamp = new DateTimeOffset(item.LocalDt).ToUnixTimeMilliseconds(),
+                            Products = new List<DispatchProductBreakdownDto>
+                            {
+                                new DispatchProductBreakdownDto
+                                {
+                                    ProductName = pName,
+                                    DispatchedCases = (!isReturn && !isDamage) ? casesInt : 0,
+                                    ReturnedCases = isReturn ? casesInt : 0,
+                                    NetDispatchCases = isReturn ? -casesInt : (isDamage ? 0 : casesInt)
+                                }
+                            }
+                        });
+                    }
+                }
+                else if (dateFilter == "7days")
+                {
+                    int runningNetTotal = 0;
+                    int runningDispatchedTotal = 0;
+                    int runningReturnedTotal = 0;
+                    int runningDamageTotal = 0;
+
+                    for (int i = 6; i >= 0; i--)
+                    {
+                        var dayDate = todayLocalStart.AddDays(-i);
+                        var dayLabel = dayDate.ToString("ddd");
+                        var dateFullStr = dayDate.ToString("dd MMM yyyy");
+                        var dayOfWeekStr = dayDate.ToString("dddd");
+
+                        var dayEntries = entries.Select(e => new { Entry = e, LocalDt = ToLocal(e.CreatedAt != default ? e.CreatedAt : e.Date) })
+                                                .Where(x => x.LocalDt.Date == dayDate)
+                                                .ToList();
+
+                        var dayBatches = batches.Select(b => new { Batch = b, LocalDt = ToLocal(b.StartedAt != default ? b.StartedAt : b.CreatedAt) })
+                                               .Where(x => x.LocalDt.Date == dayDate)
+                                               .ToList();
+
+                        var productMap = new Dictionary<string, (int cases, int count, List<string> times)>();
+                        foreach (var item in dayEntries)
+                        {
+                            var e = item.Entry;
+                            var pName = e.Product?.Name ?? "Standard Bottled Water";
+                            if (!productMap.ContainsKey(pName)) productMap[pName] = (0, 0, new List<string>());
+                            var current = productMap[pName];
+                            productMap[pName] = (current.cases + e.CasesProduced, current.count + 1, current.times);
+                        }
+
+                        if (dayEntries.Count == 0)
+                        {
+                            foreach (var item in dayBatches)
+                            {
+                                var b = item.Batch;
+                                var pName = !string.IsNullOrWhiteSpace(b.Product) ? b.Product : "Standard Bottled Water";
+                                if (!productMap.ContainsKey(pName)) productMap[pName] = (0, 0, new List<string>());
+                                var current = productMap[pName];
+                                productMap[pName] = (current.cases + b.ProducedQuantity, current.count + 1, current.times);
+                            }
+                        }
+
+                        prodTrendPoints.Add(new ProductionTrendPointDto
+                        {
+                            Label = dayLabel,
+                            DateStr = dateFullStr,
+                            Hour = -1,
+                            TotalCases = productMap.Values.Sum(v => v.cases),
+                            EntriesCount = productMap.Values.Sum(v => v.count),
+                            Products = productMap.Select(kv => new ProductBreakdownDto { ProductName = kv.Key, Cases = kv.Value.cases, EntriesCount = kv.Value.count }).ToList()
+                        });
+
+                        var dayDispatches = salesTxns.Select(s => new { Txn = s, LocalDt = GetTransactionLocalTime(s) })
+                                                    .Where(x => x.LocalDt.Date == dayDate)
+                                                    .ToList();
+
+                        int pDisp = dayDispatches.Where(x => x.Txn.TransactionType == "Sales Dispatch" || string.IsNullOrEmpty(x.Txn.TransactionType)).Sum(x => Convert.ToInt32(x.Txn.Cases));
+                        int pRet = dayDispatches.Where(x => x.Txn.TransactionType == "Customer Return").Sum(x => Convert.ToInt32(x.Txn.Cases));
+                        int pDam = dayDispatches.Where(x => x.Txn.TransactionType == "Damage").Sum(x => Convert.ToInt32(x.Txn.Cases));
+
+                        runningDispatchedTotal += pDisp;
+                        runningReturnedTotal += pRet;
+                        runningDamageTotal += pDam;
+                        runningNetTotal = Math.Max(0, runningNetTotal + pDisp - pRet);
+
+                        var dispatchProductMap = new Dictionary<string, (int dispatched, int returned)>();
+                        foreach (var item in dayDispatches)
+                        {
+                            var s = item.Txn;
+                            var pName = s.Product?.Name ?? "Standard Bottled Water";
+                            if (!dispatchProductMap.ContainsKey(pName)) dispatchProductMap[pName] = (0, 0);
+                            int casesInt = Convert.ToInt32(s.Cases);
+                            if (s.TransactionType == "Sales Dispatch" || string.IsNullOrEmpty(s.TransactionType))
+                                dispatchProductMap[pName] = (dispatchProductMap[pName].dispatched + casesInt, dispatchProductMap[pName].returned);
+                            else if (s.TransactionType == "Customer Return")
+                                dispatchProductMap[pName] = (dispatchProductMap[pName].dispatched, dispatchProductMap[pName].returned + casesInt);
+                        }
+
+                        dispatchTrendPoints.Add(new DispatchTrendPointDto
+                        {
+                            Label = dayLabel,
+                            DateStr = dateFullStr,
+                            DayOfWeek = dayOfWeekStr,
+                            Hour = -1,
+                            DispatchedCases = runningDispatchedTotal,
+                            LoggedDispatched = pDisp,
+                            ReturnedCases = runningReturnedTotal,
+                            LoggedReturned = pRet,
+                            DamageCases = runningDamageTotal,
+                            LoggedDamage = pDam,
+                            NetDispatchCases = runningNetTotal,
+                            Products = dispatchProductMap.Select(kv => new DispatchProductBreakdownDto { ProductName = kv.Key, DispatchedCases = kv.Value.dispatched, ReturnedCases = kv.Value.returned, NetDispatchCases = Math.Max(0, kv.Value.dispatched - kv.Value.returned) }).ToList()
+                        });
+                    }
+                }
+                else // 30days
+                {
+                    int runningNetTotal = 0;
+                    int runningDispatchedTotal = 0;
+                    int runningReturnedTotal = 0;
+                    int runningDamageTotal = 0;
+
+                    for (int i = 29; i >= 0; i--)
+                    {
+                        var dayDate = todayLocalStart.AddDays(-i);
+                        var dayLabel = dayDate.ToString("d MMM");
+                        var dateFullStr = dayDate.ToString("dd MMM yyyy");
+                        var dayOfWeekStr = dayDate.ToString("dddd");
+
+                        var dayEntries = entries.Select(e => new { Entry = e, LocalDt = ToLocal(e.CreatedAt != default ? e.CreatedAt : e.Date) })
+                                                .Where(x => x.LocalDt.Date == dayDate)
+                                                .ToList();
+
+                        var dayBatches = batches.Select(b => new { Batch = b, LocalDt = ToLocal(b.StartedAt != default ? b.StartedAt : b.CreatedAt) })
+                                               .Where(x => x.LocalDt.Date == dayDate)
+                                               .ToList();
+
+                        var productMap = new Dictionary<string, (int cases, int count, List<string> times)>();
+                        foreach (var item in dayEntries)
+                        {
+                            var e = item.Entry;
+                            var pName = e.Product?.Name ?? "Standard Bottled Water";
+                            if (!productMap.ContainsKey(pName)) productMap[pName] = (0, 0, new List<string>());
+                            var current = productMap[pName];
+                            productMap[pName] = (current.cases + e.CasesProduced, current.count + 1, current.times);
+                        }
+
+                        if (dayEntries.Count == 0)
+                        {
+                            foreach (var item in dayBatches)
+                            {
+                                var b = item.Batch;
+                                var pName = !string.IsNullOrWhiteSpace(b.Product) ? b.Product : "Standard Bottled Water";
+                                if (!productMap.ContainsKey(pName)) productMap[pName] = (0, 0, new List<string>());
+                                var current = productMap[pName];
+                                productMap[pName] = (current.cases + b.ProducedQuantity, current.count + 1, current.times);
+                            }
+                        }
+
+                        prodTrendPoints.Add(new ProductionTrendPointDto
+                        {
+                            Label = dayLabel,
+                            DateStr = dateFullStr,
+                            Hour = -1,
+                            TotalCases = productMap.Values.Sum(v => v.cases),
+                            EntriesCount = productMap.Values.Sum(v => v.count),
+                            Products = productMap.Select(kv => new ProductBreakdownDto { ProductName = kv.Key, Cases = kv.Value.cases, EntriesCount = kv.Value.count }).ToList()
+                        });
+
+                        var dayDispatches = salesTxns.Select(s => new { Txn = s, LocalDt = GetTransactionLocalTime(s) })
+                                                    .Where(x => x.LocalDt.Date == dayDate)
+                                                    .ToList();
+
+                        int pDisp = dayDispatches.Where(x => x.Txn.TransactionType == "Sales Dispatch" || string.IsNullOrEmpty(x.Txn.TransactionType)).Sum(x => Convert.ToInt32(x.Txn.Cases));
+                        int pRet = dayDispatches.Where(x => x.Txn.TransactionType == "Customer Return").Sum(x => Convert.ToInt32(x.Txn.Cases));
+                        int pDam = dayDispatches.Where(x => x.Txn.TransactionType == "Damage").Sum(x => Convert.ToInt32(x.Txn.Cases));
+
+                        runningDispatchedTotal += pDisp;
+                        runningReturnedTotal += pRet;
+                        runningDamageTotal += pDam;
+                        runningNetTotal = Math.Max(0, runningNetTotal + pDisp - pRet);
+
+                        var dispatchProductMap = new Dictionary<string, (int dispatched, int returned)>();
+                        foreach (var item in dayDispatches)
+                        {
+                            var s = item.Txn;
+                            var pName = s.Product?.Name ?? "Standard Bottled Water";
+                            if (!dispatchProductMap.ContainsKey(pName)) dispatchProductMap[pName] = (0, 0);
+                            int casesInt = Convert.ToInt32(s.Cases);
+                            if (s.TransactionType == "Sales Dispatch" || string.IsNullOrEmpty(s.TransactionType))
+                                dispatchProductMap[pName] = (dispatchProductMap[pName].dispatched + casesInt, dispatchProductMap[pName].returned);
+                            else if (s.TransactionType == "Customer Return")
+                                dispatchProductMap[pName] = (dispatchProductMap[pName].dispatched, dispatchProductMap[pName].returned + casesInt);
+                        }
+
+                        dispatchTrendPoints.Add(new DispatchTrendPointDto
+                        {
+                            Label = dayLabel,
+                            DateStr = dateFullStr,
+                            DayOfWeek = dayOfWeekStr,
+                            Hour = -1,
+                            DispatchedCases = runningDispatchedTotal,
+                            LoggedDispatched = pDisp,
+                            ReturnedCases = runningReturnedTotal,
+                            LoggedReturned = pRet,
+                            DamageCases = runningDamageTotal,
+                            LoggedDamage = pDam,
+                            NetDispatchCases = runningNetTotal,
+                            Products = dispatchProductMap.Select(kv => new DispatchProductBreakdownDto { ProductName = kv.Key, DispatchedCases = kv.Value.dispatched, ReturnedCases = kv.Value.returned, NetDispatchCases = Math.Max(0, kv.Value.dispatched - kv.Value.returned) }).ToList()
+                        });
+                    }
+                }
+
+                // STRICT SINGLE SOURCE OF TRUTH METRICS
+                int totalProdCases = prodTrendPoints.Sum(p => p.LoggedCases > 0 ? p.LoggedCases : p.TotalCases);
+                int totalDispCases = dispatchTrendPoints.Sum(p => p.LoggedDispatched);
+                int totalRetCases = dispatchTrendPoints.Sum(p => p.LoggedReturned);
+                if (dateFilter == "today" && dispatchTrendPoints.Any())
+                {
+                    totalDispCases = dispatchTrendPoints.Last().DispatchedCases;
+                    totalRetCases = dispatchTrendPoints.Last().ReturnedCases;
+                }
+                int netDispCases = Math.Max(0, totalDispCases - totalRetCases);
+
+                int totalTargetCases = batches.Sum(b => b.TargetQuantity);
+                if (totalTargetCases == 0) totalTargetCases = totalProdCases > 0 ? (int)(totalProdCases * 1.2) : 1000;
+
+                int effPct = totalTargetCases > 0 ? Math.Min(100, (int)Math.Round((double)totalProdCases / totalTargetCases * 100)) : 0;
+
+                // Batch Status Breakdown
+                var runningCount = batches.Count(b => b.Status == "Active" || b.Status == "Running");
+                var completedCount = batches.Count(b => b.Status == "Completed");
+                var pausedCount = batches.Count(b => b.Status == "Paused");
+                var cancelledCount = batches.Count(b => b.Status == "Cancelled" || b.Status == "Stopped");
+
+                var batchStatus = new List<BatchStatusItemDto>
+                {
+                    new BatchStatusItemDto { Label = "Running", Value = runningCount, Color = "#10B981" },
+                    new BatchStatusItemDto { Label = "Completed", Value = completedCount, Color = "#2563EB" },
+                    new BatchStatusItemDto { Label = "Paused", Value = pausedCount, Color = "#F59E0B" },
+                    new BatchStatusItemDto { Label = "Cancelled", Value = cancelledCount, Color = "#EF4444" }
+                }.Where(b => b.Value > 0).ToList();
+
+                // Running Lines
+                var runningLinesList = new List<RunningLineItemDto>();
+                foreach (var line in activeLines)
+                {
+                    var lineBatch = batches.FirstOrDefault(b => b.ProductionLineId == line.Id && (b.Status == "Active" || b.Status == "Running"));
+                    var isRunning = lineBatch != null;
+                    var isPaused = !isRunning && batches.Any(b => b.ProductionLineId == line.Id && b.Status == "Paused");
+
+                    runningLinesList.Add(new RunningLineItemDto
+                    {
+                        LineId = line.Id,
+                        LineName = line.Name,
+                        IsActive = line.IsActive,
+                        Status = isRunning ? "Running" : isPaused ? "Paused" : "Idle",
+                        BatchNumber = lineBatch?.BatchNumber,
+                        Product = lineBatch?.Product,
+                        OperatorName = lineBatch?.OperatorName,
+                        Shift = lineBatch?.Shift,
+                        ProducedQuantity = lineBatch?.ProducedQuantity ?? 0,
+                        TargetQuantity = lineBatch?.TargetQuantity ?? 0,
+                        ProgressPercentage = (lineBatch?.TargetQuantity > 0) ? Math.Min(100, (int)Math.Round((double)lineBatch.ProducedQuantity / lineBatch.TargetQuantity * 100)) : 0
+                    });
+                }
+
+                // Recent Activity
+                var activities = new List<DashboardActivityDto>();
+                foreach (var b in batches.OrderByDescending(b => b.StartedAt).Take(6))
+                {
+                    activities.Add(new DashboardActivityDto
+                    {
+                        Time = b.StartedAt.ToString("HH:mm"),
+                        Timestamp = new DateTimeOffset(b.StartedAt).ToUnixTimeMilliseconds(),
+                        Text = $"Batch {b.BatchNumber} ({b.Product ?? "Bottled Water"}) started on {b.ProductionLine?.Name ?? "Production Line"}"
+                    });
+                }
+
+                var reportingDto = new CockpitReportingDto
+                {
+                    Range = dateFilter,
+                    ProductionTotalCases = totalProdCases,
+                    DispatchTotalCases = totalDispCases,
+                    ReturnTotalCases = totalRetCases,
+                    NetDispatchCases = netDispCases,
+                    TargetTotalCases = totalTargetCases,
+                    EfficiencyPercentage = effPct,
+                    RunningLinesCount = runningLinesList.Count(l => l.Status == "Running"),
+                    TotalActiveLinesCount = activeLines.Count,
+                    ActiveBatchesCount = runningCount,
+                    ProductionTrend = prodTrendPoints,
+                    DispatchTrend = dispatchTrendPoints,
+                    BatchStatusBreakdown = batchStatus,
+                    RunningLines = runningLinesList,
+                    RecentActivities = activities
+                };
+
+                return Success(reportingDto, "Cockpit reporting statistics loaded successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<CockpitReportingDto>(ex.Message, "Failed to load cockpit reporting statistics.");
             }
         }
 
@@ -539,6 +1063,8 @@ namespace Aquora.API.Controllers
 
                     await transaction.CommitAsync();
 
+                    await NotifyDashboardAsync("batch-started");
+
                     Serilog.Log.Information(
                         "[ADMIN BATCH START TRANSACTION SUCCESS]: TenantId={TenantId}, CompanyId={CompanyId}, SchemaName={SchemaName}, BatchId={BatchId}, ProductionLineId={ProductionLineId}, OperatorId={OperatorId}, TransactionId={TransactionId}, RowsAffected={RowsAffected}",
                         tenantId,
@@ -668,6 +1194,7 @@ namespace Aquora.API.Controllers
                 batch.CompletedAt = DateTime.UtcNow;
 
                 await _tenantContext.SaveChangesAsync();
+                await NotifyDashboardAsync("batch-completed");
 
                 return Success<object>(new
                 {
@@ -708,6 +1235,8 @@ namespace Aquora.API.Controllers
                 }
 
                 await _tenantContext.SaveChangesAsync();
+                await NotifyDashboardAsync("batch-status-changed");
+
                 return Success<object>(new { BatchId = batch.Id, Status = batch.Status }, "Production batch paused.");
             }
             catch (Exception ex)
@@ -742,6 +1271,7 @@ namespace Aquora.API.Controllers
                 }
 
                 await _tenantContext.SaveChangesAsync();
+                await NotifyDashboardAsync("batch-status-changed");
                 return Success<object>(new { BatchId = batch.Id, Status = batch.Status }, "Production batch resumed.");
             }
             catch (Exception ex)
@@ -1051,5 +1581,114 @@ namespace Aquora.API.Controllers
         public DateTime StartedAt { get; set; }
         public int TargetQuantity { get; set; }
         public int ProducedQuantity { get; set; }
+    }
+
+    public class CockpitReportingDto
+    {
+        public string Range { get; set; } = "today";
+        public int ProductionTotalCases { get; set; }
+        public int DispatchTotalCases { get; set; }
+        public int ReturnTotalCases { get; set; }
+        public int NetDispatchCases { get; set; }
+        public int TargetTotalCases { get; set; }
+        public int EfficiencyPercentage { get; set; }
+        public int RunningLinesCount { get; set; }
+        public int TotalActiveLinesCount { get; set; }
+        public int ActiveBatchesCount { get; set; }
+        public List<ProductionTrendPointDto> ProductionTrend { get; set; } = new();
+        public List<DispatchTrendPointDto> DispatchTrend { get; set; } = new();
+        public List<BatchStatusItemDto> BatchStatusBreakdown { get; set; } = new();
+        public List<RunningLineItemDto> RunningLines { get; set; } = new();
+        public List<DashboardActivityDto> RecentActivities { get; set; } = new();
+    }
+
+    public class ProductionTrendPointDto
+    {
+        public string Label { get; set; } = string.Empty;
+        public string DateStr { get; set; } = string.Empty;
+        public int Hour { get; set; }
+        public int TotalCases { get; set; }
+        public int LoggedCases { get; set; }
+        public int EntriesCount { get; set; }
+        public List<string> RecordedTimes { get; set; } = new();
+        public List<ProductBreakdownDto> Products { get; set; } = new();
+        
+        // Detailed Event Data for 'today' view
+        public string? OperatorName { get; set; }
+        public string? Shift { get; set; }
+        public string? BatchNumber { get; set; }
+        public long Timestamp { get; set; }
+    }
+
+    public class DispatchTrendPointDto
+    {
+        public string Label { get; set; } = string.Empty;
+        public string DateStr { get; set; } = string.Empty;
+        public string DayOfWeek { get; set; } = string.Empty;
+        public int Hour { get; set; }
+        public int DispatchedCases { get; set; }
+        public int LoggedDispatched { get; set; }
+        public int ReturnedCases { get; set; }
+        public int LoggedReturned { get; set; }
+        public int DamageCases { get; set; }
+        public int LoggedDamage { get; set; }
+        public int NetDispatchCases { get; set; }
+        public int EntriesCount { get; set; }
+        public List<string> RecordedTimes { get; set; } = new();
+        public List<DispatchProductBreakdownDto> Products { get; set; } = new();
+
+        // Event-level detail fields for tooltips & time-series event mapping
+        public string? TransactionType { get; set; }
+        public string? TransactionNumber { get; set; }
+        public string? CustomerName { get; set; }
+        public string? ProductName { get; set; }
+        public int Quantity { get; set; }
+        public int RunningTotal { get; set; }
+        public long Timestamp { get; set; }
+    }
+
+    public class ProductBreakdownDto
+    {
+        public string ProductName { get; set; } = string.Empty;
+        public int Cases { get; set; }
+        public int EntriesCount { get; set; }
+        public List<string> RecordedTimes { get; set; } = new();
+    }
+
+    public class DispatchProductBreakdownDto
+    {
+        public string ProductName { get; set; } = string.Empty;
+        public int DispatchedCases { get; set; }
+        public int ReturnedCases { get; set; }
+        public int NetDispatchCases { get; set; }
+    }
+
+    public class BatchStatusItemDto
+    {
+        public string Label { get; set; } = string.Empty;
+        public int Value { get; set; }
+        public string Color { get; set; } = string.Empty;
+    }
+
+    public class RunningLineItemDto
+    {
+        public Guid LineId { get; set; }
+        public string LineName { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
+        public string Status { get; set; } = "Idle";
+        public string? BatchNumber { get; set; }
+        public string? Product { get; set; }
+        public string? OperatorName { get; set; }
+        public string? Shift { get; set; }
+        public int ProducedQuantity { get; set; }
+        public int TargetQuantity { get; set; }
+        public int ProgressPercentage { get; set; }
+    }
+
+    public class DashboardActivityDto
+    {
+        public string Time { get; set; } = string.Empty;
+        public long Timestamp { get; set; }
+        public string Text { get; set; } = string.Empty;
     }
 }

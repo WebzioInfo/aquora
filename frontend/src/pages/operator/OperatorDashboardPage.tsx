@@ -1848,8 +1848,8 @@ export const OperatorDashboardPage: React.FC = () => {
     }
   }
 
-  const preformWastageUnit = getWastageUnit(selectedPreformMat, 'PCS')
-  const capWastageUnit = getWastageUnit(selectedCapMat, 'PCS')
+  const preformWastageUnit = 'PCS'
+  const capWastageUnit = 'PCS'
   const labelWastageUnit = getWastageUnit(selectedLabelMat, 'KG')
   const shrinkWastageUnit = getWastageUnit(selectedShrinkMat, 'KG')
 
@@ -2517,14 +2517,20 @@ export const OperatorDashboardPage: React.FC = () => {
                         <tbody className="divide-y divide-slate-200">
                           {sessionSummary.inventorySummary && sessionSummary.inventorySummary.map((item: any, idx: number) => {
                             const isNegative = item.remainingStock < 0 || item.openingStock < 0
+                            
+                            const n = (item.materialName || '').toLowerCase()
+                            let displayUnit = item.unit
+                            if (n.includes('preform') || n.includes('cap') || n.includes('closure')) displayUnit = 'PCS'
+                            else if (n.includes('label') || n.includes('shrink') || n.includes('film')) displayUnit = 'KG'
+
                             return (
                               <tr key={idx} className={`hover:bg-slate-50/50 ${isNegative ? 'bg-red-50/50 text-red-900 font-bold' : ''}`}>
                                 <td className="px-3 py-2 font-semibold text-slate-800">{item.materialName}</td>
-                                <td className="px-3 py-2 text-center">{item.openingStock} {item.unit}</td>
-                                <td className="px-3 py-2 text-center">{item.consumed} {item.unit}</td>
-                                <td className="px-3 py-2 text-center">{item.waste} {item.unit}</td>
+                                <td className="px-3 py-2 text-center">{item.openingStock} {displayUnit}</td>
+                                <td className="px-3 py-2 text-center">{item.consumed} {displayUnit}</td>
+                                <td className="px-3 py-2 text-center">{item.waste} {displayUnit}</td>
                                 <td className={`px-3 py-2 text-right font-bold ${isNegative ? 'text-red-600' : 'text-slate-900'}`}>
-                                  {item.remainingStock} {item.unit}
+                                  {item.remainingStock} {displayUnit}
                                 </td>
                               </tr>
                             )

@@ -11,6 +11,9 @@ using Aquora.Domain.Entities;
 using Aquora.Shared.Models;
 using Aquora.Application.DTOs.Finance;
 
+using Microsoft.AspNetCore.SignalR;
+using Aquora.API.Hubs;
+
 namespace Aquora.API.Controllers
 {
     [Authorize]
@@ -22,17 +25,39 @@ namespace Aquora.API.Controllers
         private readonly ICurrentUserContext _currentUserContext;
         private readonly IInventoryMovementService _inventoryMovementService;
         private readonly IPlatformDbContext _platformContext;
+        private readonly IHubContext<DashboardHub> _dashboardHub;
 
         public SalesController(
             ITenantDbContext tenantContext,
             ICurrentUserContext currentUserContext,
             IInventoryMovementService inventoryMovementService,
-            IPlatformDbContext platformContext)
+            IPlatformDbContext platformContext,
+            IHubContext<DashboardHub> dashboardHub)
         {
             _tenantContext = tenantContext;
             _currentUserContext = currentUserContext;
             _inventoryMovementService = inventoryMovementService;
             _platformContext = platformContext;
+            _dashboardHub = dashboardHub;
+        }
+
+        private async Task NotifyDashboardAsync(string eventName, object? data = null)
+        {
+            try
+            {
+                var tenantId = _currentUserContext.TenantId.ToString();
+                await _dashboardHub.Clients.Group($"tenant_{tenantId}").SendAsync("DashboardEvent", new
+                {
+                    event_type = eventName,
+                    tenant_id = tenantId,
+                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    payload = data
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SIGNALR WARNING]: Failed to emit dashboard event '{eventName}': {ex.Message}");
+            }
         }
 
         private bool IsAuthorizedToWrite()
@@ -315,6 +340,8 @@ namespace Aquora.API.Controllers
 
 
                 await dbTransaction.CommitAsync();
+
+                await NotifyDashboardAsync(request.TransactionType == "Customer Return" ? "dispatch-returned" : "dispatch-created");
 
                 // Auto-post to Finance Ledger
                 if (request.TransactionType == "Sales Dispatch")
@@ -619,8 +646,9 @@ namespace Aquora.API.Controllers
             try
             {
                 var tenantId = _currentUserContext.TenantId;
-                var today = DateTime.UtcNow.Date;
-                var startOfMonth = new DateTime(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+                var todayUtc = DateTime.UtcNow.Date;
+                var todayLocalStart = todayUtc.AddDays(-1); // Resilient timezone window
+                var startOfMonth = new DateTime(todayUtc.Year, todayUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
                 var query = _tenantContext.SalesTransactions
                     .Where(t => t.TenantId == tenantId && !t.IsDeleted);
@@ -628,15 +656,15 @@ namespace Aquora.API.Controllers
                 var txns = await query.ToListAsync();
 
                 var todaySalesCases = txns
-                    .Where(t => t.TransactionDate.Date == today && t.TransactionType == "Sales Dispatch")
+                    .Where(t => (t.TransactionDate.Date >= todayUtc || t.CreatedAt.Date >= todayUtc || t.TransactionDate >= todayLocalStart) && t.TransactionType == "Sales Dispatch")
                     .Sum(t => t.Cases);
 
                 var todayReturns = txns
-                    .Where(t => t.TransactionDate.Date == today && t.TransactionType == "Customer Return")
+                    .Where(t => (t.TransactionDate.Date >= todayUtc || t.CreatedAt.Date >= todayUtc || t.TransactionDate >= todayLocalStart) && t.TransactionType == "Customer Return")
                     .Sum(t => t.Cases);
 
                 var todayDamage = txns
-                    .Where(t => t.TransactionDate.Date == today && t.TransactionType == "Damage")
+                    .Where(t => (t.TransactionDate.Date >= todayUtc || t.CreatedAt.Date >= todayUtc || t.TransactionDate >= todayLocalStart) && t.TransactionType == "Damage")
                     .Sum(t => t.Cases);
 
                 var totalDispatch = txns
@@ -644,7 +672,7 @@ namespace Aquora.API.Controllers
                     .Sum(t => t.Cases);
 
                 var monthlyDispatch = txns
-                    .Where(t => t.TransactionDate >= startOfMonth && t.TransactionType == "Sales Dispatch")
+                    .Where(t => (t.TransactionDate >= startOfMonth || t.CreatedAt >= startOfMonth) && t.TransactionType == "Sales Dispatch")
                     .Sum(t => t.Cases);
 
                 var dashboard = new SalesDashboardDto
