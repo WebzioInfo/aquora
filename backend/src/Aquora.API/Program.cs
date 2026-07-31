@@ -19,15 +19,6 @@ using Aquora.Persistence;
 using Aquora.Persistence.Context;
 using Aquora.Domain.Entities;
 
-// Ensure single instance of the API to prevent port binding issues
-bool createdNew;
-var mutex = new Mutex(true, "Global\\AquoraApiInstance", out createdNew);
-if (!createdNew)
-{
-    Console.WriteLine("[STARTUP] Another instance of Aquora.API is already running. Exiting gracefully to prevent port conflict.");
-    return;
-}
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Load .env file
@@ -320,29 +311,23 @@ PHASE 4: Active Database Instance Verification:
         Log.Information("  4. Background Workers: TenantProvisioningWorker, QueuedHostedService, OtpEmailWorker");
         Log.Information("--------------------------------------------------");
 
-        if (autoMigrate || isMigrateCommand)
+        try
         {
-            try
+            Log.Information("[DATABASE MIGRATION]: Running database schema sync and migrations...");
+            var migrationService = services.GetRequiredService<IMigrationService>();
+            await migrationService.MigrateAllAsync();
+            Log.Information("[DATABASE MIGRATION]: Migration and schema sync completed successfully.");
+
+            if (isMigrateCommand)
             {
-                Log.Information("[DATABASE MIGRATION]: Migration execution initiated (AutoMigrate: {AutoMigrate}, CLI Command: {Command})", autoMigrate, isMigrateCommand);
-                var migrationService = services.GetRequiredService<IMigrationService>();
-                await migrationService.MigrateAllAsync();
-                
-                if (isMigrateCommand)
-                {
-                    Log.Information("[DATABASE MIGRATION]: CLI Command 'migrate' completed successfully. Exiting process.");
-                    return;
-                }
-            }
-            catch (Exception migrationEx)
-            {
-                Log.Fatal(migrationEx, "[DATABASE MIGRATION ERROR]: A fatal error occurred during database migration execution.");
-                throw;
+                Log.Information("[DATABASE MIGRATION]: CLI Command 'migrate' completed successfully. Exiting process.");
+                return;
             }
         }
-        else
+        catch (Exception migrationEx)
         {
-            Log.Information("[STARTUP]: Skipping automatic database migrations & schema modification. AUTO_MIGRATE_ON_STARTUP is false.");
+            Log.Fatal(migrationEx, "[DATABASE MIGRATION ERROR]: A fatal error occurred during database migration execution.");
+            throw;
         }
 
         // --- GOD MODE SCHEMA VALIDATION ---

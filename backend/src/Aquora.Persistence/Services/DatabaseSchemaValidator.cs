@@ -51,7 +51,7 @@ namespace Aquora.Persistence.Services
                 command.CommandText = @"
                     SELECT column_name, data_type 
                     FROM information_schema.columns 
-                    WHERE table_schema = @schema AND table_name = @table;";
+                    WHERE LOWER(table_schema) = LOWER(@schema) AND LOWER(table_name) = LOWER(@table);";
                 
                 command.Parameters.AddWithValue("schema", expectedSchema);
                 command.Parameters.AddWithValue("table", tableName);

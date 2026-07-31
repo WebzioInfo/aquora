@@ -16,6 +16,11 @@ namespace Aquora.Application.Interfaces
         DbSet<UserMembership> UserMemberships { get; }
         DbSet<TenantInvitation> TenantInvitations { get; }
         DbSet<TenantProductionConfiguration> TenantProductionConfigurations { get; }
+        DbSet<SubscriptionPlan> SubscriptionPlans { get; }
+        DbSet<SubscriptionFeature> SubscriptionFeatures { get; }
+        DbSet<SubscriptionPlanLimits> SubscriptionPlanLimits { get; }
+        DbSet<TenantSubscription> TenantSubscriptions { get; }
+        DbSet<SubscriptionAuditLog> SubscriptionAuditLogs { get; }
 
         DatabaseFacade Database { get; }
 

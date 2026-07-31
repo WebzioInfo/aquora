@@ -201,6 +201,116 @@ namespace Aquora.Persistence.Services
                 })
                 .ToListAsync();
 
+            // Subscription details lookup
+            TenantSubscriptionDetailDto? subDetail = null;
+            
+            var tenantSub = await _platformContext.TenantSubscriptions
+                .AsNoTracking()
+                .Where(s => s.TenantId == tenantId)
+                .OrderByDescending(s => s.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            SubscriptionPlan? plan = null;
+            if (tenantSub != null)
+            {
+                plan = await _platformContext.SubscriptionPlans
+                    .AsNoTracking()
+                    .Include(p => p.Limits)
+                    .Include(p => p.Features)
+                    .FirstOrDefaultAsync(p => p.Id == tenantSub.PlanId && !p.IsDeleted);
+            }
+
+            if (plan == null && !string.IsNullOrWhiteSpace(t.SubscriptionPlan))
+            {
+                plan = await _platformContext.SubscriptionPlans
+                    .AsNoTracking()
+                    .Include(p => p.Limits)
+                    .Include(p => p.Features)
+                    .FirstOrDefaultAsync(p => p.Name.ToLower() == t.SubscriptionPlan.ToLower() && !p.IsDeleted);
+            }
+
+            if (plan != null)
+            {
+                var startDate = tenantSub?.StartDate ?? t.CreatedAt;
+                var endDate = tenantSub?.EndDate ?? t.CreatedAt.AddDays(plan.DurationDays > 0 ? plan.DurationDays : 365);
+                var now = DateTime.UtcNow;
+                var remainingDays = Math.Max(0, (int)(endDate - now).TotalDays);
+                var isExpired = now > endDate;
+                var daysExpired = isExpired ? (int)(now - endDate).TotalDays : 0;
+                var daysUntilExpiry = isExpired ? 0 : remainingDays;
+                var isTrial = tenantSub?.Status.Equals("Trial", StringComparison.OrdinalIgnoreCase) == true;
+                var trialDaysRem = tenantSub?.TrialEndDate.HasValue == true && tenantSub.TrialEndDate.Value > now
+                    ? (int?)(tenantSub.TrialEndDate.Value - now).TotalDays
+                    : null;
+
+                var limitsDto = plan.Limits != null ? new Aquora.Application.DTOs.Subscriptions.SubscriptionPlanLimitsDto
+                {
+                    Id = plan.Limits.Id,
+                    PlanId = plan.Limits.PlanId,
+                    ProductionLines = plan.Limits.ProductionLines,
+                    Machines = plan.Limits.Machines,
+                    Employees = plan.Limits.Employees,
+                    Customers = plan.Limits.Customers,
+                    Suppliers = plan.Limits.Suppliers,
+                    Warehouses = plan.Limits.Warehouses,
+                    ProductionBatches = plan.Limits.ProductionBatches,
+                    Products = plan.Limits.Products,
+                    RawMaterials = plan.Limits.RawMaterials,
+                    StorageGB = plan.Limits.StorageGB,
+                    APIRequestsPerMin = plan.Limits.APIRequestsPerMin,
+                    FileUploadSizeMB = plan.Limits.FileUploadSizeMB,
+                    DailyExports = plan.Limits.DailyExports,
+                    ConcurrentUsers = plan.Limits.ConcurrentUsers,
+                    SMSLimit = plan.Limits.SMSLimit,
+                    EmailLimit = plan.Limits.EmailLimit
+                } : new Aquora.Application.DTOs.Subscriptions.SubscriptionPlanLimitsDto { PlanId = plan.Id };
+
+                var highlighted = plan.Features?
+                    .Where(f => f.IsHighlighted || f.DisplayOrder <= 5)
+                    .OrderBy(f => f.DisplayOrder)
+                    .Select(f => new Aquora.Application.DTOs.Subscriptions.SubscriptionFeatureDto
+                    {
+                        Id = f.Id,
+                        PlanId = f.PlanId,
+                        FeatureName = f.FeatureName,
+                        FeatureDescription = f.FeatureDescription,
+                        FeatureCategory = f.FeatureCategory,
+                        FeatureValue = f.FeatureValue,
+                        FeatureUnit = f.FeatureUnit,
+                        DisplayOrder = f.DisplayOrder,
+                        IsHighlighted = f.IsHighlighted,
+                        IsUnlimited = f.IsUnlimited
+                    }).ToList() ?? new List<Aquora.Application.DTOs.Subscriptions.SubscriptionFeatureDto>();
+
+                subDetail = new TenantSubscriptionDetailDto
+                {
+                    PlanId = plan.Id,
+                    PlanName = plan.Name,
+                    PlanCode = plan.Code,
+                    PlanColor = plan.Color ?? "#3B82F6",
+                    Status = isExpired ? "Expired" : (tenantSub?.Status ?? "Active"),
+                    BillingCycle = tenantSub?.BillingCycle ?? plan.BillingCycle,
+                    PricePaid = tenantSub?.PricePaid ?? plan.MonthlyPrice,
+                    Currency = plan.Currency,
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    TrialEndDate = tenantSub?.TrialEndDate,
+                    RemainingDays = remainingDays,
+                    IsTrial = isTrial,
+                    TrialDaysRemaining = trialDaysRem,
+                    IsExpiringSoon = !isExpired && daysUntilExpiry <= 30,
+                    DaysUntilExpiry = daysUntilExpiry,
+                    IsExpired = isExpired,
+                    DaysExpired = daysExpired,
+                    Limits = limitsDto,
+                    ProductionLinesUsed = 0,
+                    MachinesUsed = 0,
+                    EmployeesUsed = activeUsers,
+                    StorageUsedGB = Math.Round(t.StorageUsedMb / 1024.0, 2),
+                    HighlightedFeatures = highlighted
+                };
+            }
+
             return new PlatformTenantDto
             {
                 Id = t.Id,
@@ -238,7 +348,8 @@ namespace Aquora.Persistence.Services
                 EmployeeCount = null,
                 OrderCount = null,
                 TotalRevenue = null,
-                RecentActivity = recentLogs
+                RecentActivity = recentLogs,
+                Subscription = subDetail
             };
         }
 

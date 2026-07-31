@@ -24,6 +24,11 @@ namespace Aquora.Persistence.Context
         public DbSet<UserMembership> UserMemberships => Set<UserMembership>();
         public DbSet<TenantInvitation> TenantInvitations => Set<TenantInvitation>();
         public DbSet<TenantProductionConfiguration> TenantProductionConfigurations => Set<TenantProductionConfiguration>();
+        public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
+        public DbSet<SubscriptionFeature> SubscriptionFeatures => Set<SubscriptionFeature>();
+        public DbSet<SubscriptionPlanLimits> SubscriptionPlanLimits => Set<SubscriptionPlanLimits>();
+        public DbSet<TenantSubscription> TenantSubscriptions => Set<TenantSubscription>();
+        public DbSet<SubscriptionAuditLog> SubscriptionAuditLogs => Set<SubscriptionAuditLog>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -65,6 +70,22 @@ namespace Aquora.Persistence.Context
             modelBuilder.Entity<TenantProductionConfiguration>()
                 .HasIndex(tc => new { tc.TenantId, tc.StationName })
                 .IsUnique();
+
+            modelBuilder.Entity<SubscriptionPlan>()
+                .HasIndex(sp => sp.Code)
+                .IsUnique();
+
+            modelBuilder.Entity<SubscriptionPlan>()
+                .HasOne(sp => sp.Limits)
+                .WithOne(spl => spl.Plan)
+                .HasForeignKey<SubscriptionPlanLimits>(spl => spl.PlanId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<SubscriptionFeature>()
+                .HasOne(sf => sf.Plan)
+                .WithMany(sp => sp.Features)
+                .HasForeignKey(sf => sf.PlanId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

@@ -20,6 +20,7 @@ import UserModal from '../../components/platform/UserModal'
 import UserDeleteModal from '../../components/platform/UserDeleteModal'
 import BulkOperationsBar from '../../components/platform/BulkOperationsBar'
 import ImportExportModal from '../../components/platform/ImportExportModal'
+import SubscriptionManagementTab from './subscriptions/SubscriptionManagementTab'
 
 export const PlatformManagementPage: React.FC = () => {
   const location = useLocation()
@@ -740,29 +741,7 @@ export const PlatformManagementPage: React.FC = () => {
 
   // OTHER PLATFORM TABS
   if (isSubscriptions) {
-    return (
-      <div className="flex flex-col gap-6 select-none bg-[#F8FAFC] min-h-screen -m-6 p-6">
-        <EnterpriseHeader title="Subscription Tiers" description="Manage plans, resource limits, and production line quotas." />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs flex flex-col gap-4">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Starter Tier</span>
-            <span className="text-[28px] font-bold text-slate-900 block">$199 / mo</span>
-            <p className="text-sm text-slate-500 leading-relaxed">Up to 3 production lines, 10 active machines, and basic telemetry reports.</p>
-          </div>
-          <div className="bg-white border-2 border-blue-600 p-6 rounded-2xl shadow-xs flex flex-col gap-4 relative">
-            <span className="absolute top-3 right-3 text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-0.5 rounded-full uppercase">Popular</span>
-            <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider block">Professional Tier</span>
-            <span className="text-[28px] font-bold text-slate-900 block">$499 / mo</span>
-            <p className="text-sm text-slate-500 leading-relaxed">Up to 10 production lines, 50 machines, custom domains, and automated checklists.</p>
-          </div>
-          <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs flex flex-col gap-4">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Enterprise Tier</span>
-            <span className="text-[28px] font-bold text-slate-900 block">Custom Pricing</span>
-            <p className="text-sm text-slate-500 leading-relaxed">Unlimited resources, dedicated DB cluster support, and 24/7 priority SLA.</p>
-          </div>
-        </div>
-      </div>
-    )
+    return <SubscriptionManagementTab />
   }
 
   return (

@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
-import { X, Building, Database, Clock, CheckCircle2, ShieldCheck, Mail, Phone, Calendar, Globe, Tag } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { X, Building, Clock, ShieldCheck, Mail, Phone, Calendar, CreditCard, AlertTriangle, Check, Layers, Zap, HardDrive, Users } from 'lucide-react'
 import EnterpriseBadge from '../ui/EnterpriseBadge'
+import { api } from '../../services/api'
 
 interface TenantDetailsDrawerProps {
   isOpen: boolean
@@ -11,11 +13,40 @@ interface TenantDetailsDrawerProps {
 export const TenantDetailsDrawer: React.FC<TenantDetailsDrawerProps> = ({
   isOpen,
   onClose,
-  tenant
+  tenant: initialTenant
 }) => {
   const [activeTab, setActiveTab] = useState<'details' | 'audit'>('details')
 
-  if (!isOpen || !tenant) return null
+  // Fetch full details (including single-request subscription join) on open
+  const tenantId = initialTenant?.id
+  const { data: fullTenantData, isLoading } = useQuery({
+    queryKey: ['tenantDetails', tenantId],
+    queryFn: async () => {
+      if (!tenantId) return null
+      const res = await api.get(`/api/v1/platform/tenants/${tenantId}`)
+      return res.data?.data || null
+    },
+    enabled: isOpen && !!tenantId,
+    staleTime: 0 // Always fetch fresh database data
+  })
+
+  if (!isOpen || !initialTenant) return null
+
+  const tenant = fullTenantData || initialTenant
+  const subscription = tenant.subscription
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return 'N/A'
+    try {
+      return new Date(dateStr).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      })
+    } catch {
+      return dateStr
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden select-none">
@@ -80,17 +111,15 @@ export const TenantDetailsDrawer: React.FC<TenantDetailsDrawerProps> = ({
           <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
 
             {activeTab === 'details' && (
-              <div className="space-y-4">
+              <div className="space-y-5">
 
                 {/* Primary Meta Grid */}
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
                   <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-blue-600" /> Key Attributes
+                    <ShieldCheck className="w-3.5 h-3.5 text-blue-600" /> Company Information
                   </h3>
 
                   <div className="divide-y divide-slate-100 text-xs">
-                    
-                    {/* Tenant Name */}
                     {tenant.name && (
                       <div className="py-2.5 flex justify-between items-center">
                         <span className="text-slate-500 font-medium">Company Name</span>
@@ -98,7 +127,6 @@ export const TenantDetailsDrawer: React.FC<TenantDetailsDrawerProps> = ({
                       </div>
                     )}
 
-                    {/* Tenant ID */}
                     {tenant.id && (
                       <div className="py-2.5 flex justify-between items-center">
                         <span className="text-slate-500 font-medium">Tenant ID</span>
@@ -106,17 +134,15 @@ export const TenantDetailsDrawer: React.FC<TenantDetailsDrawerProps> = ({
                       </div>
                     )}
 
-                    {/* Schema Name */}
                     {tenant.schemaName && (
                       <div className="py-2.5 flex justify-between items-center">
-                        <span className="text-slate-500 font-medium font-sans">Database Schema</span>
+                        <span className="text-slate-500 font-medium">Database Schema</span>
                         <span className="font-mono font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded">
                           {tenant.schemaName}
                         </span>
                       </div>
                     )}
 
-                    {/* Subdomain */}
                     {tenant.subdomain && (
                       <div className="py-2.5 flex justify-between items-center">
                         <span className="text-slate-500 font-medium">Subdomain</span>
@@ -124,7 +150,6 @@ export const TenantDetailsDrawer: React.FC<TenantDetailsDrawerProps> = ({
                       </div>
                     )}
 
-                    {/* Status */}
                     <div className="py-2.5 flex justify-between items-center">
                       <span className="text-slate-500 font-medium">Status</span>
                       <EnterpriseBadge variant={tenant.isActive ? 'success' : 'danger'}>
@@ -132,7 +157,6 @@ export const TenantDetailsDrawer: React.FC<TenantDetailsDrawerProps> = ({
                       </EnterpriseBadge>
                     </div>
 
-                    {/* Owner Email */}
                     {tenant.ownerEmail && (
                       <div className="py-2.5 flex justify-between items-center">
                         <span className="text-slate-500 font-medium">Owner Email</span>
@@ -142,7 +166,6 @@ export const TenantDetailsDrawer: React.FC<TenantDetailsDrawerProps> = ({
                       </div>
                     )}
 
-                    {/* Owner Phone */}
                     {tenant.ownerPhone && (
                       <div className="py-2.5 flex justify-between items-center">
                         <span className="text-slate-500 font-medium">Owner Phone</span>
@@ -152,7 +175,6 @@ export const TenantDetailsDrawer: React.FC<TenantDetailsDrawerProps> = ({
                       </div>
                     )}
 
-                    {/* Created Date */}
                     {tenant.createdAt && (
                       <div className="py-2.5 flex justify-between items-center">
                         <span className="text-slate-500 font-medium">Provisioned At</span>
@@ -161,17 +183,153 @@ export const TenantDetailsDrawer: React.FC<TenantDetailsDrawerProps> = ({
                         </span>
                       </div>
                     )}
-
-                    {/* Updated Date */}
-                    {tenant.updatedAt && (
-                      <div className="py-2.5 flex justify-between items-center">
-                        <span className="text-slate-500 font-medium">Last Modified</span>
-                        <span className="text-slate-700">{new Date(tenant.updatedAt).toLocaleString()}</span>
-                      </div>
-                    )}
-
                   </div>
                 </div>
+
+                {/* SUBSCRIPTION INFORMATION CARD */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <CreditCard className="w-3.5 h-3.5 text-blue-600" /> Subscription Information
+                    </h3>
+
+                    {subscription && (
+                      <EnterpriseBadge 
+                        variant={
+                          subscription.status === 'Active' ? 'success' : 
+                          subscription.status === 'Trial' ? 'info' : 
+                          subscription.status === 'Expired' ? 'danger' : 'warning'
+                        }
+                      >
+                        {subscription.status}
+                      </EnterpriseBadge>
+                    )}
+                  </div>
+
+                  {!subscription ? (
+                    /* EMPTY STATE */
+                    <div className="bg-slate-50/80 border border-dashed border-slate-200 rounded-xl p-5 text-center my-2">
+                      <CreditCard className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                      <span className="text-xs font-bold text-slate-800 block">No Subscription Assigned</span>
+                      <p className="text-[11px] text-slate-500 mt-1">This tenant company does not have an active subscription plan assigned.</p>
+                    </div>
+                  ) : (
+                    /* DYNAMIC SUBSCRIPTION DETAILS */
+                    <div className="space-y-4">
+                      {/* Expiry / Warning Banners */}
+                      {subscription.isExpired ? (
+                        <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-semibold p-3 rounded-xl flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                          <span>Subscription Expired {subscription.daysExpired} days ago</span>
+                        </div>
+                      ) : subscription.isExpiringSoon ? (
+                        <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold p-3 rounded-xl flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span>Subscription Expires in {subscription.daysUntilExpiry} days</span>
+                        </div>
+                      ) : null}
+
+                      {/* Details Key-Value List */}
+                      <div className="divide-y divide-slate-100 text-xs">
+                        <div className="py-2.5 flex justify-between items-center">
+                          <span className="text-slate-500 font-medium">Current Plan</span>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: subscription.planColor }} />
+                            <span className="font-extrabold text-slate-900">{subscription.planName}</span>
+                            <span className="font-mono text-[10px] text-slate-400">({subscription.planCode})</span>
+                          </div>
+                        </div>
+
+                        <div className="py-2.5 flex justify-between items-center">
+                          <span className="text-slate-500 font-medium">Billing Cycle</span>
+                          <span className="font-semibold text-slate-800">{subscription.billingCycle}</span>
+                        </div>
+
+                        <div className="py-2.5 flex justify-between items-center">
+                          <span className="text-slate-500 font-medium">Plan Status</span>
+                          <span className="font-bold text-slate-900">{subscription.status}</span>
+                        </div>
+
+                        <div className="py-2.5 flex justify-between items-center">
+                          <span className="text-slate-500 font-medium">Start Date</span>
+                          <span className="text-slate-800 font-medium">{formatDate(subscription.startDate)}</span>
+                        </div>
+
+                        <div className="py-2.5 flex justify-between items-center">
+                          <span className="text-slate-500 font-medium">Expiry Date</span>
+                          <span className="text-slate-800 font-medium">{formatDate(subscription.endDate)}</span>
+                        </div>
+
+                        <div className="py-2.5 flex justify-between items-center">
+                          <span className="text-slate-500 font-medium">Remaining Days</span>
+                          <span className="font-bold text-slate-900">{subscription.remainingDays} Days</span>
+                        </div>
+
+                        <div className="py-2.5 flex justify-between items-center">
+                          <span className="text-slate-500 font-medium">Trial</span>
+                          <span className="font-semibold text-slate-800">
+                            {subscription.isTrial 
+                              ? `Trial (${subscription.trialDaysRemaining ?? 0} Days Remaining)` 
+                              : 'No'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Resource Quotas / Limits Grid */}
+                      <div className="pt-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">Resource Limits</span>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex flex-col">
+                            <span className="text-[10px] text-slate-500 font-medium">Production Lines</span>
+                            <span className="font-bold text-slate-900 mt-0.5">
+                              {subscription.limits?.productionLines === -1 ? 'Unlimited' : `${subscription.productionLinesUsed ?? 0} / ${subscription.limits?.productionLines ?? 0}`}
+                            </span>
+                          </div>
+
+                          <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex flex-col">
+                            <span className="text-[10px] text-slate-500 font-medium">Employees</span>
+                            <span className="font-bold text-slate-900 mt-0.5">
+                              {subscription.limits?.employees === -1 ? 'Unlimited' : `${subscription.employeesUsed ?? 0} / ${subscription.limits?.employees ?? 0}`}
+                            </span>
+                          </div>
+
+                          <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex flex-col">
+                            <span className="text-[10px] text-slate-500 font-medium">Active Machines</span>
+                            <span className="font-bold text-slate-900 mt-0.5">
+                              {subscription.limits?.machines === -1 ? 'Unlimited' : `${subscription.machinesUsed ?? 0} / ${subscription.limits?.machines ?? 0}`}
+                            </span>
+                          </div>
+
+                          <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex flex-col">
+                            <span className="text-[10px] text-slate-500 font-medium">Storage Quota</span>
+                            <span className="font-bold text-slate-900 mt-0.5">
+                              {subscription.limits?.storageGB === -1 ? 'Unlimited' : `${subscription.storageUsedGB ?? 0} GB / ${subscription.limits?.storageGB ?? 0} GB`}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Highlighted Features Checklist */}
+                      {subscription.highlightedFeatures && subscription.highlightedFeatures.length > 0 && (
+                        <div className="pt-2">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">Included Features</span>
+                          <div className="grid grid-cols-1 gap-1.5">
+                            {subscription.highlightedFeatures.map((feat: any, idx: number) => (
+                              <div key={idx} className="flex items-center gap-2 text-xs text-slate-700">
+                                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                <span className="font-medium text-slate-800">{feat.featureName}</span>
+                                {feat.featureValue && feat.featureValue !== 'Yes' && (
+                                  <span className="text-[10px] text-slate-400">({feat.featureValue})</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
               </div>
             )}
 

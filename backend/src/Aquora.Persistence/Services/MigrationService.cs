@@ -58,6 +58,106 @@ namespace Aquora.Persistence.Services
                 ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""JoiningDate"" timestamp with time zone NULL;
                 ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""PhotoUrl"" text NULL;
                 ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""DevicesCount"" integer NOT NULL DEFAULT 1;
+
+                CREATE TABLE IF NOT EXISTS public.""SubscriptionPlans"" (
+                    ""Id"" uuid NOT NULL PRIMARY KEY,
+                    ""Name"" text NOT NULL,
+                    ""Code"" text NOT NULL,
+                    ""Description"" text NOT NULL,
+                    ""MonthlyPrice"" numeric NOT NULL,
+                    ""YearlyPrice"" numeric NOT NULL,
+                    ""OfferPrice"" numeric NULL,
+                    ""DiscountPercent"" numeric NULL,
+                    ""Currency"" text NOT NULL DEFAULT 'USD',
+                    ""BillingCycle"" text NOT NULL DEFAULT 'Monthly',
+                    ""TrialDays"" integer NOT NULL DEFAULT 14,
+                    ""DurationDays"" integer NOT NULL DEFAULT 30,
+                    ""DisplayOrder"" integer NOT NULL DEFAULT 1,
+                    ""IsPopular"" boolean NOT NULL DEFAULT false,
+                    ""IsRecommended"" boolean NOT NULL DEFAULT false,
+                    ""Color"" text NOT NULL DEFAULT '#3B82F6',
+                    ""Status"" text NOT NULL DEFAULT 'Published',
+                    ""TaxType"" text NOT NULL DEFAULT 'Tax Exclusive',
+                    ""AutoActivateTrial"" boolean NOT NULL DEFAULT true,
+                    ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                    ""UpdatedAt"" timestamp with time zone NULL,
+                    ""UpdatedBy"" text NULL,
+                    ""CreatedByIP"" text NULL,
+                    ""UpdatedByIP"" text NULL,
+                    ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                    ""DeletedAt"" timestamp with time zone NULL,
+                    ""DeletedBy"" text NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS public.""SubscriptionPlanLimits"" (
+                    ""Id"" uuid NOT NULL PRIMARY KEY,
+                    ""PlanId"" uuid NOT NULL REFERENCES public.""SubscriptionPlans""(""Id"") ON DELETE CASCADE,
+                    ""ProductionLines"" integer NOT NULL DEFAULT 3,
+                    ""Machines"" integer NOT NULL DEFAULT 10,
+                    ""Employees"" integer NOT NULL DEFAULT 25,
+                    ""Customers"" integer NOT NULL DEFAULT 100,
+                    ""Suppliers"" integer NOT NULL DEFAULT 50,
+                    ""Warehouses"" integer NOT NULL DEFAULT 2,
+                    ""ProductionBatches"" integer NOT NULL DEFAULT 500,
+                    ""Products"" integer NOT NULL DEFAULT 100,
+                    ""RawMaterials"" integer NOT NULL DEFAULT 200,
+                    ""StorageGB"" integer NOT NULL DEFAULT 50,
+                    ""APIRequestsPerMin"" integer NOT NULL DEFAULT 1000,
+                    ""FileUploadSizeMB"" integer NOT NULL DEFAULT 25,
+                    ""DailyExports"" integer NOT NULL DEFAULT 50,
+                    ""ConcurrentUsers"" integer NOT NULL DEFAULT 10,
+                    ""SMSLimit"" integer NOT NULL DEFAULT 100,
+                    ""EmailLimit"" integer NOT NULL DEFAULT 1000,
+                    ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    ""UpdatedAt"" timestamp with time zone NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS public.""SubscriptionFeatures"" (
+                    ""Id"" uuid NOT NULL PRIMARY KEY,
+                    ""PlanId"" uuid NOT NULL REFERENCES public.""SubscriptionPlans""(""Id"") ON DELETE CASCADE,
+                    ""FeatureName"" text NOT NULL,
+                    ""FeatureDescription"" text NULL,
+                    ""FeatureCategory"" text NOT NULL DEFAULT 'Core Modules',
+                    ""FeatureValue"" text NOT NULL DEFAULT 'Yes',
+                    ""FeatureUnit"" text NULL,
+                    ""DisplayOrder"" integer NOT NULL DEFAULT 1,
+                    ""IsHighlighted"" boolean NOT NULL DEFAULT false,
+                    ""IsUnlimited"" boolean NOT NULL DEFAULT false,
+                    ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE TABLE IF NOT EXISTS public.""TenantSubscriptions"" (
+                    ""Id"" uuid NOT NULL PRIMARY KEY,
+                    ""TenantId"" uuid NOT NULL,
+                    ""PlanId"" uuid NOT NULL,
+                    ""PlanName"" text NOT NULL,
+                    ""Status"" text NOT NULL DEFAULT 'Active',
+                    ""BillingCycle"" text NOT NULL DEFAULT 'Monthly',
+                    ""PricePaid"" numeric NOT NULL DEFAULT 0.0,
+                    ""Currency"" text NOT NULL DEFAULT 'USD',
+                    ""StartDate"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    ""EndDate"" timestamp with time zone NOT NULL,
+                    ""TrialEndDate"" timestamp with time zone NULL,
+                    ""AutoRenew"" boolean NOT NULL DEFAULT true,
+                    ""AssignedByUserId"" text NULL,
+                    ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    ""UpdatedAt"" timestamp with time zone NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS public.""SubscriptionAuditLogs"" (
+                    ""Id"" uuid NOT NULL PRIMARY KEY,
+                    ""PlanId"" uuid NULL,
+                    ""TenantId"" uuid NULL,
+                    ""Action"" text NOT NULL,
+                    ""PerformerUserId"" text NOT NULL,
+                    ""PerformerUserEmail"" text NOT NULL,
+                    ""OldValuesJson"" text NULL,
+                    ""NewValuesJson"" text NULL,
+                    ""Reason"" text NOT NULL,
+                    ""Timestamp"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    ""IpAddress"" text NOT NULL DEFAULT '127.0.0.1'
+                );
                 ";
                 await _platformContext.Database.ExecuteSqlRawAsync(platformRepairScript);
 

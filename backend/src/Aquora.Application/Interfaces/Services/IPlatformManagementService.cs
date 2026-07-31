@@ -63,6 +63,43 @@ namespace Aquora.Application.Interfaces.Services
 
         // Recent Audit Logs
         public List<PlatformAuditLogDto> RecentActivity { get; set; } = new List<PlatformAuditLogDto>();
+
+        // Detailed Subscription Information
+        public TenantSubscriptionDetailDto? Subscription { get; set; }
+    }
+
+    public class TenantSubscriptionDetailDto
+    {
+        public Guid PlanId { get; set; }
+        public string PlanName { get; set; } = string.Empty;
+        public string PlanCode { get; set; } = string.Empty;
+        public string PlanColor { get; set; } = "#3B82F6";
+        public string Status { get; set; } = "Active"; // Active, Trial, Expired, Suspended
+        public string BillingCycle { get; set; } = "Monthly";
+        public decimal PricePaid { get; set; }
+        public string Currency { get; set; } = "USD";
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public DateTime? TrialEndDate { get; set; }
+        public int RemainingDays { get; set; }
+        public bool IsTrial { get; set; }
+        public int? TrialDaysRemaining { get; set; }
+        public bool IsExpiringSoon { get; set; }
+        public int DaysUntilExpiry { get; set; }
+        public bool IsExpired { get; set; }
+        public int DaysExpired { get; set; }
+
+        // Quota Resource Limits
+        public Aquora.Application.DTOs.Subscriptions.SubscriptionPlanLimitsDto Limits { get; set; } = new Aquora.Application.DTOs.Subscriptions.SubscriptionPlanLimitsDto();
+
+        // Actual Usage Counts
+        public int ProductionLinesUsed { get; set; }
+        public int MachinesUsed { get; set; }
+        public int EmployeesUsed { get; set; }
+        public double StorageUsedGB { get; set; }
+
+        // Highlighted Plan Features
+        public List<Aquora.Application.DTOs.Subscriptions.SubscriptionFeatureDto> HighlightedFeatures { get; set; } = new List<Aquora.Application.DTOs.Subscriptions.SubscriptionFeatureDto>();
     }
 
     public class PlatformAuditLogDto
