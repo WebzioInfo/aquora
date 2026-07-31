@@ -6,7 +6,7 @@ import FilterBar from '../../components/ui/layout/FilterBar';
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { api } from '../../services/api'
-import { ArrowLeft, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, ChevronDown, ChevronUp, Package, Clock, User, Calendar, History, Box, FileText, CheckCircle2, PlayCircle, Layers } from 'lucide-react'
 import EnterpriseLoading from '../../components/ui/EnterpriseLoading'
 
 // ─── Live Duration Cell ────────────────────────────────────────────────────────
@@ -30,54 +30,79 @@ const LiveDuration: React.FC<{ startedAt: string; endedAt?: string | null }> = (
 
 import { formatRawMaterialUsage, formatRawMaterialWastage } from '../../utils/rawMaterialFormatting'
 
-// ─── Material Card ─────────────────────────────────────────────────────────────
-interface MatCardProps {
-  accent: string
-  label: string
-  name?: string | null
-  used?: number | string | null
-  waste?: number | string | null
-  unit?: string | null
-}
-const MatCard: React.FC<MatCardProps> = ({ accent, label, name, used, waste, unit }) => {
-  const formattedUsed = formatRawMaterialUsage(used ?? 0, label, unit || '')
-  const formattedWaste = formatRawMaterialWastage(waste ?? 0, label, unit || '')
-
+// ─── Material Widgets ────────────────────────────────────────────────────────
+const CompactMatWidget: React.FC<{
+  color: string, title: string, used: any, waste: any, unit: string, isBoolean?: boolean
+}> = ({ color, title, used, waste, unit, isBoolean }) => {
+  const colorMap: Record<string, string> = {
+    blue: 'border-blue-500 bg-blue-50/50',
+    purple: 'border-purple-500 bg-purple-50/50',
+    green: 'border-green-500 bg-green-50/50',
+    orange: 'border-orange-500 bg-orange-50/50',
+    slate: 'border-slate-500 bg-slate-50/50',
+    cyan: 'border-cyan-500 bg-cyan-50/50',
+  }
+  const bgClass = colorMap[color] || colorMap.slate
+  
   return (
-    <div className={`border-l-4 ${accent} border border-[#E5E7EB] rounded-lg bg-white p-3 flex flex-col gap-2`}>
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0">{label}</span>
-        <span className="text-[12px] font-semibold text-slate-700 truncate text-right" title={name ?? undefined}>
-          {name || <span className="text-slate-300 italic text-[11px]">Not Selected</span>}
-        </span>
-      </div>
-      <div className="flex gap-4 border-t border-[#F1F5F9] pt-2">
-        <div className="flex flex-col flex-1">
-          <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Used</span>
-          <span className="text-[13px] font-bold text-blue-600">{formattedUsed}</span>
+    <div className={`border-l-2 rounded-md p-2 border border-slate-200 shadow-sm ${bgClass}`}>
+      <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider block mb-1.5">{title}</span>
+      <div className="flex flex-col gap-1">
+        <div className="flex justify-between items-end">
+          <span className="text-[9px] uppercase font-bold text-slate-500">{isBoolean ? 'Ink' : 'Used'}</span>
+          <span className="text-[12px] font-black text-slate-900 leading-none">{used || 0} <span className="text-[8px] font-bold text-slate-500">{unit}</span></span>
         </div>
-        <div className="flex flex-col flex-1">
-          <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Waste</span>
-          <span className="text-[13px] font-bold text-red-600">{formattedWaste}</span>
+        <div className="flex justify-between items-end">
+          <span className="text-[9px] uppercase font-bold text-slate-500">{isBoolean ? 'Makeup' : 'Waste'}</span>
+          <span className={`text-[12px] font-black leading-none ${waste > 0 && !isBoolean ? 'text-red-600' : 'text-slate-900'}`}>{waste || 0} <span className="text-[8px] font-bold text-slate-500">{unit}</span></span>
         </div>
       </div>
     </div>
   )
 }
 
+const MiniMatCard: React.FC<{ label: string, used: any, waste: any, unit?: string }> = ({ label, used, waste, unit = '' }) => (
+  <div className="bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm">
+    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">{label}</p>
+    <div className="flex justify-between items-end mb-1">
+      <span className="text-[9px] font-bold text-slate-400 uppercase">Used</span>
+      <span className="text-xs font-black text-slate-800">{used || 0} <span className="text-[9px] text-slate-400 font-bold">{unit}</span></span>
+    </div>
+    <div className="flex justify-between items-end">
+      <span className="text-[9px] font-bold text-slate-400 uppercase">Waste</span>
+      <span className={`text-xs font-black ${waste > 0 ? 'text-red-600' : 'text-slate-800'}`}>{waste || 0} <span className="text-[9px] text-slate-400 font-bold">{unit}</span></span>
+    </div>
+  </div>
+)
+
 // ─── Status Badge ──────────────────────────────────────────────────────────────
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const map: Record<string, string> = {
-    Active: 'bg-green-50 border-green-200 text-green-700',
-    Paused: 'bg-orange-50 border-orange-200 text-orange-700',
-    Completed: 'bg-blue-50 border-blue-200 text-blue-700',
-    Cancelled: 'bg-red-50 border-red-200 text-red-700',
+    Active: 'bg-green-500 text-white shadow-sm',
+    Paused: 'bg-orange-500 text-white shadow-sm',
+    Completed: 'bg-slate-800 text-white shadow-sm',
+    Cancelled: 'bg-red-500 text-white shadow-sm',
   }
   return (
-    <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${map[status] ?? 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+    <span className={`text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full ${map[status] ?? 'bg-slate-100 text-slate-600'}`}>
       {status}
     </span>
   )
+}
+
+// ─── Timeline Helpers ──────────────────────────────────────────────────────────
+const timelineColorMap: Record<string, string> = {
+  blue: 'bg-blue-100 text-blue-600',
+  indigo: 'bg-indigo-100 text-indigo-600',
+  green: 'bg-green-100 text-green-600',
+  slate: 'bg-slate-100 text-slate-600',
+}
+
+const timelineIconMap: Record<string, React.ReactNode> = {
+  blue: <PlayCircle className="w-4 h-4" />,
+  indigo: <User className="w-4 h-4" />,
+  green: <Package className="w-4 h-4" />,
+  slate: <CheckCircle2 className="w-4 h-4" />,
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
@@ -172,9 +197,7 @@ export const BatchDetailsPage: React.FC = () => {
   // ── Derived values ────────────────────────────────────────────────────────
   const isCompleted = batchMeta.status === 'Completed'
   const isPaused = batchMeta.status === 'Paused'
-  const targetQty = batchMeta.targetQuantity || 1000
   const producedQty = summaryData?.casesProduced ?? batchMeta.producedQuantity ?? 0
-  const progressPct = Math.min(100, Math.round((producedQty / targetQty) * 100))
   const totalEntries = entries.length
   const totalWaste = summaryData
     ? (summaryData.preformWaste || 0) +
@@ -188,7 +211,7 @@ export const BatchDetailsPage: React.FC = () => {
   )
 
   // ── Timeline ──────────────────────────────────────────────────────────────
-  const timelineEvents: { title: string; desc: string; time: Date; color: string }[] = [
+  const timelineEvents: { title: string; desc: string; time: Date; color: string; entry?: any }[] = [
     {
       title: 'Batch Initialized',
       desc: `Run started for ${batchMeta.product}`,
@@ -203,19 +226,13 @@ export const BatchDetailsPage: React.FC = () => {
     },
     ...[...entries]
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-      .map((e, i) => {
-        const details = []
-        if (e.preformName) details.push(`Preform: ${formatRawMaterialUsage(e.preformUsage, 'PREFORM', 'Bag')} (Waste: ${formatRawMaterialWastage(e.preformWastage, 'PREFORM')})`)
-        if (e.capName && (e.capUsage > 0 || e.capWastage > 0)) details.push(`Cap: ${formatRawMaterialUsage(e.capUsage, 'CAP', e.capUnit)} (Waste: ${formatRawMaterialWastage(e.capWastage, 'CAP')})`)
-        if (e.labelName) details.push(`Label: ${formatRawMaterialUsage(e.labelUsage, 'LABEL', e.labelUnit)} (Waste: ${formatRawMaterialWastage(e.labelWastage, 'LABEL')})`)
-        if (e.shrinkName) details.push(`Shrink: ${formatRawMaterialUsage(e.shrinkUsage, 'SHRINK', 'KG')} (Waste: ${formatRawMaterialWastage(e.shrinkWastage, 'SHRINK')})`)
-        return {
-          title: `Entry #${i + 1} Logged`,
-          desc: `${e.casesProduced} cases recorded${details.length ? ` · ${details.join(' · ')}` : ''}`,
-          time: new Date(e.createdAt),
-          color: 'green',
-        }
-      }),
+      .map((e, i) => ({
+        title: `Entry #${i + 1}`,
+        desc: '',
+        time: new Date(e.createdAt),
+        color: 'green',
+        entry: e
+      })),
     ...(isCompleted
       ? [
           {
@@ -238,304 +255,273 @@ export const BatchDetailsPage: React.FC = () => {
   // ─────────────────────────────────────────────────────────────────────────────
   return (
     <PageContainer>
-
-      {/* ══ HEADER ══════════════════════════════════════════════════════════ */}
-      <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm overflow-hidden">
-
-        {/* Top bar: back / batch number / status / progress */}
-        <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-[#F1F5F9]">
-          <button
-            onClick={() => navigate('/company/production')}
-            className="h-[30px] px-2.5 text-[12px] font-bold text-slate-700 border border-[#E5E7EB] hover:bg-[#F8FAFC] rounded-lg flex items-center gap-1 cursor-pointer transition-all active:scale-[0.97]"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Back
-          </button>
-
-          <h1 className="text-[22px] font-black text-slate-900 tracking-tight leading-none">
-            {batchMeta.batchNumber}
-          </h1>
-
-          <StatusBadge status={isCompleted ? 'Completed' : isPaused ? 'Paused' : 'Active'} />
-
-          <div className="ml-auto flex items-center gap-2 select-none">
-            <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap">Progress</span>
-            <div className="w-[130px] bg-[#F1F5F9] rounded-full h-1.5 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-blue-600 transition-all duration-500"
-                style={{ width: `${progressPct}%` }}
-              />
+      <div className="flex flex-col gap-3 max-w-[1600px] mx-auto w-full pb-8">
+        
+        {/* ══ COMPACT HEADER ════════════════════════════════════════════════════ */}
+        <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-slate-50/50">
+            <button onClick={() => navigate('/company/production')} className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors">
+              <ArrowLeft className="w-3.5 h-3.5" /> Back to Operations
+            </button>
+            <StatusBadge status={isCompleted ? 'Completed' : isPaused ? 'Paused' : 'Active'} />
+          </div>
+          
+          <div className="px-4 py-3 flex flex-col md:flex-row md:items-center gap-x-8 gap-y-4">
+            <div>
+              <h1 className="text-2xl font-black text-slate-900 leading-none mb-1">{batchMeta.batchNumber}</h1>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Batch ID</p>
             </div>
-            <span className="text-[12px] font-black text-blue-600 whitespace-nowrap">{progressPct}%</span>
+            
+            <div className="hidden md:block w-px h-8 bg-slate-200"></div>
+            
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-x-6 gap-y-3 flex-1">
+              <div>
+                <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-0.5">Product</p>
+                <p className="text-[13px] font-bold text-slate-800 truncate">{batchMeta.product}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-0.5">Line</p>
+                <p className="text-[13px] font-bold text-slate-800 truncate">{batchMeta.productionLineName || 'Bottling Line'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-0.5">Operator</p>
+                <p className="text-[13px] font-bold text-slate-800 truncate">{batchMeta.operatorName}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-0.5">Shift</p>
+                <p className="text-[13px] font-bold text-slate-800 truncate">{batchMeta.shift} Shift</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-0.5">Started</p>
+                <p className="text-[13px] font-bold text-slate-800 truncate">{fmtTime(batchMeta.startedAt)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-0.5">Running Time</p>
+                <p className="text-[13px] font-bold text-slate-800 truncate">
+                  <LiveDuration startedAt={batchMeta.startedAt} endedAt={isCompleted ? batchMeta.completedAt : null} />
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Metadata strip: 7 cells divided by vertical rules */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 select-none divide-x divide-[#F1F5F9]">
-          {([
-            { label: 'Product', value: batchMeta.product },
-            { label: 'Line', value: batchMeta.productionLineName || 'Bottling Line' },
-            { label: 'Operator', value: batchMeta.operatorName },
-            { label: 'Shift', value: `${batchMeta.shift} Shift` },
-            { label: 'Started', value: fmtTime(batchMeta.startedAt) },
-            {
-              label: 'Duration',
-              value: (
-                <LiveDuration
-                  startedAt={batchMeta.startedAt}
-                  endedAt={isCompleted ? batchMeta.completedAt : null}
-                />
-              ),
-            },
-            { label: 'Target', value: `${targetQty.toLocaleString()} Cases` },
-          ] as { label: string; value: React.ReactNode }[]).map((item, i) => (
-            <div key={i} className="flex flex-col px-4 py-2.5">
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{item.label}</span>
-              <span className="text-[13px] font-bold text-slate-800 truncate mt-0.5">{item.value}</span>
+        {/* ══ KPI SUMMARY CARDS ═══════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[
+            { title: 'Cases Produced', value: producedQty.toLocaleString(), icon: <Package className="w-4 h-4 text-blue-600" />, bg: 'bg-blue-100', border: 'border-blue-200' },
+            { title: 'Production Entries', value: totalEntries, icon: <FileText className="w-4 h-4 text-indigo-600" />, bg: 'bg-indigo-100', border: 'border-indigo-200' },
+            { title: 'Waste Generated', value: totalWaste.toLocaleString(), icon: <AlertTriangle className="w-4 h-4 text-red-600" />, bg: 'bg-red-100', border: 'border-red-200' }
+          ].map((kpi, idx) => (
+            <div key={idx} className={`bg-white px-4 py-3 rounded-lg border ${kpi.border} shadow-sm flex items-center justify-between`}>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-0.5">{kpi.title}</p>
+                <p className="text-xl font-black text-slate-900 leading-none">{kpi.value}</p>
+              </div>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${kpi.bg}`}>
+                {kpi.icon}
+              </div>
             </div>
           ))}
         </div>
-      </div>
 
-      {/* ══ KPI STRIP ═══════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 select-none">
-        {[
-          { value: producedQty.toLocaleString(), label: 'Cases Produced' },
-          { value: totalEntries, label: 'Entries Logged' },
-          { value: totalMaterialsQty.toLocaleString(), label: 'Material Consumed' },
-          { value: totalWaste.toLocaleString(), label: 'Total Waste' },
-        ].map((kpi, i) => (
-          <div
-            key={i}
-            className="bg-white border border-[#E5E7EB] rounded-lg py-2 px-3 shadow-sm flex flex-col justify-center h-[54px] text-center"
-          >
-            <span className="text-[20px] font-black text-slate-900 leading-tight">{kpi.value}</span>
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">{kpi.label}</span>
-          </div>
-        ))}
-      </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-1">
+          
+          {/* ══ MAIN CONTENT (Left: 2 Columns) ══════════════════════════ */}
+          <div className="lg:col-span-2 flex flex-col gap-4">
+            
+            {/* Materials Used */}
+            <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
+                <h3 className="text-[14px] font-bold text-slate-900 flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 text-blue-600" />
+                  Material Consumption
+                </h3>
+              </div>
+              <div className="p-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                  {summaryData ? (
+                    <>
+                      <CompactMatWidget color="blue" title="Preform" used={summaryData.preformUsed} waste={summaryData.preformWaste} unit="Bags" />
+                      <CompactMatWidget color="purple" title="Cap" used={summaryData.capUsed} waste={summaryData.capWaste} unit="Boxes" />
+                      <CompactMatWidget color="green" title="Label" used={summaryData.labelUsed} waste={summaryData.labelWaste} unit="KG" />
+                      <CompactMatWidget color="orange" title="Shrink" used={summaryData.shrinkUsed} waste={summaryData.shrinkWaste} unit="KG" />
+                      <CompactMatWidget color="slate" title="Glue" used={summaryData.glueUsed} waste={summaryData.glueWaste} unit="KG" />
+                      <CompactMatWidget color="cyan" title="Ink / Jet" used={summaryData.inkUsed ? 'Yes' : 'No'} waste={summaryData.makeupUsed ? 'Yes' : 'No'} unit="" isBoolean />
+                    </>
+                  ) : (
+                    <div className="col-span-full py-6 text-center text-[12px] text-slate-400 font-medium italic">
+                      Material consumption data is not available.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
 
-      {/* ══ MAIN 70/30 LAYOUT ════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
-
-        {/* ── Production Entry History ──────────────────────────────────── */}
-        <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm overflow-hidden flex flex-col">
-          <div className="px-4 py-2.5 border-b border-[#F1F5F9] flex items-center justify-between select-none">
-            <h2 className="text-[16px] font-bold text-slate-900">Production Entry History</h2>
-            <span className="text-[11px] font-semibold text-slate-400">
-              {totalEntries} {totalEntries === 1 ? 'entry' : 'entries'}
-            </span>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 z-10">
-                <tr className="bg-[#F8FAFC] border-b border-[#E5E7EB] text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none h-[36px]">
-                  <th className="py-2 px-4 text-left">Date</th>
-                  <th className="py-2 px-4 text-left">Time</th>
-                  <th className="py-2 px-4 text-left">Operator</th>
-                  <th className="py-2 px-4 text-left">Shift</th>
-                  <th className="py-2 px-4 text-center">Cases</th>
-                  <th className="py-2 px-4 text-center">Status</th>
-                  <th className="py-2 px-4 text-center">Details</th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-[#F1F5F9] text-[13px] font-medium text-slate-700">
+            {/* Production Entries (Activity Cards) */}
+            <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                <h3 className="text-[14px] font-bold text-slate-900 flex items-center gap-1.5">
+                  <History className="w-4 h-4 text-blue-600" />
+                  Production Entries
+                </h3>
+              </div>
+              
+              <div className="p-3 flex flex-col gap-2">
                 {entries.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-12 text-center text-[13px] text-slate-400 italic">
-                      No production entries have been logged for this batch yet.
-                    </td>
-                  </tr>
+                  <div className="py-8 text-center text-[12px] text-slate-400 font-medium italic">
+                    No production entries have been logged.
+                  </div>
                 ) : (
-                  entries.map((item: any, rowIdx: number) => {
+                  entries.map((item: any, idx: number) => {
                     const isExpanded = !!expandedEntries[item.id]
-                    const isEven = rowIdx % 2 === 0
                     return (
-                      <React.Fragment key={item.id}>
-                        <tr
+                      <div key={item.id} className="bg-white border border-slate-200 rounded-md overflow-hidden shadow-sm">
+                        <div 
+                          className="px-4 py-2.5 flex items-center justify-between cursor-pointer hover:bg-slate-50/80 transition-colors"
                           onClick={() => toggleEntry(item.id)}
-                          className={`cursor-pointer transition-colors h-[38px] ${
-                            isEven ? 'bg-white' : 'bg-[#FAFBFC]'
-                          } hover:bg-blue-50/40`}
                         >
-                          <td className="py-2 px-4 font-semibold text-slate-800 whitespace-nowrap">
-                            {fmtDate(item.createdAt)}
-                          </td>
-                          <td className="py-2 px-4 text-slate-600 whitespace-nowrap">
-                            {fmtTime(item.createdAt)}
-                          </td>
-                          <td className="py-2 px-4 text-slate-800 whitespace-nowrap">
-                            {item.operatorName}
-                          </td>
-                          <td className="py-2 px-4 text-slate-600 whitespace-nowrap">
-                            {item.shift || batchMeta.shift} Shift
-                          </td>
-                          <td className="py-2 px-4 text-center font-bold text-slate-900">
-                            {item.casesProduced}
-                          </td>
-                          <td className="py-2 px-4 text-center">
-                            <span className="text-[9px] font-black text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full uppercase tracking-wider select-none">
-                              Logged
-                            </span>
-                          </td>
-                          <td className="py-2 px-4 text-center">
-                            <button
-                              onClick={e => {
-                                e.stopPropagation()
-                                toggleEntry(item.id)
-                              }}
-                              aria-expanded={isExpanded}
-                              aria-controls={`details-${item.id}`}
-                              id={`toggle-${item.id}`}
-                              className="h-[28px] px-2.5 text-[11px] font-bold text-slate-600 hover:bg-slate-100 rounded transition-all cursor-pointer inline-flex items-center gap-1 border border-[#E5E7EB] select-none"
-                            >
-                              {isExpanded ? (
-                                <><ChevronUp className="w-3 h-3" /> Hide</>
-                              ) : (
-                                <><ChevronDown className="w-3 h-3" /> Details</>
-                              )}
-                            </button>
-                          </td>
-                        </tr>
-
-                        {/* Expanded material detail row */}
-                        {isExpanded && (
-                          <tr className="border-b border-[#E5E7EB]">
-                            <td colSpan={7} className="px-4 py-4 bg-[#F8FAFC]">
-                              <div
-                                id={`details-${item.id}`}
-                                role="region"
-                                aria-labelledby={`toggle-${item.id}`}
-                              >
-                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 select-none">
-                                  Material Consumption
-                                </p>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                                  <MatCard
-                                    accent="border-l-blue-500"
-                                    label="Preform"
-                                    name={item.preformName}
-                                    used={item.preformUsage}
-                                    waste={item.preformWastage}
-                                    unit={item.preformUnit}
-                                  />
-                                  <MatCard
-                                    accent="border-l-purple-500"
-                                    label="Cap"
-                                    name={item.capName}
-                                    used={item.capUsage}
-                                    waste={item.capWastage}
-                                    unit={item.capUnit}
-                                  />
-                                  <MatCard
-                                    accent="border-l-green-500"
-                                    label="Label"
-                                    name={item.labelName}
-                                    used={item.labelUsage}
-                                    waste={item.labelWastage}
-                                    unit={item.labelUnit}
-                                  />
-                                  <MatCard
-                                    accent="border-l-orange-500"
-                                    label="Shrink Film"
-                                    name={item.shrinkName}
-                                    used={item.shrinkUsage}
-                                    waste={item.shrinkWastage}
-                                    unit={item.shrinkUnit}
-                                  />
-                                  <MatCard
-                                    accent="border-l-slate-400"
-                                    label="Glue"
-                                    name={item.glueName}
-                                    used={item.glueUsage ?? 0}
-                                    waste={item.glueWastage ?? 0}
-                                    unit={item.glueUnit || 'KG'}
-                                  />
-                                  {/* Printer Jet */}
-                                  <div className="border-l-4 border-l-indigo-500 border border-[#E5E7EB] rounded-lg bg-white p-3 flex flex-col gap-2">
-                                    <div className="flex items-baseline justify-between gap-2">
-                                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0">
-                                        Printer Jet
-                                      </span>
-                                      <span className="text-[12px] font-semibold text-slate-700">
-                                        Active Jet Mode
-                                      </span>
-                                    </div>
-                                    <div className="flex gap-4 border-t border-[#F1F5F9] pt-2">
-                                      <div className="flex flex-col flex-1">
-                                        <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Ink</span>
-                                        <span className={`text-[13px] font-bold ${item.inkUsed ? 'text-blue-600' : 'text-slate-400'}`}>
-                                          {item.inkUsed ? 'Yes' : 'No'}
-                                        </span>
-                                      </div>
-                                      <div className="flex flex-col flex-1">
-                                        <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Makeup</span>
-                                        <span className={`text-[13px] font-bold ${item.makeupUsed ? 'text-blue-600' : 'text-slate-400'}`}>
-                                          {item.makeupUsed ? 'Yes' : 'No'}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                              <span className="text-[12px] font-black">#{entries.length - idx}</span>
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                <span className="font-bold text-slate-900 text-[13px]">{fmtTime(item.createdAt)}</span>
+                                <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded uppercase">{fmtDate(item.createdAt)}</span>
                               </div>
-                            </td>
-                          </tr>
+                              <p className="text-[11px] text-slate-500 font-medium">By <span className="text-slate-800 font-bold">{item.operatorName}</span></p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <p className="text-[9px] uppercase font-bold tracking-widest text-slate-400 mb-0.5">Produced</p>
+                              <p className="text-[15px] font-black text-green-600 leading-none">+{item.casesProduced}</p>
+                            </div>
+                            <div className="w-6 h-6 rounded-md flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-500">
+                              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Expanded Material Data */}
+                        {isExpanded && (
+                          <div className="px-4 py-3 bg-slate-50 border-t border-slate-100">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
+                               <MiniMatCard label="Preform" used={item.preformUsage} waste={item.preformWastage} unit={item.preformUnit || "Bag"} />
+                               <MiniMatCard label="Cap" used={item.capUsage} waste={item.capWastage} unit={item.capUnit || "Box"} />
+                               <MiniMatCard label="Label" used={item.labelUsage} waste={item.labelWastage} unit={item.labelUnit || "KG"} />
+                               <MiniMatCard label="Shrink" used={item.shrinkUsage} waste={item.shrinkWastage} unit={item.shrinkUnit || "KG"} />
+                               <MiniMatCard label="Glue" used={item.glueUsage} waste={item.glueWastage} unit={item.glueUnit || "KG"} />
+                            </div>
+                          </div>
                         )}
-                      </React.Fragment>
+                      </div>
                     )
                   })
                 )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* ── Timeline sidebar ─────────────────────────────────────────── */}
-        <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm flex flex-col overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-[#F1F5F9] select-none">
-            <h2 className="text-[16px] font-bold text-slate-900">Timeline</h2>
-          </div>
-
-          <div className="p-4 overflow-y-auto flex-1">
-            {timelineEvents.length === 0 ? (
-              <p className="text-[12px] text-slate-400 italic text-center py-8">No events recorded yet.</p>
-            ) : (
-              <div className="relative pl-5">
-                <div className="absolute left-[7px] top-2 bottom-2 w-[1.5px] bg-[#E5E7EB]" />
-                <div className="flex flex-col gap-4">
-                  {timelineEvents.map((ev, idx) => (
-                    <div key={idx} className="relative">
-                      <div
-                        className={`absolute -left-[14px] top-[5px] w-2 h-2 rounded-full border-2 border-white shadow-sm ${
-                          dotColors[ev.color] || 'bg-slate-300'
-                        }`}
-                      />
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                          {ev.time.toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: true,
-                          })}{' '}
-                          &middot;{' '}
-                          {ev.time.toLocaleDateString('en-GB', {
-                            day: '2-digit',
-                            month: 'short',
-                          })}
-                        </span>
-                        <h4 className="text-[13px] font-bold text-slate-900 leading-tight">{ev.title}</h4>
-                        <p className="text-[12px] text-slate-500 leading-tight">{ev.desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
-            )}
+            </div>
           </div>
-        </div>
 
+          {/* ══ RIGHT SIDEBAR (Timeline) ════════════════════════════════ */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden sticky top-[84px]">
+              <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
+                <h3 className="text-[14px] font-bold text-slate-900 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-blue-600" />
+                  Activity Feed
+                </h3>
+              </div>
+              
+              <div className="p-4 max-h-[600px] overflow-y-auto">
+                {timelineEvents.length === 0 ? (
+                  <p className="text-[12px] text-slate-400 italic text-center py-6">No events recorded.</p>
+                ) : (
+                  <div className="relative">
+                    <div className="absolute left-[11px] top-2 bottom-2 w-[1.5px] bg-slate-200 rounded-full" />
+                    <div className="flex flex-col gap-5 relative">
+                      {timelineEvents.map((ev, idx) => (
+                        <div key={idx} className="flex gap-3 group">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 border-white shadow-sm z-10 ${timelineColorMap[ev.color] || 'bg-slate-100 text-slate-500'}`}>
+                            {timelineIconMap[ev.color] || <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />}
+                          </div>
+                          <div className="flex-1 pt-0.5">
+                            <h4 className="text-[12px] font-bold text-slate-900 leading-none mb-1">{ev.title}</h4>
+                            
+                            {ev.entry ? (
+                              <div className="mt-2 mb-2 bg-slate-50 border border-slate-200 rounded p-2">
+                                <div className="mb-2">
+                                  <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-0.5">Produced</span>
+                                  <span className="text-[12px] font-black text-green-600">{ev.entry.casesProduced} Cases</span>
+                                </div>
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-1">Materials</span>
+                                <div className="flex flex-col gap-1.5">
+                                  {ev.entry.preformName && (
+                                    <div className="bg-white border border-slate-100 rounded px-2 py-1.5 flex justify-between items-center shadow-sm">
+                                      <span className="text-[10px] font-bold text-slate-700 w-12">Preform</span>
+                                      <div className="flex gap-3 text-[10px]">
+                                        <span className="text-slate-500">Used <span className="font-bold text-slate-800 ml-0.5">{ev.entry.preformUsage} {ev.entry.preformUnit || 'Bags'}</span></span>
+                                        <span className="text-slate-500">Waste <span className={`font-bold ml-0.5 ${ev.entry.preformWastage > 0 ? 'text-red-600' : 'text-slate-800'}`}>{ev.entry.preformWastage} {ev.entry.preformUnit || 'Bags'}</span></span>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {ev.entry.capName && (ev.entry.capUsage > 0 || ev.entry.capWastage > 0) && (
+                                    <div className="bg-white border border-slate-100 rounded px-2 py-1.5 flex justify-between items-center shadow-sm">
+                                      <span className="text-[10px] font-bold text-slate-700 w-12">Cap</span>
+                                      <div className="flex gap-3 text-[10px]">
+                                        <span className="text-slate-500">Used <span className="font-bold text-slate-800 ml-0.5">{ev.entry.capUsage} {ev.entry.capUnit || 'Boxes'}</span></span>
+                                        <span className="text-slate-500">Waste <span className={`font-bold ml-0.5 ${ev.entry.capWastage > 0 ? 'text-red-600' : 'text-slate-800'}`}>{ev.entry.capWastage} {ev.entry.capUnit || 'Boxes'}</span></span>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {ev.entry.labelName && (ev.entry.labelUsage > 0 || ev.entry.labelWastage > 0) && (
+                                    <div className="bg-white border border-slate-100 rounded px-2 py-1.5 flex justify-between items-center shadow-sm">
+                                      <span className="text-[10px] font-bold text-slate-700 w-12">Label</span>
+                                      <div className="flex gap-3 text-[10px]">
+                                        <span className="text-slate-500">Used <span className="font-bold text-slate-800 ml-0.5">{ev.entry.labelUsage} {ev.entry.labelUnit || 'KG'}</span></span>
+                                        <span className="text-slate-500">Waste <span className={`font-bold ml-0.5 ${ev.entry.labelWastage > 0 ? 'text-red-600' : 'text-slate-800'}`}>{ev.entry.labelWastage} {ev.entry.labelUnit || 'KG'}</span></span>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {ev.entry.shrinkName && (ev.entry.shrinkUsage > 0 || ev.entry.shrinkWastage > 0) && (
+                                    <div className="bg-white border border-slate-100 rounded px-2 py-1.5 flex justify-between items-center shadow-sm">
+                                      <span className="text-[10px] font-bold text-slate-700 w-12">Shrink</span>
+                                      <div className="flex gap-3 text-[10px]">
+                                        <span className="text-slate-500">Used <span className="font-bold text-slate-800 ml-0.5">{ev.entry.shrinkUsage} {ev.entry.shrinkUnit || 'KG'}</span></span>
+                                        <span className="text-slate-500">Waste <span className={`font-bold ml-0.5 ${ev.entry.shrinkWastage > 0 ? 'text-red-600' : 'text-slate-800'}`}>{ev.entry.shrinkWastage} {ev.entry.shrinkUnit || 'KG'}</span></span>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {ev.entry.glueName && (ev.entry.glueUsage > 0 || ev.entry.glueWastage > 0) && (
+                                    <div className="bg-white border border-slate-100 rounded px-2 py-1.5 flex justify-between items-center shadow-sm">
+                                      <span className="text-[10px] font-bold text-slate-700 w-12">Glue</span>
+                                      <div className="flex gap-3 text-[10px]">
+                                        <span className="text-slate-500">Used <span className="font-bold text-slate-800 ml-0.5">{ev.entry.glueUsage} {ev.entry.glueUnit || 'KG'}</span></span>
+                                        <span className="text-slate-500">Waste <span className={`font-bold ml-0.5 ${ev.entry.glueWastage > 0 ? 'text-red-600' : 'text-slate-800'}`}>{ev.entry.glueWastage} {ev.entry.glueUnit || 'KG'}</span></span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-[11px] font-medium text-slate-500 mb-1.5 leading-snug">{ev.desc}</p>
+                            )}
+
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                              {ev.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+        </div>
       </div>
     </PageContainer>
   )

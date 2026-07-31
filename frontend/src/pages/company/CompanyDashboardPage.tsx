@@ -2733,17 +2733,22 @@ export const CompanyDashboardPage: React.FC = () => {
 
             {/* Batch Queue Grid */}
             {batchesLoading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
-                  <div key={n} className="bg-white border border-[#E5E7EB] rounded-lg p-3 shadow-sm animate-pulse space-y-2">
-                    <div className="h-3 bg-slate-100 rounded w-2/3"></div>
-                    <div className="h-4 bg-slate-100 rounded w-1/2"></div>
-                    <div className="h-2.5 bg-slate-100 rounded w-1/3 ml-auto"></div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7 gap-2">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map((n) => (
+                  <div key={n} className="bg-white border border-[#E5E7EB] rounded-md p-2.5 shadow-sm animate-pulse flex flex-col gap-2 min-h-[80px]">
+                    <div className="flex justify-between">
+                      <div className="h-4 bg-slate-100 rounded w-1/2"></div>
+                      <div className="h-3 bg-slate-100 rounded w-1/4"></div>
+                    </div>
+                    <div className="mt-auto flex justify-between">
+                      <div className="h-3 bg-slate-100 rounded w-1/3"></div>
+                      <div className="h-3 bg-slate-100 rounded w-1/4"></div>
+                    </div>
                   </div>
                 ))}
               </div>
             ) : filteredBatches.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7 gap-2">
                 {filteredBatches.map((batch: any) => {
                   const { label, cls } = getStatusBadge(batch.status)
                   const createdDateObj = new Date(batch.createdAt || batch.startedAt)
@@ -2754,24 +2759,22 @@ export const CompanyDashboardPage: React.FC = () => {
                     <div
                       key={batch.id}
                       onClick={() => navigate(`/company/production/batches/${batch.id}`)}
-                      className="bg-white border border-[#E5E7EB] rounded-xl p-4 shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-150 cursor-pointer flex flex-col items-center justify-center text-center gap-2 group min-h-[140px]"
+                      className="bg-white border border-slate-200 rounded-md p-2.5 hover:bg-slate-50 hover:border-blue-300 transition-colors cursor-pointer flex flex-col min-h-[85px]"
                       title={`Open ${batch.batchNumber}`}
                     >
-                      {/* Batch Number */}
-                      <span className="text-[20px] font-black text-slate-900 tracking-tight truncate w-full">
-                        {batch.batchNumber}
-                      </span>
-                      
-                      {/* Created Date */}
-                      <div className="text-[11px] font-medium text-[#6B7280] leading-tight">
-                        <div>{formattedDate}</div>
-                        <div>{formattedTime}</div>
+                      <div className="flex justify-between items-start gap-2 mb-1.5">
+                        <span className="text-[16px] sm:text-[18px] font-bold text-slate-900 leading-tight truncate">
+                          {batch.batchNumber}
+                        </span>
+                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border leading-none shrink-0 ${cls}`}>
+                          {label}
+                        </span>
                       </div>
-
-                      {/* Status Badge */}
-                      <span className={`mt-1 text-[9px] font-black uppercase px-2 py-0.5 rounded border ${cls}`}>
-                        {label}
-                      </span>
+                      
+                      <div className="mt-auto flex justify-between items-end text-[11px] font-medium text-slate-500">
+                        <span>{formattedDate}</span>
+                        <span>{formattedTime}</span>
+                      </div>
                     </div>
                   )
                 })}
