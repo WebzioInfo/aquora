@@ -25,7 +25,7 @@ export const UserModal: React.FC<UserModalProps> = ({
     username: '',
     phone: '',
     password: '',
-    roleName: 'Standard',
+    roleName: 'Operator',
     department: 'Operations',
     status: 'Active',
     tenantId: ''
@@ -43,7 +43,7 @@ export const UserModal: React.FC<UserModalProps> = ({
         username: initialData.username || '',
         phone: initialData.phone || '',
         password: '',
-        roleName: initialData.roleName || 'Standard',
+        roleName: initialData.roleName || 'Operator',
         department: initialData.department || 'Operations',
         status: initialData.status || (initialData.isActive ? 'Active' : 'Inactive'),
         tenantId: initialData.tenantId || ''
@@ -56,7 +56,7 @@ export const UserModal: React.FC<UserModalProps> = ({
         username: '',
         phone: '',
         password: '',
-        roleName: 'Standard',
+        roleName: 'Operator',
         department: 'Operations',
         status: 'Active',
         tenantId: ''

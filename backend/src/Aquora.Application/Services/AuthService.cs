@@ -639,7 +639,7 @@ namespace Aquora.Application.Services
 
             if (roles.Count == 0)
             {
-                roles.Add(!string.IsNullOrWhiteSpace(user.RoleName) ? user.RoleName : "CompanyAdmin");
+                roles.Add(!string.IsNullOrWhiteSpace(user.RoleName) ? user.RoleName : "Operator");
             }
 
             Console.WriteLine($"[AUTH SERVICE] Authenticated User: {user.Email}, TenantId: {user.TenantId}, Loaded Roles: [{string.Join(", ", roles)}], Permissions Count: {permissions.Count}");

@@ -23,17 +23,20 @@ namespace Aquora.API.Controllers
         private readonly ITenantDbContext _tenantContext;
         private readonly IPasswordHasher _passwordHasher;
         private readonly ITenantProvider _tenantProvider;
+        private readonly IUserRoleResolver _roleResolver;
 
         public EmployeesController(
             IPlatformDbContext platformContext,
             ITenantDbContext tenantContext,
             IPasswordHasher passwordHasher,
-            ITenantProvider tenantProvider)
+            ITenantProvider tenantProvider,
+            IUserRoleResolver roleResolver)
         {
             _platformContext = platformContext;
             _tenantContext = tenantContext;
             _passwordHasher = passwordHasher;
             _tenantProvider = tenantProvider;
+            _roleResolver = roleResolver;
         }
 
         private Guid GetTenantId()
@@ -63,21 +66,21 @@ namespace Aquora.API.Controllers
                     .ToListAsync();
 
                 var roles = await _tenantContext.Roles.ToListAsync();
-                var userRoles = await _tenantContext.UserRoles.ToListAsync();
+                var roleMap = await _roleResolver.ResolveUsersRolesAsync(users, tenantId);
 
                 var result = new List<EmployeeDto>();
                 foreach (var user in users)
                 {
-                    var userRoleLink = userRoles.FirstOrDefault(ur => ur.UserId == user.Id);
-                    var role = userRoleLink != null ? roles.FirstOrDefault(r => r.Id == userRoleLink.RoleId) : null;
+                    var resolvedRole = roleMap.TryGetValue(user.Id, out var r) ? r : (user.RoleName ?? "Operator");
+                    var matchingRole = roles.FirstOrDefault(rl => rl.Name.Equals(resolvedRole, StringComparison.OrdinalIgnoreCase) || rl.Code.Equals(resolvedRole, StringComparison.OrdinalIgnoreCase));
 
                     result.Add(new EmployeeDto
                     {
                         Id = user.Id,
                         FullName = $"{user.FirstName} {user.LastName}".Trim(),
                         Username = user.Username ?? user.Email,
-                        RoleName = role?.Name ?? "Employee",
-                        RoleCode = role?.Code ?? "EMPLOYEE",
+                        RoleName = resolvedRole,
+                        RoleCode = matchingRole?.Code ?? resolvedRole.ToUpperInvariant().Replace(" ", "_"),
                         Department = user.Department ?? "Operations",
                         IsActive = user.IsActive,
                         CreatedAt = user.CreatedAt,
@@ -148,6 +151,7 @@ namespace Aquora.API.Controllers
                     PinHash = hash,
                     TenantId = tenantId,
                     Department = request.Department ?? "Operations",
+                    RoleName = role.Name,
                     IsActive = true,
                     EmailVerified = true,
                     TokenVersion = 0
@@ -304,6 +308,7 @@ namespace Aquora.API.Controllers
                 user.FirstName = parts.Length > 0 ? parts[0] : string.Empty;
                 user.LastName = parts.Length > 1 ? parts[1] : string.Empty;
                 user.Department = request.Department ?? "Operations";
+                user.RoleName = role.Name;
                 user.IsActive = request.IsActive;
 
                 // Update Role link in Platform DB

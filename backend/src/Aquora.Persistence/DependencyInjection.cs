@@ -59,6 +59,7 @@ namespace Aquora.Persistence
             services.AddScoped<ITenantDatabaseService, Aquora.Persistence.Services.TenantDatabaseService>();
             services.AddScoped<IMigrationService, Aquora.Persistence.Services.MigrationService>();
             services.AddScoped<Aquora.Application.Interfaces.Services.IPlatformManagementService, Aquora.Persistence.Services.PlatformManagementService>();
+            services.AddScoped<Aquora.Application.Interfaces.Services.IUserRoleResolver, Aquora.Persistence.Services.UserRoleResolver>();
 
             return services;
         }

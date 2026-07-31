@@ -19,17 +19,20 @@ namespace Aquora.Persistence.Services
         private readonly IPasswordHasher _passwordHasher;
         private readonly ITenantDatabaseService _tenantDatabaseService;
         private readonly ISchemaNameGenerator _schemaNameGenerator;
+        private readonly IUserRoleResolver _roleResolver;
 
         public PlatformManagementService(
             PlatformDbContext platformContext,
             IPasswordHasher passwordHasher,
             ITenantDatabaseService tenantDatabaseService,
-            ISchemaNameGenerator schemaNameGenerator)
+            ISchemaNameGenerator schemaNameGenerator,
+            IUserRoleResolver roleResolver)
         {
             _platformContext = platformContext;
             _passwordHasher = passwordHasher;
             _tenantDatabaseService = tenantDatabaseService;
             _schemaNameGenerator = schemaNameGenerator;
+            _roleResolver = roleResolver;
         }
 
         private async Task<string> ResolveUserEmailAsync(string performerUserId, string? preferredEmail = null)
@@ -570,6 +573,8 @@ namespace Aquora.Persistence.Services
                 .Where(t => tenantIds.Contains(t.Id))
                 .ToDictionaryAsync(t => t.Id, t => t.Name);
 
+            var rolesMap = await _roleResolver.ResolveUsersRolesAsync(users);
+
             var items = users.Select(u => new PlatformUserDto
             {
                 Id = u.Id,
@@ -578,7 +583,7 @@ namespace Aquora.Persistence.Services
                 FirstName = u.FirstName ?? "Platform",
                 LastName = u.LastName ?? "User",
                 Phone = u.Phone ?? "+1-555-0100",
-                RoleName = u.RoleName ?? (u.IsPlatformAdmin ? "SuperAdmin" : "CompanyAdmin"),
+                RoleName = rolesMap.TryGetValue(u.Id, out var resolvedRole) ? resolvedRole : (u.RoleName ?? (u.IsPlatformAdmin ? "SuperAdmin" : "Operator")),
                 Department = u.Department ?? "Operations",
                 Designation = u.Designation ?? "Lead Engineer",
                 Shift = u.Shift ?? "Day Shift (09:00 - 18:00)",
@@ -632,6 +637,8 @@ namespace Aquora.Persistence.Services
                 })
                 .ToListAsync();
 
+            var resolvedRole = await _roleResolver.ResolveUserRoleAsync(u);
+
             return new PlatformUserDto
             {
                 Id = u.Id,
@@ -640,7 +647,7 @@ namespace Aquora.Persistence.Services
                 FirstName = u.FirstName ?? "Platform",
                 LastName = u.LastName ?? "User",
                 Phone = u.Phone ?? "+1-555-0150",
-                RoleName = u.RoleName ?? (u.IsPlatformAdmin ? "SuperAdmin" : "CompanyAdmin"),
+                RoleName = resolvedRole,
                 Department = u.Department ?? "Engineering",
                 Designation = u.Designation ?? "Senior Architect",
                 Shift = u.Shift ?? "Day Shift (09:00 - 18:00)",
@@ -698,6 +705,11 @@ namespace Aquora.Persistence.Services
             _platformContext.Users.Add(user);
             await _platformContext.SaveChangesAsync();
 
+            if (!string.IsNullOrWhiteSpace(request.RoleName))
+            {
+                await _roleResolver.SynchronizeUserRoleAsync(user.Id, request.RoleName, request.TenantId);
+            }
+
             var performerEmail = await ResolveUserEmailAsync(performerUserId, user.Email);
             _platformContext.PlatformAuditLogs.Add(new PlatformAuditLog
             {
@@ -743,6 +755,11 @@ namespace Aquora.Persistence.Services
             {
                 user.PasswordHash = _passwordHasher.HashPassword(request.Password);
                 user.TokenVersion = user.TokenVersion + 1; // Invalidate current tokens on password change
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.RoleName))
+            {
+                await _roleResolver.SynchronizeUserRoleAsync(user.Id, request.RoleName, user.TenantId);
             }
 
             var performerEmail = await ResolveUserEmailAsync(performerUserId, user.Email);
