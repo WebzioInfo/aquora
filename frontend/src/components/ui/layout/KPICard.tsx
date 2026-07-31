@@ -39,47 +39,17 @@ export const KPICard: React.FC<KPICardProps> = ({
   return (
     <Wrapper
       onClick={onClick}
-      className={`bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col justify-between min-h-[104px] w-full transition-all duration-150 ${
-        onClick ? 'cursor-pointer hover:shadow-md hover:border-slate-300 active:scale-[0.99]' : ''
+      className={`bg-white border border-[#E5E7EB] rounded-lg py-2 px-3 shadow-sm flex flex-col justify-center min-h-[54px] text-center w-full transition-all duration-150 select-none ${
+        onClick ? 'cursor-pointer hover:border-slate-300 active:scale-[0.99]' : ''
       }`}
     >
-      {/* Top row */}
-      <div className="flex justify-between items-start">
-        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-tight">
-          {label}
-        </h3>
-        {Icon && (
-          <div className={`p-2 rounded-lg shrink-0 ${iconBgClass} ${iconColorClass}`}>
-            <Icon className="w-4 h-4" />
-          </div>
-        )}
-      </div>
-
-      {/* Value */}
-      <div className="mt-2">
-        {loading ? (
-          <div className="h-7 w-16 bg-slate-100 rounded animate-pulse" />
-        ) : (
-          <div className={`text-[26px] font-black leading-none ${colorClass}`}>{value}</div>
-        )}
-        {subtitle && (
-          <p className="text-[11px] font-medium text-slate-400 mt-1">{subtitle}</p>
-        )}
-        {trend && !loading && (
-          <div className="flex items-center gap-1 mt-1.5">
-            <span
-              className={`text-[10px] font-black ${
-                trend.isPositive ? 'text-emerald-600' : 'text-red-500'
-              }`}
-            >
-              {trend.isPositive ? '+' : '-'}{trend.value}
-            </span>
-            <span className="text-[10px] font-semibold text-slate-400">
-              {trend.label ?? 'vs last period'}
-            </span>
-          </div>
-        )}
-      </div>
+      {loading ? (
+        <div className="h-5 w-16 bg-slate-100 rounded animate-pulse mx-auto" />
+      ) : (
+        <span className={`text-[20px] font-black leading-tight ${colorClass}`}>{value}</span>
+      )}
+      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">{label}</span>
+      {subtitle && <span className="text-[9px] text-slate-400 font-medium">{subtitle}</span>}
     </Wrapper>
   );
 };

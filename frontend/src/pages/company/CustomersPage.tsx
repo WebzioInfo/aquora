@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { 
   Search, Plus, Eye, Edit2, Trash2, X, AlertTriangle, 
   MapPin, Phone as PhoneIcon, FileText, Landmark, ShieldAlert,
@@ -18,7 +18,6 @@ import { useAuthStore } from '../../store/useAuthStore'
 import EnterpriseHeader from '../../components/ui/EnterpriseHeader'
 import PageContainer from '../../components/ui/layout/PageContainer'
 import PageHeader from '../../components/ui/layout/PageHeader'
-import Breadcrumb from '../../components/ui/layout/Breadcrumb'
 import FilterBar from '../../components/ui/layout/FilterBar'
 import EnterpriseBadge from '../../components/ui/EnterpriseBadge'
 import EnterpriseInput from '../../components/ui/EnterpriseInput'
@@ -36,24 +35,38 @@ import {
 } from '../../components/ui/PremiumForms'
 
 const parseErrorResponse = (err: any): string => {
-  const data = err.response?.data
-  if (!data) return 'Error occurred.'
+  const data = err?.response?.data
+  if (!data) {
+    return 'Unable to process request. Please check your network connection and try again.'
+  }
+
+  let extractedMessage = ''
   
   if (data.errors && typeof data.errors === 'object') {
     const errorList: string[] = []
     Object.entries(data.errors).forEach(([_, val]) => {
       if (Array.isArray(val)) {
-        errorList.push(...val)
+        errorList.push(...val.map(v => String(v)))
       } else if (typeof val === 'string') {
         errorList.push(val)
       }
     })
     if (errorList.length > 0) {
-      return errorList.join(', ')
+      extractedMessage = errorList.join(', ')
     }
   }
-  
-  return data.message || data.title || 'Error occurred.'
+
+  if (!extractedMessage) {
+    extractedMessage = data.message || data.title || ''
+  }
+
+  // Check for technical DB or ORM exception terms
+  const isTechnicalError = /23502|DbUpdateException|NpgsqlException|Constraint|StackTrace|InnerException|SQL|column|violates/i.test(extractedMessage || '')
+  if (isTechnicalError || !extractedMessage) {
+    return 'Unable to create customer. Please review the entered information and try again.'
+  }
+
+  return extractedMessage
 }
 
 export const CustomersPage: React.FC = () => {
@@ -61,6 +74,7 @@ export const CustomersPage: React.FC = () => {
   const { showToast } = useNotificationStore()
   const { user } = useAuthStore()
   const navigate = useNavigate()
+  const location = useLocation()
   const { customerId } = useParams<{ customerId: string }>()
 
   // Permissions check based on specifications
@@ -122,6 +136,7 @@ export const CustomersPage: React.FC = () => {
     openingBalance: 0,
     balanceType: 'Zero',
     creditLimit: 0,
+    paymentTerms: 'COD',
     status: 'Active',
     remarks: '',
     internalNotes: '',
@@ -246,15 +261,32 @@ export const CustomersPage: React.FC = () => {
     'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Delhi'
   ]
 
+  // Automatically open Customer Creation form when navigated from Sales modal
+  useEffect(() => {
+    if (location.state?.fromSales && canWrite) {
+      handleOpenCreateDrawer()
+    }
+  }, [location.state, canWrite])
+
   // Create Customer Mutation
   const createCustomerMutation = useMutation({
     mutationFn: customersService.createCustomer,
     onSuccess: (data) => {
       if (data.success) {
-        showToast(`Customer ${data.data?.customerCode} created successfully.`, 'success')
+        showToast(`Customer ${data.data?.customerCode || data.data?.customerName} created successfully.`, 'success')
         queryClient.invalidateQueries({ queryKey: ['customersList'] })
+        queryClient.invalidateQueries({ queryKey: ['activeCustomersForSales'] })
         setIsDrawerOpen(false)
         resetForm()
+        if (location.state?.fromSales) {
+          navigate('/company/sales', {
+            state: {
+              fromCustomerCreation: true,
+              newCreatedCustomerId: data.data?.id,
+              salesForm: location.state.salesForm
+            }
+          })
+        }
       } else {
         showToast(data.message || 'Failed to create customer.', 'error')
       }
@@ -367,6 +399,7 @@ export const CustomersPage: React.FC = () => {
       openingBalance: 0,
       balanceType: 'Zero',
       creditLimit: 0,
+      paymentTerms: 'COD',
       status: 'Active',
       remarks: '',
       internalNotes: '',
@@ -450,6 +483,7 @@ export const CustomersPage: React.FC = () => {
       openingBalance: customer.openingBalance,
       balanceType: customer.balanceType,
       creditLimit: customer.creditLimit,
+      paymentTerms: customer.paymentTerms || 'COD',
       status: customer.status,
       remarks: customer.remarks || '',
       internalNotes: '',
@@ -529,6 +563,11 @@ export const CustomersPage: React.FC = () => {
       return
     }
 
+    if (!formData.paymentTerms) {
+      showToast('Please select Payment Terms.', 'warning')
+      return
+    }
+
     // Conditional B2B validation
     const isB2B = formData.customerType === 'B2B'
     if (isB2B) {
@@ -553,12 +592,7 @@ export const CustomersPage: React.FC = () => {
 
     // Map remarks with internal notes for archiving
     const notesCombined = formData.internalNotes.trim() 
-      ? `${formData.remarks.trim()}\import PageContainer from '../../components/ui/layout/PageContainer';
-import PageHeader from '../../components/ui/layout/PageHeader';
-import Breadcrumb from '../../components/ui/layout/Breadcrumb';
-import KPICard from '../../components/ui/layout/KPICard';
-import FilterBar from '../../components/ui/layout/FilterBar';
-n[Internal Notes: ${formData.internalNotes.trim()}]`
+      ? `${formData.remarks.trim()}\n[Internal Notes: ${formData.internalNotes.trim()}]`
       : formData.remarks.trim()
 
     // Tenant configuration company lookup: use the current user's default company context or Guid.Empty
@@ -588,6 +622,7 @@ n[Internal Notes: ${formData.internalNotes.trim()}]`
         openingBalance: Number(formData.openingBalance),
         balanceType: formData.balanceType,
         creditLimit: Number(formData.creditLimit),
+        paymentTerms: formData.paymentTerms,
         status: formData.status,
         isActive: formData.status === 'Active',
         remarks: notesCombined || undefined,
@@ -659,6 +694,7 @@ n[Internal Notes: ${formData.internalNotes.trim()}]`
           openingBalance: Number(formData.openingBalance),
           balanceType: formData.balanceType,
           creditLimit: Number(formData.creditLimit),
+          paymentTerms: formData.paymentTerms,
           status: formData.status,
           isActive: formData.status === 'Active',
           remarks: notesCombined || undefined,
@@ -735,7 +771,6 @@ n[Internal Notes: ${formData.internalNotes.trim()}]`
 
   return (
     <PageContainer>
-      <Breadcrumb items={[{ label: 'Company' }, { label: 'Customers' }]} />
       <PageHeader
         title="Customers"
         description="Single source of truth for all customer profiles across Sales and 20L Operations."
@@ -768,7 +803,7 @@ n[Internal Notes: ${formData.internalNotes.trim()}]`
           <select
             value={customerTypeFilter}
             onChange={(e) => { setCustomerTypeFilter(e.target.value); setCurrentPage(1); }}
-            className="h-[40px] px-3.5 border border-[#E2E8F0] rounded-[8px] bg-white text-sm text-slate-700 font-medium focus:outline-none cursor-pointer"
+            className="h-[32px] px-3 border border-[#E5E7EB] rounded-lg bg-white text-[12px] text-slate-700 font-semibold focus:outline-none cursor-pointer"
           >
             <option value="">All Partner Types</option>
             <option value="B2B">B2B Partners</option>
@@ -780,20 +815,18 @@ n[Internal Notes: ${formData.internalNotes.trim()}]`
           <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-            className="h-[40px] px-3.5 border border-[#E2E8F0] rounded-[8px] bg-white text-sm text-slate-700 font-medium focus:outline-none cursor-pointer"
+            className="h-[32px] px-3 border border-[#E5E7EB] rounded-lg bg-white text-[12px] text-slate-700 font-semibold focus:outline-none cursor-pointer"
           >
             <option value="">All Statuses</option>
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
           </select>
 
-
-
           {/* Sorting */}
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="h-[40px] px-3.5 border border-[#E2E8F0] rounded-[8px] bg-white text-sm text-slate-700 font-medium focus:outline-none cursor-pointer"
+            className="h-[32px] px-3 border border-[#E5E7EB] rounded-lg bg-white text-[12px] text-slate-700 font-semibold focus:outline-none cursor-pointer"
           >
             <option value="newest">Newest Created</option>
             <option value="oldest">Oldest Created</option>
@@ -803,7 +836,7 @@ n[Internal Notes: ${formData.internalNotes.trim()}]`
 
           <button
             onClick={() => showToast('Export action triggered (mock Excel extraction).', 'info')}
-            className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-slate-600 hover:bg-slate-50 text-xs font-semibold transition-colors cursor-pointer"
+            className="h-[32px] px-3 border border-[#E5E7EB] rounded-lg bg-white text-slate-600 hover:bg-slate-50 text-[12px] font-bold transition-all cursor-pointer"
           >
             Export
           </button>
@@ -812,30 +845,30 @@ n[Internal Notes: ${formData.internalNotes.trim()}]`
 
       {/* Main Content Table Area */}
       {isLoading ? (
-        <div className="bg-white border border-[#E2E8F0] shadow-sm rounded-[12px] p-12 text-center flex flex-col items-center justify-center gap-3">
-          <div className="w-8 h-8 border-3 border-[#1A56DB] border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm font-medium text-slate-500">Querying Customer Database...</span>
+        <div className="bg-white border border-[#E5E7EB] shadow-sm rounded-xl p-12 text-center flex flex-col items-center justify-center gap-3">
+          <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <span className="text-[13px] font-medium text-slate-500">Querying Customer Database...</span>
         </div>
       ) : customers.length > 0 ? (
-        <div className="bg-white border border-[#E2E8F0] shadow-sm rounded-[12px] overflow-hidden flex flex-col">
+        <div className="bg-white border border-[#E5E7EB] shadow-sm rounded-xl overflow-hidden flex flex-col">
           
           <div className="overflow-x-auto w-full">
-            <table className="w-full text-left text-xs border-collapse">
+            <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="h-12 border-b border-slate-200 text-slate-500 font-black bg-slate-50/80 select-none uppercase tracking-wide text-[10px]">
-                  <th className="py-3 px-4">Partner Name</th>
-                  <th className="py-3 px-4">Business Name</th>
-                  <th className="py-3 px-4">Type</th>
-                  <th className="py-3 px-4">Phone</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                <tr className="bg-[#F8FAFC] border-b border-[#E5E7EB] text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none h-[36px]">
+                  <th className="py-2 px-4">Partner Name</th>
+                  <th className="py-2 px-4">Business Name</th>
+                  <th className="py-2 px-4">Type</th>
+                  <th className="py-2 px-4">Phone</th>
+                  <th className="py-2 px-4 text-center">Status</th>
+                  <th className="py-2 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E2E8F0]">
-                {customers.map((c) => (
+              <tbody className="divide-y divide-[#F1F5F9] text-[13px] text-slate-700">
+                {customers.map((c, i) => (
                   <tr 
                     key={c.id} 
-                    className="h-[48px] hover:bg-[#E8F0FE] text-slate-900 transition-colors"
+                    className={`h-[38px] transition-colors ${i%2===0?'bg-white':'bg-[#FAFBFC]'} hover:bg-blue-50/30`}
                   >
                     <td className="py-3.5 px-4 font-semibold text-slate-800">
                       {c.customerName}
@@ -1092,6 +1125,8 @@ n[Internal Notes: ${formData.internalNotes.trim()}]`
                     <div className="grid grid-cols-2 gap-5">
                       <PremiumSelect
                         label="Payment Terms *"
+                        name="paymentTerms"
+                        value={formData.paymentTerms}
                         onChange={handleFormChange}
                         required
                       >
@@ -1377,7 +1412,7 @@ n[Internal Notes: ${formData.internalNotes.trim()}]`
                     Back
                   </button>
                 )}
-                {formTab !== 'logistics' ? (
+                {formTab !== 'logistics' && (
                   <button
                     type="button"
                     onClick={() => {
@@ -1385,19 +1420,26 @@ n[Internal Notes: ${formData.internalNotes.trim()}]`
                       else if (formTab === 'address') setFormTab('financials')
                       else if (formTab === 'financials') setFormTab('logistics')
                     }}
-                    className="h-[44px] px-6 bg-[#1A56DB] hover:bg-[#1E40AF] active:bg-[#123E97] text-white text-sm font-semibold rounded-[10px] shadow-sm select-none cursor-pointer transition-all duration-150 active:scale-[0.99]"
+                    className="h-[44px] px-5 border border-gray-300 hover:border-gray-400 rounded-[10px] bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold select-none cursor-pointer transition-all duration-150 active:scale-[0.99]"
                   >
-                    Continue
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleFormSubmit}
-                    className="h-[44px] px-6 bg-[#1A56DB] hover:bg-[#1E40AF] active:bg-[#123E97] text-white text-sm font-semibold rounded-[10px] shadow-sm select-none cursor-pointer transition-all duration-150 active:scale-[0.99]"
-                  >
-                    {drawerMode === 'create' ? 'Register' : 'Save Changes'}
+                    Next Tab
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={handleFormSubmit}
+                  disabled={createCustomerMutation.isPending || updateCustomerMutation.isPending}
+                  className="h-[44px] px-6 bg-[#1A56DB] hover:bg-[#1E40AF] active:bg-[#123E97] text-white text-sm font-semibold rounded-[10px] shadow-sm select-none cursor-pointer transition-all duration-150 active:scale-[0.99] disabled:opacity-50 flex items-center gap-2"
+                >
+                  {(createCustomerMutation.isPending || updateCustomerMutation.isPending) ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <span>{drawerMode === 'create' ? 'Register Customer' : 'Save Changes'}</span>
+                  )}
+                </button>
               </div>
 
             </div>

@@ -129,8 +129,12 @@ export const OperatorDashboardPage: React.FC = () => {
   const { data: productionShifts = [] } = useQuery({
     queryKey: ['productionShifts'],
     queryFn: async () => {
-      const res = await productionShiftsService.getAll()
-      return res.data?.data || []
+      try {
+        const res = await productionShiftsService.getAll()
+        return res.data?.data || []
+      } catch (err) {
+        return []
+      }
     }
   })
 
@@ -1798,9 +1802,57 @@ export const OperatorDashboardPage: React.FC = () => {
     )
   }
 
-  // ==========================================
-  // VIEW 3: PRODUCTION ENTRY TERMINAL (Inheriting running batch properties)
-  // ==========================================
+  // Unit-aware raw material wastage helpers
+  const selectedPreformMat = preforms.find(m => m.id === selectedPreformId)
+  const selectedCapMat = caps.find(m => m.id === selectedCapId)
+  const selectedLabelMat = labels.find(m => m.id === selectedLabelId)
+  const selectedShrinkMat = shrinks.find(m => m.id === selectedShrinkId)
+
+  const isDecimalUnit = (unit: string): boolean => {
+    const u = (unit || '').toUpperCase()
+    return u === 'KG' || u === 'KGS' || u === 'GRAM' || u === 'GRAMS' || u === 'GM' || u === 'G' || u === 'LITRE' || u === 'L'
+  }
+
+  const getWastageUnit = (mat?: any, defaultUnit = 'PCS'): string => {
+    return mat?.unit || defaultUnit
+  }
+
+  const getWastagePlaceholder = (unit: string): string => {
+    const u = (unit || '').toUpperCase()
+    if (u === 'KG' || u === 'KGS') {
+      return 'Enter wastage (KG)'
+    }
+    if (u === 'GRAM' || u === 'GRAMS' || u === 'GM' || u === 'G') {
+      return 'Enter wastage (Gram)'
+    }
+    return `Enter wastage (${unit})`
+  }
+
+  const handleWastageInputChange = (
+    val: string,
+    unit: string,
+    setter: (val: string) => void
+  ) => {
+    if (val === '') {
+      setter('')
+      return
+    }
+    if (isDecimalUnit(unit)) {
+      if (/^\d*\.?\d*$/.test(val)) {
+        setter(val)
+      }
+    } else {
+      if (/^\d+$/.test(val)) {
+        setter(val)
+      }
+    }
+  }
+
+  const preformWastageUnit = getWastageUnit(selectedPreformMat, 'PCS')
+  const capWastageUnit = getWastageUnit(selectedCapMat, 'PCS')
+  const labelWastageUnit = getWastageUnit(selectedLabelMat, 'KG')
+  const shrinkWastageUnit = getWastageUnit(selectedShrinkMat, 'KG')
+
   return (
     <div
       className="flex-1 w-full h-full flex flex-col min-h-0 select-none transition-all duration-200"
@@ -1955,18 +2007,15 @@ export const OperatorDashboardPage: React.FC = () => {
                             <input
                               type="number"
                               min="0"
-                              step="1"
-                              placeholder="Waste (PCS)"
-                              title="Enter damaged preform count. Example: 10 = 10 preforms."
+                              step={isDecimalUnit(preformWastageUnit) ? "any" : "1"}
+                              placeholder={getWastagePlaceholder(preformWastageUnit)}
+                              title={`Enter preform wastage (${preformWastageUnit}).`}
                               value={preformWastage}
-                              onChange={(e) => {
-                                const val = e.target.value
-                                if (val === '' || /^\d+$/.test(val)) setPreformWastage(val)
-                              }}
+                              onChange={(e) => handleWastageInputChange(e.target.value, preformWastageUnit, setPreformWastage)}
                               className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
                             />
                           </td>
-                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">Bag</td>
+                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">{preformWastageUnit}</td>
                         </tr>
                       )}
 
@@ -2008,18 +2057,15 @@ export const OperatorDashboardPage: React.FC = () => {
                             <input
                               type="number"
                               min="0"
-                              step="1"
-                              placeholder="Waste (PCS)"
-                              title="Enter damaged cap count. Example: 25 = 25 caps."
+                              step={isDecimalUnit(capWastageUnit) ? "any" : "1"}
+                              placeholder={getWastagePlaceholder(capWastageUnit)}
+                              title={`Enter cap wastage (${capWastageUnit}).`}
                               value={capWastage}
-                              onChange={(e) => {
-                                const val = e.target.value
-                                if (val === '' || /^\d+$/.test(val)) setCapWastage(val)
-                              }}
+                              onChange={(e) => handleWastageInputChange(e.target.value, capWastageUnit, setCapWastage)}
                               className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
                             />
                           </td>
-                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">BOX</td>
+                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">{capWastageUnit}</td>
                         </tr>
                       )}
 
@@ -2061,15 +2107,15 @@ export const OperatorDashboardPage: React.FC = () => {
                             <input
                               type="number"
                               min="0"
-                              step="0.001"
-                              placeholder="Waste"
-                              title="Enter label wastage weight. Example: 0.250 = 250 GM, 2.5 = 2.5 KG."
+                              step={isDecimalUnit(labelWastageUnit) ? "any" : "1"}
+                              placeholder={getWastagePlaceholder(labelWastageUnit)}
+                              title={`Enter label wastage (${labelWastageUnit}).`}
                               value={labelWastage}
-                              onChange={(e) => setLabelWastage(e.target.value)}
+                              onChange={(e) => handleWastageInputChange(e.target.value, labelWastageUnit, setLabelWastage)}
                               className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
                             />
                           </td>
-                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">{getSelectedLabelUnit()}</td>
+                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">{labelWastageUnit}</td>
                         </tr>
                       )}
 
@@ -2111,18 +2157,15 @@ export const OperatorDashboardPage: React.FC = () => {
                             <input
                               type="number"
                               min="0"
-                              step="1"
-                              placeholder="Waste (PCS)"
-                              title="Enter damaged wrapper count. Example: 20 = 20 wrappers."
+                              step={isDecimalUnit(shrinkWastageUnit) ? "any" : "1"}
+                              placeholder={getWastagePlaceholder(shrinkWastageUnit)}
+                              title={`Enter shrink film wastage (${shrinkWastageUnit}).`}
                               value={shrinkWastage}
-                              onChange={(e) => {
-                                const val = e.target.value
-                                if (val === '' || /^\d+$/.test(val)) setShrinkWastage(val)
-                              }}
+                              onChange={(e) => handleWastageInputChange(e.target.value, shrinkWastageUnit, setShrinkWastage)}
                               className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
                             />
                           </td>
-                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">KG</td>
+                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">{shrinkWastageUnit}</td>
                         </tr>
                       )}
 

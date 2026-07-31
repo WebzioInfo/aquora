@@ -30,7 +30,7 @@ export const SettingsPage: React.FC = () => {
 
       <div className="mt-6 flex flex-col md:flex-row gap-6">
         <div className="w-full md:w-64 flex-shrink-0">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="bg-white rounded-xl shadow-sm border border-[#E5E7EB] overflow-hidden">
             <div className="p-4 border-b border-slate-100 bg-slate-50/50">
               <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
                 <Settings2 className="w-4 h-4 text-slate-500" />

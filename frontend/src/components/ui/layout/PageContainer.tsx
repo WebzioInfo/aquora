@@ -13,7 +13,7 @@ interface PageContainerProps {
 export const PageContainer: React.FC<PageContainerProps> = ({ children, className = '' }) => {
   return (
     <div
-      className={`w-full max-w-[1440px] mx-auto px-4 md:px-6 lg:px-8 py-6 pb-12 bg-[#F8FAFC] min-h-[calc(100vh-56px)] space-y-6 select-none ${className}`}
+      className={`flex flex-col gap-4 font-sans text-slate-900 bg-[#F8FAFC] min-h-screen select-none ${className}`}
     >
       {children}
     </div>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../services/api'
 import { productsService } from '../../services/products'
@@ -329,7 +330,10 @@ interface InventoryPageProps {
 
 export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToast }) => {
   const queryClient = useQueryClient()
-  const [inventoryTab, setInventoryTab] = useState<'products' | 'raw_materials' | 'brands'>('products')
+  const location = useLocation()
+  const searchParams = new URLSearchParams(location.search)
+  const queryTab = searchParams.get('tab') as 'products' | 'raw_materials' | 'brands' | null
+  const inventoryTab = queryTab || 'products'
   const [globalSearch, setGlobalSearch] = useState('')
   const [productsPage, setProductsPage] = useState(1)
   const [productsSearch, setProductsSearch] = useState('')
@@ -367,8 +371,9 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
   const [rawMaterialFormCurrentStock, setRawMaterialFormCurrentStock] = useState('0')
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
   const toggleRow = (id: string) => setExpandedRowId(prev => prev === id ? null : id)
+  const navigate = useNavigate()
   const switchTab = (tab: 'products' | 'raw_materials' | 'brands') => {
-    setInventoryTab(tab); setExpandedRowId(null); setGlobalSearch('')
+    navigate(`?tab=${tab}`); setExpandedRowId(null); setGlobalSearch('')
     setProductsSearch(''); setRawMaterialsSearch(''); setBrandsSearch('')
   }
   const { data: productsData, isLoading: productsLoading, refetch: refetchProducts } = useQuery({
@@ -477,12 +482,15 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
     if (mat.currentStock < 50) return 'bg-amber-50 hover:bg-amber-100/60'
     return i % 2 === 0 ? 'bg-white hover:bg-blue-50/30' : 'bg-[#FAFBFC] hover:bg-blue-50/30'
   }
+  const pageTitle = inventoryTab === 'raw_materials' ? 'Raw Materials' : inventoryTab === 'brands' ? 'Brands Directory' : 'Products Inventory'
+  const pageDesc = inventoryTab === 'raw_materials' ? 'Monitor raw material stock levels, units, and inventory movements' : inventoryTab === 'brands' ? 'Manage product brand registrations and codes' : 'Track finished goods inventory, SKU details, and stock levels'
+
   return (
     <div className="flex flex-col gap-4 font-sans text-slate-900 bg-[#F8FAFC] min-h-screen">
       <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm px-5 py-3 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-[20px] font-black text-slate-900 leading-tight tracking-tight">Inventory Management</h1>
-          <p className="text-[12px] text-slate-500 mt-0.5">Track materials, products, and stock movements</p>
+          <h1 className="text-[20px] font-black text-slate-900 leading-tight tracking-tight">{pageTitle}</h1>
+          <p className="text-[12px] text-slate-500 mt-0.5">{pageDesc}</p>
         </div>
         <div className="flex items-center gap-3 ml-auto">
           <span className="text-[11px] text-slate-400 font-semibold select-none hidden sm:block">{todayStr}</span>
@@ -492,6 +500,9 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
               onChange={e => { const v=e.target.value; setGlobalSearch(v); if(inventoryTab==='products'){setProductsSearch(v);setProductsPage(1)} if(inventoryTab==='raw_materials'){setRawMaterialsSearch(v);setRawMaterialsPage(1)} if(inventoryTab==='brands')setBrandsSearch(v) }}
               className="h-[32px] pl-8 pr-3 text-[12px] border border-[#E5E7EB] rounded-lg bg-[#F8FAFC] focus:outline-none focus:border-blue-400 w-[200px] text-slate-800" />
           </div>
+          <button onClick={()=>{if(inventoryTab==='products')refetchProducts();if(inventoryTab==='raw_materials')refetchMaterials();if(inventoryTab==='brands')refetchBrands()}} className="h-[32px] px-2.5 text-[11px] font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg border border-[#E5E7EB] flex items-center gap-1 transition-all cursor-pointer">
+            <RotateCcw className="w-3 h-3"/>Refresh
+          </button>
           {canWrite && inventoryTab==='products' && <button onClick={()=>{setProductFormName('');setProductFormBrandId((brands[0] as any)?.id||'');setProductFormSKU('');setProductFormIsActive(true);setProductFormOpeningStock('0');setIsAddProductModalOpen(true)}} className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"><Plus className="w-3.5 h-3.5"/>Product</button>}
           {canWrite && inventoryTab==='raw_materials' && (
             <div className="flex items-center gap-2">
@@ -511,18 +522,6 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
         ))}
       </div>
       <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm overflow-hidden">
-        <div className="flex border-b border-[#E5E7EB] select-none">
-          {(['products','raw_materials','brands'] as const).map(tab=>(
-            <button key={tab} onClick={()=>switchTab(tab)} className={`px-5 py-2.5 text-[12px] font-bold transition-all border-b-2 -mb-px ${inventoryTab===tab?'border-blue-600 text-blue-600 bg-blue-50/30':'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}>
-              {tab==='products'?'Products':tab==='raw_materials'?'Raw Materials':'Brands'}
-            </button>
-          ))}
-          <div className="ml-auto flex items-center pr-3">
-            <button onClick={()=>{if(inventoryTab==='products')refetchProducts();if(inventoryTab==='raw_materials')refetchMaterials();if(inventoryTab==='brands')refetchBrands()}} className="h-[28px] px-2.5 text-[11px] font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded flex items-center gap-1 transition-all">
-              <RotateCcw className="w-3 h-3"/>Refresh
-            </button>
-          </div>
-        </div>
         {inventoryTab==='products' && (
           productsLoading ? <div className="py-12 text-center text-[13px] text-slate-400">Loading products...</div>
           : productsData?.items && productsData.items.length > 0 ? (

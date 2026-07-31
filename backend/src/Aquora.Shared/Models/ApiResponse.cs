@@ -39,7 +39,8 @@ namespace Aquora.Shared.Models
             {
                 Success = true,
                 Data = data,
-                Message = message
+                Message = message,
+                Code = "SUCCESS"
             };
         }
 

@@ -10,7 +10,6 @@ import { customersService } from '../../services/customers'
 import EnterpriseBadge from '../../components/ui/EnterpriseBadge'
 import EnterpriseButton from '../../components/ui/EnterpriseButton'
 import PageContainer from '../../components/ui/layout/PageContainer'
-import Breadcrumb from '../../components/ui/layout/Breadcrumb'
 import DetailTabs from '../../components/ui/layout/DetailTabs'
 import type { TabItem } from '../../components/ui/layout/DetailTabs'
 
@@ -83,23 +82,30 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
 
   return (
     <PageContainer>
-      <Breadcrumb
-        items={[
-          { label: 'Company' },
-          { label: 'Customers', href: '/company/customers' },
-          { label: customer.customerName }
-        ]}
-        backHref="/company/customers"
-        backLabel="Back to Customers"
-      />
-
       {/* 2. TOP SUMMARY PROFILE CARD */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-black text-xl uppercase shrink-0">
-            {customer.customerName.charAt(0)}
-          </div>
-          <div>
+      <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm overflow-hidden mb-6">
+        {/* Top bar: back / status */}
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-[#F1F5F9]">
+          <button
+            onClick={() => {
+              const url = new URL(window.location.href);
+              url.searchParams.delete('customerId');
+              window.history.pushState({}, '', url);
+              window.dispatchEvent(new PopStateEvent('popstate'));
+            }}
+            className="h-[30px] px-2.5 text-[12px] font-bold text-slate-700 border border-[#E5E7EB] hover:bg-[#F8FAFC] rounded-lg flex items-center gap-1 cursor-pointer transition-all active:scale-[0.97]"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back
+          </button>
+        </div>
+        
+        <div className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-black text-xl uppercase shrink-0">
+              {customer.customerName.charAt(0)}
+            </div>
+            <div>
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-bold text-slate-900 leading-none">{customer.customerName}</h2>
               <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
@@ -146,6 +152,7 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
           <EnterpriseButton variant="secondary" disabled className="h-8 px-3 font-bold text-xs opacity-50">Deactivate</EnterpriseButton>
           <EnterpriseButton variant="danger" disabled className="h-8 px-3 font-bold text-xs opacity-50">Delete</EnterpriseButton>
         </div>
+      </div>
       </div>
 
       {/* TABS */}

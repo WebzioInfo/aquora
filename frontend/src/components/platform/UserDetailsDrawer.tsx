@@ -94,7 +94,7 @@ export const UserDetailsDrawer: React.FC<UserDetailsDrawerProps> = ({
                 {user.roleName && (
                   <div className="py-2.5 flex justify-between items-center">
                     <span className="text-slate-500 font-medium">Role</span>
-                    <EnterpriseBadge variant={user.roleName === 'SuperAdmin' ? 'purple' : 'primary'}>
+                    <EnterpriseBadge variant={user.roleName === 'SuperAdmin' ? 'primary' : 'info'}>
                       {user.roleName}
                     </EnterpriseBadge>
                   </div>

@@ -27,7 +27,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden ${className}`}>
+    <div className={`bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden ${className}`}>
       {/* Header */}
       {(title || actions) && (
         <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-100">

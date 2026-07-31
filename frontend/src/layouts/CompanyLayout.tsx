@@ -6,7 +6,8 @@ import { useNotificationStore } from '../store/useNotificationStore'
 import ToastContainer from '../components/ui/ToastContainer'
 import { 
   LayoutDashboard, Factory, Package, TrendingUp, Users, Truck, 
-  Settings, ChevronRight, Play, Plus, X
+  Settings, ChevronRight, Play, Plus, X, Layers, Workflow, CalendarClock,
+  Droplet, Boxes, Tag, ShoppingCart, PieChart, IdCard
 } from 'lucide-react'
 import EnterpriseSidebar from '../components/ui/EnterpriseSidebar'
 import EnterpriseTopbar from '../components/ui/EnterpriseTopbar'
@@ -36,13 +37,17 @@ export const CompanyLayout: React.FC = () => {
 
   const sidebarItems = [
     { label: 'Dashboard', path: '/company/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
-    { label: 'Production', path: '/company/production', icon: <Factory className="w-5 h-5" /> },
-    { label: '20L Operations', path: '/company/operations', icon: <Truck className="w-5 h-5" /> },
-    { label: 'Inventory', path: '/company/inventory', icon: <Package className="w-5 h-5" /> },
-    { label: 'Sales', path: '/company/sales', icon: <TrendingUp className="w-5 h-5" /> },
-    { label: 'Business Intelligence', path: '/company/business-finance', icon: <TrendingUp className="w-5 h-5" /> },
+    { label: 'Production Batches', path: '/company/production', icon: <Layers className="w-5 h-5" /> },
+    { label: 'Production Lines', path: '/company/production?tab=lines', icon: <Workflow className="w-5 h-5" /> },
+    { label: 'Production Shifts', path: '/company/production?tab=shifts', icon: <CalendarClock className="w-5 h-5" /> },
+    { label: '20L Operations', path: '/company/operations', icon: <Droplet className="w-5 h-5" /> },
+    { label: 'Products Inventory', path: '/company/inventory', icon: <Package className="w-5 h-5" /> },
+    { label: 'Raw Materials', path: '/company/inventory?tab=raw_materials', icon: <Boxes className="w-5 h-5" /> },
+    { label: 'Brands', path: '/company/inventory?tab=brands', icon: <Tag className="w-5 h-5" /> },
+    { label: 'Sales', path: '/company/sales', icon: <ShoppingCart className="w-5 h-5" /> },
+    { label: 'Business Intelligence', path: '/company/business-finance', icon: <PieChart className="w-5 h-5" /> },
     { label: 'Customers', path: '/company/customers', icon: <Users className="w-5 h-5" /> },
-    { label: 'Employees', path: '/company/employees', icon: <Users className="w-5 h-5" /> },
+    { label: 'Employees', path: '/company/employees', icon: <IdCard className="w-5 h-5" /> },
     { label: 'Company Settings', path: '/company/settings', icon: <Settings className="w-5 h-5" /> },
   ]
 

@@ -146,7 +146,7 @@ export const OtpVerificationPage: React.FC = () => {
           const targetRoute = getDefaultRouteForUser(response.data)
           navigate(targetRoute)
         } else if (user) {
-          setAuth(useAuthStore.getState().accessToken || '', useAuthStore.getState().refreshToken || '', {
+          setAuth(useAuthStore.getState().token || '', useAuthStore.getState().refreshToken || '', {
             ...user,
             emailVerified: true
           })

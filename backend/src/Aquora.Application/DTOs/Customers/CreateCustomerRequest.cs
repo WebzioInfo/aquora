@@ -82,6 +82,10 @@ namespace Aquora.Application.DTOs.Customers
         [Range(0, double.MaxValue, ErrorMessage = "Credit limit cannot be negative.")]
         public decimal CreditLimit { get; set; } = 0;
 
+        [Required(ErrorMessage = "Please select Payment Terms.")]
+        [StringLength(50, ErrorMessage = "Payment terms cannot exceed 50 characters.")]
+        public string PaymentTerms { get; set; } = "COD";
+
         public string Status { get; set; } = "Active";
         public bool IsActive { get; set; } = true;
         public string? Remarks { get; set; }

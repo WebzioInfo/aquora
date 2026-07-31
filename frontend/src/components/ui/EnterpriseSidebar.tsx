@@ -62,7 +62,8 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
       {/* Navigation list */}
       <nav className="flex-1 p-3 flex flex-col gap-1 overflow-y-auto max-h-[calc(100vh-220px)] select-none">
         {items.map((item) => {
-          const isActive = location.pathname === item.path
+          const currentFullPath = location.pathname + location.search
+          const isActive = currentFullPath === item.path || (location.pathname === item.path && !location.search && !item.path.includes('?'))
           return (
             <Link
               key={item.path}

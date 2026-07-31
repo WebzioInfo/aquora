@@ -12,6 +12,8 @@ export interface User {
   ownsCompany?: boolean
   username?: string | null
   assignedProductionLineId?: string | null
+  roleName?: string | null
+  isPlatformAdmin?: boolean
   isTenantInitialized?: boolean
   tenantStatus?: string | null
   emailVerified?: boolean

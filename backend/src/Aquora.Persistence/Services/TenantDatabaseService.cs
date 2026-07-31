@@ -137,6 +137,31 @@ namespace Aquora.Persistence.Services
                     {
                         Console.WriteLine($"[MIGRATION WARN]: Non-fatal migration warning for '{schemaName}': {migEx.Message}. Proceeding.");
                     }
+
+                    // Repair schema for ProductionShifts table description column bug
+                    try
+                    {
+                        var repairSql = $@"
+                            CREATE TABLE IF NOT EXISTS ""{schemaName}"".""ProductionShifts"" (
+                                ""Id"" uuid NOT NULL,
+                                ""Name"" text NOT NULL,
+                                ""StartTime"" text NOT NULL,
+                                ""EndTime"" text NOT NULL,
+                                ""IsActive"" boolean NOT NULL,
+                                ""TenantId"" uuid NOT NULL,
+                                ""CompanyId"" uuid NOT NULL,
+                                ""CreatedAt"" timestamp with time zone NOT NULL,
+                                ""IsDeleted"" boolean NOT NULL,
+                                CONSTRAINT ""PK_ProductionShifts_{schemaName}"" PRIMARY KEY (""Id"")
+                            );
+                            ALTER TABLE ""{schemaName}"".""ProductionShifts"" ADD COLUMN IF NOT EXISTS ""Description"" text NULL;
+                        ";
+                        await tenantContext.Database.ExecuteSqlRawAsync(repairSql);
+                    }
+                    catch (Exception repairEx)
+                    {
+                        Console.WriteLine($"[SCHEMA REPAIR ERROR]: Failed to repair ProductionShifts schema for {schemaName}: {repairEx.Message}");
+                    }
                     
                     if (onProgress != null)
                     {

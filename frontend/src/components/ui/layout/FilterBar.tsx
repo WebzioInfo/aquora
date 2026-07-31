@@ -15,7 +15,7 @@ interface FilterBarProps {
 export const FilterBar: React.FC<FilterBarProps> = ({ children, actions, className = '' }) => {
   return (
     <div
-      className={`bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full ${className}`}
+      className={`bg-white border border-[#E5E7EB] rounded-xl px-4 py-3 shadow-sm flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full ${className}`}
     >
       <div className="flex flex-1 flex-wrap items-center gap-3">{children}</div>
       {actions && (

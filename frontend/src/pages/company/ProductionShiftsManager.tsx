@@ -20,7 +20,7 @@ const shiftSchema = z.object({
   startTime: z.string().min(1, "Start Time is required."),
   endTime: z.string().min(1, "End Time is required."),
   description: z.string().optional(),
-  isActive: z.boolean().default(true),
+  isActive: z.boolean(),
 }).refine(data => data.startTime !== data.endTime, {
   message: "End Time cannot equal Start Time.",
   path: ["endTime"],
@@ -88,8 +88,17 @@ export const ProductionShiftsManager: React.FC = () => {
   const { data: shifts = [], isLoading } = useQuery<ProductionShift[]>({
     queryKey: ['productionShifts'],
     queryFn: async () => {
-      const res = await productionShiftsService.getAll();
-      return res.data?.data || [];
+      try {
+        const res = await productionShiftsService.getAll();
+        if (!res.data?.success) {
+          showToast(res.data?.message || 'Unable to load Production Shifts. Please try again.', 'warning');
+          return [];
+        }
+        return res.data?.data || [];
+      } catch (err) {
+        showToast('Unable to load Production Shifts. Please try again later.', 'error');
+        return [];
+      }
     }
   });
 
@@ -99,7 +108,8 @@ export const ProductionShiftsManager: React.FC = () => {
   });
 
   const { register: registerEdit, handleSubmit: handleSubmitEdit, control: controlEdit, reset: resetEdit, formState: { errors: editErrors } } = useForm<ShiftFormData>({
-    resolver: zodResolver(shiftSchema)
+    resolver: zodResolver(shiftSchema),
+    defaultValues: { name: '', startTime: '', endTime: '', description: '', isActive: true }
   });
 
   const createMutation = useMutation({
@@ -301,25 +311,25 @@ export const ProductionShiftsManager: React.FC = () => {
             <EnterpriseLoading />
           </div>
         ) : shifts.length > 0 ? (
-          <div className="border border-[#E5E7EB] rounded-lg overflow-hidden shadow-sm bg-white">
+          <div className="border border-[#E5E7EB] rounded-xl overflow-hidden shadow-sm bg-white">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-[#E5E7EB]">
-                  <th className="p-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Shift Name</th>
-                  <th className="p-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Start Time</th>
-                  <th className="p-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">End Time</th>
-                  <th className="p-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Duration</th>
-                  <th className="p-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Status</th>
-                  <th className="p-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Employees Assigned</th>
-                  {canManage && <th className="p-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Actions</th>}
+                <tr className="bg-[#F8FAFC] border-b border-[#E5E7EB] text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none h-[36px]">
+                  <th className="py-2 px-4">Shift Name</th>
+                  <th className="py-2 px-4">Start Time</th>
+                  <th className="py-2 px-4">End Time</th>
+                  <th className="py-2 px-4">Duration</th>
+                  <th className="py-2 px-4">Status</th>
+                  <th className="py-2 px-4">Employees Assigned</th>
+                  {canManage && <th className="py-2 px-4 text-right">Actions</th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E5E7EB] bg-white">
-                {shifts.map((shift) => {
+              <tbody className="divide-y divide-[#F1F5F9] text-[13px] text-slate-700">
+                {shifts.map((shift, i) => {
                   const durationStr = calculateShiftDuration(shift.startTime, shift.endTime);
                   return (
-                    <tr key={shift.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="p-3">
+                    <tr key={shift.id} className={`h-[38px] transition-colors ${i%2===0?'bg-white':'bg-[#FAFBFC]'} hover:bg-blue-50/30`}>
+                      <td className="py-2 px-4">
                         <div className="text-xs font-bold text-slate-900">{shift.name}</div>
                         {shift.description && (
                           <div className="text-[11px] text-slate-500 font-normal">{shift.description}</div>

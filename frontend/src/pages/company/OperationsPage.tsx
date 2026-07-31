@@ -1,6 +1,5 @@
 import PageContainer from '../../components/ui/layout/PageContainer';
 import PageHeader from '../../components/ui/layout/PageHeader';
-import Breadcrumb from '../../components/ui/layout/Breadcrumb';
 import KPICard from '../../components/ui/layout/KPICard';
 import FilterBar from '../../components/ui/layout/FilterBar';
 import React, { useState, useEffect } from 'react'
@@ -194,7 +193,6 @@ export const OperationsPage: React.FC = () => {
 
   return (
     <PageContainer>
-      <Breadcrumb items={[{ label: 'Company' }, { label: '20L Operations' }]} />
       <PageHeader
         title="20L Operations"
         description="Manage 20L empty returns, filling queue, and loading operations."
@@ -205,7 +203,7 @@ export const OperationsPage: React.FC = () => {
           <div className="lg:col-span-3 space-y-6">
             
             {/* SECTION 1: Return Entry */}
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
+            <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-6">
               <h2 className="text-lg font-bold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">
                 <Truck className="w-5 h-5 text-blue-600" />
                 Return Entry & Arrival

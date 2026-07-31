@@ -25,23 +25,23 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   actions,
 }) => {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm px-5 py-3 flex flex-wrap items-center justify-between gap-3">
       {/* Left */}
-      <div className="flex items-start gap-3">
+      <div className="flex items-center gap-3">
         {Icon && (
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
-            <Icon className="w-5 h-5" />
+          <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <Icon className="w-4 h-4" />
           </div>
         )}
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
-            <h1 className="text-[22px] font-black tracking-tight text-slate-900 leading-none">
+            <h1 className="text-[20px] font-black text-slate-900 leading-tight tracking-tight">
               {title}
             </h1>
             {badge && <div className="flex items-center">{badge}</div>}
           </div>
           {description && (
-            <p className="text-[13px] font-medium text-slate-500 mt-1.5 leading-relaxed">
+            <p className="text-[12px] text-slate-500 mt-0.5">
               {description}
             </p>
           )}
@@ -50,7 +50,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 
       {/* Right */}
       {actions && (
-        <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+        <div className="flex items-center gap-3 ml-auto">
           {actions}
         </div>
       )}

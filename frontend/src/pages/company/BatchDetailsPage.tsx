@@ -1,6 +1,5 @@
 import PageContainer from '../../components/ui/layout/PageContainer';
 import PageHeader from '../../components/ui/layout/PageHeader';
-import Breadcrumb from '../../components/ui/layout/Breadcrumb';
 import KPICard from '../../components/ui/layout/KPICard';
 import FilterBar from '../../components/ui/layout/FilterBar';
 ﻿import React, { useState, useEffect } from 'react'
@@ -239,15 +238,6 @@ export const BatchDetailsPage: React.FC = () => {
   // ─────────────────────────────────────────────────────────────────────────────
   return (
     <PageContainer>
-      <Breadcrumb
-        items={[
-          { label: 'Company' },
-          { label: 'Production', href: '/company/production' },
-          { label: batchMeta.batchNumber }
-        ]}
-        backHref="/company/production"
-        backLabel="Back to Production"
-      />
 
       {/* ══ HEADER ══════════════════════════════════════════════════════════ */}
       <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm overflow-hidden">

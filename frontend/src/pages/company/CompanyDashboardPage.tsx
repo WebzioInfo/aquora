@@ -1,6 +1,5 @@
 import PageContainer from '../../components/ui/layout/PageContainer';
 import PageHeader from '../../components/ui/layout/PageHeader';
-import Breadcrumb from '../../components/ui/layout/Breadcrumb';
 import KPICard from '../../components/ui/layout/KPICard';
 import FilterBar from '../../components/ui/layout/FilterBar';
 import React, { useState } from 'react'
@@ -399,8 +398,12 @@ export const CompanyDashboardPage: React.FC = () => {
   const { data: productionShifts = [] } = useQuery({
     queryKey: ['productionShifts'],
     queryFn: async () => {
-      const res = await productionShiftsService.getAll()
-      return res.data?.data || []
+      try {
+        const res = await productionShiftsService.getAll()
+        return res.data?.data || []
+      } catch (err) {
+        return []
+      }
     },
     enabled: user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
@@ -1688,7 +1691,6 @@ export const CompanyDashboardPage: React.FC = () => {
   if (isSettingsView) {
     return (
       <PageContainer>
-        <Breadcrumb items={[{ label: 'Company' }, { label: 'Company Settings' }]} />
         <PageHeader
           title="Company Settings"
           description="Manage configuration parameters for the current company tenant."
@@ -1899,65 +1901,40 @@ export const CompanyDashboardPage: React.FC = () => {
     }
 
 
+    const searchParams = new URLSearchParams(location.search)
+    const productionTab = searchParams.get('tab') || 'batches'
+    const pageTitle = productionTab === 'lines' ? 'Production Lines' : productionTab === 'shifts' ? 'Production Shifts' : 'Production Batches'
+    const pageDesc = productionTab === 'lines' ? 'Manage production bottling & packaging lines' : productionTab === 'shifts' ? 'Configure operational shifts, start & end times' : 'Batch queue - monitor, filter, and manage active production runs'
+
     return (
       <PageContainer>
-        <Breadcrumb items={[{ label: 'Company' }, { label: 'Production' }]} />
         <PageHeader
-          title="Production"
-          description="Batch queue - monitor, filter, and manage active production runs"
+          title={pageTitle}
+          description={pageDesc}
           actions={
-            <div className="flex items-center gap-3">
-              <span className="text-[11px] font-semibold text-slate-500 select-none">
-                {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-              </span>
+            productionTab === 'batches' ? (
               <button
                 onClick={() => {
                   if (productionLines.length > 0) setStartBatchLineId(productionLines[0].lineId)
                   if (allCatalogProducts.length > 0) setStartBatchProduct(allCatalogProducts[0].name)
                   setIsStartBatchModalOpen(true)
                 }}
-                className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow-sm"
+                className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Create Batch</span>
               </button>
-            </div>
+            ) : productionTab === 'lines' ? (
+              <button
+                onClick={() => setIsAddLineModalOpen(true)}
+                className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Production Line</span>
+              </button>
+            ) : null
           }
         />
-
-        {/* Tab Switcher */}
-        <div className="flex gap-0 border-b border-[#E5E7EB] select-none bg-white rounded-t-lg px-4 shadow-sm border border-[#E5E7EB]">
-          <button
-            onClick={() => setProductionTab('batches')}
-            className={`py-2 px-4 text-[12px] font-bold border-b-2 transition-all cursor-pointer ${
-              productionTab === 'batches'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-400 hover:text-slate-700'
-            }`}
-          >
-            Batch Queue
-          </button>
-          <button
-            onClick={() => setProductionTab('lines')}
-            className={`py-2 px-4 text-[12px] font-bold border-b-2 transition-all cursor-pointer ${
-              productionTab === 'lines'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-400 hover:text-slate-700'
-            }`}
-          >
-            Production Lines
-          </button>
-          <button
-            onClick={() => setProductionTab('shifts')}
-            className={`py-2 px-4 text-[12px] font-bold border-b-2 transition-all cursor-pointer ${
-              productionTab === 'shifts'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-400 hover:text-slate-700'
-            }`}
-          >
-            Production Shifts
-          </button>
-        </div>
 
         {productionTab === 'batches' ? (
           <>
@@ -2123,12 +2100,6 @@ export const CompanyDashboardPage: React.FC = () => {
             {/* Production Lines Table */}
             <div className="flex items-center justify-between mb-1 px-1">
               <span className="text-[12px] font-bold text-slate-700">Production Lines</span>
-              <button
-                onClick={() => setIsAddLineModalOpen(true)}
-                className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg cursor-pointer transition-all"
-              >
-                <Plus className="w-3 h-3" /> Add Line
-              </button>
             </div>
             {linesLoading ? (
               <div className="bg-white border border-[#E5E7EB] rounded-xl p-6 text-center text-[12px] text-slate-400 shadow-sm">
@@ -2183,12 +2154,6 @@ export const CompanyDashboardPage: React.FC = () => {
             ) : (
               <div className="bg-white border border-[#E5E7EB] rounded-xl p-10 text-center shadow-sm">
                 <p className="text-[13px] font-semibold text-slate-500">No production lines found. Create your first line to get started.</p>
-                <button
-                  onClick={() => setIsAddLineModalOpen(true)}
-                  className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg shadow-sm cursor-pointer"
-                >
-                  Add Production Line
-                </button>
               </div>
             )}
           </>
@@ -2479,7 +2444,6 @@ export const CompanyDashboardPage: React.FC = () => {
 
     return (
       <PageContainer>
-        <Breadcrumb items={[{ label: 'Company' }, { label: 'Employees' }]} />
         <PageHeader
           title="Employees"
           description="Provision operator credentials and configure RBAC authorization roles."

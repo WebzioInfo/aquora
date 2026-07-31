@@ -1,14 +1,14 @@
 import PageContainer from '../../components/ui/layout/PageContainer';
 import PageHeader from '../../components/ui/layout/PageHeader';
-import Breadcrumb from '../../components/ui/layout/Breadcrumb';
 import KPICard from '../../components/ui/layout/KPICard';
 import FilterBar from '../../components/ui/layout/FilterBar';
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { 
   Search, Plus, Eye, Edit2, Trash2, X, AlertTriangle, 
   User as UserIcon, Calendar, ArrowUpDown, Filter, ChevronLeft, ChevronRight, CheckCircle2,
-  Package, ShoppingCart, Info, Phone, MessageSquare, Tag, FileSpreadsheet
+  Package, ShoppingCart, Info, Phone, MessageSquare, Tag, FileSpreadsheet, FileText, Landmark
 } from 'lucide-react'
 import { salesService } from '../../services/sales'
 import type { SalesTransaction, CreateSalesTransactionRequest } from '../../services/sales'
@@ -33,6 +33,8 @@ const PremiumLabel: React.FC<{ label: string; required?: boolean }> = ({ label, 
 export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, type: 'success' | 'error' | 'warning' | 'info') => void }> = ({ canWrite, showToast }) => {
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
+  const location = useLocation()
+  const navigate = useNavigate()
 
   // Table parameters
   const [page, setPage] = useState(1)
@@ -90,7 +92,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
   const products = productsData || []
 
   // Fetch all active customers for selection
-  const { data: customersData } = useQuery({
+  const { data: customersData, refetch: refetchCustomers } = useQuery({
     queryKey: ['activeCustomersForSales'],
     queryFn: async () => {
       const res = await customersService.getCustomers(1, 100, '', '', 'Active')
@@ -98,6 +100,84 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     }
   })
   const customers = customersData || []
+
+  // Quick Customer Creation navigation handler
+  const handleQuickCreateCustomer = () => {
+    if (!canWrite) {
+      showToast('You do not have write permissions.', 'warning')
+      return
+    }
+    const salesForm = {
+      formType,
+      formProductId,
+      formCustomerId,
+      formCases,
+      formDate,
+      formRef,
+      formRemarks,
+      isCreateOpen: true
+    }
+    navigate('/company/customers', {
+      state: {
+        fromSales: true,
+        salesForm
+      }
+    })
+  }
+
+  // Effect to restore sales state and auto-select newly created customer upon return
+  useEffect(() => {
+    if (location.state?.fromCustomerCreation) {
+      const { salesForm, newCreatedCustomerId } = location.state
+      if (salesForm) {
+        if (salesForm.formType !== undefined) setFormType(salesForm.formType)
+        if (salesForm.formProductId !== undefined) setFormProductId(salesForm.formProductId)
+        if (salesForm.formCases !== undefined) setFormCases(salesForm.formCases)
+        if (salesForm.formDate !== undefined) setFormDate(salesForm.formDate)
+        if (salesForm.formRef !== undefined) setFormRef(salesForm.formRef)
+        if (salesForm.formRemarks !== undefined) setFormRemarks(salesForm.formRemarks)
+        if (salesForm.isCreateOpen) setIsCreateOpen(true)
+      }
+
+      // Clear navigation state
+      navigate(location.pathname, { replace: true, state: {} })
+
+      // Invalidate and refetch customers list from API
+      queryClient.invalidateQueries({ queryKey: ['activeCustomersForSales'] })
+      refetchCustomers().then((res) => {
+        const fetched = res.data || []
+        const createdCustomer = fetched.find(c => c.id === newCreatedCustomerId)
+        if (createdCustomer) {
+          setFormCustomerId(createdCustomer.id)
+          setCustomerSearch(createdCustomer.customerName)
+        } else if (newCreatedCustomerId) {
+          customersService.getCustomerById(newCreatedCustomerId).then(cRes => {
+            if (cRes.data) {
+              setFormCustomerId(cRes.data.id)
+              setCustomerSearch(cRes.data.customerName)
+            }
+          }).catch(() => {
+            showToast('Failed to auto-select created customer.', 'warning')
+          })
+        }
+      }).catch(() => {
+        showToast('Failed to refresh customer list.', 'error')
+      })
+    } else if (location.state?.fromSales && location.state?.salesForm) {
+      const { salesForm } = location.state
+      if (salesForm) {
+        if (salesForm.formType !== undefined) setFormType(salesForm.formType)
+        if (salesForm.formProductId !== undefined) setFormProductId(salesForm.formProductId)
+        if (salesForm.formCustomerId !== undefined) setFormCustomerId(salesForm.formCustomerId)
+        if (salesForm.formCases !== undefined) setFormCases(salesForm.formCases)
+        if (salesForm.formDate !== undefined) setFormDate(salesForm.formDate)
+        if (salesForm.formRef !== undefined) setFormRef(salesForm.formRef)
+        if (salesForm.formRemarks !== undefined) setFormRemarks(salesForm.formRemarks)
+        if (salesForm.isCreateOpen) setIsCreateOpen(true)
+      }
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location.state])
 
   // Computed properties for selected product and customer in form
   const selectedProductInForm = useMemo(() => {
@@ -300,14 +380,13 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
 
   return (
     <PageContainer>
-      <Breadcrumb items={[{ label: 'Company' }, { label: 'Sales' }]} />
       <PageHeader
         title="Sales"
         description="Log finished goods dispatches, returns, and damages with proper inventory adjustments."
         actions={
           <button
             onClick={handleOpenCreate}
-            className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow-sm"
+            className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             Create Transaction
@@ -324,13 +403,13 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
             placeholder="Search txn, customer, product..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pl-9 pr-4 w-full h-9 text-xs bg-white border border-slate-200 rounded-lg placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="pl-9 pr-4 w-full h-[32px] text-[12px] bg-white border border-[#E5E7EB] rounded-lg placeholder-slate-400 focus:outline-none focus:border-blue-400"
           />
         </div>
         <select
           value={typeFilter}
           onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-          className="h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 cursor-pointer"
+          className="h-[32px] px-3 text-[12px] font-semibold bg-white border border-[#E5E7EB] rounded-lg focus:outline-none focus:border-blue-400 cursor-pointer text-slate-700"
         >
           <option value="">All Types</option>
           <option value="Sales Dispatch">Sales Dispatch</option>
@@ -340,7 +419,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
         <select
           value={productIdFilter}
           onChange={(e) => { setProductIdFilter(e.target.value); setPage(1); }}
-          className="h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 cursor-pointer"
+          className="h-[32px] px-3 text-[12px] font-semibold bg-white border border-[#E5E7EB] rounded-lg focus:outline-none focus:border-blue-400 cursor-pointer text-slate-700"
         >
           <option value="">All Products</option>
           {products.map(p => (
@@ -350,7 +429,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
         <select
           value={customerIdFilter}
           onChange={(e) => { setCustomerIdFilter(e.target.value); setPage(1); }}
-          className="h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 cursor-pointer"
+          className="h-[32px] px-3 text-[12px] font-semibold bg-white border border-[#E5E7EB] rounded-lg focus:outline-none focus:border-blue-400 cursor-pointer text-slate-700"
         >
           <option value="">All Customers</option>
           {customers.map(c => (
@@ -361,18 +440,18 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
           type="date"
           value={startDateFilter}
           onChange={(e) => { setStartDateFilter(e.target.value); setPage(1); }}
-          className="h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none cursor-pointer"
+          className="h-[32px] px-3 text-[12px] font-semibold bg-white border border-[#E5E7EB] rounded-lg focus:outline-none cursor-pointer text-slate-700"
         />
         <input
           type="date"
           value={endDateFilter}
           onChange={(e) => { setEndDateFilter(e.target.value); setPage(1); }}
-          className="h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none cursor-pointer"
+          className="h-[32px] px-3 text-[12px] font-semibold bg-white border border-[#E5E7EB] rounded-lg focus:outline-none cursor-pointer text-slate-700"
         />
         <select
           value={sortOrder}
           onChange={(e) => { setSortOrder(e.target.value); setPage(1); }}
-          className="h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 cursor-pointer"
+          className="h-[32px] px-3 text-[12px] font-semibold bg-white border border-[#E5E7EB] rounded-lg focus:outline-none focus:border-blue-400 cursor-pointer text-slate-700"
         >
           <option value="newest">Newest</option>
           <option value="oldest">Oldest</option>
@@ -387,7 +466,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       </FilterBar>
 
       {/* TABLE SECTION */}
-      <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden shadow-sm">
         {isTxnsLoading ? (
           <div className="py-20 flex flex-col justify-center items-center gap-3">
             <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
@@ -401,23 +480,23 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/75 border-b border-slate-100 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                  <th className="py-3 px-4">Date</th>
-                  <th className="py-3 px-4">Transaction No</th>
-                  <th className="py-3 px-4">Customer</th>
-                  <th className="py-3 px-4">Product</th>
-                  <th className="py-3 px-4">Type</th>
-                  <th className="py-3 px-4 text-right">Cases</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4">Created By</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                <tr className="bg-[#F8FAFC] border-b border-[#E5E7EB] text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none h-[36px]">
+                  <th className="py-2 px-4">Date</th>
+                  <th className="py-2 px-4">Transaction No</th>
+                  <th className="py-2 px-4">Customer</th>
+                  <th className="py-2 px-4">Product</th>
+                  <th className="py-2 px-4">Type</th>
+                  <th className="py-2 px-4 text-right">Cases</th>
+                  <th className="py-2 px-4 text-center">Status</th>
+                  <th className="py-2 px-4">Created By</th>
+                  <th className="py-2 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {transactions.map((txn) => (
-                  <tr key={txn.id} className="hover:bg-slate-50/40 transition-colors">
+              <tbody className="divide-y divide-[#F1F5F9] text-[13px] text-slate-700">
+                {transactions.map((txn, i) => (
+                  <tr key={txn.id} className={`h-[38px] transition-colors ${i%2===0?'bg-white':'bg-[#FAFBFC]'} hover:bg-blue-50/30`}>
                     <td className="py-3 px-4 text-slate-600 whitespace-nowrap">
                       {new Date(txn.transactionDate).toLocaleDateString('en-IN', { dateStyle: 'medium' })}
                     </td>
@@ -566,21 +645,13 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
 
                 {/* Live Product details indicator */}
                 {selectedProductInForm && (
-                  <div className="mt-2.5 bg-blue-50/50 border border-blue-100 rounded-lg p-3 text-[11px] space-y-1">
+                  <div className="mt-2.5 bg-blue-50/50 border border-blue-100 rounded-lg px-3 py-2 text-[11px]">
                     <div className="flex items-center justify-between text-blue-800">
                       <span className="font-medium flex items-center gap-1">
-                        <Package className="w-3.5 h-3.5" />
+                        <Package className="w-3.5 h-3.5 text-blue-600" />
                         Current Stock:
                       </span>
                       <span className="font-bold font-mono text-[12px]">{selectedProductInForm.currentStock.toLocaleString()} Cases</span>
-                    </div>
-                    <div className="flex items-center justify-between text-blue-800">
-                      <span className="font-medium">Available Stock:</span>
-                      <span className="font-bold font-mono text-[12px]">{selectedProductInForm.currentStock.toLocaleString()} Cases</span>
-                    </div>
-                    <div className="flex items-center justify-between text-blue-800">
-                      <span className="font-medium">Unit:</span>
-                      <span>Cases</span>
                     </div>
                   </div>
                 )}
@@ -589,72 +660,79 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
               {/* Searchable Customer Selection */}
               <div className="flex flex-col relative">
                 <PremiumLabel label="Customer *" />
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search and select active customer..."
-                    value={customerSearch}
-                    onChange={(e) => {
-                      setCustomerSearch(e.target.value)
-                      setIsCustomerDropdownOpen(true)
-                    }}
-                    onFocus={() => setIsCustomerDropdownOpen(true)}
-                    className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100/50"
-                  />
-                  {customerSearch && (
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      placeholder="Search and select active customer..."
+                      value={customerSearch}
+                      onChange={(e) => {
+                        setCustomerSearch(e.target.value)
+                        setIsCustomerDropdownOpen(true)
+                      }}
+                      onFocus={() => setIsCustomerDropdownOpen(true)}
+                      className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100/50"
+                    />
+                    {customerSearch && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomerSearch('')
+                          setFormCustomerId('')
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+
+                    {isCustomerDropdownOpen && (
+                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {filteredCustomersForForm.length === 0 ? (
+                          <div className="py-3 px-4 text-xs text-slate-400 italic">No customers found.</div>
+                        ) : (
+                          filteredCustomersForForm.map(c => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => {
+                                setFormCustomerId(c.id)
+                                setCustomerSearch(c.customerName)
+                                setIsCustomerDropdownOpen(false)
+                              }}
+                              className="w-full text-left py-2.5 px-4 text-xs hover:bg-slate-50 transition-colors border-b border-slate-100/50 last:border-0"
+                            >
+                              <div className="font-bold text-slate-700">{c.customerName}</div>
+                              <div className="text-[10px] text-slate-450 mt-0.5">{c.customerCode} &bull; {c.phone}</div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {canWrite && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setCustomerSearch('')
-                        setFormCustomerId('')
-                      }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      onClick={handleQuickCreateCustomer}
+                      className="h-[40px] px-3 border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                      title="Create a new customer"
                     >
-                      <X className="w-4 h-4" />
+                      <Plus className="w-3.5 h-3.5 text-blue-600" />
+                      <span>+ New Customer</span>
                     </button>
                   )}
                 </div>
 
-                {isCustomerDropdownOpen && (
-                  <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    {filteredCustomersForForm.length === 0 ? (
-                      <div className="py-3 px-4 text-xs text-slate-400 italic">No customers found.</div>
-                    ) : (
-                      filteredCustomersForForm.map(c => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => {
-                            setFormCustomerId(c.id)
-                            setCustomerSearch(c.customerName)
-                            setIsCustomerDropdownOpen(false)
-                          }}
-                          className="w-full text-left py-2.5 px-4 text-xs hover:bg-slate-50 transition-colors border-b border-slate-100/50 last:border-0"
-                        >
-                          <div className="font-bold text-slate-700">{c.customerName}</div>
-                          <div className="text-[10px] text-slate-450 mt-0.5">{c.customerCode} &bull; {c.phone}</div>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
-
                 {/* Selected Customer details panel */}
                 {selectedCustomerInForm && (
-                  <div className="mt-2.5 bg-slate-50 border border-slate-150 rounded-lg p-3 text-[11px] space-y-1.5">
-                    <div className="flex items-center justify-between text-slate-600">
-                      <span className="font-medium flex items-center gap-1">
-                        <Tag className="w-3.5 h-3.5 text-slate-400" />
-                        Customer Code:
-                      </span>
-                      <span className="font-bold font-mono text-slate-800">{selectedCustomerInForm.customerCode}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-slate-600">
+                  <div className="mt-2.5 bg-slate-50 border border-slate-150 rounded-lg px-3 py-2 text-[11px] space-y-1">
+                    <div className="flex items-center justify-between text-slate-650">
                       <span className="font-medium flex items-center gap-1">
                         <Phone className="w-3.5 h-3.5 text-slate-400" />
-                        Contact:
+                        Contact Number:
                       </span>
-                      <span>{selectedCustomerInForm.phone}</span>
+                      <span className="font-semibold text-slate-800">{selectedCustomerInForm.phone || '—'}</span>
                     </div>
                     <div className="flex items-center justify-between text-slate-650">
                       <span className="font-medium flex items-center gap-1">
@@ -807,17 +885,13 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
 
                 {/* Live Product details indicator */}
                 {selectedProductInForm && (
-                  <div className="mt-2.5 bg-blue-50/50 border border-blue-100 rounded-lg p-3 text-[11px] space-y-1">
+                  <div className="mt-2.5 bg-blue-50/50 border border-blue-100 rounded-lg px-3 py-2 text-[11px]">
                     <div className="flex items-center justify-between text-blue-800">
                       <span className="font-medium flex items-center gap-1">
-                        <Package className="w-3.5 h-3.5" />
+                        <Package className="w-3.5 h-3.5 text-blue-600" />
                         Current Stock:
                       </span>
                       <span className="font-bold font-mono text-[12px]">{selectedProductInForm.currentStock.toLocaleString()} Cases</span>
-                    </div>
-                    <div className="flex items-center justify-between text-blue-800">
-                      <span className="font-medium">Unit:</span>
-                      <span>Cases</span>
                     </div>
                   </div>
                 )}
@@ -878,14 +952,23 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
 
                 {/* Selected Customer details panel */}
                 {selectedCustomerInForm && (
-                  <div className="mt-2.5 bg-slate-50 border border-slate-150 rounded-lg p-3 text-[11px] space-y-1">
-                    <div className="flex items-center justify-between text-slate-600">
-                      <span className="font-medium">Customer Code:</span>
-                      <span className="font-bold font-mono text-slate-800">{selectedCustomerInForm.customerCode}</span>
+                  <div className="mt-2.5 bg-slate-50 border border-slate-150 rounded-lg px-3 py-2 text-[11px] space-y-1">
+                    <div className="flex items-center justify-between text-slate-650">
+                      <span className="font-medium flex items-center gap-1">
+                        <Phone className="w-3.5 h-3.5 text-slate-400" />
+                        Contact Number:
+                      </span>
+                      <span className="font-semibold text-slate-800">{selectedCustomerInForm.phone || '—'}</span>
                     </div>
                     <div className="flex items-center justify-between text-slate-650">
-                      <span className="font-medium">Outstanding Balance:</span>
-                      <span className="font-bold font-mono">
+                      <span className="font-medium flex items-center gap-1">
+                        <Info className="w-3.5 h-3.5 text-slate-400" />
+                        Outstanding Balance:
+                      </span>
+                      <span className={`font-bold font-mono ${
+                        selectedCustomerInForm.balanceType === 'Receivable' ? 'text-blue-600' : selectedCustomerInForm.balanceType === 'Payable' ? 'text-rose-500' : 'text-slate-700'
+                      }`}>
+                        {selectedCustomerInForm.balanceType === 'Receivable' ? '+' : selectedCustomerInForm.balanceType === 'Payable' ? '-' : ''}
                         ₹{selectedCustomerInForm.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
@@ -959,160 +1042,162 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
         </div>
       )}
 
-      {/* VIEW MODAL */}
+      {/* VIEW MODAL - Clean Enterprise Light Theme */}
       {isViewOpen && selectedTxn && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex justify-center items-center p-4 transition-all duration-300">
-          <div className="bg-white border border-slate-150 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] transform scale-100 transition-all">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex justify-center items-center p-4 transition-opacity duration-200">
+          <div className="bg-white border border-gray-200 w-full max-w-lg rounded-[16px] shadow-[0_10px_30px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col max-h-[90vh]">
             
-            {/* Cool Gradient Header */}
-            <div className="relative bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-5 text-white flex justify-between items-center overflow-hidden">
-              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
-              <div className="relative flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border shadow-inner ${
-                  selectedTxn.transactionType === 'Sales Dispatch' 
-                    ? 'bg-blue-500/20 border-blue-500/30 text-blue-400' 
-                    : selectedTxn.transactionType === 'Customer Return' 
-                    ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' 
-                    : 'bg-rose-500/20 border-rose-500/30 text-rose-400'
-                }`}>
-                  {selectedTxn.transactionType === 'Sales Dispatch' ? (
-                    <ShoppingCart className="w-5 h-5" />
-                  ) : selectedTxn.transactionType === 'Customer Return' ? (
-                    <CheckCircle2 className="w-5 h-5" />
-                  ) : (
-                    <AlertTriangle className="w-5 h-5" />
-                  )}
+            {/* Enterprise Header */}
+            <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-[10px] bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1A56DB]">
+                  <FileText className="w-5 h-5" />
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block">Transaction Ledger</span>
-                  <h2 className="text-base font-black tracking-tight text-white font-mono mt-0.5">
-                    {selectedTxn.transactionNumber}
+                  <h2 className="text-[16px] font-semibold text-gray-900">
+                    Sales Transaction Details
                   </h2>
+                  <p className="text-xs font-mono font-medium text-gray-500 mt-0.5">
+                    {selectedTxn.transactionNumber}
+                  </p>
                 </div>
               </div>
               <button 
+                type="button"
                 onClick={() => setIsViewOpen(false)} 
-                className="relative bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer"
+                className="p-1.5 rounded-[8px] text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+                aria-label="Close modal"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Scrollable Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+            <div className="flex-1 overflow-y-auto p-6 space-y-5 text-left">
               
-              {/* Transaction Type & Date Row */}
-              <div className="flex justify-between items-center">
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
+              {/* Transaction Status Badge & Date Row */}
+              <div className="flex justify-between items-center pb-1">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${
                   selectedTxn.transactionType === 'Sales Dispatch' 
-                    ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                    ? 'bg-blue-50 text-blue-700 border-blue-100' 
                     : selectedTxn.transactionType === 'Customer Return' 
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
+                    : 'bg-rose-50 text-rose-700 border-rose-100'
                 }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${
-                    selectedTxn.transactionType === 'Sales Dispatch' ? 'bg-blue-600' : selectedTxn.transactionType === 'Customer Return' ? 'bg-emerald-600' : 'bg-rose-600'
+                    selectedTxn.transactionType === 'Sales Dispatch' 
+                      ? 'bg-blue-600' 
+                      : selectedTxn.transactionType === 'Customer Return' 
+                      ? 'bg-emerald-600' 
+                      : 'bg-rose-600'
                   }`} />
                   {selectedTxn.transactionType}
                 </span>
 
-                <span className="text-xs font-semibold text-slate-450 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5" />
-                  {new Date(selectedTxn.transactionDate).toLocaleDateString('en-IN', { dateStyle: 'long' })}
+                <span className="text-xs font-medium text-gray-500 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                  {new Date(selectedTxn.transactionDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                 </span>
               </div>
 
-              {/* Product and Stock Effect Card */}
-              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 flex items-center justify-between shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 right-0 -translate-y-4 translate-x-4 opacity-5 pointer-events-none">
-                  <Package className="w-24 h-24 text-slate-900" />
+              {/* Product Information Card */}
+              <div className="bg-white border border-gray-200 rounded-[12px] p-4 space-y-3">
+                <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
+                  <Package className="w-4 h-4 text-gray-400" />
+                  <h3 className="text-[13px] font-semibold text-gray-900">Product Information</h3>
                 </div>
-                <div className="relative space-y-1">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Product Catalog SKU</span>
-                  <h3 className="text-sm font-black text-slate-850">{selectedTxn.productName}</h3>
-                  <p className="text-[11px] font-mono text-slate-455">{selectedTxn.productSku || 'NO_SKU_CODE'}</p>
-                </div>
-                <div className="relative text-right">
-                  <span className="text-[10px] uppercase font-bold text-slate-450 tracking-wider block mb-1">Stock Effect</span>
-                  <div className={`inline-flex items-baseline font-black font-mono text-2xl tracking-tight px-3 py-1 rounded-xl ${
-                    selectedTxn.transactionType === 'Customer Return' 
-                      ? 'text-emerald-700 bg-emerald-50 border border-emerald-100' 
-                      : 'text-rose-650 bg-rose-55 text-rose-100'
-                  }`}>
-                    <span className="text-lg mr-0.5">{selectedTxn.transactionType === 'Customer Return' ? '+' : '-'}</span>
-                    {selectedTxn.cases.toLocaleString()}
-                    <span className="text-xs font-semibold ml-1.5 text-slate-500 font-sans">Cases</span>
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <span className="text-gray-500 block mb-0.5">Product</span>
+                    <span className="font-semibold text-gray-900 block">{selectedTxn.productName}</span>
+                    <span className="text-[11px] font-mono text-gray-400 block mt-0.5">{selectedTxn.productSku || 'NO_SKU_CODE'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block mb-0.5">Stock Impact</span>
+                    <span className={`text-sm font-semibold font-mono inline-block ${
+                      selectedTxn.transactionType === 'Customer Return' ? 'text-emerald-600' : 'text-rose-600'
+                    }`}>
+                      {selectedTxn.transactionType === 'Customer Return' ? '+' : '−'}
+                      {selectedTxn.cases.toLocaleString()} Cases
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Customer Box */}
-              <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-5 space-y-3.5">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-slate-200/60 flex items-center justify-center text-slate-500">
-                      <UserIcon className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block leading-none">Wholesale Customer</span>
-                      <h4 className="text-xs font-black text-slate-850 mt-1">{selectedTxn.customerName}</h4>
-                    </div>
-                  </div>
-                  <span className="font-mono text-[11px] font-bold text-slate-450 bg-slate-200/50 px-2.5 py-0.5 rounded-md">
-                    {selectedTxn.customerCode}
-                  </span>
+              {/* Customer Information Card */}
+              <div className="bg-white border border-gray-200 rounded-[12px] p-4 space-y-3">
+                <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
+                  <UserIcon className="w-4 h-4 text-gray-400" />
+                  <h3 className="text-[13px] font-semibold text-gray-900">Customer Details</h3>
                 </div>
-
                 <div className="grid grid-cols-2 gap-4 text-xs">
                   <div>
-                    <span className="text-slate-400 block mb-0.5">Contact Number:</span>
-                    <span className="font-bold text-slate-700">{selectedCustomerInForm?.phone || '—'}</span>
+                    <span className="text-gray-500 block mb-0.5">Customer</span>
+                    <span className="font-semibold text-gray-900 block">{selectedTxn.customerName}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block mb-0.5">Outstanding Balance:</span>
-                    <span className="font-bold font-mono text-slate-850">
+                    <span className="text-gray-500 block mb-0.5">Customer Code</span>
+                    <span className="font-mono font-medium text-gray-700 block">{selectedTxn.customerCode}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block mb-0.5">Phone</span>
+                    <span className="font-medium text-gray-700 block">{selectedCustomerInForm?.phone || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block mb-0.5">Outstanding Balance</span>
+                    <span className="font-mono font-medium text-gray-900 block">
                       ₹{(selectedCustomerInForm?.openingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Reference and Notes */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-4 text-xs">
-                  <span className="text-slate-400 block mb-1">Reference Code</span>
-                  <span className="font-mono font-bold text-slate-800">{selectedTxn.referenceNumber || '—'}</span>
+              {/* Additional Information Card (Reference & Remarks) */}
+              <div className="bg-white border border-gray-200 rounded-[12px] p-4 space-y-3">
+                <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
+                  <FileText className="w-4 h-4 text-gray-400" />
+                  <h3 className="text-[13px] font-semibold text-gray-900">Additional Information</h3>
                 </div>
-                <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-4 text-xs">
-                  <span className="text-slate-400 block mb-1">Remarks</span>
-                  <span className="text-slate-800 italic">{selectedTxn.remarks || '—'}</span>
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <span className="text-gray-500 block mb-0.5">Reference Code</span>
+                    <span className="font-mono font-medium text-gray-900 block">{selectedTxn.referenceNumber || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block mb-0.5">Remarks</span>
+                    <span className="text-gray-700 font-medium block">{selectedTxn.remarks || '—'}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Audit Card */}
-              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-extrabold text-slate-600 uppercase text-[11px]">
-                    {selectedTxn.createdByName.charAt(0)}
+              {/* Audit Information Card */}
+              <div className="bg-white border border-gray-200 rounded-[12px] p-4 space-y-3">
+                <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
+                  <Landmark className="w-4 h-4 text-gray-400" />
+                  <h3 className="text-[13px] font-semibold text-gray-900">Audit Information</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <span className="text-gray-500 block mb-0.5">Recorded By</span>
+                    <span className="font-medium text-gray-900 block">{selectedTxn.createdByName}</span>
                   </div>
                   <div>
-                    <span className="text-slate-450 block leading-none">Logged By</span>
-                    <span className="font-bold text-slate-800 mt-1 block">{selectedTxn.createdByName}</span>
+                    <span className="text-gray-500 block mb-0.5">Recorded On</span>
+                    <span className="font-mono text-gray-700 font-medium block">
+                      {new Date(selectedTxn.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </span>
                   </div>
-                </div>
-                <div className="text-right text-[11px] text-slate-455">
-                  <span className="block font-medium">Logged Date</span>
-                  <span className="font-mono mt-0.5 block">{new Date(selectedTxn.createdAt).toLocaleString('en-IN')}</span>
                 </div>
               </div>
 
             </div>
 
             {/* Footer */}
-            <div className="border-t border-slate-100 px-6 py-4 bg-slate-50 flex items-center justify-end">
+            <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex items-center justify-end">
               <button
+                type="button"
                 onClick={() => setIsViewOpen(false)}
-                className="w-full bg-slate-900 hover:bg-slate-950 text-white rounded-xl h-11 text-xs font-bold transition-all shadow-md active:scale-[0.98] cursor-pointer"
+                className="w-full h-[44px] bg-[#1A56DB] hover:bg-[#1E40AF] active:bg-[#123E97] text-white text-sm font-semibold rounded-[10px] shadow-sm transition-all duration-150 active:scale-[0.99] cursor-pointer"
               >
                 Close Details
               </button>

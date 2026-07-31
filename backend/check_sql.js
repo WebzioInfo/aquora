@@ -9,10 +9,14 @@ const client = new Client({
 async function run() {
   await client.connect();
   try {
-    const res = await client.query('SELECT "ReservedEmptyJars" FROM aquora_tenant_developer_company."Customers" LIMIT 1;');
-    console.log('Query successful! ReservedEmptyJars column exists. Value:', res.rows[0]?.ReservedEmptyJars ?? 'No rows but column exists');
+    const res = await client.query(`
+      SELECT column_name, is_nullable, column_default, data_type 
+      FROM information_schema.columns 
+      WHERE table_schema = 'public' AND table_name = 'PlatformAuditLogs';
+    `);
+    console.table(res.rows);
   } catch (err) {
-    console.error('Error executing query', err.stack);
+    console.error('Error:', err.stack);
   } finally {
     await client.end();
   }

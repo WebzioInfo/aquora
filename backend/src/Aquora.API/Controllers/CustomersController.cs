@@ -9,6 +9,7 @@ using Aquora.Application.DTOs.Customers;
 using Aquora.Domain.Entities;
 using Aquora.Shared.Models;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace Aquora.API.Controllers
 {
@@ -19,11 +20,13 @@ namespace Aquora.API.Controllers
     {
         private readonly ITenantDbContext _tenantContext;
         private readonly ICurrentUserContext _currentUserContext;
+        private readonly ILogger<CustomersController> _logger;
 
-        public CustomersController(ITenantDbContext tenantContext, ICurrentUserContext currentUserContext)
+        public CustomersController(ITenantDbContext tenantContext, ICurrentUserContext currentUserContext, ILogger<CustomersController> logger)
         {
             _tenantContext = tenantContext;
             _currentUserContext = currentUserContext;
+            _logger = logger;
         }
 
         private bool IsAuthorizedToWrite()
@@ -130,6 +133,7 @@ namespace Aquora.API.Controllers
                         OpeningBalance = c.OpeningBalance,
                         BalanceType = c.BalanceType,
                         CreditLimit = c.CreditLimit,
+                        PaymentTerms = c.PaymentTerms,
                         Status = c.Status,
                         IsActive = c.IsActive,
                         Remarks = c.Remarks,
@@ -227,6 +231,7 @@ namespace Aquora.API.Controllers
                     OpeningBalance = customer.OpeningBalance,
                     BalanceType = customer.BalanceType,
                     CreditLimit = customer.CreditLimit,
+                    PaymentTerms = customer.PaymentTerms,
                     Status = customer.Status,
                     IsActive = customer.IsActive,
                     Remarks = customer.Remarks,
@@ -305,7 +310,7 @@ namespace Aquora.API.Controllers
                 // 1. Core validations
                 if (string.IsNullOrWhiteSpace(request.CustomerName))
                 {
-                    return BadRequest(ApiResponse<CustomerDto>.CreateFailure("Customer name is required.", "Validation Error", HttpContext.TraceIdentifier));
+                    return BadRequest(ApiResponse<CustomerDto>.CreateFailure("Customer Name is required.", "Validation Error", HttpContext.TraceIdentifier));
                 }
 
                 if (string.IsNullOrWhiteSpace(request.Phone))
@@ -315,7 +320,12 @@ namespace Aquora.API.Controllers
 
                 if (string.IsNullOrWhiteSpace(request.CustomerType))
                 {
-                    return BadRequest(ApiResponse<CustomerDto>.CreateFailure("Customer type is required.", "Validation Error", HttpContext.TraceIdentifier));
+                    return BadRequest(ApiResponse<CustomerDto>.CreateFailure("Customer Type is required.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                if (string.IsNullOrWhiteSpace(request.PaymentTerms))
+                {
+                    return BadRequest(ApiResponse<CustomerDto>.CreateFailure("Please select Payment Terms.", "Validation Error", HttpContext.TraceIdentifier));
                 }
 
                 if (request.OpeningBalance < 0)
@@ -398,6 +408,7 @@ namespace Aquora.API.Controllers
                     OpeningBalance = request.OpeningBalance,
                     BalanceType = request.BalanceType.Trim(),
                     CreditLimit = request.CreditLimit,
+                    PaymentTerms = string.IsNullOrWhiteSpace(request.PaymentTerms) ? "COD" : request.PaymentTerms.Trim(),
                     Status = request.Status.Trim(),
                     IsActive = request.IsActive,
                     Remarks = request.Remarks?.Trim(),
@@ -410,9 +421,9 @@ namespace Aquora.API.Controllers
                     TradeLicense = request.TradeLicense?.Trim(),
                     TaxExempt = request.TaxExempt,
                     AddressesJson = request.AddressesJson,
-                    PriceList = request.PriceList?.Trim(),
-                    DiscountGroup = request.DiscountGroup?.Trim(),
-                    TaxCategory = request.TaxCategory?.Trim(),
+                    PriceList = string.IsNullOrWhiteSpace(request.PriceList) ? null : request.PriceList.Trim(),
+                    DiscountGroup = string.IsNullOrWhiteSpace(request.DiscountGroup) ? null : request.DiscountGroup.Trim(),
+                    TaxCategory = string.IsNullOrWhiteSpace(request.TaxCategory) ? null : request.TaxCategory.Trim(),
                     OutstandingPlaceholder = request.OutstandingPlaceholder,
                     LedgerPlaceholder = request.LedgerPlaceholder?.Trim(),
                     AccountingPlaceholder = request.AccountingPlaceholder?.Trim(),
@@ -473,6 +484,7 @@ namespace Aquora.API.Controllers
                     OpeningBalance = customer.OpeningBalance,
                     BalanceType = customer.BalanceType,
                     CreditLimit = customer.CreditLimit,
+                    PaymentTerms = customer.PaymentTerms,
                     Status = customer.Status,
                     IsActive = customer.IsActive,
                     Remarks = customer.Remarks,
@@ -524,12 +536,13 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                var fullErrorMessage = ex.Message;
-                if (ex.InnerException != null)
+                _logger.LogError(ex, "Error creating customer {CustomerName}", request.CustomerName);
+                var isPaymentTermsIssue = (ex.InnerException?.Message.Contains("PaymentTerms", StringComparison.OrdinalIgnoreCase) == true) || ex.Message.Contains("PaymentTerms", StringComparison.OrdinalIgnoreCase);
+                if (isPaymentTermsIssue)
                 {
-                    fullErrorMessage += $" (Inner Exception: {ex.InnerException.Message})";
+                    return BadRequest(ApiResponse<CustomerDto>.CreateFailure("Please select Payment Terms before continuing.", "Validation Error", HttpContext.TraceIdentifier));
                 }
-                return Failure<CustomerDto>(fullErrorMessage, "Failed to create customer.");
+                return BadRequest(ApiResponse<CustomerDto>.CreateFailure("Unable to save customer. Please review the highlighted fields and try again.", "Error", HttpContext.TraceIdentifier));
             }
         }
 
@@ -627,6 +640,10 @@ namespace Aquora.API.Controllers
                 customer.OpeningBalance = request.OpeningBalance;
                 customer.BalanceType = request.BalanceType.Trim();
                 customer.CreditLimit = request.CreditLimit;
+                if (!string.IsNullOrWhiteSpace(request.PaymentTerms))
+                {
+                    customer.PaymentTerms = request.PaymentTerms.Trim();
+                }
                 customer.Status = request.Status.Trim();
                 customer.IsActive = request.IsActive;
                 customer.Remarks = request.Remarks?.Trim();
@@ -639,9 +656,9 @@ namespace Aquora.API.Controllers
                 customer.TradeLicense = request.TradeLicense?.Trim();
                 customer.TaxExempt = request.TaxExempt;
                 customer.AddressesJson = request.AddressesJson;
-                customer.PriceList = request.PriceList?.Trim();
-                customer.DiscountGroup = request.DiscountGroup?.Trim();
-                customer.TaxCategory = request.TaxCategory?.Trim();
+                customer.PriceList = string.IsNullOrWhiteSpace(request.PriceList) ? null : request.PriceList.Trim();
+                customer.DiscountGroup = string.IsNullOrWhiteSpace(request.DiscountGroup) ? null : request.DiscountGroup.Trim();
+                customer.TaxCategory = string.IsNullOrWhiteSpace(request.TaxCategory) ? null : request.TaxCategory.Trim();
                 customer.OutstandingPlaceholder = request.OutstandingPlaceholder;
                 customer.LedgerPlaceholder = request.LedgerPlaceholder?.Trim();
                 customer.AccountingPlaceholder = request.AccountingPlaceholder?.Trim();
@@ -701,6 +718,7 @@ namespace Aquora.API.Controllers
                     OpeningBalance = customer.OpeningBalance,
                     BalanceType = customer.BalanceType,
                     CreditLimit = customer.CreditLimit,
+                    PaymentTerms = customer.PaymentTerms,
                     Status = customer.Status,
                     IsActive = customer.IsActive,
                     Remarks = customer.Remarks,
@@ -753,7 +771,13 @@ namespace Aquora.API.Controllers
             }
             catch (Exception ex)
             {
-                return Failure<CustomerDto>(ex.Message, "Failed to update customer.");
+                _logger.LogError(ex, "Error updating customer {CustomerId}", id);
+                var isPaymentTermsIssue = (ex.InnerException?.Message.Contains("PaymentTerms", StringComparison.OrdinalIgnoreCase) == true) || ex.Message.Contains("PaymentTerms", StringComparison.OrdinalIgnoreCase);
+                if (isPaymentTermsIssue)
+                {
+                    return BadRequest(ApiResponse<CustomerDto>.CreateFailure("Please select Payment Terms before continuing.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+                return BadRequest(ApiResponse<CustomerDto>.CreateFailure("Unable to save customer. Please review the highlighted fields and try again.", "Error", HttpContext.TraceIdentifier));
             }
         }
 

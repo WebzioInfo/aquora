@@ -61,7 +61,7 @@ namespace Aquora.API.Controllers
 
         // 1. GET api/v1/production/lines
         [HttpGet("lines")]
-        public async Task<ActionResult<ApiResponse<List<object>>>> GetProductionLines([FromQuery] bool includeInactive = false)
+        public async Task<ActionResult<ApiResponse<List<ProductionLineDto>>>> GetProductionLines([FromQuery] bool includeInactive = false)
         {
             try
             {
@@ -75,52 +75,51 @@ namespace Aquora.API.Controllers
                 if (lines.Count == 0)
                 {
                     var company = await _tenantContext.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
-                    if (company != null)
+                    var companyId = company != null ? company.Id : (tenantId != Guid.Empty ? tenantId : Guid.NewGuid());
+                    
+                    var line1 = new ProductionLine
                     {
-                        var line1 = new ProductionLine
-                        {
-                            Id = Guid.NewGuid(),
-                            Name = "Line 1",
-                            Code = "L001",
-                            IsActive = true,
-                            TenantId = tenantId,
-                            CompanyId = company.Id,
-                            CreatedAt = DateTime.UtcNow,
-                            CreatedBy = "System"
-                        };
-                        var line2 = new ProductionLine
-                        {
-                            Id = Guid.NewGuid(),
-                            Name = "Line 2",
-                            Code = "L002",
-                            IsActive = true,
-                            TenantId = tenantId,
-                            CompanyId = company.Id,
-                            CreatedAt = DateTime.UtcNow,
-                            CreatedBy = "System"
-                        };
-                        _tenantContext.ProductionLines.AddRange(line1, line2);
-                        await _tenantContext.SaveChangesAsync();
-                        lines = new List<ProductionLine> { line1, line2 };
-                    }
+                        Id = Guid.NewGuid(),
+                        Name = "Line 1",
+                        Code = "L001",
+                        IsActive = true,
+                        TenantId = tenantId,
+                        CompanyId = companyId,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "System"
+                    };
+                    var line2 = new ProductionLine
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Line 2",
+                        Code = "L002",
+                        IsActive = true,
+                        TenantId = tenantId,
+                        CompanyId = companyId,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "System"
+                    };
+                    _tenantContext.ProductionLines.AddRange(line1, line2);
+                    await _tenantContext.SaveChangesAsync();
+                    lines = new List<ProductionLine> { line1, line2 };
                 }
 
                 var activeBatches = await _tenantContext.ProductionBatches
                     .Where(b => b.Status == "Active" && !b.IsDeleted)
                     .ToListAsync();
 
-                var result = new List<object>();
+                var result = new List<ProductionLineDto>();
                 foreach (var line in lines)
                 {
                     var activeBatch = activeBatches.FirstOrDefault(b => b.ProductionLineId == line.Id);
-                    result.Add(new
+                    result.Add(new ProductionLineDto
                     {
                         LineId = line.Id,
                         Name = line.Name,
                         Code = line.Code,
                         IsActive = line.IsActive,
                         HasActiveBatch = activeBatch != null,
-                        ActiveBatch = activeBatch != null ? new
+                        ActiveBatch = activeBatch != null ? new ActiveBatchSummaryDto
                         {
                             BatchId = activeBatch.Id,
                             BatchNumber = activeBatch.BatchNumber,
@@ -133,11 +132,11 @@ namespace Aquora.API.Controllers
                     });
                 }
 
-                return Success<List<object>>(result, "Production lines loaded successfully.");
+                return Success<List<ProductionLineDto>>(result, "Production lines loaded successfully.");
             }
             catch (Exception ex)
             {
-                return Failure<List<object>>(ex.Message, "Failed to load production lines.");
+                return Failure<List<ProductionLineDto>>(ex.Message, "Failed to load production lines.");
             }
         }
 
@@ -797,35 +796,34 @@ namespace Aquora.API.Controllers
             try
             {
                 var tenantId = GetTenantId();
-                if (string.IsNullOrEmpty(request.Name) || string.IsNullOrEmpty(request.Code))
+                if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Code))
                 {
                     return Failure<object>("Name and Code are required.", "Validation failed", System.Net.HttpStatusCode.BadRequest);
                 }
 
+                var cleanName = request.Name.Trim();
+                var cleanCode = request.Code.Trim().ToUpper();
+
                 // Check if code is already taken in this tenant
                 var codeExists = await _tenantContext.ProductionLines
-                    .AnyAsync(l => l.Code.ToUpper() == request.Code.ToUpper() && !l.IsDeleted);
+                    .AnyAsync(l => l.Code.ToUpper() == cleanCode && !l.IsDeleted);
                 if (codeExists)
                 {
-                    return Failure<object>($"Production line with code '{request.Code}' already exists.", "Validation failed", System.Net.HttpStatusCode.BadRequest);
+                    return Failure<object>($"Production line with code '{cleanCode}' already exists.", "Validation failed", System.Net.HttpStatusCode.BadRequest);
                 }
 
-                // Get first company to map
-                var company = await _tenantContext.Companies.FirstOrDefaultAsync();
-
-                if (company == null)
-                {
-                    return Failure<object>("Company infrastructure must be seeded first.", "Infrastructure missing", System.Net.HttpStatusCode.BadRequest);
-                }
+                // Get company or fallback
+                var company = await _tenantContext.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
+                Guid companyId = company != null ? company.Id : (tenantId != Guid.Empty ? tenantId : Guid.NewGuid());
 
                 var line = new ProductionLine
                 {
                     Id = Guid.NewGuid(),
-                    Name = request.Name.Trim(),
-                    Code = request.Code.Trim().ToUpper(),
+                    Name = cleanName,
+                    Code = cleanCode,
                     IsActive = request.IsActive ?? true,
                     TenantId = tenantId,
-                    CompanyId = company.Id,
+                    CompanyId = companyId,
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = GetCurrentUserId()
                 };
@@ -833,7 +831,20 @@ namespace Aquora.API.Controllers
                 _tenantContext.ProductionLines.Add(line);
                 await _tenantContext.SaveChangesAsync();
 
-                return Success<object>(new { line.Id, line.Name, line.Code, line.IsActive }, "Production line created successfully.");
+                var dto = new
+                {
+                    LineId = line.Id,
+                    Id = line.Id,
+                    id = line.Id,
+                    Name = line.Name,
+                    name = line.Name,
+                    Code = line.Code,
+                    code = line.Code,
+                    IsActive = line.IsActive,
+                    isActive = line.IsActive
+                };
+
+                return Success<object>(dto, "Production line created successfully.");
             }
             catch (Exception ex)
             {
@@ -855,20 +866,21 @@ namespace Aquora.API.Controllers
                     return Failure<object>("Production line not found.", "Not found", System.Net.HttpStatusCode.NotFound);
                 }
 
-                if (!string.IsNullOrEmpty(request.Name))
+                if (!string.IsNullOrWhiteSpace(request.Name))
                 {
                     line.Name = request.Name.Trim();
                 }
 
-                if (!string.IsNullOrEmpty(request.Code))
+                if (!string.IsNullOrWhiteSpace(request.Code))
                 {
+                    var cleanCode = request.Code.Trim().ToUpper();
                     var codeExists = await _tenantContext.ProductionLines
-                        .AnyAsync(l => l.Id != id && l.Code.ToUpper() == request.Code.ToUpper() && !l.IsDeleted);
+                        .AnyAsync(l => l.Id != id && l.Code.ToUpper() == cleanCode && !l.IsDeleted);
                     if (codeExists)
                     {
-                        return Failure<object>($"Production line with code '{request.Code}' already exists.", "Validation failed", System.Net.HttpStatusCode.BadRequest);
+                        return Failure<object>($"Production line with code '{cleanCode}' already exists.", "Validation failed", System.Net.HttpStatusCode.BadRequest);
                     }
-                    line.Code = request.Code.Trim().ToUpper();
+                    line.Code = cleanCode;
                 }
 
                 if (request.IsActive.HasValue)
@@ -881,7 +893,20 @@ namespace Aquora.API.Controllers
 
                 await _tenantContext.SaveChangesAsync();
 
-                return Success<object>(new { line.Id, line.Name, line.Code, line.IsActive }, "Production line updated successfully.");
+                var dto = new
+                {
+                    LineId = line.Id,
+                    Id = line.Id,
+                    id = line.Id,
+                    Name = line.Name,
+                    name = line.Name,
+                    Code = line.Code,
+                    code = line.Code,
+                    IsActive = line.IsActive,
+                    isActive = line.IsActive
+                };
+
+                return Success<object>(dto, "Production line updated successfully.");
             }
             catch (Exception ex)
             {
@@ -1005,5 +1030,26 @@ namespace Aquora.API.Controllers
         public int MonthlyProduction { get; set; }
         public int PendingDispatch { get; set; }
         public int PendingDispatchHighPriority { get; set; }
+    }
+
+    public class ProductionLineDto
+    {
+        public Guid LineId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
+        public bool HasActiveBatch { get; set; }
+        public ActiveBatchSummaryDto? ActiveBatch { get; set; }
+    }
+
+    public class ActiveBatchSummaryDto
+    {
+        public Guid BatchId { get; set; }
+        public string BatchNumber { get; set; } = string.Empty;
+        public string Product { get; set; } = string.Empty;
+        public string Shift { get; set; } = string.Empty;
+        public DateTime StartedAt { get; set; }
+        public int TargetQuantity { get; set; }
+        public int ProducedQuantity { get; set; }
     }
 }

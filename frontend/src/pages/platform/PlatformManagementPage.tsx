@@ -249,22 +249,22 @@ export const PlatformManagementPage: React.FC = () => {
         </div>
 
         {/* Filter & Search Bar */}
-        <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-white border border-[#E5E7EB] px-4 py-3 rounded-xl shadow-sm flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1 min-w-[280px]">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-slate-400" />
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search by tenant name, schema, subdomain, owner email..."
                 value={tenantSearch}
                 onChange={(e) => { setTenantSearch(e.target.value); setTenantPage(1); }}
-                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-900 placeholder:text-slate-400"
+                className="w-full pl-9 pr-3 h-[32px] bg-white border border-[#E5E7EB] rounded-lg text-[12px] focus:outline-none focus:border-blue-400 text-slate-900 placeholder:text-slate-400"
               />
             </div>
             <select
               value={tenantStatus}
               onChange={(e) => { setTenantStatus(e.target.value); setTenantPage(1); }}
-              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+              className="h-[32px] px-3 bg-white border border-[#E5E7EB] rounded-lg text-[12px] font-semibold text-slate-700 focus:outline-none cursor-pointer"
             >
               <option value="">All Statuses</option>
               <option value="Active">Active</option>
@@ -273,7 +273,7 @@ export const PlatformManagementPage: React.FC = () => {
             <select
               value={tenantPlan}
               onChange={(e) => { setTenantPlan(e.target.value); setTenantPage(1); }}
-              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+              className="h-[32px] px-3 bg-white border border-[#E5E7EB] rounded-lg text-[12px] font-semibold text-slate-700 focus:outline-none cursor-pointer"
             >
               <option value="">All Plans</option>
               <option value="Starter">Starter Tier</option>
@@ -339,7 +339,7 @@ export const PlatformManagementPage: React.FC = () => {
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <EnterpriseBadge variant={t.subscriptionPlan === 'Enterprise' ? 'purple' : t.subscriptionPlan === 'Professional' ? 'primary' : 'secondary'}>
+                        <EnterpriseBadge variant={t.subscriptionPlan === 'Enterprise' ? 'primary' : t.subscriptionPlan === 'Professional' ? 'info' : 'gray'}>
                           {t.subscriptionPlan || 'Starter'}
                         </EnterpriseBadge>
                       </td>
@@ -630,7 +630,7 @@ export const PlatformManagementPage: React.FC = () => {
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <EnterpriseBadge variant={u.roleName === 'SuperAdmin' ? 'purple' : u.roleName === 'CompanyAdmin' ? 'primary' : 'secondary'}>
+                        <EnterpriseBadge variant={u.roleName === 'SuperAdmin' ? 'primary' : u.roleName === 'CompanyAdmin' ? 'info' : 'gray'}>
                           {u.roleName || 'Standard'}
                         </EnterpriseBadge>
                       </td>
