@@ -5,23 +5,23 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy solution and project files for dependency restore caching
-COPY Aquora.slnx ./
-COPY src/Aquora.Domain/Aquora.Domain.csproj src/Aquora.Domain/
-COPY src/Aquora.Application/Aquora.Application.csproj src/Aquora.Application/
-COPY src/Aquora.Infrastructure/Aquora.Infrastructure.csproj src/Aquora.Infrastructure/
-COPY src/Aquora.Persistence/Aquora.Persistence.csproj src/Aquora.Persistence/
-COPY src/Aquora.Shared/Aquora.Shared.csproj src/Aquora.Shared/
-COPY src/Aquora.API/Aquora.API.csproj src/Aquora.API/
-COPY src/Aquora.Tests/Aquora.Tests.csproj src/Aquora.Tests/
+COPY backend/Aquora.slnx backend/
+COPY backend/src/Aquora.Domain/Aquora.Domain.csproj backend/src/Aquora.Domain/
+COPY backend/src/Aquora.Application/Aquora.Application.csproj backend/src/Aquora.Application/
+COPY backend/src/Aquora.Infrastructure/Aquora.Infrastructure.csproj backend/src/Aquora.Infrastructure/
+COPY backend/src/Aquora.Persistence/Aquora.Persistence.csproj backend/src/Aquora.Persistence/
+COPY backend/src/Aquora.Shared/Aquora.Shared.csproj backend/src/Aquora.Shared/
+COPY backend/src/Aquora.API/Aquora.API.csproj backend/src/Aquora.API/
+COPY backend/src/Aquora.Tests/Aquora.Tests.csproj backend/src/Aquora.Tests/
 
 # Restore dependencies
-RUN dotnet restore Aquora.slnx
+RUN dotnet restore backend/Aquora.slnx
 
 # Copy the rest of the backend source code
-COPY . ./
+COPY backend/ backend/
 
 # Build and Publish in Release configuration
-WORKDIR /src/src/Aquora.API
+WORKDIR /src/backend/src/Aquora.API
 RUN dotnet build Aquora.API.csproj -c Release --no-restore
 RUN dotnet publish Aquora.API.csproj -c Release --no-build -o /app/publish
 

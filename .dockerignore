@@ -1,0 +1,29 @@
+# Git & Editor
+.git
+.gitignore
+.github
+.vscode
+.idea
+
+# Build outputs & caches
+**/bin/
+**/obj/
+**/out/
+**/.vs/
+
+# Frontend
+frontend/
+
+# Node modules & logs
+**/node_modules/
+**/logs/
+**/*.log
+artifacts/
+scratch/
+DbQueryTemp/
+
+# Environment & secrets
+.env
+.env.*
+*.user
+*.suo
