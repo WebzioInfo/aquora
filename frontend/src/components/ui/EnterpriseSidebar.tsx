@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { LogOut, Sun, Moon, Droplet } from 'lucide-react'
+import { LogOut } from 'lucide-react'
+import BRAND from '../../config/brand'
 
 interface SidebarItem {
   label: string
@@ -33,12 +34,10 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
         }`}
     >
       {/* Logo Banner */}
-      <div className="h-16 flex items-center justify-between px-6 border-b border-[#E5E9F2]">
-        <Link to="/company" className="flex items-center gap-2.5 font-bold text-lg text-[#1A56DB] select-none">
-          <div className="w-8 h-8 rounded-sm bg-[#1A56DB] flex items-center justify-center text-white shrink-0">
-            <Droplet className="w-5 h-5 fill-white" />
-          </div>
-          {!collapsed && <span className="tracking-tight font-extrabold uppercase text-[15px]">Aquaflow ERP</span>}
+      <div className="h-16 flex items-center justify-between px-5 border-b border-[#E5E9F2]">
+        <Link to="/company" className="flex items-center gap-2 font-bold text-lg text-slate-900 select-none">
+          <img src={BRAND.logo} alt={BRAND.name} className="h-9 w-auto object-contain shrink-0" />
+          {!collapsed && <span className="tracking-tight font-extrabold uppercase text-[15px] text-slate-900">{BRAND.name}</span>}
         </Link>
       </div>
 

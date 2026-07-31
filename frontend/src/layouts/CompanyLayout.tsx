@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/useAuthStore'
 import { useThemeStore } from '../store/useThemeStore'
 import { useNotificationStore } from '../store/useNotificationStore'
 import ToastContainer from '../components/ui/ToastContainer'
+import BRAND from '../config/brand'
 import { 
   LayoutDashboard, Factory, Package, TrendingUp, Users, Truck, 
   Settings, ChevronRight, Play, Plus, X, Layers, Workflow, CalendarClock,
@@ -56,7 +57,7 @@ export const CompanyLayout: React.FC = () => {
     return (
       <div className="flex items-center select-none text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">
         <Link to="/company" className="hover:text-[#111827] transition-colors">
-          {user?.companyName || user?.tenantName || 'Aquaflow ERP'}
+          {user?.companyName || user?.tenantName || BRAND.name}
         </Link>
         {paths.map((path, idx) => {
           const isLast = idx === paths.length - 1

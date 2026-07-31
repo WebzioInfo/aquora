@@ -2,6 +2,8 @@ import React, { useEffect } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import ToastContainer from '../components/ui/ToastContainer'
+import AuthWatermark from '../components/ui/AuthWatermark'
+import BRAND from '../config/brand'
 import {
   Droplet, Check, Sun, Moon, Globe, HelpCircle, ExternalLink
 } from 'lucide-react'
@@ -39,7 +41,7 @@ export const AuthLayout: React.FC = () => {
             </svg>
 
             {/* Bottom-Left Fluid Growth Curve (Opacity 3.5%) */}
-            <svg className="absolute -bottom-20 -left-20 w-[550px] h-[550px] opacity-85 text-cyan-500" viewBox="0 0 600 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* <svg className="absolute -bottom-20 -left-20 w-[550px] h-[550px] opacity-85 text-cyan-500" viewBox="0 0 600 600" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M0 600 C 200 400, 300 500, 500 350 C 550 250, 450 100, 600 0 L 0 0 Z" fill="url(#cyan-gradient-bottom)" fillOpacity="0.06" />
               <path d="M0 500 C 250 350, 350 450, 550 250" stroke="#06B6D4" strokeWidth="1.5" strokeOpacity="0.1" />
               <defs>
@@ -48,7 +50,7 @@ export const AuthLayout: React.FC = () => {
                   <stop offset="1" stopColor="#38BDF8" />
                 </linearGradient>
               </defs>
-            </svg>
+            </svg> */}
           </div>
         )
       case '/verify-otp':
@@ -63,10 +65,10 @@ export const AuthLayout: React.FC = () => {
             </svg>
 
             {/* Bottom-Left Particle Nodes */}
-            <svg className="absolute -bottom-20 -left-20 w-[500px] h-[500px] opacity-35" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* <svg className="absolute -bottom-20 -left-20 w-[500px] h-[500px] opacity-35" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="100" cy="400" r="160" stroke="#0EA5E9" strokeWidth="1" strokeOpacity="0.08" />
               <circle cx="100" cy="400" r="260" stroke="#2563EB" strokeWidth="1" strokeOpacity="0.06" strokeDasharray="4 4" />
-            </svg>
+            </svg> */}
           </div>
         )
       case '/login':
@@ -92,7 +94,7 @@ export const AuthLayout: React.FC = () => {
             </svg>
 
             {/* Bottom-Left Fluid Water Ripple Vector (Opacity 3.5%) */}
-            <svg className="absolute -bottom-24 -left-24 w-[600px] h-[600px] opacity-35 text-cyan-500" viewBox="0 0 600 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* <svg className="absolute -bottom-24 -left-24 w-[600px] h-[600px] opacity-35 text-cyan-500" viewBox="0 0 600 600" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M0 600 C 180 420, 320 520, 520 380 C 580 280, 480 140, 600 0 L 0 0 Z" fill="url(#water-wave-bottom)" fillOpacity="0.05" />
               <path d="M0 520 C 220 360, 360 460, 560 300" stroke="#0EA5E9" strokeWidth="1.5" strokeOpacity="0.1" />
               <path d="M0 440 C 260 300, 400 400, 600 220" stroke="#06B6D4" strokeWidth="1" strokeOpacity="0.07" />
@@ -102,7 +104,7 @@ export const AuthLayout: React.FC = () => {
                   <stop offset="1" stopColor="#0EA5E9" />
                 </linearGradient>
               </defs>
-            </svg>
+            </svg> */}
           </div>
         )
     }
@@ -161,6 +163,9 @@ export const AuthLayout: React.FC = () => {
   return (
     <div className="h-screen max-h-screen overflow-hidden flex flex-col justify-between font-sans bg-[#FAFBFC] text-[#111827] select-none relative">
 
+      {/* FULL VIEWPORT REPEATING WATERMARK BACKGROUND */}
+      <AuthWatermark />
+
       {/* ENTERPRISE WATER MANUFACTURING ABSTRACT BACKGROUND ARTWORK */}
       {renderWaterBackground()}
 
@@ -169,12 +174,7 @@ export const AuthLayout: React.FC = () => {
 
         {/* Brand Mark */}
         <Link to="/" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-[#2563EB] rounded-xl flex items-center justify-center shadow-xs">
-            <Droplet className="w-4 h-4 text-white fill-white" />
-          </div>
-          <span className="text-base font-extrabold tracking-wider uppercase text-[#111827]">
-            Aquora ERP
-          </span>
+          <img src={BRAND.logo} alt={BRAND.name} className="h-9 w-auto object-contain" />
         </Link>
 
         {/* Navigation & Controls */}

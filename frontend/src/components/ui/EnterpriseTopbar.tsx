@@ -1,5 +1,6 @@
 import React from 'react'
 import { Menu, Bell, LogOut } from 'lucide-react'
+import BRAND from '../../config/brand'
 
 interface EnterpriseTopbarProps {
   sidebarCollapsed: boolean
@@ -48,7 +49,7 @@ export const EnterpriseTopbar: React.FC<EnterpriseTopbarProps> = ({
       <div className="flex items-center gap-4 select-none relative">
         <div className="hidden md:flex flex-col text-right select-none mr-1">
           <span className="text-xs font-bold text-[#101828]">
-            {user?.companyName || user?.tenantName || 'Aquaflow ERP'}
+            {user?.companyName || user?.tenantName || BRAND.name}
           </span>
           <span className="text-[10px] font-medium text-slate-500">
             {user?.firstName} {user?.lastName} • {user?.roles?.[0] || 'User'}

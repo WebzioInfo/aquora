@@ -5,6 +5,8 @@ import { authService } from '../services/auth'
 import { useAuthStore } from '../store/useAuthStore'
 import { useNotificationStore } from '../store/useNotificationStore'
 import { getDefaultRouteForUser } from '../routes/AppRoutes'
+import BRAND from '../config/brand'
+import AuthWatermark from '../components/ui/AuthWatermark'
 import { RefreshCw, Key, ArrowRight, Loader2 } from 'lucide-react'
 
 export const OtpVerificationPage: React.FC = () => {
@@ -173,14 +175,12 @@ export const OtpVerificationPage: React.FC = () => {
       <motion.div 
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl shadow-xs p-8 sm:p-9 space-y-5 relative"
+        className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl shadow-xs p-8 sm:p-9 space-y-5 relative z-10"
       >
         
         {/* Header */}
         <div className="flex flex-col items-center text-center space-y-1.5 select-none">
-          <div className="w-9 h-9 rounded-xl bg-[#2563EB] text-white flex items-center justify-center shadow-xs mb-0.5">
-            <Key className="w-4.5 h-4.5" />
-          </div>
+          <img src={BRAND.logo} alt={BRAND.name} className="h-12 w-auto object-contain mb-1" />
           <h2 className="text-xl font-extrabold text-[#111827] tracking-tight">
             Verify Email Address
           </h2>

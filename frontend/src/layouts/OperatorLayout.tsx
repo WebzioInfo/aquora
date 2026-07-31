@@ -8,6 +8,7 @@ import { LogOut, Calendar, Clock, Check, ChevronDown, X } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { getLineTheme } from '../utils/lineTheme'
+import BRAND from '../config/brand'
 
 export const OperatorLayout: React.FC = () => {
   const { user, clearAuth } = useAuthStore()
@@ -320,17 +321,9 @@ export const OperatorLayout: React.FC = () => {
         <div className="flex items-center gap-3">
           {/* Logo & Title */}
           <div className="flex items-center gap-2.5">
-            <div 
-              className="w-7.5 h-7.5 rounded-[6px] flex items-center justify-center font-extrabold text-xs tracking-tight shrink-0 shadow-sm transition-colors duration-300"
-              style={{
-                backgroundColor: lineTheme ? 'rgba(255,255,255,0.2)' : '#1A56DB',
-                color: lineTheme ? '#FFFFFF' : '#FFFFFF'
-              }}
-            >
-              AQ
-            </div>
+            <img src={BRAND.logo} alt={BRAND.name} className="h-9 w-auto object-contain shrink-0 bg-white/10 p-1 rounded-lg" />
             <div className="text-left">
-              <span className="font-extrabold text-xs leading-none tracking-tight block">Aquora ERP</span>
+              <span className="font-extrabold text-xs leading-none tracking-tight block">Aquora</span>
               <span className="font-bold text-[8px] uppercase tracking-widest block mt-0.5" style={{ color: lineTheme ? 'rgba(255,255,255,0.7)' : '#6B7280' }}>
                 Production Terminal
               </span>
@@ -442,7 +435,7 @@ export const OperatorLayout: React.FC = () => {
             <div className="hidden xl:block text-left select-none">
               <span className="font-bold text-[11px] block leading-tight">{user?.firstName} {user?.lastName} ({user?.roles?.[0] || 'Operator'})</span>
               <span className="text-[8px] uppercase tracking-wider block font-bold mt-0.5" style={{ color: lineTheme ? 'rgba(255,255,255,0.7)' : '#6B7280' }}>
-                {user?.companyName || user?.tenantName || 'Aquaflow ERP'}
+                {user?.companyName || user?.tenantName || BRAND.name}
               </span>
             </div>
           </div>

@@ -7,7 +7,9 @@ import { motion } from 'framer-motion'
 import { onboardingService } from '../services/onboarding'
 import { useNotificationStore } from '../store/useNotificationStore'
 import { useAuthStore } from '../store/useAuthStore'
-import { Droplet, Mail, UserCheck, Trash2, ArrowRight, Loader2, Plus } from 'lucide-react'
+import BRAND from '../config/brand'
+import AuthWatermark from '../components/ui/AuthWatermark'
+import { Mail, UserCheck, Trash2, ArrowRight, Loader2, Plus } from 'lucide-react'
 
 const inviteSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
@@ -86,19 +88,17 @@ export const InviteTeamPage: React.FC = () => {
 
   return (
     <div className="w-full flex justify-center items-center font-sans">
-      
+
       {/* FRESH WHITE AUTHENTICATION SURFACE CARD */}
       <motion.div 
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl shadow-xs p-8 sm:p-9 space-y-5 relative"
+        className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl shadow-xs p-8 sm:p-9 space-y-5 relative z-10"
       >
         
         {/* Header */}
         <div className="flex flex-col items-center text-center space-y-1.5 select-none">
-          <div className="w-10 h-10 rounded-xl bg-[#2563EB] text-white flex items-center justify-center shadow-xs">
-            <UserCheck className="w-5 h-5" />
-          </div>
+          <img src={BRAND.logo} alt={BRAND.name} className="h-12 w-auto object-contain mb-1" />
           <div>
             <h2 className="text-xl font-extrabold text-[#111827] tracking-tight">
               Invite Your Team

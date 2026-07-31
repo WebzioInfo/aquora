@@ -8,8 +8,10 @@ import { useAuthStore } from '../store/useAuthStore'
 import { useNotificationStore } from '../store/useNotificationStore'
 import { authService } from '../services/auth'
 import { getDefaultRouteForUser } from '../routes/AppRoutes'
+import BRAND from '../config/brand'
+import AuthWatermark from '../components/ui/AuthWatermark'
 import { 
-  Droplet, Lock, Eye, EyeOff, Mail, AlertCircle, 
+  Lock, Eye, EyeOff, Mail, AlertCircle, 
   Loader2, KeyRound, ArrowRight, X 
 } from 'lucide-react'
 
@@ -236,20 +238,18 @@ export const LoginPage: React.FC = () => {
       <motion.div 
         animate={shakeError ? { x: [-8, 8, -6, 6, -3, 3, 0] } : {}}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl shadow-xs p-8 sm:p-9 space-y-5 relative"
+        className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl shadow-xs p-8 sm:p-9 space-y-5 relative z-10"
       >
         
         {/* Header */}
         <div className="flex flex-col items-center text-center space-y-2 select-none">
-          <div className="w-10 h-10 rounded-xl bg-[#2563EB] text-white flex items-center justify-center shadow-xs">
-            <Droplet className="w-5 h-5 fill-white" />
-          </div>
+          <img src={BRAND.logo} alt={BRAND.name} className="h-14 w-auto object-contain mb-1" />
           <div>
             <h2 className="text-xl font-extrabold text-[#111827] tracking-tight">
               Welcome Back
             </h2>
             <p className="text-xs font-medium text-[#6B7280] mt-0.5">
-              Sign in to continue to Aquora ERP
+              Sign in to continue to {BRAND.name} Platform
             </p>
           </div>
         </div>

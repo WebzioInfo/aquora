@@ -66,6 +66,7 @@ interface ProdPointItem {
   label: string
   dateStr?: string
   totalCases: number
+  loggedCases?: number
   entriesCount?: number
   recordedTimes?: string[]
   products?: { productName: string; cases: number; entriesCount: number; recordedTimes?: string[] }[]
@@ -2404,9 +2405,9 @@ export const CompanyDashboardPage: React.FC = () => {
         />
         <EnterpriseCard title="Tenant Setup Preferences">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <EnterpriseInput label="Tenant Name" defaultValue="Aquaflow Ltd" />
-            <EnterpriseInput label="Subdomain PREFIX" defaultValue="aquaflow" disabled className="bg-slate-50 dark:bg-slate-800" />
-            <EnterpriseInput label="Primary Admin Email" defaultValue="admin@aquaflow.industrial" />
+            <EnterpriseInput label="Tenant Name" defaultValue="Aquora Ltd" />
+            <EnterpriseInput label="Subdomain PREFIX" defaultValue="aquora" disabled className="bg-slate-50 dark:bg-slate-800" />
+            <EnterpriseInput label="Primary Admin Email" defaultValue="admin@aquora.industrial" />
           </div>
           <EnterpriseButton>Save Preferences</EnterpriseButton>
         </EnterpriseCard>
@@ -3919,7 +3920,7 @@ return (
               {getGreeting()}, {user?.fullName?.split(' ')[0] || 'Admin'}
             </h1>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
-              <span className="text-[13px] font-medium text-[#374151]">{user?.tenantName || 'Aquaflow Ltd'}</span>
+              <span className="text-[13px] font-medium text-[#374151]">{user?.tenantName || 'Aquora Ltd'}</span>
               <span className="text-gray-300">•</span>
               <span className="text-[13px] text-[#6B7280]">Plant A</span>
               <span className="text-gray-300">•</span>
