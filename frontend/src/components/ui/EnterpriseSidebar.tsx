@@ -42,7 +42,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
       </div>
 
       {/* User profile card */}
-      <div className="p-4 border-b border-[#E5E9F2] flex items-center gap-3 overflow-hidden select-none">
+      {/* <div className="p-4 border-b border-[#E5E9F2] flex items-center gap-3 overflow-hidden select-none">
         <div className="w-10 h-10 rounded-sm bg-[#EFF4FF] text-[#1A56DB] flex items-center justify-center font-bold text-sm shrink-0 uppercase">
           {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
         </div>
@@ -56,10 +56,10 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
             </p>
           </div>
         )}
-      </div>
+      </div> */}
 
       {/* Navigation list */}
-      <nav className="flex-1 p-3 flex flex-col gap-1 overflow-y-auto max-h-[calc(100vh-220px)] select-none">
+      <nav className="flex-1 p-3 flex flex-col gap-1 overflow-y-auto select-none">
         {items.map((item) => {
           const currentFullPath = location.pathname + location.search
           const isActive = currentFullPath === item.path || (location.pathname === item.path && !location.search && !item.path.includes('?'))
@@ -68,8 +68,8 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
               key={item.path}
               to={item.path}
               className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-[8px] transition-all relative ${isActive
-                  ? 'bg-[#EFF4FF] text-[#1A56DB] font-semibold pl-4'
-                  : 'text-[#667085] hover:bg-slate-50 hover:text-slate-800'
+                ? 'bg-[#EFF4FF] text-[#1A56DB] font-semibold pl-4'
+                : 'text-[#667085] hover:bg-slate-50 hover:text-slate-800'
                 }`}
             >
               {isActive && (

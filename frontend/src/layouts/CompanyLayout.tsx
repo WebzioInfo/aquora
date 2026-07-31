@@ -5,8 +5,8 @@ import { useThemeStore } from '../store/useThemeStore'
 import { useNotificationStore } from '../store/useNotificationStore'
 import ToastContainer from '../components/ui/ToastContainer'
 import BRAND from '../config/brand'
-import { 
-  LayoutDashboard, Factory, Package, TrendingUp, Users, Truck, 
+import {
+  LayoutDashboard, Factory, Package, TrendingUp, Users, Truck,
   Settings, ChevronRight, Play, Plus, X, Layers, Workflow, CalendarClock,
   Droplet, Boxes, Tag, ShoppingCart, PieChart, IdCard
 } from 'lucide-react'
@@ -20,7 +20,7 @@ export const CompanyLayout: React.FC = () => {
   const { showToast } = useNotificationStore()
   const navigate = useNavigate()
   const location = useLocation()
-  
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showQuickActions, setShowQuickActions] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
@@ -63,7 +63,7 @@ export const CompanyLayout: React.FC = () => {
           const isLast = idx === paths.length - 1
           const url = `/${paths.slice(0, idx + 1).join('/')}`
           const formattedName = path.charAt(0).toUpperCase() + path.slice(1)
-          
+
           return (
             <span key={url} className="flex items-center">
               <ChevronRight className="w-3.5 h-3.5 text-[#6B7280] mx-1 shrink-0" />
@@ -88,9 +88,9 @@ export const CompanyLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen flex bg-[#F7F9FC] text-[#101828]">
-      
+
       {/* Reusable Enterprise Sidebar */}
-      <EnterpriseSidebar 
+      <EnterpriseSidebar
         collapsed={sidebarCollapsed}
         items={sidebarItems}
         user={user}
@@ -100,12 +100,12 @@ export const CompanyLayout: React.FC = () => {
       />
 
       {/* Main Panel Viewport */}
-      <div 
+      <div
         className="flex-1 flex flex-col min-w-0 transition-all duration-300"
         style={{ paddingLeft: sidebarCollapsed ? '80px' : '256px' }}
       >
         {/* Reusable Enterprise Topbar */}
-        <EnterpriseTopbar 
+        <EnterpriseTopbar
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
           breadcrumbs={getBreadcrumbs()}
@@ -120,15 +120,7 @@ export const CompanyLayout: React.FC = () => {
         {/* Content Viewport */}
         <main className="flex-1 p-6 relative">
           {/* Quick Actions Portal Trigger Floating Button or Topbar Hook */}
-          <div className="absolute right-6 top-0 -translate-y-12 select-none z-30">
-            <button
-              onClick={() => setShowQuickActions(true)}
-              className="px-4 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm rounded-[10px] h-[42px] cursor-pointer transition-all active:scale-[0.98]"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Actions</span>
-            </button>
-          </div>
+
 
           <Outlet />
         </main>
@@ -137,18 +129,18 @@ export const CompanyLayout: React.FC = () => {
       {/* Premium Light Theme Quick Actions Portal */}
       {showQuickActions && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div 
+          <div
             onClick={() => setShowQuickActions(false)}
             className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
           />
-          
+
           <div className="relative w-full max-w-[600px] bg-white border border-gray-200 p-6 sm:p-8 rounded-[16px] shadow-xl flex flex-col gap-6 animate-in fade-in zoom-in-95 duration-200 z-10"
-               role="dialog" aria-modal="true" aria-labelledby="qa-modal-title"
-               tabIndex={-1}
-               onKeyDown={(e) => {
-                 if (e.key === 'Escape') setShowQuickActions(false);
-               }}>
-            
+            role="dialog" aria-modal="true" aria-labelledby="qa-modal-title"
+            tabIndex={-1}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setShowQuickActions(false);
+            }}>
+
             {/* Header */}
             <div className="flex items-start justify-between pb-4 border-b border-gray-100">
               <div>
@@ -159,7 +151,7 @@ export const CompanyLayout: React.FC = () => {
                   Access frequently used actions instantly.
                 </p>
               </div>
-              <button 
+              <button
                 type="button"
                 onClick={() => setShowQuickActions(false)}
                 className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer"
@@ -177,7 +169,7 @@ export const CompanyLayout: React.FC = () => {
                 <h4 className="text-sm font-bold text-gray-900">Create Batch</h4>
                 <p className="text-xs text-gray-500">Initialize a water run in operations.</p>
               </button>
-              
+
               <button onClick={() => triggerQuickAction('Create Sales Order')} className="group flex flex-col gap-2 p-5 bg-white hover:bg-emerald-50 border border-gray-200 hover:border-emerald-200 rounded-[12px] transition-all cursor-pointer text-left shadow-sm hover:shadow-md">
                 <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <TrendingUp className="w-5 h-5" />
@@ -185,7 +177,7 @@ export const CompanyLayout: React.FC = () => {
                 <h4 className="text-sm font-bold text-gray-900">Sales Order</h4>
                 <p className="text-xs text-gray-500">Bill a wholesale buyer directly.</p>
               </button>
-              
+
               <button onClick={() => triggerQuickAction('Receive Materials')} className="group flex flex-col gap-2 p-5 bg-white hover:bg-indigo-50 border border-gray-200 hover:border-indigo-200 rounded-[12px] transition-all cursor-pointer text-left shadow-sm hover:shadow-md">
                 <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <Package className="w-5 h-5" />
