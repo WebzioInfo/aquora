@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { api } from '../../../services/api'
 import EnterpriseBadge from '../../../components/ui/EnterpriseBadge'
+import { useNotificationStore } from '../../../store/useNotificationStore'
 
 export interface SubscriptionPlan {
   id: string
@@ -99,6 +100,7 @@ const DEFAULT_LIMITS: SubscriptionPlanLimits = {
 
 export const SubscriptionManagementTab: React.FC = () => {
   const queryClient = useQueryClient()
+  const { showToast } = useNotificationStore()
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
@@ -108,6 +110,7 @@ export const SubscriptionManagementTab: React.FC = () => {
   // Modals & Drawers State
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false)
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null)
+  const [deletingPlan, setDeletingPlan] = useState<SubscriptionPlan | null>(null)
   const [activeTab, setActiveTab] = useState<'general' | 'pricing' | 'limits' | 'features'>('general')
 
   const [isFeatureModalOpen, setIsFeatureModalOpen] = useState(false)
@@ -141,11 +144,11 @@ export const SubscriptionManagementTab: React.FC = () => {
     name: '',
     code: '',
     description: '',
-    monthlyPrice: 199,
-    yearlyPrice: 1990,
+    monthlyPrice: 999,
+    yearlyPrice: 9990,
     offerPrice: null,
     discountPercent: null,
-    currency: 'USD',
+    currency: 'INR',
     billingCycle: 'Monthly',
     trialDays: 14,
     durationDays: 30,
@@ -231,10 +234,19 @@ export const SubscriptionManagementTab: React.FC = () => {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => api.delete(`/api/v1/subscriptions/plans/${id}`),
+    mutationFn: async (id: string) => {
+      const res = await api.delete(`/api/v1/subscriptions/plans/${id}`)
+      return res.data
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscriptionPlans'] })
       queryClient.invalidateQueries({ queryKey: ['subscriptionKpis'] })
+      showToast('Subscription deleted successfully.', 'success')
+      setDeletingPlan(null)
+    },
+    onError: (err: any) => {
+      const errorMessage = err?.response?.data?.message || err?.message || 'Unable to delete subscription. Please try again.'
+      showToast(errorMessage, 'error')
     }
   })
 
@@ -270,11 +282,11 @@ export const SubscriptionManagementTab: React.FC = () => {
       name: '',
       code: '',
       description: '',
-      monthlyPrice: 199,
-      yearlyPrice: 1990,
+      monthlyPrice: 999,
+      yearlyPrice: 9990,
       offerPrice: null,
       discountPercent: null,
-      currency: 'USD',
+      currency: 'INR',
       billingCycle: 'Monthly',
       trialDays: 14,
       durationDays: 30,
@@ -550,15 +562,28 @@ export const SubscriptionManagementTab: React.FC = () => {
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{plan.name}</span>
                   </div>
 
-                  <div className="mt-3 flex items-baseline gap-1">
-                    <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
-                      ${plan.monthlyPrice.toLocaleString()}
-                    </span>
-                    <span className="text-xs text-slate-500 font-medium">/ {plan.billingCycle.toLowerCase()}</span>
-                  </div>
+                  {plan.name.toLowerCase() === 'enterprise' ? (
+                    <div>
+                      <div className="mt-3 flex items-baseline gap-1">
+                        <span className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                          Custom Pricing
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">Contact Sales</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="mt-3 flex items-baseline gap-1">
+                        <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                          ₹{plan.monthlyPrice.toLocaleString('en-IN')}
+                        </span>
+                        <span className="text-xs text-slate-500 font-medium">/ {plan.billingCycle.toLowerCase()}</span>
+                      </div>
 
-                  {plan.yearlyPrice > 0 && (
-                    <p className="text-[11px] text-slate-400 mt-0.5">Or ${plan.yearlyPrice.toLocaleString()} billed yearly</p>
+                      {plan.yearlyPrice > 0 && (
+                        <p className="text-[11px] text-slate-400 mt-0.5">Or ₹{plan.yearlyPrice.toLocaleString('en-IN')} billed yearly</p>
+                      )}
+                    </div>
                   )}
 
                   <p className="text-xs text-slate-600 leading-relaxed mt-3 line-clamp-2">{plan.description}</p>
@@ -626,11 +651,7 @@ export const SubscriptionManagementTab: React.FC = () => {
                     </button>
 
                     <button
-                      onClick={() => {
-                        if (confirm(`Are you sure you want to delete or archive '${plan.name}'?`)) {
-                          deleteMutation.mutate(plan.id)
-                        }
-                      }}
+                      onClick={() => setDeletingPlan(plan)}
                       className="py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1"
                     >
                       <Trash2 className="w-3.5 h-3.5" /> Delete
@@ -673,8 +694,17 @@ export const SubscriptionManagementTab: React.FC = () => {
                     </td>
 
                     <td className="py-3.5 px-4">
-                      <span className="font-extrabold text-slate-900 block">${p.monthlyPrice} / mo</span>
-                      <span className="text-[10px] text-slate-400">Yearly: ${p.yearlyPrice}</span>
+                      {p.name.toLowerCase() === 'enterprise' ? (
+                        <div>
+                          <span className="font-extrabold text-slate-900 block">Custom Pricing</span>
+                          <span className="text-[10px] text-slate-400">Contact Sales</span>
+                        </div>
+                      ) : (
+                        <div>
+                          <span className="font-extrabold text-slate-900 block">₹{p.monthlyPrice.toLocaleString('en-IN')} / mo</span>
+                          <span className="text-[10px] text-slate-400">Yearly: ₹{p.yearlyPrice.toLocaleString('en-IN')}</span>
+                        </div>
+                      )}
                     </td>
 
                     <td className="py-3.5 px-4">
@@ -724,9 +754,7 @@ export const SubscriptionManagementTab: React.FC = () => {
                           <Archive className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => {
-                            if (confirm(`Delete plan '${p.name}'?`)) deleteMutation.mutate(p.id)
-                          }}
+                          onClick={() => setDeletingPlan(p)}
                           className="p-1.5 hover:bg-red-50 rounded-lg text-red-600 hover:text-red-700 transition"
                           title="Delete Plan"
                         >
@@ -880,7 +908,7 @@ export const SubscriptionManagementTab: React.FC = () => {
               {activeTab === 'pricing' && (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Monthly Price ($)</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Monthly Price (₹)</label>
                     <input
                       type="number"
                       step="0.01"
@@ -891,7 +919,7 @@ export const SubscriptionManagementTab: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Yearly Price ($)</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Yearly Price (₹)</label>
                     <input
                       type="number"
                       step="0.01"
@@ -1191,7 +1219,7 @@ export const SubscriptionManagementTab: React.FC = () => {
                 >
                   <option value="">-- Select Subscription Tier --</option>
                   {plans.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name} (${p.monthlyPrice}/mo)</option>
+                    <option key={p.id} value={p.id}>{p.name} ({p.name.toLowerCase() === 'enterprise' ? 'Custom Pricing' : `₹${p.monthlyPrice.toLocaleString('en-IN')}/mo`})</option>
                   ))}
                 </select>
               </div>
@@ -1268,6 +1296,53 @@ export const SubscriptionManagementTab: React.FC = () => {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deletingPlan && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 select-none">
+            <div className="flex items-center gap-3 text-rose-600 mb-4">
+              <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Delete Subscription Plan?</h3>
+                <p className="text-xs text-slate-500">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 mb-6 bg-slate-50 p-3 rounded-xl border border-slate-100">
+              Are you sure you want to delete <strong className="text-slate-900">{deletingPlan.name}</strong>?
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeletingPlan(null)}
+                disabled={deleteMutation.isPending}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteMutation.mutate(deletingPlan.id)}
+                disabled={deleteMutation.isPending}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl shadow-xs transition flex items-center gap-1.5"
+              >
+                {deleteMutation.isPending ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
+              </button>
             </div>
           </div>
         </div>

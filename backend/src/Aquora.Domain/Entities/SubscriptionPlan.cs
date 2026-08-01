@@ -15,7 +15,7 @@ namespace Aquora.Domain.Entities
         public decimal? OfferPrice { get; set; }
         public decimal? DiscountPercent { get; set; }
 
-        public string Currency { get; set; } = "USD";
+        public string Currency { get; set; } = "INR";
         public string BillingCycle { get; set; } = "Monthly"; // Monthly, Quarterly, Half-Yearly, Yearly, Lifetime, Custom
 
         public int TrialDays { get; set; } = 14;

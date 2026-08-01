@@ -64,7 +64,7 @@ namespace Aquora.Application.DTOs.Subscriptions
         public decimal? OfferPrice { get; set; }
         public decimal? DiscountPercent { get; set; }
 
-        public string Currency { get; set; } = "USD";
+        public string Currency { get; set; } = "INR";
         public string BillingCycle { get; set; } = "Monthly";
         public int TrialDays { get; set; } = 14;
         public int DurationDays { get; set; } = 30;
@@ -97,7 +97,7 @@ namespace Aquora.Application.DTOs.Subscriptions
         public decimal? OfferPrice { get; set; }
         public decimal? DiscountPercent { get; set; }
 
-        public string Currency { get; set; } = "USD";
+        public string Currency { get; set; } = "INR";
         public string BillingCycle { get; set; } = "Monthly";
         public int TrialDays { get; set; } = 14;
         public int DurationDays { get; set; } = 30;
@@ -141,7 +141,7 @@ namespace Aquora.Application.DTOs.Subscriptions
         public string Status { get; set; } = "Active";
         public string BillingCycle { get; set; } = "Monthly";
         public decimal PricePaid { get; set; }
-        public string Currency { get; set; } = "USD";
+        public string Currency { get; set; } = "INR";
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public DateTime? TrialEndDate { get; set; }

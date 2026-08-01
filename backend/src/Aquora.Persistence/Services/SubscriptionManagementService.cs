@@ -25,6 +25,7 @@ namespace Aquora.Persistence.Services
         {
             // Auto-seed if empty
             await SeedDefaultPlansAsync();
+            await EnsureINRPlansAsync();
 
             var dbQuery = _platformContext.SubscriptionPlans
                 .AsNoTracking()
@@ -331,14 +332,13 @@ namespace Aquora.Persistence.Services
             // Validation: Prevent deleting plans currently assigned to active companies
             var assignedCompanies = await _platformContext.Tenants
                 .AsNoTracking()
-                .Where(t => !t.IsDeleted && t.IsActive && t.SubscriptionPlan.Equals(plan.Name, StringComparison.OrdinalIgnoreCase))
+                .Where(t => !t.IsDeleted && t.IsActive && t.SubscriptionPlan != null && t.SubscriptionPlan.ToLower() == plan.Name.ToLower())
                 .Select(t => t.Name)
                 .ToListAsync();
 
             if (assignedCompanies.Any())
             {
-                throw new InvalidOperationException(
-                    $"Cannot delete plan '{plan.Name}' because it is currently assigned to {assignedCompanies.Count} active companies ({string.Join(", ", assignedCompanies.Take(3))}). Please archive the plan instead or reassign the companies to another tier first.");
+                throw new InvalidOperationException("This subscription plan is currently assigned to active tenants and cannot be deleted.");
             }
 
             plan.IsDeleted = true;
@@ -744,6 +744,46 @@ namespace Aquora.Persistence.Services
             }).ToList();
         }
 
+        public async Task EnsureINRPlansAsync()
+        {
+            var plansToUpdate = await _platformContext.SubscriptionPlans
+                .Where(p => !p.IsDeleted && (p.Currency == "USD" || p.MonthlyPrice == 199.00m || p.MonthlyPrice == 499.00m || p.MonthlyPrice == 999.00m || p.MonthlyPrice == 2499.00m))
+                .ToListAsync();
+
+            if (!plansToUpdate.Any()) return;
+
+            foreach (var plan in plansToUpdate)
+            {
+                plan.Currency = "INR";
+                if (string.Equals(plan.Name, "Starter", StringComparison.OrdinalIgnoreCase))
+                {
+                    plan.MonthlyPrice = 999.00m;
+                    plan.YearlyPrice = 9990.00m;
+                    plan.Description = "Ideal for small manufacturing businesses starting with Aquora.";
+                }
+                else if (string.Equals(plan.Name, "Professional", StringComparison.OrdinalIgnoreCase))
+                {
+                    plan.MonthlyPrice = 2499.00m;
+                    plan.YearlyPrice = 24990.00m;
+                    plan.Description = "Perfect for growing manufacturers with multiple production lines and advanced reporting.";
+                }
+                else if (string.Equals(plan.Name, "Business", StringComparison.OrdinalIgnoreCase))
+                {
+                    plan.MonthlyPrice = 5999.00m;
+                    plan.YearlyPrice = 59990.00m;
+                    plan.Description = "Designed for large manufacturing companies requiring advanced ERP capabilities.";
+                }
+                else if (string.Equals(plan.Name, "Enterprise", StringComparison.OrdinalIgnoreCase))
+                {
+                    plan.MonthlyPrice = 0.00m;
+                    plan.YearlyPrice = 0.00m;
+                    plan.Description = "Tailored enterprise deployment with unlimited scalability and dedicated support.";
+                }
+            }
+
+            await _platformContext.SaveChangesAsync();
+        }
+
         public async Task SeedDefaultPlansAsync()
         {
             if (await _platformContext.SubscriptionPlans.AnyAsync(p => !p.IsDeleted))
@@ -761,12 +801,12 @@ namespace Aquora.Persistence.Services
                     Id = starterId,
                     Name = "Starter",
                     Code = "STARTER",
-                    Description = "Essential tools for small manufacturing operations and early-stage facilities.",
-                    MonthlyPrice = 199.00m,
-                    YearlyPrice = 1990.00m,
-                    OfferPrice = 149.00m,
-                    DiscountPercent = 25,
-                    Currency = "USD",
+                    Description = "Ideal for small manufacturing businesses starting with Aquora.",
+                    MonthlyPrice = 999.00m,
+                    YearlyPrice = 9990.00m,
+                    OfferPrice = 799.00m,
+                    DiscountPercent = 20,
+                    Currency = "INR",
                     BillingCycle = "Monthly",
                     TrialDays = 14,
                     DurationDays = 30,
@@ -784,12 +824,12 @@ namespace Aquora.Persistence.Services
                     Id = proId,
                     Name = "Professional",
                     Code = "PRO",
-                    Description = "Advanced analytics, multiple production lines, and automated batch controls.",
-                    MonthlyPrice = 499.00m,
-                    YearlyPrice = 4990.00m,
-                    OfferPrice = 399.00m,
+                    Description = "Perfect for growing manufacturers with multiple production lines and advanced reporting.",
+                    MonthlyPrice = 2499.00m,
+                    YearlyPrice = 24990.00m,
+                    OfferPrice = 1999.00m,
                     DiscountPercent = 20,
-                    Currency = "USD",
+                    Currency = "INR",
                     BillingCycle = "Monthly",
                     TrialDays = 14,
                     DurationDays = 30,
@@ -807,12 +847,12 @@ namespace Aquora.Persistence.Services
                     Id = busId,
                     Name = "Business",
                     Code = "BUSINESS",
-                    Description = "High-throughput manufacturing plants with multi-warehouse and ERP integration.",
-                    MonthlyPrice = 999.00m,
-                    YearlyPrice = 9990.00m,
-                    OfferPrice = 849.00m,
+                    Description = "Designed for large manufacturing companies requiring advanced ERP capabilities.",
+                    MonthlyPrice = 5999.00m,
+                    YearlyPrice = 59990.00m,
+                    OfferPrice = 4999.00m,
                     DiscountPercent = 15,
-                    Currency = "USD",
+                    Currency = "INR",
                     BillingCycle = "Monthly",
                     TrialDays = 14,
                     DurationDays = 30,
@@ -830,12 +870,12 @@ namespace Aquora.Persistence.Services
                     Id = entId,
                     Name = "Enterprise",
                     Code = "ENTERPRISE",
-                    Description = "Unlimited infrastructure, dedicated DB cluster, custom SLA, and 24/7 VIP support.",
-                    MonthlyPrice = 2499.00m,
-                    YearlyPrice = 24990.00m,
+                    Description = "Tailored enterprise deployment with unlimited scalability and dedicated support.",
+                    MonthlyPrice = 0.00m,
+                    YearlyPrice = 0.00m,
                     OfferPrice = null,
                     DiscountPercent = null,
-                    Currency = "USD",
+                    Currency = "INR",
                     BillingCycle = "Yearly",
                     TrialDays = 30,
                     DurationDays = 365,
