@@ -29,6 +29,7 @@ export const UserModal: React.FC<UserModalProps> = ({
     department: 'Administration',
     status: 'Active',
     tenantId: ''
+
   })
 
   const [loading, setLoading] = useState(false)
@@ -101,7 +102,7 @@ export const UserModal: React.FC<UserModalProps> = ({
 
       {/* Modal Container */}
       <div className="relative w-full max-w-2xl bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
-        
+
         {/* Header */}
         <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
