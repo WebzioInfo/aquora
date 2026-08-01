@@ -26,7 +26,7 @@ export const UserModal: React.FC<UserModalProps> = ({
     phone: '',
     password: '',
     roleName: 'Operator',
-    department: 'Operations',
+    department: 'Administration',
     status: 'Active',
     tenantId: ''
   })
@@ -44,7 +44,7 @@ export const UserModal: React.FC<UserModalProps> = ({
         phone: initialData.phone || '',
         password: '',
         roleName: initialData.roleName || 'Operator',
-        department: initialData.department || 'Operations',
+        department: initialData.department || 'Administration',
         status: initialData.status || (initialData.isActive ? 'Active' : 'Inactive'),
         tenantId: initialData.tenantId || ''
       })
@@ -57,7 +57,7 @@ export const UserModal: React.FC<UserModalProps> = ({
         phone: '',
         password: '',
         roleName: 'Operator',
-        department: 'Operations',
+        department: 'Administration',
         status: 'Active',
         tenantId: ''
       })
@@ -227,6 +227,7 @@ export const UserModal: React.FC<UserModalProps> = ({
                 onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                 className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-900 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
               >
+                <option value="Administration">Administration</option>
                 <option value="Operations">Operations</option>
                 <option value="Production">Production</option>
                 <option value="Sales">Sales</option>

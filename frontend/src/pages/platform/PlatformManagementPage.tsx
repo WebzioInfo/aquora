@@ -535,7 +535,7 @@ export const PlatformManagementPage: React.FC = () => {
               <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search by user name, email, phone, role, department..."
+                placeholder="Search by name, email, phone, role, department, or tenant/company..."
                 value={userSearch}
                 onChange={(e) => { setUserSearch(e.target.value); setUserPage(1); }}
                 className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-900 placeholder:text-slate-400"

@@ -629,7 +629,9 @@ namespace Aquora.Persistence.Services
                     (u.Username != null && u.Username.ToLower().Contains(s)) ||
                     (u.Phone != null && u.Phone.ToLower().Contains(s)) ||
                     (u.Department != null && u.Department.ToLower().Contains(s)) ||
-                    (u.RoleName != null && u.RoleName.ToLower().Contains(s)));
+                    (u.RoleName != null && u.RoleName.ToLower().Contains(s)) ||
+                    (u.Tenant != null && u.Tenant.Name != null && u.Tenant.Name.ToLower().Contains(s)) ||
+                    (!u.TenantId.HasValue && "global platform".Contains(s)));
             }
 
             if (!string.IsNullOrWhiteSpace(query.StatusFilter))

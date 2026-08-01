@@ -812,10 +812,13 @@ namespace Aquora.API.Controllers
             {
                 var dbDepartments = new List<string>
                 {
+                    "Administration",
                     "Operations",
                     "Production",
+                    "Sales",
+                    "Finance",
                     "HR",
-                    "Sales"
+                    "IT Support"
                 };
 
                 return Success(dbDepartments, "Departments loaded successfully.");
