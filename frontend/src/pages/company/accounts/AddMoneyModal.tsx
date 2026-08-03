@@ -144,7 +144,7 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={isEdit ? 'Edit Deposit Transaction' : 'Add Money'}
-      size="md"
+      maxWidth="md"
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-left">
         {formError && (

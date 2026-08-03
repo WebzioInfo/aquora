@@ -133,6 +133,7 @@ export interface BankAccountDropdown {
   bankName: string
   accountName: string
   accountNumber: string
+  accountType?: string
   currentBalance: number
 }
 

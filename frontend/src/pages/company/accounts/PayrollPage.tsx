@@ -355,7 +355,8 @@ export const PayrollPage: React.FC = () => {
         title="Payroll Directory"
         description="Process salary disbursements, generate payslips, and reconcile payroll general ledger records."
         actions={
-          <EnterpriseButton onClick={openCreateModal} variant="primary" icon={<Plus className="w-4 h-4" />}>
+          <EnterpriseButton onClick={openCreateModal} variant="primary">
+            <Plus className="w-4 h-4 mr-2" />
             Generate Salary
           </EnterpriseButton>
         }
@@ -1051,7 +1052,8 @@ export const PayrollPage: React.FC = () => {
               <EnterpriseButton onClick={() => {
                 setIsViewModalOpen(false)
                 openSlipModal(selectedPayment.id)
-              }} variant="primary" icon={<FileText className="w-4 h-4" />}>
+              }} variant="primary">
+                <FileText className="w-4 h-4 mr-2" />
                 View Pay Slip
               </EnterpriseButton>
             </div>
@@ -1200,7 +1202,8 @@ export const PayrollPage: React.FC = () => {
               <EnterpriseButton onClick={() => setIsSlipOpen(false)} variant="secondary">
                 Close
               </EnterpriseButton>
-              <EnterpriseButton onClick={handlePrint} variant="primary" icon={<Printer className="w-4 h-4" />}>
+              <EnterpriseButton onClick={handlePrint} variant="primary">
+                <Printer className="w-4 h-4 mr-2" />
                 Print Salary Slip
               </EnterpriseButton>
             </div>
