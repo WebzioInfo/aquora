@@ -7,7 +7,7 @@ import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { HubConnectionBuilder, HubConnection, HttpTransportType } from '@microsoft/signalr'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '../../services/api'
+import { api, API_BASE_URL } from '../../services/api'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import { authService } from '../../services/auth'
@@ -802,8 +802,7 @@ export const CompanyDashboardPage: React.FC = () => {
 
     // Try starting SignalR connection
     const token = useAuthStore.getState().token
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000'
-    const hubUrl = `${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}/hub/provisioning`
+    const hubUrl = `${API_BASE_URL}/hub/provisioning`
     
     connection = new HubConnectionBuilder()
       .withUrl(hubUrl, {
@@ -867,7 +866,7 @@ export const CompanyDashboardPage: React.FC = () => {
     const connectHub = async () => {
       try {
         hubConn = new HubConnectionBuilder()
-          .withUrl('/hubs/dashboard', {
+          .withUrl(`${API_BASE_URL}/hubs/dashboard`, {
             skipNegotiation: true,
             transport: HttpTransportType.WebSockets
           })

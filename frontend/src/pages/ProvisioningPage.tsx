@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../store/useAuthStore'
 import { useNotificationStore } from '../store/useNotificationStore'
 import { authService } from '../services/auth'
-import { api } from '../services/api'
+import { api, API_BASE_URL } from '../services/api'
 import BRAND from '../config/brand'
 import AuthWatermark from '../components/ui/AuthWatermark'
 import { 
@@ -130,7 +130,7 @@ export const ProvisioningPage: React.FC = () => {
   useEffect(() => {
     isMountedRef.current = true
 
-    const hubUrl = `${window.location.origin}/hub/provisioning`
+    const hubUrl = `${API_BASE_URL}/hub/provisioning`
     const connection = new HubConnectionBuilder()
       .withUrl(hubUrl, {
         accessTokenFactory: () => token || '',

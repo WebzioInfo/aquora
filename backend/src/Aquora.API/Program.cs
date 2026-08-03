@@ -125,6 +125,7 @@ Log.Information("--------------------------------------------------");
 
 // Add Clean Architecture Layers
 builder.Services.AddApplication();
+builder.Services.AddScoped<Aquora.Application.Interfaces.Services.IHealthService, Aquora.Application.Services.HealthService>();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddPersistence(builder.Configuration);
 
@@ -201,10 +202,37 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", policy =>
     {
-        policy.SetIsOriginAllowed(_ => true)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        var frontendUrl = builder.Configuration["FRONTEND_URL"];
+        var allowedOrigins = builder.Configuration["ALLOWED_ORIGINS"];
+        var origins = new List<string>();
+
+        if (!string.IsNullOrEmpty(frontendUrl))
+            origins.Add(frontendUrl);
+        
+        if (!string.IsNullOrEmpty(allowedOrigins))
+            origins.AddRange(allowedOrigins.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(o => o.Trim()));
+
+        if (builder.Environment.IsDevelopment())
+        {
+            origins.Add("http://localhost:5173");
+            origins.Add("http://localhost:3000");
+        }
+
+        if (origins.Any())
+        {
+            policy.WithOrigins(origins.ToArray())
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
+        else
+        {
+            // Fallback for misconfiguration, log warning
+            Console.WriteLine("[WARNING] No CORS origins configured. SignalR and credentials will fail if origins don't match.");
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
     });
 });
 
@@ -378,4 +406,4 @@ finally
 {
     Log.CloseAndFlush();
 }
-// Restart trigger 3
+// Restart trigger 4

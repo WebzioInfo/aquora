@@ -1,7 +1,31 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/useAuthStore'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+const getSanitizedApiBaseUrl = (): string => {
+  let url = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+  
+  // 1. Prepend https:// if missing scheme
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    // Check if it's localhost to use http, else https
+    if (url.includes('localhost') || url.includes('127.0.0.1')) {
+      url = `http://${url}`
+    } else {
+      url = `https://${url}`
+    }
+  }
+
+  // 2. Strip /api/v1 or trailing slashes if accidentally included in the environment variable
+  // because all our service calls explicitly include /api/v1/...
+  try {
+    const parsedUrl = new URL(url)
+    return parsedUrl.origin // This returns just 'https://domain.com' without trailing slash or path
+  } catch (e) {
+    // Fallback if URL parsing fails
+    return url.replace(/\/api\/v1\/?$/, '').replace(/\/$/, '')
+  }
+}
+
+export const API_BASE_URL = getSanitizedApiBaseUrl()
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
