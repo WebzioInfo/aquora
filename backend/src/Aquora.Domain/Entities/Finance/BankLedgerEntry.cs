@@ -9,8 +9,12 @@ namespace Aquora.Domain.Entities.Finance
         public Guid CompanyId { get; set; }
         public virtual Company Company { get; set; } = null!;
 
-        public Guid BankAccountId { get; set; }
-        public virtual BankAccount BankAccount { get; set; } = null!;
+        public Guid? BankAccountId { get; set; }
+        public virtual BankAccount? BankAccount { get; set; }
+
+        public Guid? CashBookId { get; set; }
+        public virtual CashBook? CashBook { get; set; }
+        public string? LedgerAccountType { get; set; } = "BankAccount";
 
         public DateTime TransactionDate { get; set; }
         
@@ -29,6 +33,8 @@ namespace Aquora.Domain.Entities.Finance
         // Navigation to related entity (e.g., ExpenseId, SalesPaymentId)
         public Guid? RelatedEntityId { get; set; }
         public string? RelatedEntityType { get; set; } // "Expense", "SalesPayment", "OwnerInvestment"
+
+        public int LedgerSequence { get; set; }
 
         public DateTime CreatedAt { get; set; }
         public string CreatedBy { get; set; } = string.Empty;

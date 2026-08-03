@@ -950,6 +950,7 @@ export const CompanyDashboardPage: React.FC = () => {
   const [addRoleCode, setAddRoleCode] = useState('')
   const [addPasswordOrPin, setAddPasswordOrPin] = useState('')
   const [addDepartment, setAddDepartment] = useState('Operations')
+  const [addCurrentSalary, setAddCurrentSalary] = useState('')
   const [addEmployeeErrors, setAddEmployeeErrors] = useState<Record<string, string>>({})
 
   // Edit Employee Form States
@@ -957,6 +958,7 @@ export const CompanyDashboardPage: React.FC = () => {
   const [editFullName, setEditFullName] = useState('')
   const [editRoleCode, setEditRoleCode] = useState('')
   const [editDepartment, setEditDepartment] = useState('Operations')
+  const [editCurrentSalary, setEditCurrentSalary] = useState('')
   const [editIsActive, setEditIsActive] = useState(true)
   const [editEmployeeErrors, setEditEmployeeErrors] = useState<Record<string, string>>({})
 
@@ -1705,6 +1707,7 @@ export const CompanyDashboardPage: React.FC = () => {
         setAddRoleCode('')
         setAddPasswordOrPin('')
         setAddDepartment('Operations')
+        setAddCurrentSalary('')
       } else {
         showToast(data.message || 'Failed to create employee.', 'error')
       }
@@ -2104,6 +2107,12 @@ export const CompanyDashboardPage: React.FC = () => {
       errs.passwordOrPin = 'PIN must contain exactly 4 digits.'
     }
 
+    if (!addCurrentSalary) {
+      errs.currentSalary = 'Current Salary is required.'
+    } else if (isNaN(Number(addCurrentSalary)) || Number(addCurrentSalary) <= 0) {
+      errs.currentSalary = 'Current Salary must be greater than zero.'
+    }
+
     if (Object.keys(errs).length > 0) {
       setAddEmployeeErrors(errs)
       return
@@ -2116,7 +2125,8 @@ export const CompanyDashboardPage: React.FC = () => {
       email: addEmail.trim(),
       roleCode: addRoleCode,
       passwordOrPin: addPasswordOrPin,
-      department: addDepartment
+      department: addDepartment,
+      currentSalary: Number(addCurrentSalary)
     })
   }
 
@@ -2131,6 +2141,12 @@ export const CompanyDashboardPage: React.FC = () => {
       errs.roleCode = 'Role is required.'
     }
 
+    if (!editCurrentSalary) {
+      errs.currentSalary = 'Current Salary is required.'
+    } else if (isNaN(Number(editCurrentSalary)) || Number(editCurrentSalary) <= 0) {
+      errs.currentSalary = 'Current Salary must be greater than zero.'
+    }
+
     if (Object.keys(errs).length > 0) {
       setEditEmployeeErrors(errs)
       return
@@ -2143,6 +2159,7 @@ export const CompanyDashboardPage: React.FC = () => {
         fullName: editFullName.trim(),
         roleCode: editRoleCode,
         department: editDepartment,
+        currentSalary: Number(editCurrentSalary),
         isActive: editIsActive
       }
     })
@@ -2184,6 +2201,7 @@ export const CompanyDashboardPage: React.FC = () => {
     setEditFullName(employee.fullName)
     setEditRoleCode(employee.roleCode)
     setEditDepartment(employee.department)
+    setEditCurrentSalary(employee.currentSalary ? employee.currentSalary.toString() : '0')
     setEditIsActive(employee.isActive)
     setIsEditModalOpen(true)
   }
@@ -3113,6 +3131,11 @@ export const CompanyDashboardPage: React.FC = () => {
         className: 'font-medium text-[#374151]'
       },
       {
+        key: 'currentSalary',
+        title: 'Current Salary',
+        render: (row: any) => <span className="font-semibold text-[#111827]">₹{(row.currentSalary ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+      },
+      {
         key: 'isActive',
         title: 'Status',
         render: (row: any) => (
@@ -3331,6 +3354,14 @@ export const CompanyDashboardPage: React.FC = () => {
                   <span className="text-[12px] font-medium text-[#6B7280] leading-none">Department</span>
                   <span className="text-[15px] font-semibold text-[#111827] leading-tight">
                     {selectedEmployeeForView.department}
+                  </span>
+                </div>
+
+                {/* Current Salary */}
+                <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[10px] p-[14px] flex flex-col gap-1.5">
+                  <span className="text-[12px] font-medium text-[#6B7280] leading-none">Current Salary</span>
+                  <span className="text-[15px] font-semibold text-[#111827] leading-tight">
+                    ₹{(selectedEmployeeForView.currentSalary ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
 
@@ -3621,6 +3652,17 @@ export const CompanyDashboardPage: React.FC = () => {
               ))}
             </EnterpriseSelect>
 
+            <EnterpriseInput
+              label="Current Salary (₹) *"
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="Enter Current Monthly Salary"
+              value={addCurrentSalary}
+              onChange={(e) => setAddCurrentSalary(e.target.value)}
+              error={addEmployeeErrors.currentSalary}
+            />
+
             <div className="flex gap-2 justify-end mt-4">
               <EnterpriseButton type="button" onClick={() => {
                 setIsAddModalOpen(false)
@@ -3671,6 +3713,17 @@ export const CompanyDashboardPage: React.FC = () => {
                 <option key={dept} value={dept}>{dept}</option>
               ))}
             </EnterpriseSelect>
+
+            <EnterpriseInput
+              label="Current Salary (₹) *"
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="Enter Current Monthly Salary"
+              value={editCurrentSalary}
+              onChange={(e) => setEditCurrentSalary(e.target.value)}
+              error={editEmployeeErrors.currentSalary}
+            />
 
             <div className="flex items-center gap-3 mt-2 select-none">
               <button

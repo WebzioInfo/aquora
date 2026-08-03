@@ -36,6 +36,13 @@ namespace Aquora.Application.Interfaces.Services
         Task<BankAccountDto?> UpdateBankAccountAsync(Guid id, UpdateBankAccountRequest request);
         Task<bool> DeleteBankAccountAsync(Guid id);
 
+        Task<PagedResult<CashBookDto>> GetCashBooksAsync(int pageNumber, int pageSize, string? search, string? status);
+        Task<List<CashBookDropdownDto>> GetCashBookDropdownAsync();
+        Task<CashBookDto?> GetCashBookByIdAsync(Guid id);
+        Task<CashBookDto> CreateCashBookAsync(CreateCashBookRequest request);
+        Task<CashBookDto?> UpdateCashBookAsync(Guid id, UpdateCashBookRequest request);
+        Task<bool> DeleteCashBookAsync(Guid id);
+
         // 3. Owner Investment Management
         Task<List<OwnerDto>> GetOwnersAsync();
         Task<OwnerDto?> GetOwnerByIdAsync(Guid id);

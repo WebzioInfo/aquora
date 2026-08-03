@@ -28,6 +28,7 @@ namespace Aquora.Domain.Entities
         public string? Designation { get; set; }
         public string? Shift { get; set; }
         public decimal? Salary { get; set; }
+        public decimal? CurrentSalary { get; set; }
         public DateTime? JoiningDate { get; set; }
         public string? PhotoUrl { get; set; }
         public int DevicesCount { get; set; } = 1;

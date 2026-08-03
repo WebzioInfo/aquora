@@ -44,7 +44,10 @@ namespace Aquora.Persistence.Services
                 var tableName = entityType.GetTableName();
                 if (tableName == null) continue;
 
-                var expectedSchema = entityType.GetSchema() ?? schemaName;
+                var entitySchema = entityType.GetSchema();
+                var expectedSchema = (entitySchema == "public" && (tableName == "Tenants" || tableName == "Users" || tableName == "TenantDomains"))
+                    ? "public"
+                    : schemaName;
 
                 // Query postgres for existing columns
                 var command = connection.CreateCommand();
@@ -88,6 +91,20 @@ namespace Aquora.Persistence.Services
                     }
                 }
 
+                if (tableName.Equals("BankLedgerEntries", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        using var alterCmd = connection.CreateCommand();
+                        alterCmd.CommandText = $@"ALTER TABLE ""{expectedSchema}"".""BankLedgerEntries"" ALTER COLUMN ""BankAccountId"" DROP NOT NULL;";
+                        await alterCmd.ExecuteNonQueryAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "[SCHEMA AUTO-REPAIR DROP NOT NULL WARN] Failed to drop NOT NULL constraint on {Schema}.BankLedgerEntries.BankAccountId: {Message}", expectedSchema, ex.Message);
+                    }
+                }
+
                 var storeObject = Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table(tableName, expectedSchema);
                 var expectedProperties = entityType.GetProperties()
                     .Select(p => new
@@ -126,6 +143,26 @@ namespace Aquora.Persistence.Services
                         {
                             errors.Add($"Column {expectedSchema}.{tableName}.{expectedProp.Column} has PostgreSQL type {actualColumns[expectedProp.Column]}, but EF expects {GetExpectedPostgresDataType(expectedProp.Property.ClrType)}.");
                         }
+                    }
+                }
+
+                if (tableName.Equals("BankLedgerEntries", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        using var updateCmd = connection.CreateCommand();
+                        updateCmd.CommandText = $@"
+                            UPDATE ""{expectedSchema}"".""BankLedgerEntries"" 
+                            SET ""LedgerAccountType"" = CASE 
+                                WHEN ""CashBookId"" IS NOT NULL THEN 'CashBook' 
+                                ELSE 'BankAccount' 
+                            END 
+                            WHERE ""LedgerAccountType"" IS NULL;";
+                        await updateCmd.ExecuteNonQueryAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "[SCHEMA AUTO-REPAIR BACKFILL WARN] Failed to backfill LedgerAccountType in {Schema}.BankLedgerEntries: {Message}", expectedSchema, ex.Message);
                     }
                 }
 
@@ -266,7 +303,9 @@ namespace Aquora.Persistence.Services
                             ""Id"" uuid NOT NULL PRIMARY KEY,
                             ""TenantId"" uuid NOT NULL,
                             ""CompanyId"" uuid NOT NULL,
-                            ""BankAccountId"" uuid NOT NULL,
+                            ""BankAccountId"" uuid NULL,
+                            ""CashBookId"" uuid NULL,
+                            ""LedgerAccountType"" text NOT NULL DEFAULT 'BankAccount',
                             ""TransactionDate"" timestamp with time zone NOT NULL,
                             ""ReferenceNumber"" text NOT NULL,
                             ""TransactionType"" text NOT NULL,
@@ -276,6 +315,7 @@ namespace Aquora.Persistence.Services
                             ""RunningBalance"" numeric NOT NULL DEFAULT 0.0,
                             ""RelatedEntityId"" uuid NULL,
                             ""RelatedEntityType"" text NULL,
+                            ""LedgerSequence"" SERIAL,
                             ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
                             ""CreatedBy"" text NOT NULL DEFAULT 'System',
                             ""UpdatedAt"" timestamp with time zone NULL,
@@ -303,6 +343,69 @@ namespace Aquora.Persistence.Services
                             ""UpdatedBy"" text NULL,
                             ""CreatedByIP"" text NULL,
                             ""UpdatedByIP"" text NULL
+                        );";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("CashBooks", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""CashBooks"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""Name"" text NOT NULL,
+                            ""Description"" text NULL,
+                            ""OpeningBalance"" numeric(18,2) NOT NULL DEFAULT 0.0,
+                            ""CurrentBalance"" numeric(18,2) NOT NULL DEFAULT 0.0,
+                            ""Status"" text NOT NULL DEFAULT 'Active',
+                            ""Notes"" text NULL,
+                            ""IsActive"" boolean NOT NULL DEFAULT true,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("SalaryPayments", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""SalaryPayments"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""SalaryNo"" text NOT NULL,
+                            ""EmployeeId"" uuid NOT NULL,
+                            ""SalaryMonth"" text NOT NULL,
+                            ""MonthlySalary"" numeric NOT NULL DEFAULT 0.0,
+                            ""WorkingDays"" integer NOT NULL DEFAULT 0,
+                            ""DaysWorked"" integer NOT NULL DEFAULT 0,
+                            ""DailySalary"" numeric NOT NULL DEFAULT 0.0,
+                            ""GrossSalary"" numeric NOT NULL DEFAULT 0.0,
+                            ""Bonus"" numeric NOT NULL DEFAULT 0.0,
+                            ""AdvanceDeduction"" numeric NOT NULL DEFAULT 0.0,
+                            ""OtherDeduction"" numeric NOT NULL DEFAULT 0.0,
+                            ""NetSalary"" numeric NOT NULL DEFAULT 0.0,
+                            ""PaymentMethod"" text NOT NULL,
+                            ""BankAccountId"" uuid NULL,
+                            ""CashBookId"" uuid NULL,
+                            ""PaymentDate"" timestamp with time zone NOT NULL,
+                            ""Remarks"" text NULL,
+                            ""Status"" text NOT NULL DEFAULT 'Paid',
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
                         );";
                     await cmd.ExecuteNonQueryAsync();
                 }
@@ -406,6 +509,11 @@ namespace Aquora.Persistence.Services
             var underlyingType = Nullable.GetUnderlyingType(clrType) ?? clrType;
             var nullable = Nullable.GetUnderlyingType(clrType) != null;
 
+            if (column.Equals("LedgerSequence", StringComparison.OrdinalIgnoreCase))
+            {
+                return "SERIAL";
+            }
+
             if (underlyingType == typeof(bool))
             {
                 return nullable ? "boolean NULL" : "boolean NOT NULL DEFAULT false";
@@ -426,6 +534,11 @@ namespace Aquora.Persistence.Services
                 return nullable ? "timestamp with time zone NULL" : "timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP";
             }
 
+            if (underlyingType == typeof(int))
+            {
+                return nullable ? "integer NULL" : "integer NOT NULL DEFAULT 0";
+            }
+
             if (column.Equals("PaymentStatus", StringComparison.OrdinalIgnoreCase))
             {
                 return "text NOT NULL DEFAULT 'Pending'";
@@ -442,6 +555,7 @@ namespace Aquora.Persistence.Services
             if (underlyingType == typeof(Guid)) return "uuid";
             if (underlyingType == typeof(decimal)) return "numeric";
             if (underlyingType == typeof(DateTime)) return "timestamp with time zone";
+            if (underlyingType == typeof(int)) return "integer";
 
             return "text";
         }

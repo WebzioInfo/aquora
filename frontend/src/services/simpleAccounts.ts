@@ -14,6 +14,8 @@ export interface SimpleExpense {
   paymentMethod: string
   bankAccountId?: string
   bankAccountName?: string
+  cashBookId?: string
+  cashBookName?: string
   paidFrom?: string
   notes?: string
   createdBy: string
@@ -30,6 +32,7 @@ export interface CreateSimpleExpenseRequest {
   amount: number
   paymentMethod: string
   bankAccountId?: string
+  cashBookId?: string
   notes?: string
 }
 
@@ -41,6 +44,7 @@ export interface UpdateSimpleExpenseRequest {
   amount: number
   paymentMethod: string
   bankAccountId?: string
+  cashBookId?: string
   notes?: string
 }
 
@@ -130,6 +134,58 @@ export interface BankAccountDropdown {
   accountName: string
   accountNumber: string
   currentBalance: number
+}
+
+
+export interface CashBook {
+  id: string
+  name: string
+  description?: string
+  openingBalance: number
+  currentBalance: number
+  status: string
+  notes?: string
+  createdAt: string
+  createdBy: string
+}
+
+export interface CreateCashBookRequest {
+  name: string
+  description?: string
+  openingBalance: number
+  notes?: string
+  status: string
+}
+
+export interface UpdateCashBookRequest {
+  name: string
+  description?: string
+  notes?: string
+  status: string
+}
+
+export interface AddMoneyRequest {
+  amount: number
+  source: string
+  referenceNo?: string
+  date: string
+  description?: string
+}
+
+export interface CashBookDropdown {
+  id: string
+  name: string
+  currentBalance: number
+}
+
+export interface PagedCashBooksResponse {
+  items: CashBook[]
+  totalCount: number
+  pageNumber: number
+  pageSize: number
+  totalPages: number
+  hasNextPage: boolean
+  hasPreviousPage: boolean
 }
 
 export interface OwnerInvestmentTransaction {
@@ -325,6 +381,36 @@ export const simpleAccountsService = {
     return res.data
   },
 
+  getCashBooks: async (params?: { pageNumber?: number, pageSize?: number, search?: string, status?: string }) => {
+    const res = await api.get<{ data: PagedCashBooksResponse }>('/api/v1/cash-books', { params })
+    return res.data.data
+  },
+
+  getCashBookDropdown: async () => {
+    const res = await api.get<{ data: CashBookDropdown[] }>('/api/v1/cash-books/dropdown')
+    return res.data.data
+  },
+
+  getCashBookById: async (id: string) => {
+    const res = await api.get<{ data: CashBook }>(`/api/v1/cash-books/${id}`)
+    return res.data.data
+  },
+
+  createCashBook: async (request: CreateCashBookRequest) => {
+    const res = await api.post<{ data: CashBook }>('/api/v1/cash-books', request)
+    return res.data.data
+  },
+
+  updateCashBook: async (id: string, request: UpdateCashBookRequest) => {
+    const res = await api.put<{ data: CashBook }>(`/api/v1/cash-books/${id}`, request)
+    return res.data.data
+  },
+
+  deleteCashBook: async (id: string) => {
+    const res = await api.delete(`/api/v1/cash-books/${id}`)
+    return res.data
+  },
+
   // Owners
   getOwners: async () => {
     const res = await api.get<{ data: Owner[] }>('/api/v1/owners')
@@ -391,6 +477,46 @@ export const simpleAccountsService = {
 
   getLedgerHistory: async (ledgerEntryId: string) => {
     const res = await api.get<{ data: BankLedgerAuditEntry[] }>(`/api/v1/bank-accounts/ledger/${ledgerEntryId}/history`)
+    return res.data.data
+  },
+
+  getCashBookLedger: async (cashBookId: string, params: { pageNumber?: number, pageSize?: number, search?: string } & BankLedgerFilter) => {
+    const res = await api.get<{ data: { items: BankLedgerEntry[], totalCount: number, totalPages: number } }>(`/api/v1/cash-books/${cashBookId}/ledger`, { params })
+    return res.data.data
+  },
+
+  getCashBookSummary: async (cashBookId: string) => {
+    const res = await api.get<{ data: BankSummary }>(`/api/v1/cash-books/${cashBookId}/summary`)
+    return res.data.data
+  },
+
+  addBankMoney: async (bankAccountId: string, request: AddMoneyRequest) => {
+    const res = await api.post<{ data: string }>(`/api/v1/bank-accounts/${bankAccountId}/deposit`, request)
+    return res.data.data
+  },
+
+  updateBankDeposit: async (ledgerEntryId: string, request: AddMoneyRequest) => {
+    const res = await api.put<{ data: boolean }>(`/api/v1/bank-accounts/deposit/${ledgerEntryId}`, request)
+    return res.data.data
+  },
+
+  deleteBankDeposit: async (ledgerEntryId: string) => {
+    const res = await api.delete<{ data: boolean }>(`/api/v1/bank-accounts/deposit/${ledgerEntryId}`)
+    return res.data.data
+  },
+
+  addCashMoney: async (cashBookId: string, request: AddMoneyRequest) => {
+    const res = await api.post<{ data: string }>(`/api/v1/cash-books/${cashBookId}/deposit`, request)
+    return res.data.data
+  },
+
+  updateCashDeposit: async (ledgerEntryId: string, request: AddMoneyRequest) => {
+    const res = await api.put<{ data: boolean }>(`/api/v1/cash-books/deposit/${ledgerEntryId}`, request)
+    return res.data.data
+  },
+
+  deleteCashDeposit: async (ledgerEntryId: string) => {
+    const res = await api.delete<{ data: boolean }>(`/api/v1/cash-books/deposit/${ledgerEntryId}`)
     return res.data.data
   }
 }

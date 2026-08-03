@@ -10,6 +10,7 @@ namespace Aquora.Application.DTOs.Employees
         public string RoleName { get; set; }
         public string RoleCode { get; set; }
         public string Department { get; set; }
+        public decimal CurrentSalary { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastLogin { get; set; }

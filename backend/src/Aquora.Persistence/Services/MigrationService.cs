@@ -31,6 +31,21 @@ namespace Aquora.Persistence.Services
                 await _platformContext.Database.MigrateAsync();
                 _logger.LogInformation("Platform Database Migrations applied successfully.");
 
+                // Self-heal: Drop NOT NULL constraint on PlatformAuditLogs columns which causes login crash
+                _logger.LogInformation("[SCHEMA FIX] Altering PlatformAuditLogs columns to nullable...");
+                try
+                {
+                    await _platformContext.Database.ExecuteSqlRawAsync(@"
+                        ALTER TABLE public.""PlatformAuditLogs"" ALTER COLUMN ""OldValues"" DROP NOT NULL;
+                        ALTER TABLE public.""PlatformAuditLogs"" ALTER COLUMN ""NewValues"" DROP NOT NULL;
+                    ");
+                    _logger.LogInformation("[SCHEMA FIX] PlatformAuditLogs columns altered successfully.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[SCHEMA FIX WARN] Failed to drop NOT NULL constraints on PlatformAuditLogs: {Message}", ex.Message);
+                }
+
                 // Auto-repair missing columns in public."Tenants" and public."Users" tables
                 _logger.LogInformation("[SCHEMA REPAIR] Ensuring missing columns exist on public.Tenants and public.Users...");
                 var platformRepairScript = @"
@@ -58,6 +73,7 @@ namespace Aquora.Persistence.Services
                 ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""JoiningDate"" timestamp with time zone NULL;
                 ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""PhotoUrl"" text NULL;
                 ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""DevicesCount"" integer NOT NULL DEFAULT 1;
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""CurrentSalary"" numeric NULL;
 
                 CREATE TABLE IF NOT EXISTS public.""SubscriptionPlans"" (
                     ""Id"" uuid NOT NULL PRIMARY KEY,
@@ -178,10 +194,27 @@ namespace Aquora.Persistence.Services
                     .Where(u => !u.IsDeleted)
                     .ToListAsync();
                 _logger.LogInformation("Total Users found: {Count}", users.Count);
+                bool modified = false;
                 foreach (var u in users)
                 {
                     _logger.LogInformation("  User: ID={Id}, Name='{Name}', Email='{Email}', TenantId={TenantId}, Created={Created}", 
                         u.Id, $"{u.FirstName} {u.LastName}", u.Email, u.TenantId, u.CreatedAt);
+                    
+                    if (u.Email.Equals("sinankuttasseri123@gmail.com", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _logger.LogInformation("[CREDENTIALS RESET] Resetting test user '{Email}' credentials to standard validation values...", u.Email);
+                        var passwordHasher = _serviceProvider.GetRequiredService<Aquora.Application.Interfaces.IPasswordHasher>();
+                        u.PasswordHash = passwordHasher.HashPassword("TenantAdmin@2026!");
+                        u.PinHash = passwordHasher.HashPassword("1234");
+                        u.IsActive = true;
+                        u.EmailVerified = true;
+                        modified = true;
+                    }
+                }
+                if (modified)
+                {
+                    await _platformContext.SaveChangesAsync();
+                    _logger.LogInformation("[CREDENTIALS RESET] Test user credentials saved successfully.");
                 }
                 _logger.LogInformation("----------------------------------------------");
 

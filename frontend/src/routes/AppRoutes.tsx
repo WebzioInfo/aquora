@@ -30,8 +30,12 @@ const ProvisioningPage = React.lazy(() => import('../pages/ProvisioningPage'))
 // Simple Accounts V1 Pages
 const AccountsDashboardPage = React.lazy(() => import('../pages/company/accounts/AccountsDashboardPage'))
 const ExpenseManagementPage = React.lazy(() => import('../pages/company/accounts/ExpenseManagementPage'))
+const PayrollPage = React.lazy(() => import('../pages/company/accounts/PayrollPage'))
 const BankAccountsPage = React.lazy(() => import('../pages/company/accounts/BankAccountsPage'))
 const BankAccountDetailsPage = React.lazy(() => import('../pages/company/accounts/BankAccountDetailsPage'))
+const LedgerPage = React.lazy(() => import('../pages/company/accounts/LedgerPage'))
+const CashBooksPage = React.lazy(() => import('../pages/company/accounts/CashBooksPage'))
+const CashBookDetailsPage = React.lazy(() => import('../pages/company/accounts/CashBookDetailsPage'))
 const OwnerListPage = React.lazy(() => import('../pages/company/accounts/OwnerListPage'))
 const OwnerDetailsPage = React.lazy(() => import('../pages/company/accounts/OwnerDetailsPage'))
 const AssetSummaryPage = React.lazy(() => import('../pages/company/accounts/AssetSummaryPage'))
@@ -441,8 +445,15 @@ export const AppRoutes: React.FC = () => {
         {/* Simple Accounts V1 Routes */}
         <Route path="accounts/dashboard" element={<AccountsDashboardPage />} />
         <Route path="accounts/expenses" element={<ExpenseManagementPage />} />
-        <Route path="accounts/bank-accounts" element={<BankAccountsPage />} />
+        <Route path="accounts/payroll" element={<PayrollPage />} />
+        <Route path="accounts/ledger" element={<LedgerPage />}>
+          <Route index element={<Navigate to="/company/accounts/ledger/bank-accounts" replace />} />
+          <Route path="bank-accounts" element={<BankAccountsPage />} />
+          <Route path="cash-books" element={<CashBooksPage />} />
+        </Route>
+        <Route path="accounts/bank-accounts" element={<Navigate to="/company/accounts/ledger/bank-accounts" replace />} />
         <Route path="accounts/bank-accounts/:id" element={<BankAccountDetailsPage />} />
+        <Route path="accounts/cash-books/:id" element={<CashBookDetailsPage />} />
         <Route path="accounts/owners" element={<OwnerListPage />} />
         <Route path="accounts/owners/:id" element={<OwnerDetailsPage />} />
         <Route path="accounts/assets" element={<AssetSummaryPage />} />

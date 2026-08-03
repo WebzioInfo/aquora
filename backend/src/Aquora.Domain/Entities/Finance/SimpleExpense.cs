@@ -18,6 +18,8 @@ namespace Aquora.Domain.Entities.Finance
         public string PaymentMethod { get; set; } = "Cash"; // Cash, Bank, etc.
         public Guid? BankAccountId { get; set; }
         public virtual BankAccount? BankAccount { get; set; }
+        public Guid? CashBookId { get; set; }
+        public virtual CashBook? CashBook { get; set; }
         public string? Notes { get; set; }
 
         // Auditable fields

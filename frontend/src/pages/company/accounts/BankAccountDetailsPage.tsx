@@ -15,9 +15,11 @@ import {
   X,
   CheckCircle2,
   AlertCircle,
-  History
+  History,
+  PlusCircle
 } from 'lucide-react'
 import { simpleAccountsService } from '../../../services/simpleAccounts'
+import { AddMoneyModal } from './AddMoneyModal'
 import type { 
   BankAccount, 
   BankSummary, 
@@ -74,6 +76,7 @@ export const BankAccountDetailsPage: React.FC = () => {
 
   const [isEditExpenseOpen, setIsEditExpenseOpen] = useState(false)
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null)
+  const [editingLedgerEntry, setEditingLedgerEntry] = useState<BankLedgerEntry | null>(null)
   const [submittingEdit, setSubmittingEdit] = useState(false)
   const [bankAccountsDropdown, setBankAccountsDropdown] = useState<BankAccountDropdown[]>([])
   const [editFormData, setEditFormData] = useState<UpdateSimpleExpenseRequest>({
@@ -91,6 +94,14 @@ export const BankAccountDetailsPage: React.FC = () => {
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null)
   const [deletingRefNumber, setDeletingRefNumber] = useState<string>('')
   const [submittingDelete, setSubmittingDelete] = useState(false)
+
+  // Deposit Modal States
+  const [isAddMoneyOpen, setIsAddMoneyOpen] = useState(false)
+  const [isEditDepositOpen, setIsEditDepositOpen] = useState(false)
+  const [selectedDepositEntry, setSelectedDepositEntry] = useState<any | null>(null)
+  const [isDeleteDepositOpen, setIsDeleteDepositOpen] = useState(false)
+  const [submittingDeleteDeposit, setSubmittingDeleteDeposit] = useState(false)
+  const [isViewDepositOpen, setIsViewDepositOpen] = useState(false)
 
   // Audit History Modal State
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
@@ -218,8 +229,36 @@ export const BankAccountDetailsPage: React.FC = () => {
     }
   }
 
-  const handleOpenEditExpense = async (expenseId: string) => {
+  const getNumberInputValue = (value: unknown) => {
+    if (typeof value === 'number') return value
+    if (typeof value === 'string') return Number(value) || 0
+
+    const eventValue = (value as { target?: { valueAsNumber?: number; value?: string } })?.target
+    if (eventValue) {
+      if (typeof eventValue.valueAsNumber === 'number' && !Number.isNaN(eventValue.valueAsNumber)) {
+        return eventValue.valueAsNumber
+      }
+      return Number(eventValue.value) || 0
+    }
+
+    return 0
+  }
+
+  const handleOpenEditExpense = async (
+    ledgerEntry: BankLedgerEntry,
+    event?: React.MouseEvent<HTMLButtonElement>
+  ) => {
+    event?.preventDefault()
+    event?.stopPropagation()
+
+    if (!ledgerEntry.relatedEntityId || ledgerEntry.relatedEntityType?.toLowerCase() !== 'expense') {
+      showToast('Only linked expense ledger entries can be edited from this view.', 'error')
+      return
+    }
+
     try {
+      setEditingLedgerEntry(ledgerEntry)
+      const expenseId = ledgerEntry.relatedEntityId
       const exp = await simpleAccountsService.getExpenseById(expenseId)
       setEditingExpenseId(exp.id)
       setEditFormData({
@@ -234,19 +273,33 @@ export const BankAccountDetailsPage: React.FC = () => {
       })
       setIsEditExpenseOpen(true)
     } catch (err: any) {
+      console.error('Failed to open ledger expense editor:', err)
       showToast(err.message || 'Failed to fetch expense for editing', 'error')
+      setEditingLedgerEntry(null)
     }
   }
 
   const handleSaveEditExpense = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!editingExpenseId) return
+    if (submittingEdit) return
+
+    if (!editingExpenseId) {
+      showToast('Unable to save because no linked expense is selected.', 'error')
+      return
+    }
+
     if (!editFormData.description.trim()) {
       showToast('Description is required.', 'error')
       return
     }
+
     if (editFormData.amount <= 0) {
       showToast('Amount must be greater than zero.', 'error')
+      return
+    }
+
+    if (editFormData.paymentMethod === 'Bank' && !editFormData.bankAccountId) {
+      showToast('Bank account is required for bank-paid expenses.', 'error')
       return
     }
 
@@ -255,9 +308,10 @@ export const BankAccountDetailsPage: React.FC = () => {
       await simpleAccountsService.updateExpense(editingExpenseId, editFormData)
       showToast('Expense updated successfully.', 'success')
       setIsEditExpenseOpen(false)
-      fetchData()
-      fetchLedger()
+      setEditingLedgerEntry(null)
+      await Promise.all([fetchData(), fetchLedger()])
     } catch (err: any) {
+      console.error('Failed to save ledger expense edit:', err)
       showToast(err.message || 'Failed to update expense', 'error')
     } finally {
       setSubmittingEdit(false)
@@ -283,6 +337,23 @@ export const BankAccountDetailsPage: React.FC = () => {
       showToast(err.message || 'Failed to delete expense', 'error')
     } finally {
       setSubmittingDelete(false)
+    }
+  }
+
+  const handleDeleteDeposit = async () => {
+    if (!selectedDepositEntry) return
+    try {
+      setSubmittingDeleteDeposit(true)
+      await simpleAccountsService.deleteBankDeposit(selectedDepositEntry.id)
+      showToast('Deposit deleted successfully and running balances updated.', 'success')
+      setIsDeleteDepositOpen(false)
+      setSelectedDepositEntry(null)
+      fetchData()
+      fetchLedger()
+    } catch (err: any) {
+      showToast(err.message || 'Failed to delete deposit', 'error')
+    } finally {
+      setSubmittingDeleteDeposit(false)
     }
   }
 
@@ -352,6 +423,13 @@ export const BankAccountDetailsPage: React.FC = () => {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
           Owner Withdrawal
+        </span>
+      )
+    }
+    if (t === 'deposit') {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          Deposit
         </span>
       )
     }
@@ -442,6 +520,13 @@ export const BankAccountDetailsPage: React.FC = () => {
                 {formatCurrency(bankAccount.currentBalance)}
               </p>
             </div>
+            <EnterpriseButton 
+              variant="primary" 
+              onClick={() => setIsAddMoneyOpen(true)} 
+              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 hover:border-emerald-700 text-white shrink-0"
+            >
+              <PlusCircle className="w-4 h-4" /> Add Money
+            </EnterpriseButton>
             <EnterpriseButton variant="secondary" onClick={() => navigate('/company/accounts/bank-accounts')}>
               <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
             </EnterpriseButton>
@@ -539,6 +624,7 @@ export const BankAccountDetailsPage: React.FC = () => {
                 ledgerItems.map((item) => {
                   const { dayStr, timeStr } = formatDateTime(item.transactionDate || item.createdAt)
                   const isExpense = item.relatedEntityType?.toLowerCase() === 'expense' && !!item.relatedEntityId
+                  const isDeposit = item.transactionType?.toLowerCase() === 'deposit'
 
                   return (
                     <tr 
@@ -611,7 +697,8 @@ export const BankAccountDetailsPage: React.FC = () => {
                                 <Eye className="w-3.5 h-3.5" />
                               </button>
                               <button
-                                onClick={() => handleOpenEditExpense(item.relatedEntityId!)}
+                                type="button"
+                                onClick={(event) => handleOpenEditExpense(item, event)}
                                 title="Edit Expense"
                                 className="p-1 rounded-md text-[#1A56DB] hover:text-[#1A56DB]/80 hover:bg-blue-50 transition-colors"
                               >
@@ -620,6 +707,40 @@ export const BankAccountDetailsPage: React.FC = () => {
                               <button
                                 onClick={() => handleOpenDeleteExpense(item.relatedEntityId!, item.referenceNumber)}
                                 title="Delete Expense"
+                                className="p-1 rounded-md text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                          {isDeposit && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setSelectedDepositEntry(item)
+                                  setIsViewDepositOpen(true)
+                                }}
+                                title="View Deposit Details"
+                                className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedDepositEntry(item)
+                                  setIsEditDepositOpen(true)
+                                }}
+                                title="Edit Deposit"
+                                className="p-1 rounded-md text-[#1A56DB] hover:text-[#1A56DB]/80 hover:bg-blue-50 transition-colors"
+                              >
+                                <PenSquare className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedDepositEntry(item)
+                                  setIsDeleteDepositOpen(true)
+                                }}
+                                title="Delete Deposit"
                                 className="p-1 rounded-md text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -756,7 +877,7 @@ export const BankAccountDetailsPage: React.FC = () => {
               <EnterpriseNumberInput
                 label="Amount (₹)"
                 value={editFormData.amount}
-                onChange={(val) => setEditFormData({ ...editFormData, amount: val })}
+                onChange={(val) => setEditFormData({ ...editFormData, amount: getNumberInputValue(val) })}
                 required
                 min={0.01}
               />
@@ -795,7 +916,15 @@ export const BankAccountDetailsPage: React.FC = () => {
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
-              <EnterpriseButton variant="secondary" onClick={() => setIsEditExpenseOpen(false)} disabled={submittingEdit}>
+              <EnterpriseButton
+                variant="secondary"
+                type="button"
+                onClick={() => {
+                  setIsEditExpenseOpen(false)
+                  setEditingLedgerEntry(null)
+                }}
+                disabled={submittingEdit}
+              >
                 Cancel
               </EnterpriseButton>
               <EnterpriseButton variant="primary" type="submit" loading={submittingEdit}>
@@ -910,6 +1039,126 @@ export const BankAccountDetailsPage: React.FC = () => {
 
             <div className="pt-2 border-t border-slate-200 flex justify-end">
               <EnterpriseButton variant="secondary" onClick={() => setIsHistoryOpen(false)}>
+                Close
+              </EnterpriseButton>
+            </div>
+          </div>
+        </EnterpriseModal>
+      )}
+
+      {/* ADD DEPOSIT MODAL */}
+      <AddMoneyModal
+        isOpen={isAddMoneyOpen}
+        onClose={() => setIsAddMoneyOpen(false)}
+        bankAccountId={id}
+        onSuccess={() => {
+          fetchData()
+          fetchLedger()
+        }}
+      />
+
+      {/* EDIT DEPOSIT MODAL */}
+      <AddMoneyModal
+        isOpen={isEditDepositOpen}
+        onClose={() => {
+          setIsEditDepositOpen(false)
+          setSelectedDepositEntry(null)
+        }}
+        bankAccountId={id}
+        ledgerEntry={selectedDepositEntry}
+        onSuccess={() => {
+          fetchData()
+          fetchLedger()
+        }}
+      />
+
+      {/* DELETE DEPOSIT MODAL */}
+      {isDeleteDepositOpen && selectedDepositEntry && (
+        <EnterpriseModal
+          isOpen={isDeleteDepositOpen}
+          onClose={() => {
+            setIsDeleteDepositOpen(false)
+            setSelectedDepositEntry(null)
+          }}
+          title="Delete Deposit Transaction"
+        >
+          <div className="space-y-4 text-xs text-left">
+            <div className="flex items-start gap-3 bg-rose-50 border border-rose-200 p-3 rounded-lg text-rose-700">
+              <AlertCircle className="w-5 h-5 shrink-0" />
+              <div>
+                <span className="font-bold text-sm">Are you sure you want to delete this deposit?</span>
+                <p className="mt-1 text-slate-600 font-medium">
+                  Ref: <span className="font-bold text-slate-800">{selectedDepositEntry.referenceNumber || '—'}</span>
+                </p>
+                <p className="text-slate-600 font-medium">
+                  Amount: <span className="font-bold text-slate-800">{formatCurrency(selectedDepositEntry.credit)}</span>
+                </p>
+                <p className="mt-2 text-rose-700 font-semibold">
+                  Deleting this deposit will permanently remove it from the ledger history and decrease the current bank balance. This cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+              <EnterpriseButton variant="secondary" onClick={() => {
+                setIsDeleteDepositOpen(false)
+                setSelectedDepositEntry(null)
+              }} disabled={submittingDeleteDeposit}>
+                Cancel
+              </EnterpriseButton>
+              <EnterpriseButton 
+                variant="primary" 
+                onClick={handleDeleteDeposit} 
+                loading={submittingDeleteDeposit}
+                className="bg-rose-600 hover:bg-rose-700 text-white"
+              >
+                Delete Deposit
+              </EnterpriseButton>
+            </div>
+          </div>
+        </EnterpriseModal>
+      )}
+
+      {/* VIEW DEPOSIT MODAL */}
+      {isViewDepositOpen && selectedDepositEntry && (
+        <EnterpriseModal
+          isOpen={isViewDepositOpen}
+          onClose={() => {
+            setIsViewDepositOpen(false)
+            setSelectedDepositEntry(null)
+          }}
+          title="Deposit Details"
+        >
+          <div className="space-y-4 text-xs text-left">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-slate-400 font-medium">Date & Time</p>
+                <p className="text-sm font-semibold text-slate-900">
+                  {new Date(selectedDepositEntry.transactionDate || selectedDepositEntry.createdAt).toLocaleString('en-IN')}
+                </p>
+              </div>
+              <div>
+                <p className="text-slate-400 font-medium">Amount</p>
+                <p className="text-sm font-bold text-emerald-600">{formatCurrency(selectedDepositEntry.credit)}</p>
+              </div>
+              <div>
+                <p className="text-slate-400 font-medium">Reference Number</p>
+                <p className="text-sm font-semibold text-slate-900">{selectedDepositEntry.referenceNumber || '—'}</p>
+              </div>
+              <div>
+                <p className="text-slate-400 font-medium">Transaction Type</p>
+                <p className="text-sm font-semibold text-slate-900">{selectedDepositEntry.transactionType}</p>
+              </div>
+            </div>
+            <div>
+              <p className="text-slate-400 font-medium">Description</p>
+              <p className="text-xs font-semibold text-slate-900 bg-slate-50 p-2 border border-slate-100 rounded-lg">{selectedDepositEntry.description || '—'}</p>
+            </div>
+            <div className="pt-2 border-t border-slate-200 flex justify-end">
+              <EnterpriseButton variant="secondary" onClick={() => {
+                setIsViewDepositOpen(false)
+                setSelectedDepositEntry(null)
+              }}>
                 Close
               </EnterpriseButton>
             </div>

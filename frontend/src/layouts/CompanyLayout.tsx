@@ -52,7 +52,8 @@ export const CompanyLayout: React.FC = () => {
       children: [
         { label: 'Dashboard', path: '/company/accounts/dashboard' },
         { label: 'Expenses', path: '/company/accounts/expenses' },
-        { label: 'Bank Accounts', path: '/company/accounts/bank-accounts' },
+        { label: 'Payroll', path: '/company/accounts/payroll' },
+        { label: 'Ledger', path: '/company/accounts/ledger' },
         { label: 'Owners', path: '/company/accounts/owners' },
         { label: 'Assets', path: '/company/accounts/assets' },
       ]

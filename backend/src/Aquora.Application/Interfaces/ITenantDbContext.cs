@@ -52,6 +52,7 @@ namespace Aquora.Application.Interfaces
         DbSet<Aquora.Domain.Entities.Finance.ExpenseRecord> ExpenseRecords { get; }
         DbSet<Aquora.Domain.Entities.Finance.BankLedgerEntry> BankLedgerEntries { get; }
         DbSet<Aquora.Domain.Entities.Finance.BankAccount> BankAccounts { get; }
+        DbSet<Aquora.Domain.Entities.Finance.CashBook> CashBooks { get; }
         DbSet<Aquora.Domain.Entities.Finance.PettyCashSession> PettyCashSessions { get; }
         
         // Simple Accounts V1 Module
@@ -59,6 +60,8 @@ namespace Aquora.Application.Interfaces
         DbSet<Aquora.Domain.Entities.Finance.Owner> Owners { get; }
         DbSet<Aquora.Domain.Entities.Finance.OwnerInvestmentTransaction> OwnerInvestmentTransactions { get; }
         DbSet<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry> BankLedgerAuditEntries { get; }
+        DbSet<User> Users { get; }
+        DbSet<Aquora.Domain.Entities.Payroll.SalaryPayment> SalaryPayments { get; }
         
         Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade Database { get; }
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   XCircle,
   Eye,
+  PlusCircle,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import EnterpriseHeader from '../../../components/ui/EnterpriseHeader'
@@ -29,6 +30,8 @@ import type {
   UpdateBankAccountRequest,
 } from '../../../services/simpleAccounts'
 import { useNotificationStore } from '../../../store/useNotificationStore'
+import LedgerTabSwitcher from './LedgerTabSwitcher'
+import { AddMoneyModal } from './AddMoneyModal'
 
 const BankAccountsPage: React.FC = () => {
   const { showToast } = useNotificationStore()
@@ -47,6 +50,7 @@ const BankAccountsPage: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null)
+  const [isAddMoneyModalOpen, setIsAddMoneyModalOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   // Form State
@@ -260,6 +264,9 @@ const BankAccountsPage: React.FC = () => {
         </EnterpriseCard>
       </div>
 
+      {/* Tab Switcher */}
+      <LedgerTabSwitcher />
+
       {/* Toolbar */}
       <EnterpriseCard className="p-4">
         <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -360,6 +367,16 @@ const BankAccountsPage: React.FC = () => {
                           title="Delete Bank Account"
                         >
                           <Trash2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedAccount(account)
+                            setIsAddMoneyModalOpen(true)
+                          }}
+                          className="p-1.5 hover:bg-emerald-50 text-emerald-600 rounded transition-colors"
+                          title="Add Money"
+                        >
+                          <PlusCircle className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -583,6 +600,16 @@ const BankAccountsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <AddMoneyModal
+        isOpen={isAddMoneyModalOpen}
+        onClose={() => {
+          setIsAddMoneyModalOpen(false)
+          setSelectedAccount(null)
+        }}
+        bankAccountId={selectedAccount?.id}
+        onSuccess={fetchBankAccounts}
+      />
     </div>
   )
 }

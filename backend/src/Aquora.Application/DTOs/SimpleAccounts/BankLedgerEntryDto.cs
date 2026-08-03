@@ -17,6 +17,8 @@ namespace Aquora.Application.DTOs.SimpleAccounts
         public Guid? RelatedEntityId { get; set; }
         public string? RelatedEntityType { get; set; }
         
+        public int LedgerSequence { get; set; }
+
         public DateTime CreatedAt { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
     }

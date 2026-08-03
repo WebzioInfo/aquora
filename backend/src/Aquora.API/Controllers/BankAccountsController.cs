@@ -16,9 +16,9 @@ namespace Aquora.API.Controllers
     public class BankAccountsController : ApiControllerBase
     {
         private readonly ISimpleAccountsService _accountsService;
-        private readonly IBankLedgerService _bankLedgerService;
+        private readonly ILedgerService _bankLedgerService;
 
-        public BankAccountsController(ISimpleAccountsService accountsService, IBankLedgerService bankLedgerService)
+        public BankAccountsController(ISimpleAccountsService accountsService, ILedgerService bankLedgerService)
         {
             _accountsService = accountsService;
             _bankLedgerService = bankLedgerService;
@@ -212,6 +212,78 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, ApiResponse<object>.CreateFailure(ex.Message, "Error", HttpContext.TraceIdentifier));
+            }
+        }
+
+        [HttpPost("{id:guid}/deposit")]
+        public async Task<IActionResult> AddBankMoney(Guid id, [FromBody] AddMoneyRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure("Invalid model state.", "Validation Error", HttpContext.TraceIdentifier));
+            }
+
+            try
+            {
+                var entryId = await _bankLedgerService.AddMoneyAsync(id, null, request);
+                return Ok(ApiResponse<Guid>.CreateSuccess(entryId, "Deposit recorded successfully."));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Validation Error", HttpContext.TraceIdentifier));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Error", HttpContext.TraceIdentifier));
+            }
+        }
+
+        [HttpPut("deposit/{ledgerEntryId:guid}")]
+        public async Task<IActionResult> UpdateBankDeposit(Guid ledgerEntryId, [FromBody] AddMoneyRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure("Invalid model state.", "Validation Error", HttpContext.TraceIdentifier));
+            }
+
+            try
+            {
+                await _bankLedgerService.UpdateDepositAsync(ledgerEntryId, request);
+                return Ok(ApiResponse<bool>.CreateSuccess(true, "Deposit updated successfully."));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Validation Error", HttpContext.TraceIdentifier));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<object>.CreateFailure(ex.Message, "Not Found", HttpContext.TraceIdentifier));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Error", HttpContext.TraceIdentifier));
+            }
+        }
+
+        [HttpDelete("deposit/{ledgerEntryId:guid}")]
+        public async Task<IActionResult> DeleteBankDeposit(Guid ledgerEntryId)
+        {
+            try
+            {
+                await _bankLedgerService.DeleteDepositAsync(ledgerEntryId);
+                return Ok(ApiResponse<bool>.CreateSuccess(true, "Deposit deleted successfully."));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Validation Error", HttpContext.TraceIdentifier));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<object>.CreateFailure(ex.Message, "Not Found", HttpContext.TraceIdentifier));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Error", HttpContext.TraceIdentifier));
             }
         }
     }

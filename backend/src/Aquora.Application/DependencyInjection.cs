@@ -28,7 +28,8 @@ namespace Aquora.Application
             services.AddScoped<IBusinessFinanceService, BusinessFinanceService>();
             services.AddScoped<IStationConfigurationService, StationConfigurationService>();
             services.AddScoped<ISimpleAccountsService, SimpleAccountsService>();
-            services.AddScoped<IBankLedgerService, BankLedgerService>();
+            services.AddScoped<ILedgerService, BankLedgerService>();
+            services.AddScoped<IBankLedgerService>(sp => sp.GetRequiredService<ILedgerService>());
             services.AddScoped<IHealthService, HealthService>();
             return services;
         }

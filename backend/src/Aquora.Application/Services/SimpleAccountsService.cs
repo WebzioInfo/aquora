@@ -17,14 +17,14 @@ namespace Aquora.Application.Services
         private readonly IPlatformDbContext _platformContext;
         private readonly ITenantProvider _tenantProvider;
         private readonly ICurrentUserContext _currentUserContext;
-        private readonly IBankLedgerService _bankLedgerService;
+        private readonly ILedgerService _bankLedgerService;
 
         public SimpleAccountsService(
             ITenantDbContext context,
             IPlatformDbContext platformContext,
             ITenantProvider tenantProvider,
             ICurrentUserContext currentUserContext,
-            IBankLedgerService bankLedgerService)
+            ILedgerService bankLedgerService)
         {
             _context = context;
             _platformContext = platformContext;
@@ -98,6 +98,7 @@ namespace Aquora.Application.Services
             var tenantId = GetTenantId();
             var query = _context.SimpleExpenses
                 .Include(e => e.BankAccount)
+                .Include(e => e.CashBook)
                 .Where(e => e.TenantId == tenantId && !e.IsDeleted)
                 .AsQueryable();
 
@@ -152,7 +153,7 @@ namespace Aquora.Application.Services
                 var createdName = userMap.TryGetValue(e.CreatedBy, out var name) ? name : e.CreatedBy;
                 var paidFromStr = e.PaymentMethod.Equals("Bank", StringComparison.OrdinalIgnoreCase) && e.BankAccount != null
                     ? $"{e.BankAccount.BankName} - {e.BankAccount.AccountName}"
-                    : "Cash";
+                    : e.CashBook != null ? e.CashBook.Name : "Cash";
 
                 return new SimpleExpenseDto
                 {
@@ -166,6 +167,8 @@ namespace Aquora.Application.Services
                     PaymentMethod = e.PaymentMethod,
                     BankAccountId = e.BankAccountId,
                     BankAccountName = e.BankAccount != null ? $"{e.BankAccount.BankName} ({e.BankAccount.AccountName})" : null,
+                    CashBookId = e.CashBookId,
+                    CashBookName = e.CashBook?.Name,
                     PaidFrom = paidFromStr,
                     Notes = e.Notes,
                     CreatedBy = e.CreatedBy,
@@ -191,7 +194,7 @@ namespace Aquora.Application.Services
             var createdName = userMap.TryGetValue(expense.CreatedBy, out var name) ? name : expense.CreatedBy;
             var paidFromStr = expense.PaymentMethod.Equals("Bank", StringComparison.OrdinalIgnoreCase) && expense.BankAccount != null
                 ? $"{expense.BankAccount.BankName} - {expense.BankAccount.AccountName}"
-                : "Cash";
+                : expense.CashBook != null ? expense.CashBook.Name : "Cash";
 
             return new SimpleExpenseDto
             {
@@ -205,6 +208,8 @@ namespace Aquora.Application.Services
                 PaymentMethod = expense.PaymentMethod,
                 BankAccountId = expense.BankAccountId,
                 BankAccountName = expense.BankAccount != null ? $"{expense.BankAccount.BankName} ({expense.BankAccount.AccountName})" : null,
+                CashBookId = expense.CashBookId,
+                CashBookName = expense.CashBook?.Name,
                 PaidFrom = paidFromStr,
                 Notes = expense.Notes,
                 CreatedBy = expense.CreatedBy,
@@ -263,6 +268,18 @@ namespace Aquora.Application.Services
                 }
 
                 expense.BankAccountId = bank.Id;
+                expense.CashBookId = null;
+            }
+            else if (expense.PaymentMethod.Equals("Cash", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!request.CashBookId.HasValue)
+                {
+                    throw new ArgumentException("Cash Book is required when Payment Method is Cash.");
+                }
+                var cashBook = await _context.CashBooks.FirstOrDefaultAsync(b => b.Id == request.CashBookId.Value && b.TenantId == tenantId && !b.IsDeleted);
+                if (cashBook == null) throw new ArgumentException("Selected Cash Book was not found.");
+                expense.CashBookId = cashBook.Id;
+                expense.BankAccountId = null;
             }
 
             _context.SimpleExpenses.Add(expense);
@@ -285,6 +302,20 @@ namespace Aquora.Application.Services
                 bank = await _context.BankAccounts
                     .FirstOrDefaultAsync(b => b.Id == expense.BankAccountId.Value && b.TenantId == tenantId && !b.IsDeleted);
             }
+            else if (expense.PaymentMethod.Equals("Cash", StringComparison.OrdinalIgnoreCase) && expense.CashBookId.HasValue)
+            {
+                await _bankLedgerService.RecordCashTransactionAsync(
+                    cashBookId: expense.CashBookId.Value,
+                    transactionDate: expense.ExpenseDate,
+                    referenceNumber: expense.ExpenseNumber,
+                    transactionType: "Expense",
+                    description: string.IsNullOrWhiteSpace(expense.Description) ? $"Expense ({expense.Category})" : expense.Description,
+                    debit: expense.Amount,
+                    credit: 0m,
+                    relatedEntityId: expense.Id,
+                    relatedEntityType: "Expense"
+                );
+            }
 
             var userMap = await ResolveUserNamesBatchAsync(new[] { userId });
             var createdName = userMap.TryGetValue(userId, out var n) ? n : userId;
@@ -304,6 +335,8 @@ namespace Aquora.Application.Services
                 PaymentMethod = expense.PaymentMethod,
                 BankAccountId = expense.BankAccountId,
                 BankAccountName = bank != null ? $"{bank.BankName} ({bank.AccountName})" : null,
+                CashBookId = expense.CashBookId,
+                CashBookName = expense.CashBookId.HasValue ? (await _context.CashBooks.Where(c => c.Id == expense.CashBookId.Value).Select(c => c.Name).FirstOrDefaultAsync()) : null,
                 PaidFrom = paidFromStr,
                 Notes = expense.Notes,
                 CreatedBy = expense.CreatedBy,
@@ -361,6 +394,7 @@ namespace Aquora.Application.Services
                 }
 
                 expense.BankAccountId = newBank.Id;
+                expense.CashBookId = null;
                 await _context.SaveChangesAsync();
 
                 await _bankLedgerService.SyncExpenseLedgerAsync(
@@ -374,12 +408,24 @@ namespace Aquora.Application.Services
                     transactionType: "Expense Updated"
                 );
             }
+            else if (expense.PaymentMethod.Equals("Cash", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!request.CashBookId.HasValue)
+                {
+                    throw new ArgumentException("Cash Book is required when Payment Method is Cash.");
+                }
+                var newCashBook = await _context.CashBooks.FirstOrDefaultAsync(b => b.Id == request.CashBookId.Value && b.TenantId == tenantId && !b.IsDeleted);
+                if (newCashBook == null) throw new ArgumentException("Selected Cash Book was not found.");
+                expense.BankAccountId = null;
+                expense.CashBookId = newCashBook.Id;
+                await _context.SaveChangesAsync();
+                await _bankLedgerService.SyncCashExpenseLedgerAsync(expense.Id, newCashBook.Id, expense.ExpenseDate, expense.ExpenseNumber, expense.Category, expense.Description, expense.Amount, "Expense Updated");
+            }
             else
             {
                 expense.BankAccountId = null;
+                expense.CashBookId = null;
                 await _context.SaveChangesAsync();
-
-                // If payment method changed to Cash, remove from Bank Ledger
                 await _bankLedgerService.RemoveLedgerEntryForEntityAsync(expense.Id, "Expense");
             }
 
@@ -648,6 +694,58 @@ namespace Aquora.Application.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<PagedResult<CashBookDto>> GetCashBooksAsync(int pageNumber, int pageSize, string? search, string? status)
+        {
+            var tenantId = GetTenantId();
+            var query = _context.CashBooks.Where(b => b.TenantId == tenantId && !b.IsDeleted).AsQueryable();
+            if (!string.IsNullOrWhiteSpace(search)) { var term = search.Trim().ToLower(); query = query.Where(b => b.Name.ToLower().Contains(term) || (b.Description != null && b.Description.ToLower().Contains(term))); }
+            if (!string.IsNullOrWhiteSpace(status)) { var st = status.Trim().ToLower(); query = query.Where(b => b.Status.ToLower() == st); }
+            var totalCount = await query.CountAsync();
+            var items = await query.OrderByDescending(b => b.CreatedAt).Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync();
+            return new PagedResult<CashBookDto>(items.Select(ToCashBookDto).ToList(), totalCount, pageNumber, pageSize);
+        }
+
+        public async Task<List<CashBookDropdownDto>> GetCashBookDropdownAsync()
+        {
+            var tenantId = GetTenantId();
+            return await _context.CashBooks.Where(b => b.TenantId == tenantId && !b.IsDeleted && b.IsActive && b.Status == "Active").OrderBy(b => b.Name).Select(b => new CashBookDropdownDto { Id = b.Id, Name = b.Name, CurrentBalance = b.CurrentBalance }).ToListAsync();
+        }
+
+        public async Task<CashBookDto?> GetCashBookByIdAsync(Guid id)
+        {
+            var tenantId = GetTenantId();
+            var cashBook = await _context.CashBooks.FirstOrDefaultAsync(b => b.Id == id && b.TenantId == tenantId && !b.IsDeleted);
+            return cashBook == null ? null : ToCashBookDto(cashBook);
+        }
+
+        public async Task<CashBookDto> CreateCashBookAsync(CreateCashBookRequest request)
+        {
+            var tenantId = GetTenantId(); var companyId = await GetCompanyIdAsync(); var userId = _currentUserContext.UserId ?? "System";
+            var cashBook = new CashBook { Id = Guid.NewGuid(), TenantId = tenantId, CompanyId = companyId, Name = request.Name.Trim(), Description = request.Description?.Trim(), OpeningBalance = request.OpeningBalance, CurrentBalance = 0m, Notes = request.Notes?.Trim(), Status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : request.Status.Trim(), IsActive = string.IsNullOrWhiteSpace(request.Status) || request.Status.Equals("Active", StringComparison.OrdinalIgnoreCase), CreatedAt = DateTime.UtcNow, CreatedBy = userId };
+            _context.CashBooks.Add(cashBook); await _context.SaveChangesAsync();
+            if (request.OpeningBalance > 0) { await _bankLedgerService.RecordCashTransactionAsync(cashBook.Id, cashBook.CreatedAt, "INIT", "Opening Balance", "Opening Balance", 0m, request.OpeningBalance, cashBook.Id, "CashBook"); var refreshed = await _context.CashBooks.FirstOrDefaultAsync(b => b.Id == cashBook.Id); if (refreshed != null) cashBook.CurrentBalance = refreshed.CurrentBalance; }
+            return ToCashBookDto(cashBook);
+        }
+
+        public async Task<CashBookDto?> UpdateCashBookAsync(Guid id, UpdateCashBookRequest request)
+        {
+            var tenantId = GetTenantId(); var userId = _currentUserContext.UserId ?? "System";
+            var cashBook = await _context.CashBooks.FirstOrDefaultAsync(b => b.Id == id && b.TenantId == tenantId && !b.IsDeleted);
+            if (cashBook == null) return null;
+            cashBook.Name = request.Name.Trim(); cashBook.Description = request.Description?.Trim(); cashBook.Notes = request.Notes?.Trim(); cashBook.Status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : request.Status.Trim(); cashBook.IsActive = cashBook.Status.Equals("Active", StringComparison.OrdinalIgnoreCase); cashBook.UpdatedAt = DateTime.UtcNow; cashBook.UpdatedBy = userId;
+            await _context.SaveChangesAsync(); return ToCashBookDto(cashBook);
+        }
+
+        public async Task<bool> DeleteCashBookAsync(Guid id)
+        {
+            var tenantId = GetTenantId(); var userId = _currentUserContext.UserId ?? "System";
+            var cashBook = await _context.CashBooks.FirstOrDefaultAsync(b => b.Id == id && b.TenantId == tenantId && !b.IsDeleted);
+            if (cashBook == null) return false;
+            cashBook.IsDeleted = true; cashBook.DeletedAt = DateTime.UtcNow; cashBook.DeletedBy = userId; await _context.SaveChangesAsync(); return true;
+        }
+
+        private static CashBookDto ToCashBookDto(CashBook b) => new CashBookDto { Id = b.Id, Name = b.Name, Description = b.Description, OpeningBalance = b.OpeningBalance, CurrentBalance = b.CurrentBalance, Notes = b.Notes, Status = b.Status, CreatedAt = b.CreatedAt, CreatedBy = b.CreatedBy };
 
         // ==========================================
         // 3. OWNER INVESTMENT MANAGEMENT

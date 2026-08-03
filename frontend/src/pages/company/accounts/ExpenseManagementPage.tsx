@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { simpleAccountsService } from '../../../services/simpleAccounts'
-import type { SimpleExpense, CreateSimpleExpenseRequest, UpdateSimpleExpenseRequest, BankAccountDropdown } from '../../../services/simpleAccounts'
+import type { SimpleExpense, CreateSimpleExpenseRequest, UpdateSimpleExpenseRequest, BankAccountDropdown, CashBookDropdown } from '../../../services/simpleAccounts'
 import { useNotificationStore } from '../../../store/useNotificationStore'
 import EnterpriseHeader from '../../../components/ui/EnterpriseHeader'
 import EnterpriseCard from '../../../components/ui/EnterpriseCard'
@@ -55,6 +55,7 @@ export const ExpenseManagementPage: React.FC = () => {
     amount: number
     paymentMethod: string
     bankAccountId: string
+    cashBookId: string
     notes: string
   }>({
     expenseDate: new Date().toISOString().split('T')[0],
@@ -64,16 +65,23 @@ export const ExpenseManagementPage: React.FC = () => {
     amount: 0,
     paymentMethod: 'Cash',
     bankAccountId: '',
+    cashBookId: '',
     notes: ''
   })
 
   // Bank Search Term in Modal
   const [bankSearchTerm, setBankSearchTerm] = useState('')
+  const [cashBookSearchTerm, setCashBookSearchTerm] = useState('')
 
   // Query bank accounts dropdown
   const { data: bankAccounts } = useQuery<BankAccountDropdown[]>({
     queryKey: ['bankAccountDropdownList'],
     queryFn: () => simpleAccountsService.getBankAccountDropdown()
+  })
+
+  const { data: cashBooks } = useQuery<CashBookDropdown[]>({
+    queryKey: ['cashBookDropdownList'],
+    queryFn: () => simpleAccountsService.getCashBookDropdown()
   })
 
   // Query expenses
@@ -98,6 +106,7 @@ export const ExpenseManagementPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['expensesList'] })
       queryClient.invalidateQueries({ queryKey: ['simpleAccountsDashboardSummary'] })
       queryClient.invalidateQueries({ queryKey: ['bankAccountDropdownList'] })
+      queryClient.invalidateQueries({ queryKey: ['cashBookDropdownList'] })
       setIsCreateModalOpen(false)
       resetForm()
     },
@@ -113,6 +122,7 @@ export const ExpenseManagementPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['expensesList'] })
       queryClient.invalidateQueries({ queryKey: ['simpleAccountsDashboardSummary'] })
       queryClient.invalidateQueries({ queryKey: ['bankAccountDropdownList'] })
+      queryClient.invalidateQueries({ queryKey: ['cashBookDropdownList'] })
       setIsEditModalOpen(false)
       setSelectedExpense(null)
       resetForm()
@@ -129,6 +139,7 @@ export const ExpenseManagementPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['expensesList'] })
       queryClient.invalidateQueries({ queryKey: ['simpleAccountsDashboardSummary'] })
       queryClient.invalidateQueries({ queryKey: ['bankAccountDropdownList'] })
+      queryClient.invalidateQueries({ queryKey: ['cashBookDropdownList'] })
     },
     onError: (err: any) => {
       showToast(err.message || 'Failed to delete expense.', 'error')
@@ -144,9 +155,11 @@ export const ExpenseManagementPage: React.FC = () => {
       amount: 0,
       paymentMethod: 'Cash',
       bankAccountId: '',
+      cashBookId: '',
       notes: ''
     })
     setBankSearchTerm('')
+    setCashBookSearchTerm('')
     setFormError(null)
   }
 
@@ -168,9 +181,11 @@ export const ExpenseManagementPage: React.FC = () => {
       amount: expense.amount,
       paymentMethod: expense.paymentMethod.toLowerCase() === 'bank' ? 'Bank' : 'Cash',
       bankAccountId: expense.bankAccountId || (bankAccounts && bankAccounts.length > 0 ? bankAccounts[0].id : ''),
+      cashBookId: expense.cashBookId || (cashBooks && cashBooks.length > 0 ? cashBooks[0].id : ''),
       notes: expense.notes || ''
     })
     setBankSearchTerm('')
+    setCashBookSearchTerm('')
     setFormError(null)
     setIsEditModalOpen(true)
   }
@@ -194,6 +209,10 @@ export const ExpenseManagementPage: React.FC = () => {
       setFormError('Please select a Bank Account for Bank payments.')
       return
     }
+    if (formData.paymentMethod === 'Cash' && !formData.cashBookId) {
+      setFormError('Please select a Cash Book for Cash payments.')
+      return
+    }
 
     const req: CreateSimpleExpenseRequest = {
       expenseDate: new Date(formData.expenseDate).toISOString(),
@@ -203,6 +222,7 @@ export const ExpenseManagementPage: React.FC = () => {
       amount: formData.amount,
       paymentMethod: formData.paymentMethod,
       bankAccountId: formData.paymentMethod === 'Bank' ? formData.bankAccountId : undefined,
+      cashBookId: formData.paymentMethod === 'Cash' ? formData.cashBookId : undefined,
       notes: formData.notes.trim() || undefined
     }
     createMutation.mutate(req)
@@ -223,6 +243,10 @@ export const ExpenseManagementPage: React.FC = () => {
       setFormError('Please select a Bank Account for Bank payments.')
       return
     }
+    if (formData.paymentMethod === 'Cash' && !formData.cashBookId) {
+      setFormError('Please select a Cash Book for Cash payments.')
+      return
+    }
 
     const req: UpdateSimpleExpenseRequest = {
       expenseDate: new Date(formData.expenseDate).toISOString(),
@@ -232,6 +256,7 @@ export const ExpenseManagementPage: React.FC = () => {
       amount: formData.amount,
       paymentMethod: formData.paymentMethod,
       bankAccountId: formData.paymentMethod === 'Bank' ? formData.bankAccountId : undefined,
+      cashBookId: formData.paymentMethod === 'Cash' ? formData.cashBookId : undefined,
       notes: formData.notes.trim() || undefined
     }
     updateMutation.mutate({ id: selectedExpense.id, req })
@@ -254,6 +279,7 @@ export const ExpenseManagementPage: React.FC = () => {
     b.accountName.toLowerCase().includes(bankSearchTerm.toLowerCase()) ||
     b.accountNumber.toLowerCase().includes(bankSearchTerm.toLowerCase())
   )
+  const filteredCashBooks = (cashBooks || []).filter(c => !cashBookSearchTerm || c.name.toLowerCase().includes(cashBookSearchTerm.toLowerCase()))
 
   return (
     <div className="space-y-6">
@@ -348,7 +374,7 @@ export const ExpenseManagementPage: React.FC = () => {
                             {expense.paidFrom || expense.bankAccountName || 'Bank'}
                           </span>
                         ) : (
-                          <span className="text-slate-600">Cash</span>
+                          <span className="text-slate-600">{expense.paidFrom || expense.cashBookName || 'Cash'}</span>
                         )}
                       </td>
                       <td className="p-3 text-slate-600 font-semibold">{expense.createdByName || expense.createdBy || 'System'}</td>
@@ -473,6 +499,18 @@ export const ExpenseManagementPage: React.FC = () => {
               </div>
             </div>
 
+
+            {formData.paymentMethod === 'Cash' && (
+              <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-2">
+                <label className="block text-xs font-bold text-emerald-900 uppercase">Select Cash Book *</label>
+                <div className="relative"><Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><input type="text" placeholder="Search cash book..." value={cashBookSearchTerm} onChange={(e) => setCashBookSearchTerm(e.target.value)} className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600" /></div>
+                <select value={formData.cashBookId} onChange={(e) => setFormData({ ...formData, cashBookId: e.target.value })} className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600 font-semibold">
+                  <option value="">-- Choose Cash Book --</option>
+                  {filteredCashBooks.map(c => <option key={c.id} value={c.id}>{c.name} [Bal: ?{c.currentBalance.toLocaleString('en-IN')}]</option>)}
+                </select>
+                {(!cashBooks || cashBooks.length === 0) && <p className="text-[10px] text-amber-600 font-medium mt-1">No active cash books found. Please create one in Ledger first.</p>}
+              </div>
+            )}
             {/* SEARCHABLE BANK SELECTOR IF PAYMENT METHOD == BANK */}
             {formData.paymentMethod === 'Bank' && (
               <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-2">
@@ -618,6 +656,18 @@ export const ExpenseManagementPage: React.FC = () => {
               </div>
             </div>
 
+
+            {formData.paymentMethod === 'Cash' && (
+              <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-2">
+                <label className="block text-xs font-bold text-emerald-900 uppercase">Select Cash Book *</label>
+                <div className="relative"><Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><input type="text" placeholder="Search cash book..." value={cashBookSearchTerm} onChange={(e) => setCashBookSearchTerm(e.target.value)} className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600" /></div>
+                <select value={formData.cashBookId} onChange={(e) => setFormData({ ...formData, cashBookId: e.target.value })} className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600 font-semibold">
+                  <option value="">-- Choose Cash Book --</option>
+                  {filteredCashBooks.map(c => <option key={c.id} value={c.id}>{c.name} [Bal: ?{c.currentBalance.toLocaleString('en-IN')}]</option>)}
+                </select>
+                {(!cashBooks || cashBooks.length === 0) && <p className="text-[10px] text-amber-600 font-medium mt-1">No active cash books found. Please create one in Ledger first.</p>}
+              </div>
+            )}
             {/* SEARCHABLE BANK SELECTOR IF PAYMENT METHOD == BANK */}
             {formData.paymentMethod === 'Bank' && (
               <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-2">

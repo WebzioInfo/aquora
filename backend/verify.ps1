@@ -1,7 +1,7 @@
 $baseUrl = "http://localhost:5000/api/v1"
 $email = "sinankuttasseri123@gmail.com"
 $password = "TenantAdmin@2026!"
-$tenantId = "7d77da44-5307-489c-b474-bf9cdc6137ee"
+$tenantId = "de73da72-2307-489c-b474-bf9cdc6137ee"
 
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "STARTING TRANSACTION FLOW VALIDATION" -ForegroundColor Cyan
@@ -61,7 +61,7 @@ $createBody = @{
     vendor = "Test Vendor"
     description = "Validation Test Expense"
     amount = 1000.00
-    paymentMethod = "Bank Transfer"
+    paymentMethod = "Bank"
     bankAccountId = $bankId
     expenseDate = $expenseDate
 } | ConvertTo-Json
@@ -103,7 +103,7 @@ Write-Host "5. Verifying Bank Ledger entry..."
 try {
     $ledgerRes = Invoke-RestMethod -Uri "$baseUrl/bank-accounts/$bankId/ledger" -Method Get -Headers $headers
     $ledgerEntries = $ledgerRes.data.items
-    $matchingLedger = $ledgerEntries | Where-Object { $_.referenceId -eq $expenseId }
+    $matchingLedger = $ledgerEntries | Where-Object { $_.relatedEntityId -eq $expenseId }
     if ($matchingLedger) {
         $ledgerEntryId = $matchingLedger.id
         Write-Host "   Found matching ledger entry: ID: $ledgerEntryId, Details: $($matchingLedger.description), Debit: $($matchingLedger.debit), RunningBalance: $($matchingLedger.runningBalance)" -ForegroundColor Green
@@ -123,7 +123,7 @@ $updateBody = @{
     vendor = "Test Vendor"
     description = "Validation Test Expense (Updated)"
     amount = 800.00
-    paymentMethod = "Bank Transfer"
+    paymentMethod = "Bank"
     bankAccountId = $bankId
     expenseDate = $expenseDate
 } | ConvertTo-Json

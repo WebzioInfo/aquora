@@ -202,37 +202,47 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", policy =>
     {
-        var frontendUrl = builder.Configuration["FRONTEND_URL"];
-        var allowedOrigins = builder.Configuration["ALLOWED_ORIGINS"];
         var origins = new List<string>();
 
+        // 1. Read from Env / AppSettings direct keys
+        var frontendUrl = builder.Configuration["FRONTEND_URL"];
         if (!string.IsNullOrEmpty(frontendUrl))
             origins.Add(frontendUrl);
-        
+
+        var allowedOrigins = builder.Configuration["ALLOWED_ORIGINS"];
         if (!string.IsNullOrEmpty(allowedOrigins))
-            origins.AddRange(allowedOrigins.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(o => o.Trim()));
+            origins.AddRange(allowedOrigins.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(o => o.Trim()));
 
-        if (builder.Environment.IsDevelopment())
+        // 2. Read from "Cors:AllowedOrigins" array/section
+        var corsSection = builder.Configuration.GetSection("Cors:AllowedOrigins");
+        if (corsSection.Exists())
         {
-            origins.Add("http://localhost:5173");
-            origins.Add("http://localhost:3000");
+            var sectionOrigins = corsSection.Get<string[]>();
+            if (sectionOrigins != null)
+            {
+                origins.AddRange(sectionOrigins.Where(o => !string.IsNullOrEmpty(o)).Select(o => o.Trim()));
+            }
         }
 
-        if (origins.Any())
-        {
-            policy.WithOrigins(origins.ToArray())
-                  .AllowAnyHeader()
-                  .AllowAnyMethod()
-                  .AllowCredentials();
-        }
-        else
-        {
-            // Fallback for misconfiguration, log warning
-            Console.WriteLine("[WARNING] No CORS origins configured. SignalR and credentials will fail if origins don't match.");
-            policy.AllowAnyOrigin()
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        }
+        // 3. Always include local development origins to prevent local production builds/containers CORS issues
+        origins.Add("http://localhost:5173");
+        origins.Add("http://localhost:5174");
+        origins.Add("http://localhost:3000");
+        origins.Add("http://127.0.0.1:5173");
+        origins.Add("http://127.0.0.1:5174");
+        origins.Add("http://127.0.0.1:3000");
+
+        // Remove duplicates and trailing slashes
+        var uniqueOrigins = origins
+            .Where(o => !string.IsNullOrWhiteSpace(o))
+            .Select(o => o.Trim().TrimEnd('/'))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        policy.WithOrigins(uniqueOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 

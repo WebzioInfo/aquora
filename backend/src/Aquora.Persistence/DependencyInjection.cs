@@ -63,6 +63,7 @@ namespace Aquora.Persistence
             services.AddScoped<Aquora.Application.Interfaces.Services.IPlatformManagementService, Aquora.Persistence.Services.PlatformManagementService>();
             services.AddScoped<Aquora.Application.Interfaces.Services.IUserRoleResolver, Aquora.Persistence.Services.UserRoleResolver>();
             services.AddScoped<Aquora.Application.Interfaces.Services.ISubscriptionManagementService, Aquora.Persistence.Services.SubscriptionManagementService>();
+            services.AddScoped<Aquora.Application.Interfaces.Services.IPayrollService, Aquora.Application.Services.PayrollService>();
 
             return services;
         }

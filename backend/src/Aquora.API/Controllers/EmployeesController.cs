@@ -82,6 +82,7 @@ namespace Aquora.API.Controllers
                         RoleName = resolvedRole,
                         RoleCode = matchingRole?.Code ?? resolvedRole.ToUpperInvariant().Replace(" ", "_"),
                         Department = user.Department ?? "Operations",
+                        CurrentSalary = user.CurrentSalary ?? 0m,
                         IsActive = user.IsActive,
                         CreatedAt = user.CreatedAt,
                         LastLogin = user.LastLoginAt
@@ -151,6 +152,7 @@ namespace Aquora.API.Controllers
                     PinHash = hash,
                     TenantId = tenantId,
                     Department = request.Department ?? "Operations",
+                    CurrentSalary = request.CurrentSalary,
                     RoleName = role.Name,
                     IsActive = true,
                     EmailVerified = true,
@@ -236,6 +238,7 @@ namespace Aquora.API.Controllers
                     RoleName = role.Name,
                     RoleCode = role.Code,
                     Department = newUser.Department,
+                    CurrentSalary = newUser.CurrentSalary ?? 0m,
                     IsActive = newUser.IsActive,
                     CreatedAt = newUser.CreatedAt,
                     LastLogin = null
@@ -308,6 +311,7 @@ namespace Aquora.API.Controllers
                 user.FirstName = parts.Length > 0 ? parts[0] : string.Empty;
                 user.LastName = parts.Length > 1 ? parts[1] : string.Empty;
                 user.Department = request.Department ?? "Operations";
+                user.CurrentSalary = request.CurrentSalary;
                 user.RoleName = role.Name;
                 user.IsActive = request.IsActive;
 
@@ -383,6 +387,7 @@ namespace Aquora.API.Controllers
                     RoleName = role.Name,
                     RoleCode = role.Code,
                     Department = user.Department,
+                    CurrentSalary = user.CurrentSalary ?? 0m,
                     IsActive = user.IsActive,
                     CreatedAt = user.CreatedAt,
                     LastLogin = user.LastLoginAt

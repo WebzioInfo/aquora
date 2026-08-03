@@ -19,6 +19,8 @@ namespace Aquora.Application.DTOs.SimpleAccounts
         public string PaymentMethod { get; set; } = string.Empty;
         public Guid? BankAccountId { get; set; }
         public string? BankAccountName { get; set; }
+        public Guid? CashBookId { get; set; }
+        public string? CashBookName { get; set; }
         public string PaidFrom { get; set; } = "Cash";
         public string? Notes { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
@@ -46,6 +48,7 @@ namespace Aquora.Application.DTOs.SimpleAccounts
         public string PaymentMethod { get; set; } = "Cash"; // Cash or Bank
 
         public Guid? BankAccountId { get; set; }
+        public Guid? CashBookId { get; set; }
 
         public string? Notes { get; set; }
     }
@@ -69,6 +72,7 @@ namespace Aquora.Application.DTOs.SimpleAccounts
         public string PaymentMethod { get; set; } = "Cash";
 
         public Guid? BankAccountId { get; set; }
+        public Guid? CashBookId { get; set; }
 
         public string? Notes { get; set; }
     }
@@ -138,6 +142,47 @@ namespace Aquora.Application.DTOs.SimpleAccounts
         public string BankName { get; set; } = string.Empty;
         public string AccountName { get; set; } = string.Empty;
         public string AccountNumber { get; set; } = string.Empty;
+        public decimal CurrentBalance { get; set; }
+    }
+
+
+    public class CashBookDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public decimal OpeningBalance { get; set; }
+        public decimal CurrentBalance { get; set; }
+        public string Status { get; set; } = "Active";
+        public string? Notes { get; set; }
+        public string CreatedBy { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class CreateCashBookRequest
+    {
+        [Required(ErrorMessage = "Cash book name is required.")]
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        [Range(0, double.MaxValue, ErrorMessage = "Opening balance cannot be negative.")]
+        public decimal OpeningBalance { get; set; } = 0m;
+        public string Status { get; set; } = "Active";
+        public string? Notes { get; set; }
+    }
+
+    public class UpdateCashBookRequest
+    {
+        [Required(ErrorMessage = "Cash book name is required.")]
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string Status { get; set; } = "Active";
+        public string? Notes { get; set; }
+    }
+
+    public class CashBookDropdownDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
         public decimal CurrentBalance { get; set; }
     }
 

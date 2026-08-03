@@ -72,6 +72,7 @@ namespace Aquora.Persistence.Context
         public DbSet<Aquora.Domain.Entities.Finance.ExpenseRecord> ExpenseRecords => Set<Aquora.Domain.Entities.Finance.ExpenseRecord>();
         public DbSet<Aquora.Domain.Entities.Finance.BankLedgerEntry> BankLedgerEntries => Set<Aquora.Domain.Entities.Finance.BankLedgerEntry>();
         public DbSet<Aquora.Domain.Entities.Finance.BankAccount> BankAccounts => Set<Aquora.Domain.Entities.Finance.BankAccount>();
+        public DbSet<Aquora.Domain.Entities.Finance.CashBook> CashBooks => Set<Aquora.Domain.Entities.Finance.CashBook>();
         public DbSet<Aquora.Domain.Entities.Finance.PettyCashSession> PettyCashSessions => Set<Aquora.Domain.Entities.Finance.PettyCashSession>();
 
         // Simple Accounts V1 Module
@@ -79,6 +80,8 @@ namespace Aquora.Persistence.Context
         public DbSet<Aquora.Domain.Entities.Finance.Owner> Owners => Set<Aquora.Domain.Entities.Finance.Owner>();
         public DbSet<Aquora.Domain.Entities.Finance.OwnerInvestmentTransaction> OwnerInvestmentTransactions => Set<Aquora.Domain.Entities.Finance.OwnerInvestmentTransaction>();
         public DbSet<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry> BankLedgerAuditEntries => Set<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>();
+        public DbSet<Aquora.Domain.Entities.Payroll.SalaryPayment> SalaryPayments => Set<Aquora.Domain.Entities.Payroll.SalaryPayment>();
+        public DbSet<User> Users => Set<User>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -312,8 +315,15 @@ namespace Aquora.Persistence.Context
                 .WithMany()
                 .HasForeignKey(e => e.BankAccountId)
                 .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.SimpleExpense>()
+                .HasOne(e => e.CashBook)
+                .WithMany()
+                .HasForeignKey(e => e.CashBookId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankAccount>()
+                .HasIndex(b => b.TenantId);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.CashBook>()
                 .HasIndex(b => b.TenantId);
 
             modelBuilder.Entity<Aquora.Domain.Entities.Finance.Owner>()
@@ -325,31 +335,63 @@ namespace Aquora.Persistence.Context
                 .HasForeignKey(t => t.OwnerId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+                .Property(l => l.LedgerAccountType)
+                .IsRequired(false);
+
+             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+                .Property(l => l.LedgerSequence)
+                .ValueGeneratedOnAdd();
+
+             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
                 .HasIndex(l => l.TenantId);
-            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
                 .HasIndex(l => l.CompanyId);
-            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
                 .HasIndex(l => l.BankAccountId);
-            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+                .HasIndex(l => l.CashBookId);
+             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+                .HasIndex(l => l.LedgerAccountType);
+             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
                 .HasIndex(l => l.TransactionDate);
-            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
                 .HasOne(l => l.BankAccount)
                 .WithMany()
                 .HasForeignKey(l => l.BankAccountId)
                 .OnDelete(DeleteBehavior.Restrict);
+             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+                .HasOne(l => l.CashBook)
+                .WithMany()
+                .HasForeignKey(l => l.CashBookId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>()
+             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>()
                 .HasIndex(l => l.TenantId);
-            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>()
+             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>()
                 .HasIndex(l => l.CompanyId);
-            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>()
+             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>()
                 .HasIndex(l => l.BankLedgerEntryId);
-            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>()
+             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>()
                 .HasOne(l => l.BankLedgerEntry)
                 .WithMany()
                 .HasForeignKey(l => l.BankLedgerEntryId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+             // SalaryPayment configuration
+             modelBuilder.Entity<Aquora.Domain.Entities.Payroll.SalaryPayment>()
+                .HasIndex(s => s.TenantId);
+             modelBuilder.Entity<Aquora.Domain.Entities.Payroll.SalaryPayment>()
+                .HasIndex(s => s.CompanyId);
+             modelBuilder.Entity<Aquora.Domain.Entities.Payroll.SalaryPayment>()
+                .HasIndex(s => s.EmployeeId);
+             modelBuilder.Entity<Aquora.Domain.Entities.Payroll.SalaryPayment>()
+                .HasIndex(s => s.SalaryMonth);
+             modelBuilder.Entity<Aquora.Domain.Entities.Payroll.SalaryPayment>()
+                .HasOne(s => s.Employee)
+                .WithMany()
+                .HasForeignKey(s => s.EmployeeId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             // Apply soft delete query filters
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
