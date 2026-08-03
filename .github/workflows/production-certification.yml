@@ -1,8 +1,6 @@
 name: Aquora ERP Production Certification
 
 on:
-  push:
-    branches: [ "main", "production" ]
   pull_request:
     branches: [ "main" ]
 

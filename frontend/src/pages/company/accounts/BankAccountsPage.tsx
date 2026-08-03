@@ -83,7 +83,7 @@ const BankAccountsPage: React.FC = () => {
       setBankAccounts(data?.items || [])
       setTotalCount(data?.totalCount || 0)
     } catch (err: any) {
-      showToast(err.message || 'Failed to load bank accounts.', 'danger')
+      showToast(err.message || 'Failed to load bank accounts.', 'error')
     } finally {
       setLoading(false)
     }
@@ -196,7 +196,7 @@ const BankAccountsPage: React.FC = () => {
       setIsDeleteModalOpen(false)
       fetchBankAccounts()
     } catch (err: any) {
-      showToast(err.message || 'Failed to delete bank account.', 'danger')
+      showToast(err.message || 'Failed to delete bank account.', 'error')
     } finally {
       setSubmitting(false)
     }

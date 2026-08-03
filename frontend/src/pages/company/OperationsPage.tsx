@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react'
 import { api } from '../../services/api'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import EnterpriseNumberInput from '../../components/ui/EnterpriseNumberInput'
+import { Truck, Clock, Package, AlertCircle, RefreshCw, Box, Layers, LogIn, CheckCircle, Search, Edit2, Zap, Settings, HelpCircle } from 'lucide-react'
 
 export const OperationsPage: React.FC = () => {
   const { showToast } = useNotificationStore()

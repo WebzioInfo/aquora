@@ -131,7 +131,7 @@ export const ExpenseManagementPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['bankAccountDropdownList'] })
     },
     onError: (err: any) => {
-      showToast(err.message || 'Failed to delete expense.', 'danger')
+      showToast(err.message || 'Failed to delete expense.', 'error')
     }
   })
 
