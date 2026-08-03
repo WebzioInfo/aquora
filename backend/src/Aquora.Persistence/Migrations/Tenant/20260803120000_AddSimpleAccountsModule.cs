@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Aquora.Persistence.Migrations.Tenant
 {
-    /// <inheritdoc />
     public partial class AddSimpleAccountsModule : Migration
     {
         /// <inheritdoc />

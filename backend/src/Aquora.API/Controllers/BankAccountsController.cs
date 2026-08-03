@@ -16,10 +16,12 @@ namespace Aquora.API.Controllers
     public class BankAccountsController : ApiControllerBase
     {
         private readonly ISimpleAccountsService _accountsService;
+        private readonly IBankLedgerService _bankLedgerService;
 
-        public BankAccountsController(ISimpleAccountsService accountsService)
+        public BankAccountsController(ISimpleAccountsService accountsService, IBankLedgerService bankLedgerService)
         {
             _accountsService = accountsService;
+            _bankLedgerService = bankLedgerService;
         }
 
         [HttpGet]
@@ -137,6 +139,79 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Error", HttpContext.TraceIdentifier));
+            }
+        }
+        [HttpGet("{id:guid}/ledger")]
+        public async Task<IActionResult> GetBankLedger(
+            Guid id,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 50,
+            [FromQuery] string? search = null,
+            [FromQuery] DateTime? dateFrom = null,
+            [FromQuery] DateTime? dateTo = null,
+            [FromQuery] string? transactionType = null,
+            [FromQuery] string? createdBy = null,
+            [FromQuery] decimal? minAmount = null,
+            [FromQuery] decimal? maxAmount = null,
+            [FromQuery] string? sortBy = "TransactionDate",
+            [FromQuery] string? sortOrder = "desc")
+        {
+            try
+            {
+                var filter = new BankLedgerFilterDto
+                {
+                    DateFrom = dateFrom,
+                    DateTo = dateTo,
+                    TransactionType = transactionType,
+                    CreatedBy = createdBy,
+                    MinimumAmount = minAmount,
+                    MaximumAmount = maxAmount,
+                    SortBy = sortBy,
+                    SortOrder = sortOrder
+                };
+                
+                var result = await _bankLedgerService.GetLedgerAsync(id, pageNumber, pageSize, search, filter);
+                return Ok(ApiResponse<PagedResult<BankLedgerEntryDto>>.CreateSuccess(result, "Bank ledger retrieved successfully."));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse<object>.CreateFailure(ex.Message, "Error", HttpContext.TraceIdentifier));
+            }
+        }
+
+        [HttpGet("{id:guid}/summary")]
+        public async Task<IActionResult> GetBankSummary(Guid id)
+        {
+            try
+            {
+                var result = await _bankLedgerService.GetBankSummaryAsync(id);
+                return Ok(ApiResponse<BankSummaryDto>.CreateSuccess(result, "Bank summary retrieved successfully."));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<object>.CreateFailure(ex.Message, "Not Found", HttpContext.TraceIdentifier));
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                {
+                    return NotFound(ApiResponse<object>.CreateFailure("Bank account not found.", "Not Found", HttpContext.TraceIdentifier));
+                }
+                return StatusCode(500, ApiResponse<object>.CreateFailure(ex.Message, "Error", HttpContext.TraceIdentifier));
+            }
+        }
+
+        [HttpGet("ledger/{ledgerEntryId:guid}/history")]
+        public async Task<IActionResult> GetBankLedgerHistory(Guid ledgerEntryId)
+        {
+            try
+            {
+                var result = await _bankLedgerService.GetLedgerHistoryAsync(ledgerEntryId);
+                return Ok(ApiResponse<List<BankLedgerAuditEntryDto>>.CreateSuccess(result, "Bank ledger history retrieved successfully."));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse<object>.CreateFailure(ex.Message, "Error", HttpContext.TraceIdentifier));
             }
         }
     }

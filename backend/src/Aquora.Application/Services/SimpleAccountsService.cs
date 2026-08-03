@@ -17,17 +17,20 @@ namespace Aquora.Application.Services
         private readonly IPlatformDbContext _platformContext;
         private readonly ITenantProvider _tenantProvider;
         private readonly ICurrentUserContext _currentUserContext;
+        private readonly IBankLedgerService _bankLedgerService;
 
         public SimpleAccountsService(
             ITenantDbContext context,
             IPlatformDbContext platformContext,
             ITenantProvider tenantProvider,
-            ICurrentUserContext currentUserContext)
+            ICurrentUserContext currentUserContext,
+            IBankLedgerService bankLedgerService)
         {
             _context = context;
             _platformContext = platformContext;
             _tenantProvider = tenantProvider;
             _currentUserContext = currentUserContext;
+            _bankLedgerService = bankLedgerService;
         }
 
         private Guid GetTenantId() => _tenantProvider.TenantId;
@@ -242,7 +245,7 @@ namespace Aquora.Application.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            // Bank balance deduction if PaymentMethod == Bank
+            // Bank balance validation if PaymentMethod == Bank
             BankAccount? bank = null;
             if (expense.PaymentMethod.Equals("Bank", StringComparison.OrdinalIgnoreCase))
             {
@@ -259,12 +262,29 @@ namespace Aquora.Application.Services
                     throw new ArgumentException("Selected Bank Account was not found.");
                 }
 
-                bank.CurrentBalance -= request.Amount;
                 expense.BankAccountId = bank.Id;
             }
 
             _context.SimpleExpenses.Add(expense);
             await _context.SaveChangesAsync();
+
+            if (expense.PaymentMethod.Equals("Bank", StringComparison.OrdinalIgnoreCase) && expense.BankAccountId.HasValue)
+            {
+                await _bankLedgerService.RecordTransactionAsync(
+                    bankAccountId: expense.BankAccountId.Value,
+                    transactionDate: expense.ExpenseDate,
+                    referenceNumber: expense.ExpenseNumber,
+                    transactionType: "Expense",
+                    description: string.IsNullOrWhiteSpace(expense.Description) ? $"Expense ({expense.Category})" : expense.Description,
+                    debit: expense.Amount,
+                    credit: 0m,
+                    relatedEntityId: expense.Id,
+                    relatedEntityType: "Expense"
+                );
+
+                bank = await _context.BankAccounts
+                    .FirstOrDefaultAsync(b => b.Id == expense.BankAccountId.Value && b.TenantId == tenantId && !b.IsDeleted);
+            }
 
             var userMap = await ResolveUserNamesBatchAsync(new[] { userId });
             var createdName = userMap.TryGetValue(userId, out var n) ? n : userId;
@@ -309,16 +329,9 @@ namespace Aquora.Application.Services
 
             if (expense == null) return null;
 
-            // Refund old bank balance if old payment method was Bank
-            if (expense.PaymentMethod.Equals("Bank", StringComparison.OrdinalIgnoreCase) && expense.BankAccountId.HasValue)
-            {
-                var oldBank = await _context.BankAccounts
-                    .FirstOrDefaultAsync(b => b.Id == expense.BankAccountId.Value && b.TenantId == tenantId && !b.IsDeleted);
-                if (oldBank != null)
-                {
-                    oldBank.CurrentBalance += expense.Amount;
-                }
-            }
+            var oldBankAccountId = expense.BankAccountId;
+            var oldAmount = expense.Amount;
+            var oldPaymentMethod = expense.PaymentMethod;
 
             // Update properties
             expense.ExpenseDate = request.ExpenseDate.ToUniversalTime();
@@ -331,7 +344,6 @@ namespace Aquora.Application.Services
             expense.UpdatedAt = DateTime.UtcNow;
             expense.UpdatedBy = userId;
 
-            // Deduct new bank balance if new payment method is Bank
             BankAccount? newBank = null;
             if (expense.PaymentMethod.Equals("Bank", StringComparison.OrdinalIgnoreCase))
             {
@@ -348,15 +360,28 @@ namespace Aquora.Application.Services
                     throw new ArgumentException("Selected Bank Account was not found.");
                 }
 
-                newBank.CurrentBalance -= request.Amount;
                 expense.BankAccountId = newBank.Id;
+                await _context.SaveChangesAsync();
+
+                await _bankLedgerService.SyncExpenseLedgerAsync(
+                    expenseId: expense.Id,
+                    bankAccountId: newBank.Id,
+                    expenseDate: expense.ExpenseDate,
+                    expenseNumber: expense.ExpenseNumber,
+                    category: expense.Category,
+                    description: expense.Description,
+                    amount: expense.Amount,
+                    transactionType: "Expense Updated"
+                );
             }
             else
             {
                 expense.BankAccountId = null;
-            }
+                await _context.SaveChangesAsync();
 
-            await _context.SaveChangesAsync();
+                // If payment method changed to Cash, remove from Bank Ledger
+                await _bankLedgerService.RemoveLedgerEntryForEntityAsync(expense.Id, "Expense");
+            }
 
             var userMap = await ResolveUserNamesBatchAsync(new[] { expense.CreatedBy });
             var createdName = userMap.TryGetValue(expense.CreatedBy, out var n) ? n : expense.CreatedBy;
@@ -395,16 +420,8 @@ namespace Aquora.Application.Services
 
             if (expense == null) return false;
 
-            // Refund bank balance if payment method was Bank
-            if (expense.PaymentMethod.Equals("Bank", StringComparison.OrdinalIgnoreCase) && expense.BankAccountId.HasValue)
-            {
-                var bank = await _context.BankAccounts
-                    .FirstOrDefaultAsync(b => b.Id == expense.BankAccountId.Value && b.TenantId == tenantId && !b.IsDeleted);
-                if (bank != null)
-                {
-                    bank.CurrentBalance += expense.Amount;
-                }
-            }
+            // Remove Bank Ledger entry and recalculate bank running balance automatically
+            await _bankLedgerService.RemoveLedgerEntryForEntityAsync(expense.Id, "Expense");
 
             expense.IsDeleted = true;
             expense.DeletedAt = DateTime.UtcNow;
@@ -528,7 +545,7 @@ namespace Aquora.Application.Services
                 AccountNumber = request.AccountNumber.Trim(),
                 IfscCode = request.IfscCode.Trim(),
                 OpeningBalance = request.OpeningBalance,
-                CurrentBalance = request.OpeningBalance, // Set current balance to opening balance on creation
+                CurrentBalance = 0m, // RecordTransactionAsync will set current balance to opening balance
                 Notes = request.Notes?.Trim(),
                 Status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : request.Status.Trim(),
                 IsActive = true,
@@ -538,6 +555,27 @@ namespace Aquora.Application.Services
 
             _context.BankAccounts.Add(bank);
             await _context.SaveChangesAsync();
+
+            if (request.OpeningBalance > 0)
+            {
+                await _bankLedgerService.RecordTransactionAsync(
+                    bankAccountId: bank.Id,
+                    transactionDate: bank.CreatedAt,
+                    referenceNumber: "INIT",
+                    transactionType: "Opening Balance",
+                    description: "Opening Balance",
+                    debit: 0m,
+                    credit: request.OpeningBalance,
+                    relatedEntityId: bank.Id,
+                    relatedEntityType: "BankAccount"
+                );
+
+                var refreshedBank = await _context.BankAccounts.FirstOrDefaultAsync(b => b.Id == bank.Id);
+                if (refreshedBank != null)
+                {
+                    bank.CurrentBalance = refreshedBank.CurrentBalance;
+                }
+            }
 
             return new BankAccountDto
             {

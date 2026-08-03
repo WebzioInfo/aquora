@@ -11,7 +11,9 @@ import {
   Wallet,
   CheckCircle2,
   XCircle,
+  Eye,
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import EnterpriseHeader from '../../../components/ui/EnterpriseHeader'
 import EnterpriseCard from '../../../components/ui/EnterpriseCard'
 import EnterpriseButton from '../../../components/ui/EnterpriseButton'
@@ -30,6 +32,7 @@ import { useNotificationStore } from '../../../store/useNotificationStore'
 
 const BankAccountsPage: React.FC = () => {
   const { showToast } = useNotificationStore()
+  const navigate = useNavigate()
 
   // State
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
@@ -337,6 +340,13 @@ const BankAccountsPage: React.FC = () => {
                     </td>
                     <td className="p-3.5 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => navigate(`/company/accounts/bank-accounts/${account.id}`)}
+                          className="p-1.5 hover:bg-slate-200 rounded text-slate-600 transition-colors"
+                          title="View Ledger"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
                         <button
                           onClick={() => handleOpenEditModal(account)}
                           className="p-1.5 hover:bg-slate-200 rounded text-slate-600 transition-colors"

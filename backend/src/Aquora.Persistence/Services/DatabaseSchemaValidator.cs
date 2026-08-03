@@ -56,13 +56,13 @@ namespace Aquora.Persistence.Services
                 command.Parameters.AddWithValue("schema", expectedSchema);
                 command.Parameters.AddWithValue("table", tableName);
 
-                var actualColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var actualColumns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
                 using (var reader = await command.ExecuteReaderAsync())
                 {
                     while (await reader.ReadAsync())
                     {
-                        actualColumns.Add(reader.GetString(0));
+                        actualColumns[reader.GetString(0)] = reader.GetString(1);
                     }
                 }
 
@@ -77,7 +77,7 @@ namespace Aquora.Persistence.Services
                     {
                         while (await reader.ReadAsync())
                         {
-                            actualColumns.Add(reader.GetString(0));
+                            actualColumns[reader.GetString(0)] = reader.GetString(1);
                         }
                     }
 
@@ -88,23 +88,49 @@ namespace Aquora.Persistence.Services
                     }
                 }
 
+                var storeObject = Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table(tableName, expectedSchema);
                 var expectedProperties = entityType.GetProperties()
-                    .Select(p => p.GetColumnName(Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table(tableName, expectedSchema)))
-                    .Where(p => p != null)
+                    .Select(p => new
+                    {
+                        Property = p,
+                        Column = p.GetColumnName(storeObject)
+                    })
+                    .Where(p => p.Column != null)
                     .ToList();
                 
                 foreach (var expectedProp in expectedProperties)
                 {
-                    if (expectedProp != null && !actualColumns.Contains(expectedProp))
+                    if (expectedProp.Column != null && !actualColumns.ContainsKey(expectedProp.Column))
                     {
-                        _logger.LogInformation("[SCHEMA AUTO-REPAIR] Column {Schema}.{Table}.{Column} is missing. Attempting automatic column addition...", expectedSchema, tableName, expectedProp);
-                        await AutoRepairColumnAsync(connection, expectedSchema, tableName, expectedProp);
-                        actualColumns.Add(expectedProp);
+                        _logger.LogInformation("[SCHEMA AUTO-REPAIR] Column {Schema}.{Table}.{Column} is missing. Attempting automatic column addition...", expectedSchema, tableName, expectedProp.Column);
+                        await AutoRepairColumnAsync(connection, expectedSchema, tableName, expectedProp.Column, expectedProp.Property.ClrType);
+                        actualColumns[expectedProp.Column] = GetExpectedPostgresDataType(expectedProp.Property.ClrType);
+                    }
+                    else if (expectedProp.Column != null &&
+                             !ColumnTypeMatches(expectedProp.Property.ClrType, actualColumns[expectedProp.Column]))
+                    {
+                        _logger.LogInformation(
+                            "[SCHEMA AUTO-REPAIR] Column {Schema}.{Table}.{Column} has PostgreSQL type {ActualType}, but EF expects {ExpectedType}. Attempting type repair...",
+                            expectedSchema,
+                            tableName,
+                            expectedProp.Column,
+                            actualColumns[expectedProp.Column],
+                            GetExpectedPostgresDataType(expectedProp.Property.ClrType));
+
+                        var repaired = await AutoRepairColumnTypeAsync(connection, expectedSchema, tableName, expectedProp.Column, expectedProp.Property.ClrType);
+                        if (repaired)
+                        {
+                            actualColumns[expectedProp.Column] = GetExpectedPostgresDataType(expectedProp.Property.ClrType);
+                        }
+                        else
+                        {
+                            errors.Add($"Column {expectedSchema}.{tableName}.{expectedProp.Column} has PostgreSQL type {actualColumns[expectedProp.Column]}, but EF expects {GetExpectedPostgresDataType(expectedProp.Property.ClrType)}.");
+                        }
                     }
                 }
 
                 // Specifically look for RowVersion if it shouldn't be there
-                if (actualColumns.Contains("RowVersion") && !expectedProperties.Contains("RowVersion"))
+                if (actualColumns.ContainsKey("RowVersion") && !expectedProperties.Any(p => p.Column == "RowVersion"))
                 {
                     errors.Add($"Unexpected orphaned column (RowVersion): {expectedSchema}.{tableName}.RowVersion. This may cause Postgres schema mismatch errors.");
                 }
@@ -233,6 +259,53 @@ namespace Aquora.Persistence.Services
                         );";
                     await cmd.ExecuteNonQueryAsync();
                 }
+                else if (table.Equals("BankLedgerEntries", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""BankLedgerEntries"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""BankAccountId"" uuid NOT NULL,
+                            ""TransactionDate"" timestamp with time zone NOT NULL,
+                            ""ReferenceNumber"" text NOT NULL,
+                            ""TransactionType"" text NOT NULL,
+                            ""Description"" text NOT NULL,
+                            ""Debit"" numeric NOT NULL DEFAULT 0.0,
+                            ""Credit"" numeric NOT NULL DEFAULT 0.0,
+                            ""RunningBalance"" numeric NOT NULL DEFAULT 0.0,
+                            ""RelatedEntityId"" uuid NULL,
+                            ""RelatedEntityType"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL
+                        );";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("BankLedgerAuditEntries", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""BankLedgerAuditEntries"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""BankLedgerEntryId"" uuid NOT NULL,
+                            ""Action"" text NOT NULL,
+                            ""OldAmount"" numeric NOT NULL DEFAULT 0.0,
+                            ""NewAmount"" numeric NOT NULL DEFAULT 0.0,
+                            ""Remarks"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL
+                        );";
+                    await cmd.ExecuteNonQueryAsync();
+                }
             }
             catch (Exception ex)
             {
@@ -240,28 +313,12 @@ namespace Aquora.Persistence.Services
             }
         }
 
-        private async Task AutoRepairColumnAsync(NpgsqlConnection connection, string schema, string table, string column)
+        private async Task AutoRepairColumnAsync(NpgsqlConnection connection, string schema, string table, string column, Type clrType)
         {
             try
             {
                 using var cmd = connection.CreateCommand();
-                string typeDef = "text NULL";
-                if (column.EndsWith("Amount", StringComparison.OrdinalIgnoreCase) ||
-                    column.EndsWith("Price", StringComparison.OrdinalIgnoreCase) ||
-                    column.EndsWith("Value", StringComparison.OrdinalIgnoreCase) ||
-                    column.EndsWith("Cost", StringComparison.OrdinalIgnoreCase) ||
-                    column.Equals("CostPerUnit", StringComparison.OrdinalIgnoreCase))
-                {
-                    typeDef = "numeric NOT NULL DEFAULT 0.0";
-                }
-                else if (column.Equals("IsReplacementRequired", StringComparison.OrdinalIgnoreCase))
-                {
-                    typeDef = "boolean NOT NULL DEFAULT false";
-                }
-                else if (column.Equals("PaymentStatus", StringComparison.OrdinalIgnoreCase))
-                {
-                    typeDef = "text NOT NULL DEFAULT 'Pending'";
-                }
+                var typeDef = GetColumnDefinition(column, clrType);
 
                 cmd.CommandText = $@"ALTER TABLE ""{schema}"".""{table}"" ADD COLUMN IF NOT EXISTS ""{column}"" {typeDef};";
                 await cmd.ExecuteNonQueryAsync();
@@ -270,6 +327,123 @@ namespace Aquora.Persistence.Services
             {
                 _logger.LogWarning(ex, "[SCHEMA AUTO-REPAIR COLUMN WARN] Auto repair failed for column {Schema}.{Table}.{Column}: {Message}", schema, table, column, ex.Message);
             }
+        }
+
+        private async Task<bool> AutoRepairColumnTypeAsync(NpgsqlConnection connection, string schema, string table, string column, Type clrType)
+        {
+            var underlyingType = Nullable.GetUnderlyingType(clrType) ?? clrType;
+            if (underlyingType == typeof(decimal))
+            {
+                try
+                {
+                    using var cmd = connection.CreateCommand();
+                    cmd.CommandText = $@"
+                        ALTER TABLE ""{schema}"".""{table}"" ALTER COLUMN ""{column}"" DROP DEFAULT;
+                        ALTER TABLE ""{schema}"".""{table}"" ALTER COLUMN ""{column}"" TYPE numeric
+                        USING COALESCE(NULLIF(trim(""{column}""::text), ''), '0')::numeric;
+                        ALTER TABLE ""{schema}"".""{table}"" ALTER COLUMN ""{column}"" SET DEFAULT 0.0;
+                        ALTER TABLE ""{schema}"".""{table}"" ALTER COLUMN ""{column}"" SET NOT NULL;";
+
+                    await cmd.ExecuteNonQueryAsync();
+                    _logger.LogInformation("[SCHEMA AUTO-REPAIR TYPE SUCCESS] Successfully converted column {Schema}.{Table}.{Column} to numeric.", schema, table, column);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[SCHEMA AUTO-REPAIR TYPE WARN] Auto repair failed to convert column {Schema}.{Table}.{Column} to numeric: {Message}", schema, table, column, ex.Message);
+                    return false;
+                }
+            }
+
+            if (underlyingType != typeof(bool))
+            {
+                _logger.LogWarning(
+                    "[SCHEMA AUTO-REPAIR TYPE WARN] Automatic type conversion is only enabled for boolean and decimal columns. Skipping {Schema}.{Table}.{Column}.",
+                    schema,
+                    table,
+                    column);
+                return false;
+            }
+
+            try
+            {
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = $@"
+                    ALTER TABLE ""{schema}"".""{table}"" ALTER COLUMN ""{column}"" DROP DEFAULT;
+                    ALTER TABLE ""{schema}"".""{table}"" ALTER COLUMN ""{column}"" TYPE boolean
+                    USING CASE
+                        WHEN ""{column}"" IS NULL THEN false
+                        WHEN lower(trim(""{column}""::text)) IN ('true', 't', '1', 'yes', 'y') THEN true
+                        WHEN lower(trim(""{column}""::text)) IN ('false', 'f', '0', 'no', 'n', '') THEN false
+                        ELSE false
+                    END;
+                    ALTER TABLE ""{schema}"".""{table}"" ALTER COLUMN ""{column}"" SET DEFAULT false;
+                    ALTER TABLE ""{schema}"".""{table}"" ALTER COLUMN ""{column}"" SET NOT NULL;";
+
+                await cmd.ExecuteNonQueryAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[SCHEMA AUTO-REPAIR TYPE WARN] Auto repair failed for column {Schema}.{Table}.{Column}: {Message}", schema, table, column, ex.Message);
+                return false;
+            }
+        }
+
+        private static bool ColumnTypeMatches(Type clrType, string actualPostgresDataType)
+        {
+            var underlyingType = Nullable.GetUnderlyingType(clrType) ?? clrType;
+            if (underlyingType == typeof(bool) || underlyingType == typeof(decimal))
+            {
+                return string.Equals(GetExpectedPostgresDataType(clrType), actualPostgresDataType, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return true;
+        }
+
+        private static string GetColumnDefinition(string column, Type clrType)
+        {
+            var underlyingType = Nullable.GetUnderlyingType(clrType) ?? clrType;
+            var nullable = Nullable.GetUnderlyingType(clrType) != null;
+
+            if (underlyingType == typeof(bool))
+            {
+                return nullable ? "boolean NULL" : "boolean NOT NULL DEFAULT false";
+            }
+
+            if (underlyingType == typeof(Guid))
+            {
+                return nullable ? "uuid NULL" : "uuid NOT NULL";
+            }
+
+            if (underlyingType == typeof(decimal))
+            {
+                return nullable ? "numeric NULL" : "numeric NOT NULL DEFAULT 0.0";
+            }
+
+            if (underlyingType == typeof(DateTime))
+            {
+                return nullable ? "timestamp with time zone NULL" : "timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP";
+            }
+
+            if (column.Equals("PaymentStatus", StringComparison.OrdinalIgnoreCase))
+            {
+                return "text NOT NULL DEFAULT 'Pending'";
+            }
+
+            return "text NULL";
+        }
+
+        private static string GetExpectedPostgresDataType(Type clrType)
+        {
+            var underlyingType = Nullable.GetUnderlyingType(clrType) ?? clrType;
+
+            if (underlyingType == typeof(bool)) return "boolean";
+            if (underlyingType == typeof(Guid)) return "uuid";
+            if (underlyingType == typeof(decimal)) return "numeric";
+            if (underlyingType == typeof(DateTime)) return "timestamp with time zone";
+
+            return "text";
         }
     }
 }

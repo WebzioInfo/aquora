@@ -31,7 +31,7 @@ namespace Aquora.Application.DTOs.Customers
         public decimal OpeningBalance { get; set; }
         public string BalanceType { get; set; } = "Zero";
         public decimal CreditLimit { get; set; }
-        public string PaymentTerms { get; set; } = "COD";
+        public string? PaymentTerms { get; set; } = "COD";
 
         public string Status { get; set; } = "Active";
         public bool IsActive { get; set; }

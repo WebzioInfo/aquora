@@ -49,53 +49,36 @@ namespace Aquora.Persistence.Context
                 var sql = cmd.CommandText;
                 if (string.IsNullOrWhiteSpace(sql)) continue;
 
+                if (sql.Contains("__EFMigrationsHistory"))
+                {
+                    // Skip post-processing migrations history table commands, since NpgsqlHistoryRepository
+                    // already does custom post-processing which will double-up "IF NOT EXISTS" if we modify it.
+                    continue;
+                }
+
                 var originalSql = sql;
 
                 // 1. ADD COLUMN -> ADD COLUMN IF NOT EXISTS
-                if (sql.Contains("ALTER TABLE ") && sql.Contains(" ADD \""))
-                {
-                    sql = sql.Replace(" ADD \"", " ADD COLUMN IF NOT EXISTS \"");
-                }
+                sql = System.Text.RegularExpressions.Regex.Replace(sql, @"\bADD\s+(?:COLUMN\s+)?(?!\s*IF\s+NOT\s+EXISTS\b)\s*""([^""]+)""", "ADD COLUMN IF NOT EXISTS \"$1\"", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
                 // 2. DROP COLUMN -> DROP COLUMN IF EXISTS
-                if (sql.Contains("ALTER TABLE ") && sql.Contains(" DROP COLUMN \""))
-                {
-                    sql = sql.Replace(" DROP COLUMN \"", " DROP COLUMN IF EXISTS \"");
-                }
+                sql = System.Text.RegularExpressions.Regex.Replace(sql, @"\bDROP\s+COLUMN\b(?!\s*IF\s+EXISTS\b)\s*""([^""]+)""", "DROP COLUMN IF EXISTS \"$1\"", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
                 // 3. DROP CONSTRAINT -> DROP CONSTRAINT IF EXISTS
-                if (sql.Contains("ALTER TABLE ") && sql.Contains(" DROP CONSTRAINT \""))
-                {
-                    sql = sql.Replace(" DROP CONSTRAINT \"", " DROP CONSTRAINT IF EXISTS \"");
-                }
+                sql = System.Text.RegularExpressions.Regex.Replace(sql, @"\bDROP\s+CONSTRAINT\b(?!\s*IF\s+EXISTS\b)\s*""([^""]+)""", "DROP CONSTRAINT IF EXISTS \"$1\"", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
                 // 4. CREATE TABLE -> CREATE TABLE IF NOT EXISTS
-                if (sql.Contains("CREATE TABLE \""))
-                {
-                    sql = sql.Replace("CREATE TABLE \"", "CREATE TABLE IF NOT EXISTS \"");
-                }
+                sql = System.Text.RegularExpressions.Regex.Replace(sql, @"\bCREATE\s+TABLE\b(?!\s*IF\s+NOT\s+EXISTS\b)", "CREATE TABLE IF NOT EXISTS", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
                 // 5. DROP TABLE -> DROP TABLE IF EXISTS
-                if (sql.Contains("DROP TABLE \""))
-                {
-                    sql = sql.Replace("DROP TABLE \"", "DROP TABLE IF EXISTS \"");
-                }
+                sql = System.Text.RegularExpressions.Regex.Replace(sql, @"\bDROP\s+TABLE\b(?!\s*IF\s+EXISTS\b)", "DROP TABLE IF EXISTS", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
                 // 6. CREATE INDEX -> CREATE INDEX IF NOT EXISTS
-                if (sql.Contains("CREATE INDEX \""))
-                {
-                    sql = sql.Replace("CREATE INDEX \"", "CREATE INDEX IF NOT EXISTS \"");
-                }
-                if (sql.Contains("CREATE UNIQUE INDEX \""))
-                {
-                    sql = sql.Replace("CREATE UNIQUE INDEX \"", "CREATE UNIQUE INDEX IF NOT EXISTS \"");
-                }
+                sql = System.Text.RegularExpressions.Regex.Replace(sql, @"\bCREATE\s+UNIQUE\s+INDEX\b(?!\s*IF\s+NOT\s+EXISTS\b)", "CREATE UNIQUE INDEX IF NOT EXISTS", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                sql = System.Text.RegularExpressions.Regex.Replace(sql, @"\bCREATE\s+INDEX\b(?!\s*IF\s+NOT\s+EXISTS\b)", "CREATE INDEX IF NOT EXISTS", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
                 // 7. DROP INDEX -> DROP INDEX IF EXISTS
-                if (sql.Contains("DROP INDEX \""))
-                {
-                    sql = sql.Replace("DROP INDEX \"", "DROP INDEX IF EXISTS \"");
-                }
+                sql = System.Text.RegularExpressions.Regex.Replace(sql, @"\bDROP\s+INDEX\b(?!\s*IF\s+EXISTS\b)", "DROP INDEX IF EXISTS", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
                 if (sql != originalSql)
                 {
@@ -148,7 +131,6 @@ namespace Aquora.Persistence.Context
 
                     if (!setSuccessful)
                     {
-                        System.Console.WriteLine($"[WARNING] Failed to set SQL CommandText via reflection.");
                     }
                 }
             }

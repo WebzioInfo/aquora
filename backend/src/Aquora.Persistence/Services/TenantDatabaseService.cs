@@ -124,19 +124,8 @@ namespace Aquora.Persistence.Services
                         await onProgress(45, "Building workspace", "Building your workspace structure...");
                     }
 
-                    // Run EF Migrations inside the schema with resilience against 42P07 relation already exists
-                    try
-                    {
-                        await tenantContext.Database.MigrateAsync();
-                    }
-                    catch (Npgsql.NpgsqlException npgEx) when (npgEx.SqlState == "42P07" || npgEx.Message.Contains("already exists"))
-                    {
-                        Console.WriteLine($"[MIGRATION WARN]: Schema '{schemaName}' tables already exist ({npgEx.Message}). Resuming setup safely.");
-                    }
-                    catch (Exception migEx)
-                    {
-                        Console.WriteLine($"[MIGRATION WARN]: Non-fatal migration warning for '{schemaName}': {migEx.Message}. Proceeding.");
-                    }
+                    // Run EF migrations inside the tenant schema. Any failure must abort provisioning.
+                    await tenantContext.Database.MigrateAsync();
 
                     // Repair schema for ProductionShifts and Simple Accounts tables
                     try

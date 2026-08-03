@@ -44,6 +44,53 @@ export interface UpdateSimpleExpenseRequest {
   notes?: string
 }
 
+export interface BankLedgerEntry {
+  id: string
+  bankAccountId: string
+  transactionDate: string
+  referenceNumber: string
+  transactionType: string
+  description: string
+  debit: number
+  credit: number
+  runningBalance: number
+  relatedEntityId?: string
+  relatedEntityType?: string
+  createdAt: string
+  createdBy: string
+}
+
+export interface BankLedgerAuditEntry {
+  id: string
+  bankLedgerEntryId: string
+  action: string
+  oldAmount: number
+  newAmount: number
+  remarks?: string
+  changedBy: string
+  changedAt: string
+}
+
+
+export interface BankSummary {
+  currentBalance: number
+  totalMoneyReceived: number
+  totalMoneyPaid: number
+  totalTransactions: number
+  largestDeposit: number
+  largestExpense: number
+  todaysTransactions: number
+  thisMonthTransactions: number
+}
+
+export interface BankLedgerFilter {
+  dateFrom?: string
+  dateTo?: string
+  transactionType?: string
+  minAmount?: number
+  maxAmount?: number
+}
+
 export interface BankAccount {
   id: string
   bankName: string
@@ -328,6 +375,22 @@ export const simpleAccountsService = {
   // Dashboard Summary
   getDashboardSummary: async () => {
     const res = await api.get<{ data: SimpleAccountsDashboardSummary }>('/api/v1/simple-accounts/dashboard-summary')
+    return res.data.data
+  },
+
+  // Bank Ledger
+  getBankLedger: async (bankAccountId: string, params: { pageNumber?: number, pageSize?: number, search?: string } & BankLedgerFilter) => {
+    const res = await api.get<{ data: { items: BankLedgerEntry[], totalCount: number, totalPages: number } }>(`/api/v1/bank-accounts/${bankAccountId}/ledger`, { params })
+    return res.data.data
+  },
+
+  getBankSummary: async (bankAccountId: string) => {
+    const res = await api.get<{ data: BankSummary }>(`/api/v1/bank-accounts/${bankAccountId}/summary`)
+    return res.data.data
+  },
+
+  getLedgerHistory: async (ledgerEntryId: string) => {
+    const res = await api.get<{ data: BankLedgerAuditEntry[] }>(`/api/v1/bank-accounts/ledger/${ledgerEntryId}/history`)
     return res.data.data
   }
 }

@@ -31,6 +31,7 @@ const ProvisioningPage = React.lazy(() => import('../pages/ProvisioningPage'))
 const AccountsDashboardPage = React.lazy(() => import('../pages/company/accounts/AccountsDashboardPage'))
 const ExpenseManagementPage = React.lazy(() => import('../pages/company/accounts/ExpenseManagementPage'))
 const BankAccountsPage = React.lazy(() => import('../pages/company/accounts/BankAccountsPage'))
+const BankAccountDetailsPage = React.lazy(() => import('../pages/company/accounts/BankAccountDetailsPage'))
 const OwnerListPage = React.lazy(() => import('../pages/company/accounts/OwnerListPage'))
 const OwnerDetailsPage = React.lazy(() => import('../pages/company/accounts/OwnerDetailsPage'))
 const AssetSummaryPage = React.lazy(() => import('../pages/company/accounts/AssetSummaryPage'))
@@ -441,6 +442,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="accounts/dashboard" element={<AccountsDashboardPage />} />
         <Route path="accounts/expenses" element={<ExpenseManagementPage />} />
         <Route path="accounts/bank-accounts" element={<BankAccountsPage />} />
+        <Route path="accounts/bank-accounts/:id" element={<BankAccountDetailsPage />} />
         <Route path="accounts/owners" element={<OwnerListPage />} />
         <Route path="accounts/owners/:id" element={<OwnerDetailsPage />} />
         <Route path="accounts/assets" element={<AssetSummaryPage />} />

@@ -3,6 +3,7 @@ using System;
 using Aquora.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Aquora.Persistence.Migrations.Tenant
 {
     [DbContext(typeof(TenantDbContext))]
-    partial class TenantDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260803073729_AddBankLedgerEntry")]
+    partial class AddBankLedgerEntry
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -411,6 +414,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .HasColumnType("text");
 
                     b.Property<string>("PaymentTerms")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Phone")
@@ -901,64 +905,6 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.HasIndex("TenantId");
 
                     b.ToTable("BankAccounts", "public");
-                });
-
-            modelBuilder.Entity("Aquora.Domain.Entities.Finance.BankLedgerAuditEntry", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("BankLedgerEntryId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CompanyId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("CreatedByIP")
-                        .HasColumnType("text");
-
-                    b.Property<decimal>("NewAmount")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal>("OldAmount")
-                        .HasColumnType("numeric");
-
-                    b.Property<string>("Remarks")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("UpdatedByIP")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BankLedgerEntryId");
-
-                    b.HasIndex("CompanyId");
-
-                    b.HasIndex("TenantId");
-
-                    b.ToTable("BankLedgerAuditEntries", "public");
                 });
 
             modelBuilder.Entity("Aquora.Domain.Entities.Finance.BankLedgerEntry", b =>
@@ -3846,25 +3792,6 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Navigation("Company");
 
                     b.Navigation("LinkedLedgerAccount");
-                });
-
-            modelBuilder.Entity("Aquora.Domain.Entities.Finance.BankLedgerAuditEntry", b =>
-                {
-                    b.HasOne("Aquora.Domain.Entities.Finance.BankLedgerEntry", "BankLedgerEntry")
-                        .WithMany()
-                        .HasForeignKey("BankLedgerEntryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Aquora.Domain.Entities.Company", "Company")
-                        .WithMany()
-                        .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("BankLedgerEntry");
-
-                    b.Navigation("Company");
                 });
 
             modelBuilder.Entity("Aquora.Domain.Entities.Finance.BankLedgerEntry", b =>

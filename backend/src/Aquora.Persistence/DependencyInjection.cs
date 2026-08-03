@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Aquora.Application.Interfaces;
@@ -40,6 +41,7 @@ namespace Aquora.Persistence
                     b => b.MigrationsAssembly(typeof(TenantDbContext).Assembly.FullName)
                           .MigrationsHistoryTable("__EFMigrationsHistory", schema))
                        .ReplaceService<IModelCacheKeyFactory, TenantModelCacheKeyFactory>()
+                       .ReplaceService<IMigrationsSqlGenerator, TenantMigrationsSqlGenerator>()
                        .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
 
                 var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");

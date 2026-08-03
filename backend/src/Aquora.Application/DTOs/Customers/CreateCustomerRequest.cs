@@ -84,7 +84,7 @@ namespace Aquora.Application.DTOs.Customers
 
         [Required(ErrorMessage = "Please select Payment Terms.")]
         [StringLength(50, ErrorMessage = "Payment terms cannot exceed 50 characters.")]
-        public string PaymentTerms { get; set; } = "COD";
+        public string? PaymentTerms { get; set; } = "COD";
 
         public string Status { get; set; } = "Active";
         public bool IsActive { get; set; } = true;

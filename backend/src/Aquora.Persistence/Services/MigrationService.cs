@@ -199,176 +199,94 @@ namespace Aquora.Persistence.Services
                             var tenantContext = tenantScope.ServiceProvider.GetRequiredService<TenantDbContext>();
                             TenantSchemaResolver.CurrentSchemaName = tenant.SchemaName;
 
-                            try
-                            {
-                                await tenantContext.Database.MigrateAsync();
-                            }
-                            catch (Npgsql.NpgsqlException npgEx) when (npgEx.SqlState == "42P07" || npgEx.Message.Contains("already exists"))
-                            {
-                                _logger.LogWarning($"[MIGRATION WARN]: Schema '{tenant.SchemaName}' tables already exist. Resuming setup safely.");
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogWarning($"[MIGRATION WARN]: Non-fatal migration error: {ex.Message}");
-                            }
+                             // Check migration history and clean up legacy manually-created tables
+                              bool hasFinanceModule = false;
+                              bool hasSimpleAccounts = false;
+                              bool hasBankLedger = false;
+                              bool hasProductPricing = false;
+                              bool hasConcurrencyTokens = false;
+                              bool hasRemoveRowVersion = false;
+                               try
+                               {
+                                   var conn = tenantContext.Database.GetDbConnection();
+                                   if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
+                                   
+                                   using (var cmd = conn.CreateCommand())
+                                   {
+                                       cmd.CommandText = $@"
+                                           SELECT EXISTS (
+                                               SELECT FROM information_schema.tables 
+                                               WHERE table_schema = '{tenant.SchemaName}' 
+                                               AND table_name = '__EFMigrationsHistory'
+                                           );";
+                                       var historyExists = (bool)(await cmd.ExecuteScalarAsync() ?? false);
+                                       if (historyExists)
+                                       {
+                                           cmd.CommandText = $@"SELECT ""MigrationId"" FROM ""{tenant.SchemaName}"".""__EFMigrationsHistory"";";
+                                           using (var reader = await cmd.ExecuteReaderAsync())
+                                           {
+                                               var applied = new HashSet<string>();
+                                               while (await reader.ReadAsync())
+                                               {
+                                                   applied.Add(reader.GetString(0));
+                                               }
+                                               hasFinanceModule = applied.Contains("20260729191421_AddFinanceModule");
+                                               hasSimpleAccounts = applied.Contains("20260803120000_AddSimpleAccountsModule");
+                                               hasBankLedger = applied.Contains("20260803073729_AddBankLedgerEntry");
+                                               hasProductPricing = applied.Contains("20260729200058_AddProductPricing");
+                                               hasConcurrencyTokens = applied.Contains("20260725103118_AddConcurrencyTokens");
+                                               hasRemoveRowVersion = applied.Contains("20260730071552_RemoveRowVersion");
+                                           }
+                                       }
+                                   }
 
+                                   using (var cmd = conn.CreateCommand())
+                                   {
+                                       if (!hasProductPricing)
+                                       {
+                                           _logger.LogInformation($"[SELF-HEAL] Dropping legacy Product pricing columns for {tenant.SchemaName} to allow EF migration...");
+                                           cmd.CommandText = $@"
+                                               ALTER TABLE ""{tenant.SchemaName}"".""Products"" DROP COLUMN IF EXISTS ""SellingPrice"";
+                                               ALTER TABLE ""{tenant.SchemaName}"".""Products"" DROP COLUMN IF EXISTS ""UnitCost"";";
+                                           await cmd.ExecuteNonQueryAsync();
+                                       }
 
-                            // [ADDED] Auto-repair multi-tenant schema generation bug
-                            // If EF migrations were evaluated with `public` schema in cache, 
-                            // they might skip creating tables in tenant schemas.
-                            _logger.LogInformation($"[SCHEMA REPAIR] Ensuring missing tables exist for {tenant.SchemaName}...");
-                            var repairScript = $@"
-                            CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""ProductionShifts"" (
-                                ""Id"" uuid NOT NULL,
-                                ""Name"" text NOT NULL,
-                                ""StartTime"" text NOT NULL,
-                                ""EndTime"" text NOT NULL,
-                                ""Description"" text NULL,
-                                ""IsActive"" boolean NOT NULL,
-                                ""TenantId"" uuid NOT NULL,
-                                ""CompanyId"" uuid NOT NULL,
-                                ""CreatedBy"" text NULL,
-                                ""UpdatedBy"" text NULL,
-                                ""DeletedBy"" text NULL,
-                                ""CreatedByIP"" text NULL,
-                                ""UpdatedByIP"" text NULL,
-                                ""DeletedByIP"" text NULL,
-                                ""CreatedAt"" timestamp with time zone NOT NULL,
-                                ""UpdatedAt"" timestamp with time zone NULL,
-                                ""DeletedAt"" timestamp with time zone NULL,
-                                ""IsDeleted"" boolean NOT NULL,
-                                CONSTRAINT ""PK_ProductionShifts"" PRIMARY KEY (""Id"")
-                            );
-                            
-                            ALTER TABLE ""{tenant.SchemaName}"".""ProductionShifts"" ADD COLUMN IF NOT EXISTS ""Description"" text NULL;
-                            
-                            -- Completely drop orphaned RowVersion from EF model mismatch
-                            ALTER TABLE ""{tenant.SchemaName}"".""Products"" DROP COLUMN IF EXISTS ""RowVersion"";
-                            ALTER TABLE ""{tenant.SchemaName}"".""Products"" DROP COLUMN IF EXISTS ""UnitCost"";
-                            ALTER TABLE ""{tenant.SchemaName}"".""Brands"" DROP COLUMN IF EXISTS ""RowVersion"";
-                            ALTER TABLE ""{tenant.SchemaName}"".""InventoryMovements"" DROP COLUMN IF EXISTS ""RowVersion"";
-                            ALTER TABLE ""{tenant.SchemaName}"".""RawMaterials"" DROP COLUMN IF EXISTS ""RowVersion"";
-                            ALTER TABLE ""{tenant.SchemaName}"".""Companies"" DROP COLUMN IF EXISTS ""RowVersion"";
-                            ALTER TABLE ""{tenant.SchemaName}"".""Customers"" DROP COLUMN IF EXISTS ""RowVersion"";
-                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" DROP COLUMN IF EXISTS ""RowVersion"";
+                                       // Only drop RowVersion from DB if AddConcurrencyTokens has NOT run yet, or if RemoveRowVersion HAS run.
+                                       // If AddConcurrencyTokens HAS run but RemoveRowVersion has NOT, we must leave RowVersion there so EF Core's RemoveRowVersion migration can drop it.
+                                       if (!hasConcurrencyTokens)
+                                       {
+                                           _logger.LogInformation($"[SELF-HEAL] Dropping legacy RowVersion columns from {tenant.SchemaName} to allow EF Core to add them...");
+                                           cmd.CommandText = $@"
+                                               ALTER TABLE ""{tenant.SchemaName}"".""Products"" DROP COLUMN IF EXISTS ""RowVersion"";
+                                               ALTER TABLE ""{tenant.SchemaName}"".""RawMaterials"" DROP COLUMN IF EXISTS ""RowVersion"";";
+                                           await cmd.ExecuteNonQueryAsync();
+                                       }
+                                       else if (!hasRemoveRowVersion)
+                                       {
+                                           _logger.LogInformation($"[SELF-HEAL] Ensuring RowVersion columns exist in {tenant.SchemaName} so EF Core's RemoveRowVersion migration can drop them...");
+                                           cmd.CommandText = $@"
+                                               ALTER TABLE ""{tenant.SchemaName}"".""Products"" ADD COLUMN IF NOT EXISTS ""RowVersion"" bytea NULL;
+                                               ALTER TABLE ""{tenant.SchemaName}"".""RawMaterials"" ADD COLUMN IF NOT EXISTS ""RowVersion"" bytea NULL;";
+                                           await cmd.ExecuteNonQueryAsync();
+                                       }
+                                       else if (hasRemoveRowVersion)
+                                       {
+                                           _logger.LogInformation($"[SELF-HEAL] Cleaning up orphaned RowVersion columns from {tenant.SchemaName}...");
+                                           cmd.CommandText = $@"
+                                               ALTER TABLE ""{tenant.SchemaName}"".""Products"" DROP COLUMN IF EXISTS ""RowVersion"";
+                                               ALTER TABLE ""{tenant.SchemaName}"".""RawMaterials"" DROP COLUMN IF EXISTS ""RowVersion"";";
+                                           await cmd.ExecuteNonQueryAsync();
+                                       }
+                                   }
+                               }
+                               catch (Exception ex)
+                               {
+                                   _logger.LogWarning($"[SELF-HEAL WARN]: Failed legacy tables cleanup for {tenant.SchemaName}: {ex.Message}");
+                               }
 
-                            -- Simple Accounts V1 Module Tables & Columns Repair
-                            CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""SimpleExpenses"" (
-                                ""Id"" uuid NOT NULL,
-                                ""TenantId"" uuid NOT NULL,
-                                ""CompanyId"" uuid NOT NULL,
-                                ""ExpenseNumber"" text NOT NULL,
-                                ""ExpenseDate"" timestamp with time zone NOT NULL,
-                                ""Category"" text NOT NULL,
-                                ""Vendor"" text NULL,
-                                ""Description"" text NOT NULL,
-                                ""Amount"" numeric NOT NULL,
-                                ""PaymentMethod"" text NOT NULL,
-                                ""BankAccountId"" uuid NULL,
-                                ""Notes"" text NULL,
-                                ""CreatedAt"" timestamp with time zone NOT NULL,
-                                ""CreatedBy"" text NOT NULL,
-                                ""UpdatedAt"" timestamp with time zone NULL,
-                                ""UpdatedBy"" text NULL,
-                                ""CreatedByIP"" text NULL,
-                                ""UpdatedByIP"" text NULL,
-                                ""IsDeleted"" boolean NOT NULL DEFAULT false,
-                                ""DeletedAt"" timestamp with time zone NULL,
-                                ""DeletedBy"" text NULL,
-                                CONSTRAINT ""PK_SimpleExpenses_{tenant.SchemaName}"" PRIMARY KEY (""Id"")
-                            );
-                            ALTER TABLE ""{tenant.SchemaName}"".""SimpleExpenses"" ADD COLUMN IF NOT EXISTS ""BankAccountId"" uuid NULL;
+                             await tenantContext.Database.MigrateAsync();
 
-                            CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""BankAccounts"" (
-                                ""Id"" uuid NOT NULL,
-                                ""TenantId"" uuid NOT NULL,
-                                ""CompanyId"" uuid NOT NULL,
-                                ""BankName"" text NOT NULL,
-                                ""AccountName"" text NOT NULL,
-                                ""AccountNumber"" text NOT NULL,
-                                ""AccountType"" text NOT NULL DEFAULT 'Current',
-                                ""Branch"" text NULL,
-                                ""IFSC"" text NULL,
-                                ""OpeningBalance"" numeric NOT NULL DEFAULT 0.0,
-                                ""CurrentBalance"" numeric NOT NULL DEFAULT 0.0,
-                                ""Notes"" text NULL,
-                                ""Status"" text NOT NULL DEFAULT 'Active',
-                                ""IsActive"" boolean NOT NULL DEFAULT true,
-                                ""CreatedAt"" timestamp with time zone NOT NULL,
-                                ""CreatedBy"" text NOT NULL,
-                                ""UpdatedAt"" timestamp with time zone NULL,
-                                ""UpdatedBy"" text NULL,
-                                ""CreatedByIP"" text NULL,
-                                ""UpdatedByIP"" text NULL,
-                                ""IsDeleted"" boolean NOT NULL DEFAULT false,
-                                ""DeletedAt"" timestamp with time zone NULL,
-                                ""DeletedBy"" text NULL,
-                                CONSTRAINT ""PK_BankAccounts_{tenant.SchemaName}"" PRIMARY KEY (""Id"")
-                            );
-
-                            CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""Owners"" (
-                                ""Id"" uuid NOT NULL,
-                                ""TenantId"" uuid NOT NULL,
-                                ""CompanyId"" uuid NOT NULL,
-                                ""Name"" text NOT NULL,
-                                ""Phone"" text NOT NULL,
-                                ""Email"" text NULL,
-                                ""OwnershipPercentage"" numeric NOT NULL,
-                                ""InitialInvestment"" numeric NOT NULL,
-                                ""CurrentInvestment"" numeric NOT NULL,
-                                ""Notes"" text NULL,
-                                ""CreatedAt"" timestamp with time zone NOT NULL,
-                                ""CreatedBy"" text NOT NULL,
-                                ""UpdatedAt"" timestamp with time zone NULL,
-                                ""UpdatedBy"" text NULL,
-                                ""CreatedByIP"" text NULL,
-                                ""UpdatedByIP"" text NULL,
-                                ""IsDeleted"" boolean NOT NULL DEFAULT false,
-                                ""DeletedAt"" timestamp with time zone NULL,
-                                ""DeletedBy"" text NULL,
-                                CONSTRAINT ""PK_Owners_{tenant.SchemaName}"" PRIMARY KEY (""Id"")
-                            );
-
-                            CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""OwnerInvestmentTransactions"" (
-                                ""Id"" uuid NOT NULL,
-                                ""TenantId"" uuid NOT NULL,
-                                ""CompanyId"" uuid NOT NULL,
-                                ""OwnerId"" uuid NOT NULL,
-                                ""TransactionDate"" timestamp with time zone NOT NULL,
-                                ""Amount"" numeric NOT NULL,
-                                ""TransactionType"" text NOT NULL,
-                                ""Notes"" text NULL,
-                                ""CreatedAt"" timestamp with time zone NOT NULL,
-                                ""CreatedBy"" text NOT NULL,
-                                ""UpdatedAt"" timestamp with time zone NULL,
-                                ""UpdatedBy"" text NULL,
-                                ""CreatedByIP"" text NULL,
-                                ""UpdatedByIP"" text NULL,
-                                ""IsDeleted"" boolean NOT NULL DEFAULT false,
-                                ""DeletedAt"" timestamp with time zone NULL,
-                                ""DeletedBy"" text NULL,
-                                CONSTRAINT ""PK_OwnerInvestmentTransactions_{tenant.SchemaName}"" PRIMARY KEY (""Id"")
-                            );
-
-                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""TotalAmount"" numeric NOT NULL DEFAULT 0.0;
-                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""AmountReceived"" numeric NOT NULL DEFAULT 0.0;
-                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""OutstandingAmount"" numeric NOT NULL DEFAULT 0.0;
-                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""PaymentStatus"" text NOT NULL DEFAULT 'Pending';
-                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""ReturnedAmount"" numeric NOT NULL DEFAULT 0.0;
-                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""RefundAmount"" numeric NOT NULL DEFAULT 0.0;
-                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""AdjustmentAmount"" numeric NOT NULL DEFAULT 0.0;
-                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""ReturnType"" text NULL;
-                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""IsReplacementRequired"" boolean NOT NULL DEFAULT false;
-                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""ProductValue"" numeric NOT NULL DEFAULT 0.0;
-                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""DamageCost"" numeric NOT NULL DEFAULT 0.0;
-                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""DamageReason"" text NULL;
-
-                            ALTER TABLE ""{tenant.SchemaName}"".""Products"" ADD COLUMN IF NOT EXISTS ""SellingPrice"" numeric NOT NULL DEFAULT 15.0;
-                            ALTER TABLE ""{tenant.SchemaName}"".""Products"" ADD COLUMN IF NOT EXISTS ""CostPrice"" numeric NOT NULL DEFAULT 10.0;
-
-                            ALTER TABLE ""{tenant.SchemaName}"".""RawMaterials"" ADD COLUMN IF NOT EXISTS ""CostPerUnit"" numeric NOT NULL DEFAULT 5.0;
-                            ";
-                            await tenantContext.Database.ExecuteSqlRawAsync(repairScript);
+                            _logger.LogInformation($"[SCHEMA SYNC] Applying EF Core migrations for {tenant.SchemaName}...");
 
                             // Reconcile and migrate historical raw material stock to inventory movements
                             var rawMaterials = await tenantContext.RawMaterials.Where(rm => !rm.IsDeleted).ToListAsync();
