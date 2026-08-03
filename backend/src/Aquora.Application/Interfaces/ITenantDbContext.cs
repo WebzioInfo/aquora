@@ -53,6 +53,11 @@ namespace Aquora.Application.Interfaces
         DbSet<Aquora.Domain.Entities.Finance.BankAccount> BankAccounts { get; }
         DbSet<Aquora.Domain.Entities.Finance.PettyCashSession> PettyCashSessions { get; }
         
+        // Simple Accounts V1 Module
+        DbSet<Aquora.Domain.Entities.Finance.SimpleExpense> SimpleExpenses { get; }
+        DbSet<Aquora.Domain.Entities.Finance.Owner> Owners { get; }
+        DbSet<Aquora.Domain.Entities.Finance.OwnerInvestmentTransaction> OwnerInvestmentTransactions { get; }
+        
         Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade Database { get; }
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }

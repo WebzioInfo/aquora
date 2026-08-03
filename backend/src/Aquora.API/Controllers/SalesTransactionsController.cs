@@ -291,6 +291,58 @@ namespace Aquora.API.Controllers
                 var randomCode = new Random().Next(1000, 9999);
                 var txnNumber = $"TXN-{DateTime.UtcNow:yyyyMMdd}-{randomCode}";
 
+                // Simple Accounts Accounting Calculations
+                decimal unitPrice = product.SellingPrice > 0 ? product.SellingPrice : (product.CostPrice > 0 ? product.CostPrice : 0m);
+
+                decimal totalAmount = 0m;
+                decimal amountReceived = 0m;
+                decimal outstandingAmount = 0m;
+                string paymentStatus = "Pending";
+
+                decimal returnedAmount = 0m;
+                decimal refundAmount = 0m;
+                decimal adjustmentAmount = 0m;
+                string? returnType = null;
+                bool isReplacementRequired = request.IsReplacementRequired;
+
+                decimal productValue = 0m;
+                decimal damageCost = 0m;
+                string? damageReason = null;
+
+                if (request.TransactionType == "Sales Dispatch")
+                {
+                    totalAmount = request.TotalAmount > 0 ? request.TotalAmount : (request.Cases * unitPrice);
+                    amountReceived = request.AmountReceived;
+                    outstandingAmount = Math.Max(0m, totalAmount - amountReceived);
+
+                    if (amountReceived == 0m) paymentStatus = "Pending";
+                    else if (amountReceived < totalAmount) paymentStatus = "Partial";
+                    else paymentStatus = "Paid";
+
+                    // Account Movement: Increase Customer Outstanding Balance
+                    customer.OutstandingPlaceholder += outstandingAmount;
+                }
+                else if (request.TransactionType == "Customer Return")
+                {
+                    returnedAmount = request.ReturnedAmount > 0 ? request.ReturnedAmount : (request.Cases * unitPrice);
+                    refundAmount = request.RefundAmount;
+                    adjustmentAmount = request.AdjustmentAmount > 0 ? request.AdjustmentAmount : Math.Max(0m, returnedAmount - refundAmount);
+                    returnType = request.ReturnType ?? "Customer Return";
+
+                    if (!isReplacementRequired)
+                    {
+                        // Account Movement: Reduce Customer Outstanding Balance
+                        decimal decVal = adjustmentAmount > 0 ? adjustmentAmount : returnedAmount;
+                        customer.OutstandingPlaceholder = Math.Max(0m, customer.OutstandingPlaceholder - decVal);
+                    }
+                }
+                else if (request.TransactionType == "Damage")
+                {
+                    productValue = request.ProductValue > 0 ? request.ProductValue : (product.CostPrice > 0 ? product.CostPrice : unitPrice);
+                    damageCost = request.DamageCost > 0 ? request.DamageCost : (request.Cases * productValue);
+                    damageReason = request.DamageReason ?? request.Remarks;
+                }
+
                 var transaction = new SalesTransaction
                 {
                     Id = Guid.NewGuid(),
@@ -305,6 +357,18 @@ namespace Aquora.API.Controllers
                     ReferenceNumber = request.ReferenceNumber?.Trim(),
                     Remarks = request.Remarks?.Trim(),
                     Status = "Completed",
+                    TotalAmount = totalAmount,
+                    AmountReceived = amountReceived,
+                    OutstandingAmount = outstandingAmount,
+                    PaymentStatus = paymentStatus,
+                    ReturnedAmount = returnedAmount,
+                    RefundAmount = refundAmount,
+                    AdjustmentAmount = adjustmentAmount,
+                    ReturnType = returnType,
+                    IsReplacementRequired = isReplacementRequired,
+                    ProductValue = productValue,
+                    DamageCost = damageCost,
+                    DamageReason = damageReason,
                     CreatedBy = currentUserId
                 };
 
@@ -338,46 +402,9 @@ namespace Aquora.API.Controllers
                 _tenantContext.SalesTransactions.Add(transaction);
                 await _tenantContext.SaveChangesAsync();
 
-
                 await dbTransaction.CommitAsync();
 
                 await NotifyDashboardAsync(request.TransactionType == "Customer Return" ? "dispatch-returned" : "dispatch-created");
-
-                // Auto-post to Finance Ledger
-                if (request.TransactionType == "Sales Dispatch")
-                {
-                    try
-                    {
-                        var financeService = HttpContext.RequestServices.GetService(typeof(IFinanceService)) as IFinanceService;
-                        if (financeService != null)
-                        {
-                            var accounts = await financeService.GetAccountsAsync();
-                            var accountsReceivable = accounts.FirstOrDefault(a => a.AccountName == "Accounts Receivable");
-                            var salesRevenue = accounts.FirstOrDefault(a => a.AccountName == "Sales Revenue");
-                            
-                            if (accountsReceivable != null && salesRevenue != null)
-                            {
-                                var totalAmount = request.Cases * 0.0m; // Stubbed Revenue - proper pricing engine will handle this
-                                await financeService.CreateJournalEntryAsync(new CreateJournalEntryRequest
-                                {
-                                    TransactionDate = transaction.TransactionDate,
-                                    VoucherType = "Sales",
-                                    ReferenceNumber = transaction.TransactionNumber,
-                                    Remarks = $"Sales Dispatch for {request.Cases} cases of {product.Name}",
-                                    Lines = new List<CreateJournalEntryLineRequest>
-                                    {
-                                        new CreateJournalEntryLineRequest { AccountId = accountsReceivable.Id, DebitAmount = totalAmount, CreditAmount = 0, Description = "Sale to Customer" },
-                                        new CreateJournalEntryLineRequest { AccountId = salesRevenue.Id, DebitAmount = 0, CreditAmount = totalAmount, Description = "Sale Revenue" }
-                                    }
-                                });
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Failed to auto-post journal entry: {ex.Message}");
-                    }
-                }
 
                 var dto = new SalesTransactionDto
                 {
@@ -395,6 +422,18 @@ namespace Aquora.API.Controllers
                     ReferenceNumber = transaction.ReferenceNumber,
                     Remarks = transaction.Remarks,
                     Status = transaction.Status,
+                    TotalAmount = transaction.TotalAmount,
+                    AmountReceived = transaction.AmountReceived,
+                    OutstandingAmount = transaction.OutstandingAmount,
+                    PaymentStatus = transaction.PaymentStatus,
+                    ReturnedAmount = transaction.ReturnedAmount,
+                    RefundAmount = transaction.RefundAmount,
+                    AdjustmentAmount = transaction.AdjustmentAmount,
+                    ReturnType = transaction.ReturnType,
+                    IsReplacementRequired = transaction.IsReplacementRequired,
+                    ProductValue = transaction.ProductValue,
+                    DamageCost = transaction.DamageCost,
+                    DamageReason = transaction.DamageReason,
                     CreatedBy = transaction.CreatedBy,
                     CreatedByName = _currentUserContext.Email?.Split('@')[0] ?? "System",
                     CreatedAt = transaction.CreatedAt,
@@ -709,6 +748,21 @@ namespace Aquora.API.Controllers
         public string? ReferenceNumber { get; set; }
         public string? Remarks { get; set; }
         public string Status { get; set; } = string.Empty;
+
+        // Simple Accounts V1 Fields
+        public decimal TotalAmount { get; set; }
+        public decimal AmountReceived { get; set; }
+        public decimal OutstandingAmount { get; set; }
+        public string PaymentStatus { get; set; } = string.Empty;
+        public decimal ReturnedAmount { get; set; }
+        public decimal RefundAmount { get; set; }
+        public decimal AdjustmentAmount { get; set; }
+        public string? ReturnType { get; set; }
+        public bool IsReplacementRequired { get; set; }
+        public decimal ProductValue { get; set; }
+        public decimal DamageCost { get; set; }
+        public string? DamageReason { get; set; }
+
         public string CreatedBy { get; set; } = string.Empty;
         public string CreatedByName { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
@@ -724,6 +778,18 @@ namespace Aquora.API.Controllers
         public DateTime TransactionDate { get; set; }
         public string? ReferenceNumber { get; set; }
         public string? Remarks { get; set; }
+
+        // Simple Accounts V1 Fields
+        public decimal TotalAmount { get; set; }
+        public decimal AmountReceived { get; set; }
+        public decimal ReturnedAmount { get; set; }
+        public decimal RefundAmount { get; set; }
+        public decimal AdjustmentAmount { get; set; }
+        public string? ReturnType { get; set; }
+        public bool IsReplacementRequired { get; set; }
+        public decimal ProductValue { get; set; }
+        public decimal DamageCost { get; set; }
+        public string? DamageReason { get; set; }
     }
 
     public class SalesDashboardDto

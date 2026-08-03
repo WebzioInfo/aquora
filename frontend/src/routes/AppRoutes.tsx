@@ -27,6 +27,14 @@ const AccessDeniedPage = React.lazy(() => import('../pages/AccessDeniedPage'))
 const OperationsPage = React.lazy(() => import('../pages/company/OperationsPage'))
 const ProvisioningPage = React.lazy(() => import('../pages/ProvisioningPage'))
 
+// Simple Accounts V1 Pages
+const AccountsDashboardPage = React.lazy(() => import('../pages/company/accounts/AccountsDashboardPage'))
+const ExpenseManagementPage = React.lazy(() => import('../pages/company/accounts/ExpenseManagementPage'))
+const BankAccountsPage = React.lazy(() => import('../pages/company/accounts/BankAccountsPage'))
+const OwnerListPage = React.lazy(() => import('../pages/company/accounts/OwnerListPage'))
+const OwnerDetailsPage = React.lazy(() => import('../pages/company/accounts/OwnerDetailsPage'))
+const AssetSummaryPage = React.lazy(() => import('../pages/company/accounts/AssetSummaryPage'))
+
 export const getDefaultRouteForUser = (user: any): string => {
   const getRoute = () => {
     if (!user) return '/login'
@@ -429,7 +437,14 @@ export const AppRoutes: React.FC = () => {
         <Route path="production/batches/:batchId" element={<BatchDetailsPage />} />
         <Route path="inventory" element={<CompanyDashboardPage />} />
         <Route path="sales" element={<CompanyDashboardPage />} />
-                <Route path="business-finance" element={<BusinessFinanceDashboard />} />
+        {/* Simple Accounts V1 Routes */}
+        <Route path="accounts/dashboard" element={<AccountsDashboardPage />} />
+        <Route path="accounts/expenses" element={<ExpenseManagementPage />} />
+        <Route path="accounts/bank-accounts" element={<BankAccountsPage />} />
+        <Route path="accounts/owners" element={<OwnerListPage />} />
+        <Route path="accounts/owners/:id" element={<OwnerDetailsPage />} />
+        <Route path="accounts/assets" element={<AssetSummaryPage />} />
+        <Route path="business-finance" element={<BusinessFinanceDashboard />} />
         <Route path="finance" element={<FinanceDashboardPage />} />
         <Route path="finance/accounts" element={<ChartOfAccountsPage />} />
         <Route path="finance/journals" element={<JournalEntriesPage />} />

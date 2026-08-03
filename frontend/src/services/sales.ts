@@ -21,6 +21,19 @@ export interface SalesTransaction {
   createdByName: string
   createdAt: string
   updatedAt: string | null
+  // Simple Accounts V1 Fields
+  totalAmount?: number
+  amountReceived?: number
+  outstandingAmount?: number
+  paymentStatus?: string
+  returnedAmount?: number
+  refundAmount?: number
+  adjustmentAmount?: number
+  returnType?: string
+  isReplacementRequired?: boolean
+  productValue?: number
+  damageCost?: number
+  damageReason?: string
 }
 
 export interface SalesDashboard {

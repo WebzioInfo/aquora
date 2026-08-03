@@ -11,6 +11,8 @@ namespace Aquora.Domain.Entities
         public string? SKU { get; set; }
         public bool IsActive { get; set; } = true;
         public decimal CurrentStock { get; set; } = 0;
+        public decimal SellingPrice { get; set; } = 15.0m;
+        public decimal CostPrice { get; set; } = 10.0m;
         public string Category { get; set; } = "Bottle";
         public int DisplayOrder { get; set; } = 0;
         public string? BottleSize { get; set; }

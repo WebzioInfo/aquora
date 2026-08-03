@@ -11,6 +11,7 @@ import EnterpriseModal from '../../components/ui/EnterpriseModal'
 import EnterpriseInput from '../../components/ui/EnterpriseInput'
 import EnterpriseSelect from '../../components/ui/EnterpriseSelect'
 import EnterpriseButton from '../../components/ui/EnterpriseButton'
+import EnterpriseNumberInput from '../../components/ui/EnterpriseNumberInput'
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown'
 
 type ToastType = 'success' | 'error' | 'warning'
@@ -755,14 +756,11 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                 </div>
 
                 <div className="flex flex-col gap-1.5 text-left">
-                  <label className="text-sm font-semibold text-gray-700">Opening Stock (Cases)</label>
-                  <input 
-                    type="number" 
-                    step="0.01"
+                  <EnterpriseNumberInput
+                    label="Opening Stock (Cases)"
                     placeholder="Enter opening stock"
                     value={productFormOpeningStock}
                     onChange={e => setProductFormOpeningStock(e.target.value)}
-                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
                   />
                 </div>
               </div>
@@ -817,7 +815,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
           <EnterpriseInput label="Product Name" value={productFormName} onChange={e=>setProductFormName(e.target.value)} required/>
           <EnterpriseSelect label="Brand" value={productFormBrandId} onChange={e=>setProductFormBrandId(e.target.value)} required><option value="">Select a Brand</option>{(brands as any[]).map((b:any)=><option key={b.id} value={b.id}>{b.name}</option>)}</EnterpriseSelect>
           <EnterpriseInput label="SKU (Optional)" value={productFormSKU} onChange={e=>setProductFormSKU(e.target.value)}/>
-          <EnterpriseInput type="number" step="0.01" label="Current Stock (Cases)" value={productFormCurrentStock} onChange={e=>setProductFormCurrentStock(e.target.value)} required/>
+          <EnterpriseNumberInput label="Current Stock (Cases)" value={productFormCurrentStock} onChange={e=>setProductFormCurrentStock(e.target.value)} required/>
           <div className="flex items-center gap-2"><input type="checkbox" id="editPA" checked={productFormIsActive} onChange={e=>setProductFormIsActive(e.target.checked)} className="w-4 h-4 accent-blue-600"/><label htmlFor="editPA" className="text-xs font-semibold text-slate-700 cursor-pointer select-none">Active Product</label></div>
           <div className="flex justify-end gap-2 mt-2"><EnterpriseButton type="button" onClick={()=>setIsEditProductModalOpen(false)} variant="secondary">Cancel</EnterpriseButton><EnterpriseButton type="submit" variant="primary" disabled={updateProductMutation.isPending}>{updateProductMutation.isPending?'Saving...':'Save Changes'}</EnterpriseButton></div>
         </form>
@@ -907,14 +905,11 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                 </div>
 
                 <div className="flex flex-col gap-1.5 text-left">
-                  <label className="text-sm font-semibold text-gray-700">Initial Stock</label>
-                  <input 
-                    type="number" 
-                    step="0.01"
+                  <EnterpriseNumberInput
+                    label="Initial Stock"
                     placeholder="E.g., 500"
                     value={rawMaterialFormCurrentStock}
                     onChange={e => setRawMaterialFormCurrentStock(e.target.value)}
-                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
                   />
                 </div>
               </div>
@@ -970,7 +965,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
           <EnterpriseSelect label="Category" value={rawMaterialFormCategory} onChange={e=>setRawMaterialFormCategory(e.target.value)} required>{Object.values(RAW_MATERIAL_CATEGORIES).map(cat=><option key={cat.value} value={cat.value}>{cat.label}</option>)}</EnterpriseSelect>
           <EnterpriseSelect label="Unit" value={rawMaterialFormUnit} onChange={e=>setRawMaterialFormUnit(e.target.value)} required>{['PIECE','KG','GRAM','ROLL','BOX','BAG','LITER','ML'].map(u=><option key={u} value={u}>{u}</option>)}</EnterpriseSelect>
           <div>
-            <EnterpriseInput type="number" step="0.01" label="Current Stock" value={rawMaterialFormCurrentStock} onChange={e=>setRawMaterialFormCurrentStock(e.target.value)} required/>
+            <EnterpriseNumberInput label="Current Stock" value={rawMaterialFormCurrentStock} onChange={e=>setRawMaterialFormCurrentStock(e.target.value)} required/>
           </div>
           <div className="flex items-center gap-2"><input type="checkbox" id="editMA" checked={rawMaterialFormIsActive} onChange={e=>setRawMaterialFormIsActive(e.target.checked)} className="w-4 h-4 accent-blue-600"/><label htmlFor="editMA" className="text-xs font-semibold text-slate-700 cursor-pointer select-none">Active Material</label></div>
           <div className="flex justify-end gap-2 mt-2"><EnterpriseButton type="button" onClick={()=>setIsEditRawMaterialModalOpen(false)} variant="secondary">Cancel</EnterpriseButton><EnterpriseButton type="submit" variant="primary" disabled={updateRawMaterialMutation.isPending}>{updateRawMaterialMutation.isPending?'Saving...':'Save Changes'}</EnterpriseButton></div>
@@ -1040,15 +1035,12 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                 </div>
 
                 <div className="flex flex-col gap-1.5 text-left">
-                  <label className="text-sm font-semibold text-gray-700">Quantity to Add <span className="text-red-500">*</span></label>
-                  <input 
-                    type="number" 
-                    step="0.01" 
-                    placeholder="E.g., 10" 
-                    value={addStockFormQuantity} 
-                    onChange={e => setAddStockFormQuantity(e.target.value)} 
-                    required 
-                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                  <EnterpriseNumberInput
+                    label="Quantity to Add"
+                    placeholder="E.g., 10"
+                    value={addStockFormQuantity}
+                    onChange={e => setAddStockFormQuantity(e.target.value)}
+                    required
                   />
                 </div>
               </div>

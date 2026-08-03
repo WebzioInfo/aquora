@@ -5,7 +5,7 @@ import FilterBar from '../../components/ui/layout/FilterBar';
 import React, { useState, useEffect } from 'react'
 import { api } from '../../services/api'
 import { useNotificationStore } from '../../store/useNotificationStore'
-import { Clock, Truck, Package, AlertCircle } from 'lucide-react'
+import EnterpriseNumberInput from '../../components/ui/EnterpriseNumberInput'
 
 export const OperationsPage: React.FC = () => {
   const { showToast } = useNotificationStore()
@@ -232,20 +232,44 @@ export const OperationsPage: React.FC = () => {
 
                 <div className="grid grid-cols-4 gap-4">
                   <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-slate-700 mb-1">Returned Empty Qty *</label>
-                    <input required type="number" value={returnQty} onChange={e => setReturnQty(e.target.value)} placeholder="0" className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <EnterpriseNumberInput
+                      label="Returned Empty Qty *"
+                      placeholder="0"
+                      allowDecimals={false}
+                      min={0}
+                      value={returnQty}
+                      onChange={e => setReturnQty(e.target.value)}
+                    />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-slate-700 mb-1 text-emerald-600">Immediate Req. (Queue)</label>
-                    <input type="number" value={immediateReq} onChange={e => setImmediateReq(e.target.value)} placeholder="0" className="w-full border border-emerald-300 rounded-md px-3 py-2 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                    <EnterpriseNumberInput
+                      label="Immediate Req. (Queue)"
+                      placeholder="0"
+                      allowDecimals={false}
+                      min={0}
+                      value={immediateReq}
+                      onChange={e => setImmediateReq(e.target.value)}
+                    />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-slate-700 mb-1">Later Req.</label>
-                    <input type="number" value={laterReq} onChange={e => setLaterReq(e.target.value)} placeholder="0" className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <EnterpriseNumberInput
+                      label="Later Req."
+                      placeholder="0"
+                      allowDecimals={false}
+                      min={0}
+                      value={laterReq}
+                      onChange={e => setLaterReq(e.target.value)}
+                    />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-rose-600 mb-1">Damaged Qty</label>
-                    <input type="number" value={damagedQty} onChange={e => setDamagedQty(e.target.value)} placeholder="0" className="w-full border border-rose-300 rounded-md px-3 py-2 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500" />
+                    <EnterpriseNumberInput
+                      label="Damaged Qty"
+                      placeholder="0"
+                      allowDecimals={false}
+                      min={0}
+                      value={damagedQty}
+                      onChange={e => setDamagedQty(e.target.value)}
+                    />
                   </div>
                 </div>
 
@@ -334,8 +358,14 @@ export const OperationsPage: React.FC = () => {
                         </select>
                       </div>
                       <div className="flex flex-col">
-                        <label className="text-xs font-semibold text-slate-700 mb-1">Load Qty *</label>
-                        <input required type="number" value={loadQty} onChange={e => setLoadQty(e.target.value)} placeholder="0" className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        <EnterpriseNumberInput
+                          label="Load Qty *"
+                          placeholder="0"
+                          allowDecimals={false}
+                          min={1}
+                          value={loadQty}
+                          onChange={e => setLoadQty(e.target.value)}
+                        />
                       </div>
                     </div>
 

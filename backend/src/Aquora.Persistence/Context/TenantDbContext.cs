@@ -73,6 +73,11 @@ namespace Aquora.Persistence.Context
         public DbSet<Aquora.Domain.Entities.Finance.BankAccount> BankAccounts => Set<Aquora.Domain.Entities.Finance.BankAccount>();
         public DbSet<Aquora.Domain.Entities.Finance.PettyCashSession> PettyCashSessions => Set<Aquora.Domain.Entities.Finance.PettyCashSession>();
 
+        // Simple Accounts V1 Module
+        public DbSet<Aquora.Domain.Entities.Finance.SimpleExpense> SimpleExpenses => Set<Aquora.Domain.Entities.Finance.SimpleExpense>();
+        public DbSet<Aquora.Domain.Entities.Finance.Owner> Owners => Set<Aquora.Domain.Entities.Finance.Owner>();
+        public DbSet<Aquora.Domain.Entities.Finance.OwnerInvestmentTransaction> OwnerInvestmentTransactions => Set<Aquora.Domain.Entities.Finance.OwnerInvestmentTransaction>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -293,6 +298,31 @@ namespace Aquora.Persistence.Context
             modelBuilder.Entity<SalesTransaction>()
                 .HasIndex(t => t.CompanyId);
 
+            // Simple Accounts V1 Configurations & Indexes
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.SimpleExpense>()
+                .HasIndex(e => e.Category);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.SimpleExpense>()
+                .HasIndex(e => e.ExpenseDate);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.SimpleExpense>()
+                .HasIndex(e => e.TenantId);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.SimpleExpense>()
+                .HasOne(e => e.BankAccount)
+                .WithMany()
+                .HasForeignKey(e => e.BankAccountId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankAccount>()
+                .HasIndex(b => b.TenantId);
+
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.Owner>()
+                .HasIndex(o => o.TenantId);
+
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.OwnerInvestmentTransaction>()
+                .HasOne(t => t.Owner)
+                .WithMany(o => o.InvestmentTransactions)
+                .HasForeignKey(t => t.OwnerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             // Apply soft delete query filters
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
@@ -426,12 +456,29 @@ namespace Aquora.Persistence.Context
 
             if (AuditState.IsDisabled)
             {
-                return await base.SaveChangesAsync(cancellationToken);
+                try
+                {
+                    return await base.SaveChangesAsync(cancellationToken);
+                }
+                catch (DbUpdateException dbEx)
+                {
+                    LogDbUpdateException(dbEx);
+                    throw;
+                }
             }
 
             var auditLogs = GenerateAuditLogs(currentUserId, currentTenantId);
 
-            var result = await base.SaveChangesAsync(cancellationToken);
+            int result;
+            try
+            {
+                result = await base.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException dbEx)
+            {
+                LogDbUpdateException(dbEx);
+                throw;
+            }
 
             if (auditLogs.Any())
             {
@@ -531,6 +578,25 @@ namespace Aquora.Persistence.Context
             }
 
             return logs;
+        }
+
+        private void LogDbUpdateException(DbUpdateException dbEx)
+        {
+            var innerMsg = dbEx.InnerException?.Message ?? dbEx.Message;
+            Console.WriteLine($"[DB UPDATE ERROR - SCHEMA: '{SchemaName}']: {dbEx.Message} | Inner: {innerMsg}");
+            
+            if (dbEx.InnerException is Npgsql.PostgresException pgEx)
+            {
+                Console.WriteLine($"[NPGSQL ERROR DETAILS]: SqlState={pgEx.SqlState}, Detail={pgEx.Detail}, TableName={pgEx.TableName}, Constraint={pgEx.ConstraintName}");
+            }
+
+            if (dbEx.Entries != null && dbEx.Entries.Any())
+            {
+                foreach (var entry in dbEx.Entries)
+                {
+                    Console.WriteLine($"[AFFECTED ENTITY]: Type={entry.Entity.GetType().Name}, State={entry.State}");
+                }
+            }
         }
     }
 }

@@ -18,6 +18,7 @@ import { useAuthStore } from '../../store/useAuthStore'
 import EnterpriseHeader from '../../components/ui/EnterpriseHeader'
 import EnterpriseBadge from '../../components/ui/EnterpriseBadge'
 import EnterpriseButton from '../../components/ui/EnterpriseButton'
+import EnterpriseNumberInput from '../../components/ui/EnterpriseNumberInput'
 
 const PremiumLabel: React.FC<{ label: string; required?: boolean }> = ({ label, required }) => {
   const hasAsterisk = required || label.endsWith('*');
@@ -753,15 +754,13 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
               {/* Cases Quantity and Reference Number */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col">
-                  <PremiumLabel label="Quantity (Cases) *" />
-                  <input
-                    type="number"
-                    step="1"
-                    min="1"
+                  <EnterpriseNumberInput
+                    label="Quantity (Cases) *"
                     placeholder="Enter cases..."
+                    allowDecimals={false}
+                    min={1}
                     value={formCases}
                     onChange={(e) => setFormCases(e.target.value)}
-                    className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100/50"
                   />
                 </div>
 
@@ -979,15 +978,13 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
               {/* Cases Quantity and Reference Number */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col">
-                  <PremiumLabel label="Quantity (Cases) *" />
-                  <input
-                    type="number"
-                    step="1"
-                    min="1"
+                  <EnterpriseNumberInput
+                    label="Quantity (Cases) *"
                     placeholder="Enter cases..."
+                    allowDecimals={false}
+                    min={1}
                     value={formCases}
                     onChange={(e) => setFormCases(e.target.value)}
-                    className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none"
                   />
                 </div>
 
@@ -1169,6 +1166,112 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                   </div>
                 </div>
               </div>
+
+              {/* ACCOUNT INFORMATION SECTION (Read-only) */}
+              {selectedTxn.transactionType === 'Sales Dispatch' && (
+                <div className="bg-white border border-gray-200 rounded-[12px] p-4 space-y-3">
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <Landmark className="w-4 h-4 text-emerald-600" />
+                      <h3 className="text-[13px] font-semibold text-gray-900">Account Information</h3>
+                    </div>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                      selectedTxn.paymentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-800' :
+                      selectedTxn.paymentStatus === 'Partial' ? 'bg-amber-100 text-amber-800' :
+                      'bg-rose-100 text-rose-800'
+                    }`}>
+                      {selectedTxn.paymentStatus || 'Pending'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <span className="text-gray-500 block mb-0.5">Invoice Amount</span>
+                      <span className="font-extrabold text-gray-900 block">
+                        ₹{(selectedTxn.totalAmount || (selectedTxn.cases * 15)).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 block mb-0.5">Amount Received</span>
+                      <span className="font-bold text-emerald-600 block">
+                        ₹{(selectedTxn.amountReceived || 0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 block mb-0.5">Outstanding</span>
+                      <span className="font-bold text-rose-600 block">
+                        ₹{(selectedTxn.outstandingAmount ?? (selectedTxn.totalAmount || (selectedTxn.cases * 15))).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SALES RETURN ACCOUNT INFORMATION */}
+              {selectedTxn.transactionType === 'Customer Return' && (
+                <div className="bg-white border border-gray-200 rounded-[12px] p-4 space-y-3">
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <Landmark className="w-4 h-4 text-indigo-600" />
+                      <h3 className="text-[13px] font-semibold text-gray-900">Return Account Details</h3>
+                    </div>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                      selectedTxn.isReplacementRequired ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {selectedTxn.isReplacementRequired ? 'Replacement' : 'Account Adjustment'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <span className="text-gray-500 block mb-0.5">Returned Amount</span>
+                      <span className="font-bold text-slate-900 block">
+                        ₹{(selectedTxn.returnedAmount || (selectedTxn.cases * 15)).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 block mb-0.5">Refund Amount</span>
+                      <span className="font-bold text-rose-600 block">
+                        ₹{(selectedTxn.refundAmount || 0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 block mb-0.5">Adjustment Amount</span>
+                      <span className="font-bold text-indigo-600 block">
+                        ₹{(selectedTxn.adjustmentAmount || 0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* DAMAGE ACCOUNT INFORMATION */}
+              {selectedTxn.transactionType === 'Damage' && (
+                <div className="bg-white border border-gray-200 rounded-[12px] p-4 space-y-3">
+                  <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
+                    <Landmark className="w-4 h-4 text-rose-600" />
+                    <h3 className="text-[13px] font-semibold text-gray-900">Damage Account Details</h3>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <span className="text-gray-500 block mb-0.5">Damage Cost</span>
+                      <span className="font-extrabold text-rose-600 block">
+                        ₹{(selectedTxn.damageCost || (selectedTxn.cases * 15)).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 block mb-0.5">Product Value</span>
+                      <span className="font-bold text-slate-900 block">
+                        ₹{(selectedTxn.productValue || (selectedTxn.cases * 15)).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 block mb-0.5">Damage Reason</span>
+                      <span className="font-medium text-slate-700 block truncate" title={selectedTxn.damageReason || selectedTxn.remarks || 'Stock Loss'}>
+                        {selectedTxn.damageReason || selectedTxn.remarks || 'Stock Loss'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Audit Information Card */}
               <div className="bg-white border border-gray-200 rounded-[12px] p-4 space-y-3">

@@ -26,6 +26,24 @@ namespace Aquora.Domain.Entities
         public string? Remarks { get; set; }
         public string Status { get; set; } = "Completed";
 
+        // Sales Account Tracking
+        public decimal TotalAmount { get; set; }
+        public decimal AmountReceived { get; set; }
+        public decimal OutstandingAmount { get; set; }
+        public string PaymentStatus { get; set; } = "Pending"; // Pending, Partial, Paid
+
+        // Sales Return Account Tracking
+        public decimal ReturnedAmount { get; set; }
+        public decimal RefundAmount { get; set; }
+        public decimal AdjustmentAmount { get; set; }
+        public string? ReturnType { get; set; }
+        public bool IsReplacementRequired { get; set; } = false;
+
+        // Damage Account Tracking
+        public decimal ProductValue { get; set; }
+        public decimal DamageCost { get; set; }
+        public string? DamageReason { get; set; }
+
         // Auditable fields
         public DateTime CreatedAt { get; set; }
         public string CreatedBy { get; set; } = string.Empty;

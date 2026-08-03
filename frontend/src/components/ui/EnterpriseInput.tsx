@@ -1,4 +1,5 @@
 import React from 'react'
+import EnterpriseNumberInput from './EnterpriseNumberInput'
 
 interface EnterpriseInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string
@@ -8,7 +9,21 @@ interface EnterpriseInputProps extends React.InputHTMLAttributes<HTMLInputElemen
 }
 
 export const EnterpriseInput = React.forwardRef<HTMLInputElement, EnterpriseInputProps>(
-  ({ label, error, icon, light = true, className = '', ...props }, ref) => {
+  ({ label, error, icon, light = true, className = '', type, value, onChange, ...props }, ref) => {
+    if (type === 'number') {
+      return (
+        <EnterpriseNumberInput
+          ref={ref}
+          label={label}
+          error={error}
+          icon={icon}
+          className={className}
+          value={value as any}
+          onChange={onChange}
+          {...(props as any)}
+        />
+      )
+    }
     return (
       <div className="flex flex-col gap-1 w-full text-left">
         {label && (

@@ -18,16 +18,44 @@ export interface PremiumInputProps extends React.InputHTMLAttributes<HTMLInputEl
   helpText?: string;
 }
 
-export const PremiumInput: React.FC<PremiumInputProps> = ({ label, error, helpText, required, className = '', ...props }) => {
+import EnterpriseNumberInput from './EnterpriseNumberInput';
+
+export const PremiumInput: React.FC<PremiumInputProps> = ({ label, error, helpText, required, className = '', type, value, onChange, placeholder, name, min, max, step, ...props }) => {
+  if (type === 'number') {
+    return (
+      <EnterpriseNumberInput
+        label={label}
+        error={error}
+        required={required}
+        className={className}
+        name={name}
+        value={value as any}
+        onChange={onChange}
+        placeholder={placeholder}
+        min={min as any}
+        max={max as any}
+        step={step}
+      />
+    );
+  }
   return (
     <div className="flex flex-col w-full text-left">
       <PremiumLabel label={label} required={required} />
       <input
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        min={min}
+        max={max}
+        step={step}
         className={`w-full h-[44px] px-3.5 border text-[14px] text-gray-900 bg-white placeholder-gray-400 rounded-[10px] transition-all duration-150 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 hover:border-gray-300 disabled:bg-gray-50 disabled:text-gray-400 ${
           error ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-100' : 'border-gray-200'
         } ${className}`}
         {...props}
       />
+      {helpText && <p className="text-[10px] text-gray-400 mt-1 pl-1">{helpText}</p>}
       {error && <span className="text-xs font-medium text-red-500 mt-1">{error}</span>}
     </div>
   );

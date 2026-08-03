@@ -46,7 +46,18 @@ export const CompanyLayout: React.FC = () => {
     { label: 'Raw Materials', path: '/company/inventory?tab=raw_materials', icon: <Boxes className="w-5 h-5" /> },
     { label: 'Brands', path: '/company/inventory?tab=brands', icon: <Tag className="w-5 h-5" /> },
     { label: 'Sales', path: '/company/sales', icon: <ShoppingCart className="w-5 h-5" /> },
-    { label: 'Business Intelligence', path: '/company/business-finance', icon: <PieChart className="w-5 h-5" /> },
+    {
+      label: 'Accounts',
+      icon: <PieChart className="w-5 h-5" />,
+      children: [
+        { label: 'Dashboard', path: '/company/accounts/dashboard' },
+        { label: 'Expenses', path: '/company/accounts/expenses' },
+        { label: 'Bank Accounts', path: '/company/accounts/bank-accounts' },
+        { label: 'Owners', path: '/company/accounts/owners' },
+        { label: 'Assets', path: '/company/accounts/assets' },
+      ]
+    },
+    { label: 'Business Intelligence', path: '/company/business-finance', icon: <TrendingUp className="w-5 h-5" /> },
     { label: 'Customers', path: '/company/customers', icon: <Users className="w-5 h-5" /> },
     { label: 'Employees', path: '/company/employees', icon: <IdCard className="w-5 h-5" /> },
     { label: 'Company Settings', path: '/company/settings', icon: <Settings className="w-5 h-5" /> },

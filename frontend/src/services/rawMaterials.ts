@@ -7,6 +7,10 @@ export interface RawMaterial {
   name: string
   category: string
   unit: string
+  code?: string
+  costPerUnit?: number
+  currentStock?: number
+  baseUnit?: string
   isActive: boolean
   createdAt: string
   updatedAt: string | null

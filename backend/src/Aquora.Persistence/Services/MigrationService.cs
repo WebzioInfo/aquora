@@ -245,13 +245,128 @@ namespace Aquora.Persistence.Services
                             -- Completely drop orphaned RowVersion from EF model mismatch
                             ALTER TABLE ""{tenant.SchemaName}"".""Products"" DROP COLUMN IF EXISTS ""RowVersion"";
                             ALTER TABLE ""{tenant.SchemaName}"".""Products"" DROP COLUMN IF EXISTS ""UnitCost"";
-                            ALTER TABLE ""{tenant.SchemaName}"".""Products"" DROP COLUMN IF EXISTS ""SellingPrice"";
                             ALTER TABLE ""{tenant.SchemaName}"".""Brands"" DROP COLUMN IF EXISTS ""RowVersion"";
                             ALTER TABLE ""{tenant.SchemaName}"".""InventoryMovements"" DROP COLUMN IF EXISTS ""RowVersion"";
                             ALTER TABLE ""{tenant.SchemaName}"".""RawMaterials"" DROP COLUMN IF EXISTS ""RowVersion"";
                             ALTER TABLE ""{tenant.SchemaName}"".""Companies"" DROP COLUMN IF EXISTS ""RowVersion"";
                             ALTER TABLE ""{tenant.SchemaName}"".""Customers"" DROP COLUMN IF EXISTS ""RowVersion"";
                             ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" DROP COLUMN IF EXISTS ""RowVersion"";
+
+                            -- Simple Accounts V1 Module Tables & Columns Repair
+                            CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""SimpleExpenses"" (
+                                ""Id"" uuid NOT NULL,
+                                ""TenantId"" uuid NOT NULL,
+                                ""CompanyId"" uuid NOT NULL,
+                                ""ExpenseNumber"" text NOT NULL,
+                                ""ExpenseDate"" timestamp with time zone NOT NULL,
+                                ""Category"" text NOT NULL,
+                                ""Vendor"" text NULL,
+                                ""Description"" text NOT NULL,
+                                ""Amount"" numeric NOT NULL,
+                                ""PaymentMethod"" text NOT NULL,
+                                ""BankAccountId"" uuid NULL,
+                                ""Notes"" text NULL,
+                                ""CreatedAt"" timestamp with time zone NOT NULL,
+                                ""CreatedBy"" text NOT NULL,
+                                ""UpdatedAt"" timestamp with time zone NULL,
+                                ""UpdatedBy"" text NULL,
+                                ""CreatedByIP"" text NULL,
+                                ""UpdatedByIP"" text NULL,
+                                ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                ""DeletedAt"" timestamp with time zone NULL,
+                                ""DeletedBy"" text NULL,
+                                CONSTRAINT ""PK_SimpleExpenses_{tenant.SchemaName}"" PRIMARY KEY (""Id"")
+                            );
+                            ALTER TABLE ""{tenant.SchemaName}"".""SimpleExpenses"" ADD COLUMN IF NOT EXISTS ""BankAccountId"" uuid NULL;
+
+                            CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""BankAccounts"" (
+                                ""Id"" uuid NOT NULL,
+                                ""TenantId"" uuid NOT NULL,
+                                ""CompanyId"" uuid NOT NULL,
+                                ""BankName"" text NOT NULL,
+                                ""AccountName"" text NOT NULL,
+                                ""AccountNumber"" text NOT NULL,
+                                ""AccountType"" text NOT NULL DEFAULT 'Current',
+                                ""Branch"" text NULL,
+                                ""IFSC"" text NULL,
+                                ""OpeningBalance"" numeric NOT NULL DEFAULT 0.0,
+                                ""CurrentBalance"" numeric NOT NULL DEFAULT 0.0,
+                                ""Notes"" text NULL,
+                                ""Status"" text NOT NULL DEFAULT 'Active',
+                                ""IsActive"" boolean NOT NULL DEFAULT true,
+                                ""CreatedAt"" timestamp with time zone NOT NULL,
+                                ""CreatedBy"" text NOT NULL,
+                                ""UpdatedAt"" timestamp with time zone NULL,
+                                ""UpdatedBy"" text NULL,
+                                ""CreatedByIP"" text NULL,
+                                ""UpdatedByIP"" text NULL,
+                                ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                ""DeletedAt"" timestamp with time zone NULL,
+                                ""DeletedBy"" text NULL,
+                                CONSTRAINT ""PK_BankAccounts_{tenant.SchemaName}"" PRIMARY KEY (""Id"")
+                            );
+
+                            CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""Owners"" (
+                                ""Id"" uuid NOT NULL,
+                                ""TenantId"" uuid NOT NULL,
+                                ""CompanyId"" uuid NOT NULL,
+                                ""Name"" text NOT NULL,
+                                ""Phone"" text NOT NULL,
+                                ""Email"" text NULL,
+                                ""OwnershipPercentage"" numeric NOT NULL,
+                                ""InitialInvestment"" numeric NOT NULL,
+                                ""CurrentInvestment"" numeric NOT NULL,
+                                ""Notes"" text NULL,
+                                ""CreatedAt"" timestamp with time zone NOT NULL,
+                                ""CreatedBy"" text NOT NULL,
+                                ""UpdatedAt"" timestamp with time zone NULL,
+                                ""UpdatedBy"" text NULL,
+                                ""CreatedByIP"" text NULL,
+                                ""UpdatedByIP"" text NULL,
+                                ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                ""DeletedAt"" timestamp with time zone NULL,
+                                ""DeletedBy"" text NULL,
+                                CONSTRAINT ""PK_Owners_{tenant.SchemaName}"" PRIMARY KEY (""Id"")
+                            );
+
+                            CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""OwnerInvestmentTransactions"" (
+                                ""Id"" uuid NOT NULL,
+                                ""TenantId"" uuid NOT NULL,
+                                ""CompanyId"" uuid NOT NULL,
+                                ""OwnerId"" uuid NOT NULL,
+                                ""TransactionDate"" timestamp with time zone NOT NULL,
+                                ""Amount"" numeric NOT NULL,
+                                ""TransactionType"" text NOT NULL,
+                                ""Notes"" text NULL,
+                                ""CreatedAt"" timestamp with time zone NOT NULL,
+                                ""CreatedBy"" text NOT NULL,
+                                ""UpdatedAt"" timestamp with time zone NULL,
+                                ""UpdatedBy"" text NULL,
+                                ""CreatedByIP"" text NULL,
+                                ""UpdatedByIP"" text NULL,
+                                ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                ""DeletedAt"" timestamp with time zone NULL,
+                                ""DeletedBy"" text NULL,
+                                CONSTRAINT ""PK_OwnerInvestmentTransactions_{tenant.SchemaName}"" PRIMARY KEY (""Id"")
+                            );
+
+                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""TotalAmount"" numeric NOT NULL DEFAULT 0.0;
+                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""AmountReceived"" numeric NOT NULL DEFAULT 0.0;
+                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""OutstandingAmount"" numeric NOT NULL DEFAULT 0.0;
+                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""PaymentStatus"" text NOT NULL DEFAULT 'Pending';
+                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""ReturnedAmount"" numeric NOT NULL DEFAULT 0.0;
+                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""RefundAmount"" numeric NOT NULL DEFAULT 0.0;
+                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""AdjustmentAmount"" numeric NOT NULL DEFAULT 0.0;
+                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""ReturnType"" text NULL;
+                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""IsReplacementRequired"" boolean NOT NULL DEFAULT false;
+                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""ProductValue"" numeric NOT NULL DEFAULT 0.0;
+                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""DamageCost"" numeric NOT NULL DEFAULT 0.0;
+                            ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""DamageReason"" text NULL;
+
+                            ALTER TABLE ""{tenant.SchemaName}"".""Products"" ADD COLUMN IF NOT EXISTS ""SellingPrice"" numeric NOT NULL DEFAULT 15.0;
+                            ALTER TABLE ""{tenant.SchemaName}"".""Products"" ADD COLUMN IF NOT EXISTS ""CostPrice"" numeric NOT NULL DEFAULT 10.0;
+
+                            ALTER TABLE ""{tenant.SchemaName}"".""RawMaterials"" ADD COLUMN IF NOT EXISTS ""CostPerUnit"" numeric NOT NULL DEFAULT 5.0;
                             ";
                             await tenantContext.Database.ExecuteSqlRawAsync(repairScript);
 

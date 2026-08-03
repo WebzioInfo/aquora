@@ -12,6 +12,7 @@ namespace Aquora.Domain.Entities
         public string BaseUnit { get; set; } // E.g., PCS, KG
         public decimal ConversionFactor { get; set; } = 1.0m;
         public decimal CurrentStock { get; set; } = 0.0m;
+        public decimal CostPerUnit { get; set; } = 5.0m;
         public bool IsActive { get; set; } = true;
 
         // Multi-tenant mappings

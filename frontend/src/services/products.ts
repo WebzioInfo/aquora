@@ -9,6 +9,8 @@ export interface Product {
   sku: string | null
   isActive: boolean
   currentStock: number
+  sellingPrice?: number
+  costPrice?: number
   createdAt: string
   updatedAt: string | null
 }

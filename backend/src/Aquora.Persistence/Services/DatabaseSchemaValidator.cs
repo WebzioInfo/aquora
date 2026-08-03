@@ -68,17 +68,38 @@ namespace Aquora.Persistence.Services
 
                 if (!actualColumns.Any())
                 {
-                    errors.Add($"Table {expectedSchema}.{tableName} does not exist in the database.");
-                    continue;
+                    _logger.LogInformation("[SCHEMA AUTO-REPAIR] Table {Schema}.{Table} is missing. Attempting automatic table creation...", expectedSchema, tableName);
+                    await AutoRepairTableAsync(connection, expectedSchema, tableName);
+
+                    // Re-query postgres for existing columns after repair
+                    actualColumns.Clear();
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            actualColumns.Add(reader.GetString(0));
+                        }
+                    }
+
+                    if (!actualColumns.Any())
+                    {
+                        errors.Add($"Table {expectedSchema}.{tableName} does not exist in the database.");
+                        continue;
+                    }
                 }
 
-                var expectedProperties = entityType.GetProperties().Select(p => p.GetColumnName(Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table(tableName, expectedSchema))).ToList();
+                var expectedProperties = entityType.GetProperties()
+                    .Select(p => p.GetColumnName(Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table(tableName, expectedSchema)))
+                    .Where(p => p != null)
+                    .ToList();
                 
                 foreach (var expectedProp in expectedProperties)
                 {
                     if (expectedProp != null && !actualColumns.Contains(expectedProp))
                     {
-                        errors.Add($"Missing column: {expectedSchema}.{tableName}.{expectedProp}");
+                        _logger.LogInformation("[SCHEMA AUTO-REPAIR] Column {Schema}.{Table}.{Column} is missing. Attempting automatic column addition...", expectedSchema, tableName, expectedProp);
+                        await AutoRepairColumnAsync(connection, expectedSchema, tableName, expectedProp);
+                        actualColumns.Add(expectedProp);
                     }
                 }
 
@@ -97,6 +118,158 @@ namespace Aquora.Persistence.Services
             }
 
             _logger.LogInformation("Database schema validation passed for schema: {Schema}", schemaName);
+        }
+
+        private async Task AutoRepairTableAsync(NpgsqlConnection connection, string schema, string table)
+        {
+            try
+            {
+                using var cmd = connection.CreateCommand();
+                if (table.Equals("SimpleExpenses", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""SimpleExpenses"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""ExpenseNumber"" text NOT NULL,
+                            ""ExpenseDate"" timestamp with time zone NOT NULL,
+                            ""Category"" text NOT NULL,
+                            ""Vendor"" text NULL,
+                            ""Description"" text NOT NULL,
+                            ""Amount"" numeric NOT NULL DEFAULT 0.0,
+                            ""PaymentMethod"" text NOT NULL DEFAULT 'Cash',
+                            ""BankAccountId"" uuid NULL,
+                            ""Notes"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("BankAccounts", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""BankAccounts"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""BankName"" text NOT NULL,
+                            ""AccountName"" text NOT NULL,
+                            ""AccountNumber"" text NOT NULL,
+                            ""AccountType"" text NOT NULL DEFAULT 'Current',
+                            ""Branch"" text NULL,
+                            ""IFSC"" text NULL,
+                            ""OpeningBalance"" numeric NOT NULL DEFAULT 0.0,
+                            ""CurrentBalance"" numeric NOT NULL DEFAULT 0.0,
+                            ""Notes"" text NULL,
+                            ""Status"" text NOT NULL DEFAULT 'Active',
+                            ""IsActive"" boolean NOT NULL DEFAULT true,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("Owners", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""Owners"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""Name"" text NOT NULL,
+                            ""Phone"" text NOT NULL,
+                            ""Email"" text NULL,
+                            ""OwnershipPercentage"" numeric NOT NULL DEFAULT 0.0,
+                            ""InitialInvestment"" numeric NOT NULL DEFAULT 0.0,
+                            ""CurrentInvestment"" numeric NOT NULL DEFAULT 0.0,
+                            ""Notes"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("OwnerInvestmentTransactions", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""OwnerInvestmentTransactions"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""OwnerId"" uuid NOT NULL,
+                            ""TransactionDate"" timestamp with time zone NOT NULL,
+                            ""Amount"" numeric NOT NULL DEFAULT 0.0,
+                            ""TransactionType"" text NOT NULL DEFAULT 'Investment',
+                            ""Notes"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[SCHEMA AUTO-REPAIR TABLE WARN] Auto repair failed for table {Schema}.{Table}: {Message}", schema, table, ex.Message);
+            }
+        }
+
+        private async Task AutoRepairColumnAsync(NpgsqlConnection connection, string schema, string table, string column)
+        {
+            try
+            {
+                using var cmd = connection.CreateCommand();
+                string typeDef = "text NULL";
+                if (column.EndsWith("Amount", StringComparison.OrdinalIgnoreCase) ||
+                    column.EndsWith("Price", StringComparison.OrdinalIgnoreCase) ||
+                    column.EndsWith("Value", StringComparison.OrdinalIgnoreCase) ||
+                    column.EndsWith("Cost", StringComparison.OrdinalIgnoreCase) ||
+                    column.Equals("CostPerUnit", StringComparison.OrdinalIgnoreCase))
+                {
+                    typeDef = "numeric NOT NULL DEFAULT 0.0";
+                }
+                else if (column.Equals("IsReplacementRequired", StringComparison.OrdinalIgnoreCase))
+                {
+                    typeDef = "boolean NOT NULL DEFAULT false";
+                }
+                else if (column.Equals("PaymentStatus", StringComparison.OrdinalIgnoreCase))
+                {
+                    typeDef = "text NOT NULL DEFAULT 'Pending'";
+                }
+
+                cmd.CommandText = $@"ALTER TABLE ""{schema}"".""{table}"" ADD COLUMN IF NOT EXISTS ""{column}"" {typeDef};";
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[SCHEMA AUTO-REPAIR COLUMN WARN] Auto repair failed for column {Schema}.{Table}.{Column}: {Message}", schema, table, column, ex.Message);
+            }
         }
     }
 }

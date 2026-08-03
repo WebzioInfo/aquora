@@ -167,6 +167,7 @@ builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler
             };
         });
 builder.Services.AddSignalR();
+builder.Services.AddHealthChecks();
 builder.Services.AddTransient<Aquora.Application.Interfaces.Services.IProvisioningProgressReporter, Aquora.API.Services.ProvisioningProgressReporter>();
 builder.Services.AddTransient<Aquora.Persistence.Services.DatabaseSchemaValidator>();
 builder.Services.AddEndpointsApiExplorer();
@@ -235,6 +236,7 @@ app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 app.MapHub<NotificationHub>("/hub/notifications");
 app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHub<ProvisioningHub>("/hub/provisioning");
