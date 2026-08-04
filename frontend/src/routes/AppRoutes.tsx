@@ -39,6 +39,11 @@ const CashBookDetailsPage = React.lazy(() => import('../pages/company/accounts/C
 const OwnerListPage = React.lazy(() => import('../pages/company/accounts/OwnerListPage'))
 const OwnerDetailsPage = React.lazy(() => import('../pages/company/accounts/OwnerDetailsPage'))
 const AssetSummaryPage = React.lazy(() => import('../pages/company/accounts/AssetSummaryPage'))
+const PurchasesPage = React.lazy(() => import('../pages/company/accounts/PurchasesPage'))
+const CreatePurchasePage = React.lazy(() => import('../pages/company/accounts/CreatePurchasePage'))
+const PurchaseDetailsPage = React.lazy(() => import('../pages/company/accounts/PurchaseDetailsPage'))
+const VendorsPage = React.lazy(() => import('../pages/company/accounts/VendorsPage'))
+const VendorDetailsPage = React.lazy(() => import('../pages/company/accounts/VendorDetailsPage'))
 
 export const getDefaultRouteForUser = (user: any): string => {
   const getRoute = () => {
@@ -445,6 +450,12 @@ export const AppRoutes: React.FC = () => {
         {/* Simple Accounts V1 Routes */}
         <Route path="accounts/dashboard" element={<AccountsDashboardPage />} />
         <Route path="accounts/expenses" element={<ExpenseManagementPage />} />
+        <Route path="accounts/purchases" element={<PurchasesPage />} />
+        <Route path="accounts/purchases/new" element={<CreatePurchasePage />} />
+        <Route path="accounts/purchases/edit/:id" element={<CreatePurchasePage />} />
+        <Route path="accounts/purchases/:id" element={<PurchaseDetailsPage />} />
+        <Route path="accounts/vendors" element={<VendorsPage />} />
+        <Route path="accounts/vendors/:id" element={<VendorDetailsPage />} />
         <Route path="accounts/payroll" element={<PayrollPage />} />
         <Route path="accounts/ledger" element={<LedgerPage />}>
           <Route index element={<Navigate to="/company/accounts/ledger/bank-accounts" replace />} />

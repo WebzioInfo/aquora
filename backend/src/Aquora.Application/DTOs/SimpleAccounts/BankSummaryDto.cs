@@ -14,5 +14,9 @@ namespace Aquora.Application.DTOs.SimpleAccounts
         
         public int TodaysTransactions { get; set; }
         public int ThisMonthTransactions { get; set; }
+        public decimal AverageMonthlyFlow { get; set; }
+        public DateTime? LastTransactionDate { get; set; }
+        public string? LastTransactionDescription { get; set; }
+        public decimal LastTransactionAmount { get; set; }
     }
 }

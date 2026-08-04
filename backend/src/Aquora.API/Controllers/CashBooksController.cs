@@ -71,9 +71,33 @@ namespace Aquora.API.Controllers
         }
 
         [HttpGet("{id:guid}/ledger")]
-        public async Task<IActionResult> GetCashBookLedger(Guid id, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 50, [FromQuery] string? search = null)
+        public async Task<IActionResult> GetCashBookLedger(
+            Guid id,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 50,
+            [FromQuery] string? search = null,
+            [FromQuery] DateTime? dateFrom = null,
+            [FromQuery] DateTime? dateTo = null,
+            [FromQuery] string? transactionType = null,
+            [FromQuery] string? createdBy = null,
+            [FromQuery] decimal? minAmount = null,
+            [FromQuery] decimal? maxAmount = null,
+            [FromQuery] string? sortBy = "TransactionDate",
+            [FromQuery] string? sortOrder = "desc")
         {
-            var result = await _ledgerService.GetCashBookLedgerAsync(id, pageNumber, pageSize, search, new BankLedgerFilterDto());
+            var filter = new BankLedgerFilterDto
+            {
+                DateFrom = dateFrom,
+                DateTo = dateTo,
+                TransactionType = transactionType,
+                CreatedBy = createdBy,
+                MinimumAmount = minAmount,
+                MaximumAmount = maxAmount,
+                SortBy = sortBy,
+                SortOrder = sortOrder
+            };
+            
+            var result = await _ledgerService.GetCashBookLedgerAsync(id, pageNumber, pageSize, search, filter);
             return Ok(ApiResponse<PagedResult<BankLedgerEntryDto>>.CreateSuccess(result, "Cash ledger retrieved successfully."));
         }
 
@@ -162,5 +186,37 @@ namespace Aquora.API.Controllers
                 return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Error", HttpContext.TraceIdentifier));
             }
         }
+
+        [HttpPost("ledger/{ledgerEntryId:guid}/reverse")]
+        public async Task<IActionResult> ReverseCashLedgerEntry(Guid ledgerEntryId, [FromBody] ReverseCashLedgerRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Reason))
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure("Reversal reason is required.", "Validation Error", HttpContext.TraceIdentifier));
+            }
+
+            try
+            {
+                var reversalId = await _ledgerService.ReverseTransactionAsync(ledgerEntryId, request.Reason);
+                return Ok(ApiResponse<Guid>.CreateSuccess(reversalId, "Ledger entry reversed successfully."));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<object>.CreateFailure(ex.Message, "Not Found", HttpContext.TraceIdentifier));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Business Rule Violation", HttpContext.TraceIdentifier));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Error", HttpContext.TraceIdentifier));
+            }
+        }
+    }
+
+    public class ReverseCashLedgerRequest
+    {
+        public string Reason { get; set; } = string.Empty;
     }
 }

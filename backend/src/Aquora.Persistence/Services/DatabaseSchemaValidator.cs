@@ -409,6 +409,138 @@ namespace Aquora.Persistence.Services
                         );";
                     await cmd.ExecuteNonQueryAsync();
                 }
+                else if (table.Equals("Vendors", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""Vendors"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""Name"" text NOT NULL,
+                            ""Phone"" text NULL,
+                            ""Email"" text NULL,
+                            ""GST"" text NULL,
+                            ""Address"" text NULL,
+                            ""OpeningBalance"" numeric NOT NULL DEFAULT 0.0,
+                            ""CurrentBalance"" numeric NOT NULL DEFAULT 0.0,
+                            ""Notes"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("Purchases", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""Purchases"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""PurchaseNo"" text NOT NULL,
+                            ""PurchaseDate"" timestamp with time zone NOT NULL,
+                            ""VendorId"" uuid NULL,
+                            ""VendorName"" text NOT NULL,
+                            ""PurchaseCategory"" text NOT NULL,
+                            ""InvoiceNumber"" text NULL,
+                            ""ReferenceNumber"" text NULL,
+                            ""PaymentMethod"" text NOT NULL DEFAULT 'Credit',
+                            ""BankAccountId"" uuid NULL,
+                            ""CashBookId"" uuid NULL,
+                            ""SubTotal"" numeric NOT NULL DEFAULT 0.0,
+                            ""TaxAmount"" numeric NOT NULL DEFAULT 0.0,
+                            ""DiscountAmount"" numeric NOT NULL DEFAULT 0.0,
+                            ""OtherCharges"" numeric NOT NULL DEFAULT 0.0,
+                            ""GrandTotal"" numeric NOT NULL DEFAULT 0.0,
+                            ""AmountPaid"" numeric NOT NULL DEFAULT 0.0,
+                            ""BalanceAmount"" numeric NOT NULL DEFAULT 0.0,
+                            ""PaymentStatus"" text NOT NULL DEFAULT 'Unpaid',
+                            ""Notes"" text NULL,
+                            ""AttachmentUrl"" text NULL,
+                            ""AssetId"" uuid NULL,
+                            ""CategoryMetadataJson"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("PurchaseItems", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""PurchaseItems"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""PurchaseId"" uuid NOT NULL,
+                            ""RawMaterialId"" uuid NULL,
+                            ""ItemName"" text NOT NULL,
+                            ""Quantity"" numeric NOT NULL DEFAULT 0.0,
+                            ""Unit"" text NOT NULL DEFAULT 'Pcs',
+                            ""UnitPrice"" numeric NOT NULL DEFAULT 0.0,
+                            ""GSTPercent"" numeric NOT NULL DEFAULT 0.0,
+                            ""DiscountAmount"" numeric NOT NULL DEFAULT 0.0,
+                            ""TotalAmount"" numeric NOT NULL DEFAULT 0.0
+                        );";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("PurchasePayments", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""PurchasePayments"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""PurchaseId"" uuid NOT NULL,
+                            ""PaymentDate"" timestamp with time zone NOT NULL,
+                            ""PaymentMethod"" text NOT NULL,
+                            ""BankAccountId"" uuid NULL,
+                            ""CashBookId"" uuid NULL,
+                            ""Amount"" numeric NOT NULL DEFAULT 0.0,
+                            ""ReferenceNo"" text NULL,
+                            ""Notes"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System'
+                        );";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("PurchaseTimelineEvents", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""PurchaseTimelineEvents"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""PurchaseId"" uuid NOT NULL,
+                            ""EventDate"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""Action"" text NOT NULL,
+                            ""PerformedBy"" text NOT NULL,
+                            ""Details"" text NOT NULL,
+                            ""Notes"" text NULL
+                        );";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("AssetHistories", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""AssetHistories"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""AssetId"" uuid NOT NULL,
+                            ""Date"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""Action"" text NOT NULL,
+                            ""PerformedBy"" text NOT NULL,
+                            ""PreviousValue"" text NULL,
+                            ""NewValue"" text NULL,
+                            ""Remarks"" text NULL
+                        );";
+                    await cmd.ExecuteNonQueryAsync();
+                }
             }
             catch (Exception ex)
             {

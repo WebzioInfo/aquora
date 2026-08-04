@@ -565,6 +565,16 @@ namespace Aquora.Application.Services
             var hasAnyDeposits = hasAnyTransactions && await query.AnyAsync(x => x.Credit > 0);
             var hasAnyExpenses = hasAnyTransactions && await query.AnyAsync(x => x.Debit > 0);
 
+            var lastTx = hasAnyTransactions
+                ? await query.OrderByDescending(x => x.TransactionDate).ThenByDescending(x => x.CreatedAt).FirstOrDefaultAsync()
+                : null;
+
+            var monthlyFlows = hasAnyTransactions
+                ? await query.GroupBy(x => new { Year = x.TransactionDate.Year, Month = x.TransactionDate.Month })
+                             .Select(g => g.Sum(x => x.Debit + x.Credit))
+                             .ToListAsync()
+                : new List<decimal>();
+
             var summary = new BankSummaryDto
             {
                 CurrentBalance = bankAccount.CurrentBalance,
@@ -574,7 +584,11 @@ namespace Aquora.Application.Services
                 LargestDeposit = hasAnyDeposits ? await query.MaxAsync(x => x.Credit) : 0m,
                 LargestExpense = hasAnyExpenses ? await query.MaxAsync(x => x.Debit) : 0m,
                 TodaysTransactions = hasAnyTransactions ? await query.CountAsync(x => x.TransactionDate >= startOfDay) : 0,
-                ThisMonthTransactions = hasAnyTransactions ? await query.CountAsync(x => x.TransactionDate >= startOfMonth) : 0
+                ThisMonthTransactions = hasAnyTransactions ? await query.CountAsync(x => x.TransactionDate >= startOfMonth) : 0,
+                AverageMonthlyFlow = monthlyFlows.Any() ? monthlyFlows.Average() : 0m,
+                LastTransactionDate = lastTx?.TransactionDate,
+                LastTransactionDescription = lastTx?.Description,
+                LastTransactionAmount = lastTx != null ? (lastTx.Debit > 0 ? -lastTx.Debit : lastTx.Credit) : 0m
             };
 
             return summary;
@@ -994,10 +1008,48 @@ namespace Aquora.Application.Services
             }
             await RecalculateCashBookLedgerBalancesAsync(cashBookId);
 
-            var cashBook = await _context.CashBooks.AsNoTracking().FirstOrDefaultAsync(b => b.Id == cashBookId && b.TenantId == tenantId && !b.IsDeleted) ?? throw new KeyNotFoundException("Cash book not found.");
-            var query = _context.BankLedgerEntries.AsNoTracking().Where(x => x.TenantId == tenantId && x.CashBookId == cashBookId && x.LedgerAccountType == "CashBook");
+            var cashBook = await _context.CashBooks
+                .AsNoTracking()
+                .FirstOrDefaultAsync(b => b.Id == cashBookId && b.TenantId == tenantId && !b.IsDeleted) 
+                ?? throw new KeyNotFoundException("Cash book not found.");
+
+            var query = _context.BankLedgerEntries
+                .AsNoTracking()
+                .Where(x => x.TenantId == tenantId && x.CashBookId == cashBookId && x.LedgerAccountType == "CashBook");
+
             var any = await query.AnyAsync();
-            return new BankSummaryDto { CurrentBalance = cashBook.CurrentBalance, TotalTransactions = any ? await query.CountAsync() : 0, TotalMoneyReceived = any ? await query.SumAsync(x => x.Credit) : 0m, TotalMoneyPaid = any ? await query.SumAsync(x => x.Debit) : 0m, LargestDeposit = any && await query.AnyAsync(x => x.Credit > 0) ? await query.MaxAsync(x => x.Credit) : 0m, LargestExpense = any && await query.AnyAsync(x => x.Debit > 0) ? await query.MaxAsync(x => x.Debit) : 0m, TodaysTransactions = any ? await query.CountAsync(x => x.TransactionDate >= DateTime.UtcNow.Date) : 0, ThisMonthTransactions = any ? await query.CountAsync(x => x.TransactionDate >= new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc)) : 0 };
+            var hasAnyDeposits = any && await query.AnyAsync(x => x.Credit > 0);
+            var hasAnyExpenses = any && await query.AnyAsync(x => x.Debit > 0);
+
+            var nowUtc = DateTime.UtcNow;
+            var startOfDay = DateTime.SpecifyKind(nowUtc.Date, DateTimeKind.Utc);
+            var startOfMonth = new DateTime(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            var lastTx = any
+                ? await query.OrderByDescending(x => x.TransactionDate).ThenByDescending(x => x.CreatedAt).FirstOrDefaultAsync()
+                : null;
+
+            var monthlyFlows = any
+                ? await query.GroupBy(x => new { Year = x.TransactionDate.Year, Month = x.TransactionDate.Month })
+                             .Select(g => g.Sum(x => x.Debit + x.Credit))
+                             .ToListAsync()
+                : new List<decimal>();
+
+            return new BankSummaryDto 
+            { 
+                CurrentBalance = cashBook.CurrentBalance, 
+                TotalTransactions = any ? await query.CountAsync() : 0, 
+                TotalMoneyReceived = any ? await query.SumAsync(x => x.Credit) : 0m, 
+                TotalMoneyPaid = any ? await query.SumAsync(x => x.Debit) : 0m, 
+                LargestDeposit = hasAnyDeposits ? await query.MaxAsync(x => x.Credit) : 0m, 
+                LargestExpense = hasAnyExpenses ? await query.MaxAsync(x => x.Debit) : 0m, 
+                TodaysTransactions = any ? await query.CountAsync(x => x.TransactionDate >= startOfDay) : 0, 
+                ThisMonthTransactions = any ? await query.CountAsync(x => x.TransactionDate >= startOfMonth) : 0,
+                AverageMonthlyFlow = monthlyFlows.Any() ? monthlyFlows.Average() : 0m,
+                LastTransactionDate = lastTx?.TransactionDate,
+                LastTransactionDescription = lastTx?.Description,
+                LastTransactionAmount = lastTx != null ? (lastTx.Debit > 0 ? -lastTx.Debit : lastTx.Credit) : 0m
+            };
         }
 
         public async Task<Guid> AddMoneyAsync(Guid? bankAccountId, Guid? cashBookId, AddMoneyRequest request)
@@ -1142,8 +1194,28 @@ namespace Aquora.Application.Services
                 if (entry == null)
                     throw new KeyNotFoundException("Deposit entry not found.");
 
-                if (!entry.TransactionType.Equals("Deposit", StringComparison.OrdinalIgnoreCase))
-                    throw new ArgumentException("Only deposit transactions can be deleted through this workflow.");
+                var allowedTypes = new[] { "Deposit", "Withdrawal", "Opening Balance" };
+                if (!allowedTypes.Contains(entry.TransactionType, StringComparer.OrdinalIgnoreCase))
+                    throw new ArgumentException("Only manual transactions (Deposit, Withdrawal, Opening Balance) can be deleted through this workflow.");
+
+                if (entry.TransactionType.Equals("Opening Balance", StringComparison.OrdinalIgnoreCase))
+                {
+                    bool hasDependent = false;
+                    if (entry.BankAccountId.HasValue)
+                    {
+                        hasDependent = await _context.BankLedgerEntries
+                            .AnyAsync(e => e.TenantId == tenantId && e.BankAccountId == entry.BankAccountId && e.Id != entry.Id);
+                    }
+                    else if (entry.CashBookId.HasValue)
+                    {
+                        hasDependent = await _context.BankLedgerEntries
+                            .AnyAsync(e => e.TenantId == tenantId && e.CashBookId == entry.CashBookId && e.Id != entry.Id);
+                    }
+                    if (hasDependent)
+                    {
+                        throw new InvalidOperationException("Cannot delete opening balance because dependent transactions exist.");
+                    }
+                }
 
                 var bankAccountId = entry.BankAccountId;
                 var cashBookId = entry.CashBookId;
@@ -1319,6 +1391,93 @@ namespace Aquora.Application.Services
                     }
                 });
             }
+        }
+
+        public async Task<Guid> ReverseTransactionAsync(Guid ledgerEntryId, string reason)
+        {
+            var tenantId = GetTenantId();
+            var companyId = await GetCompanyIdAsync();
+            var currentUser = _currentUserContext.Email ?? "Unknown User";
+
+            var originalEntry = await _context.BankLedgerEntries
+                .FirstOrDefaultAsync(e => e.Id == ledgerEntryId && e.TenantId == tenantId);
+
+            if (originalEntry == null)
+                throw new KeyNotFoundException("Ledger entry not found.");
+
+            var alreadyReversed = await _context.BankLedgerEntries
+                .AnyAsync(e => e.TenantId == tenantId && (e.ReferenceNumber == "REV-" + originalEntry.ReferenceNumber || (e.RelatedEntityId == originalEntry.Id && e.RelatedEntityType == "Reversal")));
+            if (alreadyReversed)
+                throw new InvalidOperationException("This transaction has already been reversed.");
+
+            decimal debit = originalEntry.Credit;
+            decimal credit = originalEntry.Debit;
+
+            var reversalEntry = new BankLedgerEntry
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                BankAccountId = originalEntry.BankAccountId,
+                CashBookId = originalEntry.CashBookId,
+                LedgerAccountType = originalEntry.LedgerAccountType,
+                TransactionDate = DateTime.UtcNow,
+                ReferenceNumber = "REV-" + originalEntry.ReferenceNumber,
+                TransactionType = originalEntry.TransactionType + " Reversal",
+                Description = $"Reversal of: {originalEntry.Description}",
+                Debit = debit,
+                Credit = credit,
+                RunningBalance = 0m,
+                RelatedEntityId = originalEntry.Id,
+                RelatedEntityType = "Reversal",
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = currentUser
+            };
+
+            _context.BankLedgerEntries.Add(reversalEntry);
+
+            var originalAudit = new BankLedgerAuditEntry
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                BankLedgerEntryId = originalEntry.Id,
+                Action = "Reversed",
+                OldAmount = originalEntry.Debit > 0 ? originalEntry.Debit : originalEntry.Credit,
+                NewAmount = originalEntry.Debit > 0 ? originalEntry.Debit : originalEntry.Credit,
+                Remarks = reason,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = currentUser
+            };
+            _context.BankLedgerAuditEntries.Add(originalAudit);
+
+            var reversalAudit = new BankLedgerAuditEntry
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                BankLedgerEntryId = reversalEntry.Id,
+                Action = "Created",
+                OldAmount = 0m,
+                NewAmount = debit > 0 ? debit : credit,
+                Remarks = $"Reversal of entry {originalEntry.ReferenceNumber}. Reason: {reason}",
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = currentUser
+            };
+            _context.BankLedgerAuditEntries.Add(reversalAudit);
+
+            await _context.SaveChangesAsync();
+
+            if (originalEntry.LedgerAccountType == "BankAccount" && originalEntry.BankAccountId.HasValue)
+            {
+                await RecalculateBankLedgerBalancesAsync(originalEntry.BankAccountId.Value);
+            }
+            else if (originalEntry.LedgerAccountType == "CashBook" && originalEntry.CashBookId.HasValue)
+            {
+                await RecalculateCashBookLedgerBalancesAsync(originalEntry.CashBookId.Value);
+            }
+
+            return reversalEntry.Id;
         }
     }
 }

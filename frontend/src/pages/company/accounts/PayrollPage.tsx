@@ -13,6 +13,8 @@ import EnterpriseModal from '../../../components/ui/EnterpriseModal'
 import EnterpriseLoading from '../../../components/ui/EnterpriseLoading'
 import { api } from '../../../services/api'
 import { Plus, Search, Eye, Edit2, Trash2, Printer, Landmark, Wallet, Receipt, FileText, History } from 'lucide-react'
+import { jsPDF } from 'jspdf'
+import html2canvas from 'html2canvas'
 
 export const PayrollPage: React.FC = () => {
   const queryClient = useQueryClient()
@@ -325,31 +327,124 @@ export const PayrollPage: React.FC = () => {
     }
   }
 
-  const handlePrint = () => {
-    window.print()
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
+  const [isPrinting, setIsPrinting] = useState(false)
+
+  const handleDownloadPdf = async () => {
+    if (!selectedPayment) return
+    setIsGeneratingPdf(true)
+    try {
+      const element = document.getElementById('print-section')
+      if (!element) return
+
+      // Take high-resolution screenshot of the payslip print element
+      const canvas = await html2canvas(element, {
+        scale: 3, // High DPI resolution for crisp text print
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false
+      })
+
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      })
+
+      const imgWidth = 210
+      const pageHeight = 297
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+
+      // Center vertically if it fits perfectly on one page
+      const yOffset = imgHeight < pageHeight ? (pageHeight - imgHeight) / 2 : 0
+
+      pdf.addImage(imgData, 'PNG', 0, yOffset, imgWidth, imgHeight)
+      pdf.save(`payslip-${selectedPayment.employeeName.toLowerCase().replace(/\s+/g, '-')}-${selectedPayment.salaryMonth}.pdf`)
+      showToast('Payslip downloaded successfully', 'success')
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      showToast('Failed to generate PDF payslip', 'error')
+    } finally {
+      setIsGeneratingPdf(false)
+    }
+  }
+
+  const handlePrintOnlySlip = async () => {
+    if (!selectedPayment) return
+    setIsPrinting(true)
+    try {
+      const element = document.getElementById('print-section')
+      if (!element) return
+
+      // Capture element as canvas
+      const canvas = await html2canvas(element, {
+        scale: 3, // High DPI
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false
+      })
+
+      const imgData = canvas.toDataURL('image/png')
+
+      // Create a hidden iframe for print formatting
+      const iframe = document.createElement('iframe')
+      iframe.style.position = 'fixed'
+      iframe.style.right = '0'
+      iframe.style.bottom = '0'
+      iframe.style.width = '0'
+      iframe.style.height = '0'
+      iframe.style.border = '0'
+      document.body.appendChild(iframe)
+
+      const doc = iframe.contentDocument || iframe.contentWindow?.document
+      if (doc) {
+        doc.open()
+        doc.write(`
+          <html>
+            <head>
+              <title>Payslip - ${selectedPayment.salaryNo}</title>
+              <style>
+                body {
+                  margin: 0;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  height: 100vh;
+                  background-color: #ffffff;
+                }
+                img {
+                  max-width: 100%;
+                  max-height: 100%;
+                  object-fit: contain;
+                }
+                @page {
+                  size: A4;
+                  margin: 0;
+                }
+              </style>
+            </head>
+            <body>
+              <img src="${imgData}" onload="window.print();" />
+            </body>
+          </html>
+        `)
+        doc.close()
+
+        // Wait for printing to trigger, then clean up
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+        document.body.removeChild(iframe)
+      }
+    } catch (error) {
+      console.error('Error printing payslip:', error)
+      showToast('Failed to print payslip', 'error')
+    } finally {
+      setIsPrinting(false)
+    }
   }
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Printable Area CSS hack */}
-      <style dangerouslySetInnerHTML={{__html: `
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          #print-section, #print-section * {
-            visibility: visible;
-          }
-          #print-section {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            background: white;
-            color: black;
-          }
-        }
-      `}} />
 
       <EnterpriseHeader
         title="Payroll Directory"
@@ -1070,129 +1165,190 @@ export const PayrollPage: React.FC = () => {
       >
         {selectedPayment && (
           <div className="flex flex-col gap-6">
-            {/* Slip Printable area */}
-            <div id="print-section" className="bg-white border border-slate-200 rounded-xl p-8 max-w-2xl mx-auto shadow-sm select-none font-sans text-left text-slate-800">
-              {/* Slip Header */}
-              <div className="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between items-end">
-                <div>
-                  <h2 className="text-2xl font-black tracking-tight text-slate-900 uppercase">Aquora ERP</h2>
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Enterprise Salary Statement</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs font-bold text-slate-400 block">Payslip Serial</span>
-                  <span className="font-mono font-bold text-slate-900 text-sm">{selectedPayment.salaryNo}</span>
-                </div>
-              </div>
-
-              {/* Employee & Payment Grid Info */}
-              <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm mb-6 pb-6 border-b border-slate-100">
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Employee Name</span>
-                  <strong className="text-slate-800 text-base">{selectedPayment.employeeName}</strong>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Salary Month</span>
-                  <strong className="text-slate-800 text-base">{selectedPayment.salaryMonth}</strong>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Department</span>
-                  <span className="text-slate-700 font-semibold">{selectedPayment.department}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Designation</span>
-                  <span className="text-slate-700 font-semibold">{selectedPayment.designation || 'Staff'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Payment Method</span>
-                  <span className="text-slate-700 font-semibold">{selectedPayment.paymentMethod === 'BankAccount' ? 'Bank Transfer' : 'Cash Book Disbursement'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Payment Date</span>
-                  <span className="text-slate-700 font-semibold">{new Date(selectedPayment.paymentDate).toLocaleDateString()}</span>
-                </div>
-              </div>
-
-              {/* Attendance Details Table */}
-              <div className="mb-6">
-                <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">Attendance & Base Wage Details</h4>
-                <div className="border border-slate-200 rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-slate-50 border-b border-slate-200 font-bold text-slate-600">
-                      <tr>
-                        <th className="py-2.5 px-4">Base Monthly Salary</th>
-                        <th className="py-2.5 px-4 text-center">Working Days</th>
-                        <th className="py-2.5 px-4 text-center">Days Worked</th>
-                        <th className="py-2.5 px-4 text-right">Daily Rate</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td className="py-2.5 px-4">₹{selectedPayment.monthlySalary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        <td className="py-2.5 px-4 text-center">{selectedPayment.workingDays}</td>
-                        <td className="py-2.5 px-4 text-center">{selectedPayment.daysWorked}</td>
-                        <td className="py-2.5 px-4 text-right">₹{selectedPayment.dailySalary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Earnings & Deductions Grid */}
-              <div className="grid grid-cols-2 gap-6 mb-6">
-                {/* Earnings */}
-                <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/50">
-                  <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">Earnings</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Gross Worked Salary</span>
-                      <span className="font-semibold text-slate-800">₹{selectedPayment.grossSalary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            {/* Centering and scroll wrapper for responsiveness */}
+            <div className="overflow-x-auto w-full py-2 flex justify-center bg-slate-50 rounded-2xl" style={{ backgroundColor: '#f8fafc' }}>
+              {/* Slip Printable area */}
+              <div
+                id="print-section"
+                className="bg-white border rounded-2xl p-8 shadow-sm select-none font-sans text-left"
+                style={{
+                  width: '640px',
+                  minWidth: '640px',
+                  backgroundColor: '#ffffff',
+                  color: '#1e293b',
+                  borderColor: '#f1f5f9',
+                  borderWidth: '1px'
+                }}
+              >
+                {/* Premium Header */}
+                <div className="flex justify-between items-start pb-5 mb-5" style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      {/* Visual Brand Mark */}
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-lg shadow-sm" style={{ background: 'linear-gradient(135deg, #2563eb, #4f46e5)', color: '#ffffff' }}>
+                        A
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold tracking-tight leading-none" style={{ color: '#0f172a' }}>Aquora ERP</h2>
+                        <span className="text-[10px] font-bold uppercase tracking-widest leading-none block mt-1" style={{ color: '#94a3b8' }}>Aquora Technologies Pvt. Ltd.</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Bonus</span>
-                      <span className="font-semibold text-green-600">+₹{selectedPayment.bonus.toLocaleString('en-IN')}</span>
-                    </div>
-                    <div className="border-t border-slate-200 pt-2 flex justify-between font-bold text-slate-900">
-                      <span>Total Earnings</span>
-                      <span>₹{(selectedPayment.grossSalary + selectedPayment.bonus).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    <p className="text-[10px] mt-2 font-medium" style={{ color: '#94a3b8' }}>
+                      Corporate Office: Tech Park, Phase II, Bangalore, KA, India<br/>
+                      Email: hr@aquora.io | Web: www.aquora.io
+                    </p>
+                  </div>
+                  
+                  <div className="text-right flex flex-col items-end gap-1.5">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold" style={{ backgroundColor: '#ecfdf5', color: '#047857', border: '1px solid #d1fae5' }}>
+                      <span className="w-1.5 h-1.5 rounded-full mr-1.5" style={{ backgroundColor: '#10b981' }}></span>
+                      PAID / DISBURSED
+                    </span>
+                    <div className="mt-2">
+                      <span className="text-[9px] font-bold block uppercase tracking-wider" style={{ color: '#94a3b8' }}>Salary Statement</span>
+                      <span className="font-mono font-bold text-xs" style={{ color: '#1e293b' }}>Ref: {selectedPayment.salaryNo}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Deductions */}
-                <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/50">
-                  <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">Deductions</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Advance Deductions</span>
-                      <span className="font-semibold text-red-500">-₹{selectedPayment.advanceDeduction.toLocaleString('en-IN')}</span>
+                {/* Employee & Payment Grid Info */}
+                <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs mb-5 pb-5 p-4 rounded-xl" style={{ backgroundColor: 'rgba(248, 250, 252, 0.7)', border: '1px solid #f1f5f9' }}>
+                  <div>
+                    <span className="font-bold block text-[9px] uppercase tracking-wider mb-0.5" style={{ color: '#94a3b8' }}>Employee Name</span>
+                    <strong className="text-xs" style={{ color: '#1e293b' }}>{selectedPayment.employeeName}</strong>
+                  </div>
+                  <div>
+                    <span className="font-bold block text-[9px] uppercase tracking-wider mb-0.5" style={{ color: '#94a3b8' }}>Salary Month</span>
+                    <strong className="text-xs" style={{ color: '#1e293b' }}>{selectedPayment.salaryMonth}</strong>
+                  </div>
+                  <div>
+                    <span className="font-bold block text-[9px] uppercase tracking-wider mb-0.5" style={{ color: '#94a3b8' }}>Department</span>
+                    <span className="font-semibold" style={{ color: '#334155' }}>{selectedPayment.department}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold block text-[9px] uppercase tracking-wider mb-0.5" style={{ color: '#94a3b8' }}>Designation</span>
+                    <span className="font-semibold" style={{ color: '#334155' }}>{selectedPayment.designation || 'Staff'}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold block text-[9px] uppercase tracking-wider mb-0.5" style={{ color: '#94a3b8' }}>Payment Method</span>
+                    <span className="font-semibold" style={{ color: '#334155' }}>{selectedPayment.paymentMethod === 'BankAccount' ? 'Bank Transfer' : 'Cash Book'}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold block text-[9px] uppercase tracking-wider mb-0.5" style={{ color: '#94a3b8' }}>Payment Date</span>
+                    <span className="font-semibold" style={{ color: '#334155' }}>{new Date(selectedPayment.paymentDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                  </div>
+                </div>
+
+                {/* Attendance Details Table */}
+                <div className="mb-5">
+                  <h4 className="text-[9px] font-bold uppercase tracking-widest mb-2" style={{ color: '#94a3b8' }}>Attendance & Wage Details</h4>
+                  <div className="rounded-xl overflow-hidden shadow-sm" style={{ border: '1px solid #f1f5f9' }}>
+                    <table className="w-full text-xs">
+                      <thead className="font-bold uppercase tracking-wider" style={{ backgroundColor: '#f8fafc', color: '#64748b', borderBottom: '1px solid #f1f5f9' }}>
+                        <tr>
+                          <th className="py-2.5 px-4 text-left font-bold">Base Monthly Salary</th>
+                          <th className="py-2.5 px-4 text-center font-bold">Working Days</th>
+                          <th className="py-2.5 px-4 text-center font-bold">Days Worked</th>
+                          <th className="py-2.5 px-4 text-right font-bold">Daily Rate</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-xs font-medium" style={{ color: '#334155' }}>
+                        <tr>
+                          <td className="py-3 px-4 font-semibold" style={{ color: '#0f172a' }}>₹{selectedPayment.monthlySalary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          <td className="py-3 px-4 text-center">{selectedPayment.workingDays} days</td>
+                          <td className="py-3 px-4 text-center font-semibold" style={{ color: '#4f46e5' }}>{selectedPayment.daysWorked} days</td>
+                          <td className="py-3 px-4 text-right font-semibold" style={{ color: '#0f172a' }}>₹{selectedPayment.dailySalary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Earnings & Deductions Grid */}
+                <div className="grid grid-cols-2 gap-5 mb-5">
+                  {/* Earnings */}
+                  <div className="rounded-xl p-4 shadow-sm" style={{ border: '1px solid #f1f5f9', backgroundColor: 'rgba(248, 250, 252, 0.5)' }}>
+                    <h4 className="text-[9px] font-bold uppercase tracking-widest mb-3 pb-1.5 flex justify-between items-center" style={{ color: '#94a3b8', borderBottom: '1px solid #e2e8f0' }}>
+                      <span>Earnings</span>
+                      <span className="text-[8px] font-bold px-1.5 py-0.2 rounded" style={{ backgroundColor: '#ecfdf5', color: '#047857', border: '1px solid #d1fae5' }}>Additions</span>
+                    </h4>
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between">
+                        <span style={{ color: '#64748b' }}>Gross Worked Salary</span>
+                        <span className="font-semibold" style={{ color: '#1e293b' }}>₹{selectedPayment.grossSalary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span style={{ color: '#64748b' }}>Bonus</span>
+                        <span className="font-bold" style={{ color: '#059669' }}>+₹{selectedPayment.bonus.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="pt-2 flex justify-between font-bold" style={{ borderTop: '1px solid #e2e8f0', color: '#0f172a' }}>
+                        <span>Total Earnings</span>
+                        <span>₹{(selectedPayment.grossSalary + selectedPayment.bonus).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Other Deductions</span>
-                      <span className="font-semibold text-red-500">-₹{selectedPayment.otherDeduction.toLocaleString('en-IN')}</span>
-                    </div>
-                    <div className="border-t border-slate-200 pt-2 flex justify-between font-bold text-slate-900">
-                      <span>Total Deductions</span>
-                      <span>₹{(selectedPayment.advanceDeduction + selectedPayment.otherDeduction).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+
+                  {/* Deductions */}
+                  <div className="rounded-xl p-4 shadow-sm" style={{ border: '1px solid #f1f5f9', backgroundColor: 'rgba(248, 250, 252, 0.5)' }}>
+                    <h4 className="text-[9px] font-bold uppercase tracking-widest mb-3 pb-1.5 flex justify-between items-center" style={{ color: '#94a3b8', borderBottom: '1px solid #e2e8f0' }}>
+                      <span>Deductions</span>
+                      <span className="text-[8px] font-bold px-1.5 py-0.2 rounded" style={{ backgroundColor: '#fff1f2', color: '#be123c', border: '1px solid #ffe4e6' }}>Subtractions</span>
+                    </h4>
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between">
+                        <span style={{ color: '#64748b' }}>Advance Deductions</span>
+                        <span className="font-semibold" style={{ color: '#1e293b' }}>-₹{selectedPayment.advanceDeduction.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span style={{ color: '#64748b' }}>Other Deductions</span>
+                        <span className="font-semibold" style={{ color: '#f43f5e' }}>-₹{selectedPayment.otherDeduction.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="pt-2 flex justify-between font-bold" style={{ borderTop: '1px solid #e2e8f0', color: '#0f172a' }}>
+                        <span>Total Deductions</span>
+                        <span>₹{(selectedPayment.advanceDeduction + selectedPayment.otherDeduction).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Net salary statement */}
-              <div className="bg-slate-900 text-white rounded-xl p-4 flex justify-between items-center mb-8">
-                <span className="text-xs font-bold uppercase tracking-wider opacity-70">Net Take-Home Salary</span>
-                <span className="text-xl font-black">₹{selectedPayment.netSalary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-              </div>
-
-              {/* Signature Area */}
-              <div className="flex justify-between items-end pt-12 border-t border-slate-100">
-                <div className="text-center w-40">
-                  <div className="h-[2px] bg-slate-300 w-full mb-2"></div>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Employee Signature</span>
+                {/* Net Take-Home Statement */}
+                <div className="rounded-xl p-4 flex justify-between items-center mb-6 shadow-sm" style={{ background: 'linear-gradient(to right, #2563eb, #4f46e5)', color: '#ffffff' }}>
+                  <div>
+                    <span className="text-[9px] font-bold uppercase tracking-wider block mb-0.5" style={{ opacity: 0.75 }}>Net Take-Home Salary</span>
+                    <span className="text-[10px] font-medium" style={{ opacity: 0.9 }}>Disbursed successfully</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xl font-black">₹{selectedPayment.netSalary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
                 </div>
-                <div className="text-center w-40">
-                  <div className="h-[2px] bg-slate-900 w-full mb-2"></div>
-                  <span className="text-[10px] text-slate-900 font-bold uppercase tracking-wider block">Authorized Signatory</span>
+
+                {selectedPayment.remarks && (
+                  <div className="mb-5 p-3 rounded-xl" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                    <span className="text-[8px] font-bold block uppercase tracking-wider mb-1" style={{ color: '#94a3b8' }}>Remarks</span>
+                    <p className="text-xs italic font-medium" style={{ color: '#475569' }}>"{selectedPayment.remarks}"</p>
+                  </div>
+                )}
+
+                {/* Signature Area */}
+                <div className="flex justify-between items-end pt-8" style={{ borderTop: '1px solid #f1f5f9' }}>
+                  <div className="text-center w-36">
+                    <div className="h-[1px] w-full mb-1.5" style={{ backgroundColor: '#e2e8f0' }}></div>
+                    <span className="text-[8px] font-bold uppercase tracking-wider block" style={{ color: '#94a3b8' }}>Employee Signature</span>
+                  </div>
+                  <div className="text-center w-36">
+                    <div className="flex justify-center mb-1.5">
+                      <span className="text-[8px] font-serif italic font-bold" style={{ color: '#6366f1' }}>Aquora ERP Official</span>
+                    </div>
+                    <div className="h-[1px] w-full mb-1.5" style={{ backgroundColor: '#0f172a' }}></div>
+                    <span className="text-[8px] font-bold uppercase tracking-wider block" style={{ color: '#0f172a' }}>Authorized Signatory</span>
+                  </div>
+                </div>
+
+                {/* Computer Generated Disclaimer */}
+                <div className="mt-6 text-center pt-3" style={{ borderTop: '1px solid #f8fafc' }}>
+                  <p className="text-[8px] font-medium" style={{ color: '#94a3b8' }}>
+                    This is a system-generated payslip generated on {new Date().toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}. No physical signature is required.
+                  </p>
                 </div>
               </div>
             </div>
@@ -1202,9 +1358,13 @@ export const PayrollPage: React.FC = () => {
               <EnterpriseButton onClick={() => setIsSlipOpen(false)} variant="secondary">
                 Close
               </EnterpriseButton>
-              <EnterpriseButton onClick={handlePrint} variant="primary">
+              <EnterpriseButton onClick={handlePrintOnlySlip} loading={isPrinting} variant="primary">
                 <Printer className="w-4 h-4 mr-2" />
-                Print Salary Slip
+                Print Slip
+              </EnterpriseButton>
+              <EnterpriseButton onClick={handleDownloadPdf} loading={isGeneratingPdf} variant="primary">
+                <FileText className="w-4 h-4 mr-2" />
+                Download PDF
               </EnterpriseButton>
             </div>
           </div>

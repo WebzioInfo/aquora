@@ -16,7 +16,10 @@ import {
   CheckCircle2,
   AlertCircle,
   History,
-  PlusCircle
+  PlusCircle,
+  Printer,
+  Download,
+  RotateCcw
 } from 'lucide-react'
 import { simpleAccountsService } from '../../../services/simpleAccounts'
 import { AddMoneyModal } from './AddMoneyModal'
@@ -31,6 +34,7 @@ import type {
   BankLedgerAuditEntry
 } from '../../../services/simpleAccounts'
 import { useNotificationStore } from '../../../store/useNotificationStore'
+import { useAuthStore } from '../../../store/useAuthStore'
 import EnterpriseButton from '../../../components/ui/EnterpriseButton'
 import EnterpriseModal from '../../../components/ui/EnterpriseModal'
 import EnterpriseInput from '../../../components/ui/EnterpriseInput'
@@ -108,6 +112,24 @@ export const BankAccountDetailsPage: React.FC = () => {
   const [historyItems, setHistoryItems] = useState<BankLedgerAuditEntry[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [selectedLedgerRef, setSelectedLedgerRef] = useState('')
+
+  // Reversal & Receipt Modal States
+  const [isReversalOpen, setIsReversalOpen] = useState(false)
+  const [reversingEntry, setReversingEntry] = useState<BankLedgerEntry | null>(null)
+  const [reversalReason, setReversalReason] = useState('')
+  const [submittingReversal, setSubmittingReversal] = useState(false)
+
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false)
+  const [receiptItem, setReceiptItem] = useState<BankLedgerEntry | null>(null)
+
+  const { user } = useAuthStore()
+  const roles = user?.roles || []
+  const isAdmin = roles.includes('CompanyAdmin') || roles.includes('SuperAdmin') || roles.includes('PlatformAdmin')
+  const isManager = roles.includes('Manager') || roles.includes('GeneralManager')
+
+  const canEdit = isAdmin
+  const canDelete = isAdmin
+  const canReverse = isAdmin || isManager
 
 
   useEffect(() => {
@@ -380,66 +402,156 @@ export const BankAccountDetailsPage: React.FC = () => {
     return { dayStr, timeStr }
   }
 
-  const getTransactionTypeBadge = (type: string) => {
-    const t = (type || '').toLowerCase()
+  const handleOpenReversal = (entry: BankLedgerEntry) => {
+    setReversingEntry(entry)
+    setReversalReason('')
+    setIsReversalOpen(true)
+  }
+
+  const handleConfirmReversal = async () => {
+    if (!reversingEntry) return
+    if (!reversalReason.trim()) {
+      showToast('Reversal reason is required.', 'error')
+      return
+    }
+
+    try {
+      setSubmittingReversal(true)
+      await simpleAccountsService.reverseBankLedgerEntry(reversingEntry.id, reversalReason)
+      showToast('Transaction reversed successfully and running balances updated.', 'success')
+      setIsReversalOpen(false)
+      setReversingEntry(null)
+      fetchData()
+      fetchLedger()
+    } catch (err: any) {
+      showToast(err.message || 'Failed to reverse transaction', 'error')
+    } finally {
+      setSubmittingReversal(false)
+    }
+  }
+
+  const handleDownloadPdf = (item: BankLedgerEntry) => {
+    const printContent = document.getElementById('payment-receipt-print')?.innerHTML;
+    const windowUrl = 'about:blank';
+    const uniqueName = new Date().getTime();
+    const windowName = 'Print' + uniqueName;
+    const printWindow = window.open(windowUrl, windowName, 'left=50000,top=50000,width=0,height=0');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Receipt-${item.referenceNumber}</title>
+            <style>
+              body { font-family: sans-serif; padding: 20px; color: #333; }
+              .text-right { text-align: right; }
+              .border-b { border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 20px; }
+              .grid { display: grid; grid-template-cols: 1fr 1fr; gap: 20px; }
+              .col-span-2 { grid-column: span 2; }
+              .bg-slate-50 { background-color: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; }
+              .text-lg { font-size: 18px; font-weight: bold; }
+              .text-xl { font-size: 24px; font-weight: bold; }
+              .no-print { display: none; }
+            </style>
+          </head>
+          <body>
+            ${printContent}
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+      showToast('PDF downloaded successfully.', 'success');
+    }
+  }
+
+  const getTransactionTypeBadge = (item: BankLedgerEntry) => {
+    const type = item.transactionType || ''
+    const relType = item.relatedEntityType || ''
+    const desc = (item.description || '').toLowerCase()
     
-    if (t.includes('reversal')) {
+    // Check Reversal first
+    if (relType.toLowerCase() === 'reversal' || type.toLowerCase().includes('reversal') || desc.includes('reversal')) {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-          Expense Updated
+          Reversal
         </span>
       )
     }
 
-    if (t.includes('updated') || t.includes('adjusted')) {
+    if (relType.toLowerCase() === 'purchase' || type.toLowerCase().includes('purchase')) {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-          Expense Updated
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200">
+          Purchase Payment
         </span>
       )
     }
-    if (t.includes('expense')) {
+
+    if (relType.toLowerCase() === 'expense' || type.toLowerCase().includes('expense')) {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
           Expense
         </span>
       )
     }
-    if (t.includes('opening balance')) {
+
+    if (relType.toLowerCase() === 'salary' || relType.toLowerCase() === 'payroll' || type.toLowerCase().includes('salary') || type.toLowerCase().includes('payroll') || desc.includes('salary') || desc.includes('payroll') || desc.includes('payslip')) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+          Salary
+        </span>
+      )
+    }
+
+    if (type.toLowerCase() === 'opening balance' || desc.includes('opening balance')) {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
           Opening Balance
         </span>
       )
     }
-    if (t.includes('investment')) {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-          Owner Investment
-        </span>
-      )
-    }
-    if (t.includes('withdrawal')) {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
-          Owner Withdrawal
-        </span>
-      )
-    }
-    if (t === 'deposit') {
+
+    if (type.toLowerCase() === 'deposit') {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
           Deposit
         </span>
       )
     }
-    if (t.includes('payment') || t.includes('deposit') || t.includes('received')) {
+
+    if (type.toLowerCase() === 'withdrawal') {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-          Payment Received
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-orange-50 text-orange-700 border border-orange-200">
+          Withdrawal
         </span>
       )
     }
+
+    if (type.toLowerCase().includes('transfer') || desc.includes('transfer')) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+          Bank Transfer
+        </span>
+      )
+    }
+
+    if (type.toLowerCase().includes('refund') || desc.includes('refund')) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+          Vendor Refund
+        </span>
+      )
+    }
+
+    if (type.toLowerCase().includes('receipt') || type.toLowerCase().includes('customer') || desc.includes('receipt') || desc.includes('customer')) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-200">
+          Customer Receipt
+        </span>
+      )
+    }
+
     return (
       <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
         {type}
@@ -554,15 +666,15 @@ export const BankAccountDetailsPage: React.FC = () => {
             iconBgClass="bg-rose-50"
           />
           <KPICard 
-            label="Transactions (Total)" 
-            value={summary.totalTransactions} 
-            subtitle={`${summary.todaysTransactions} Today • ${summary.thisMonthTransactions} This Month`}
+            label="Avg Monthly Flow" 
+            value={formatCurrency(summary.averageMonthlyFlow || 0)} 
+            subtitle={`Largest Credit: ${formatCurrency(summary.largestDeposit || 0)}`}
             icon={Activity}
           />
           <KPICard 
-            label="Largest Records" 
-            value={formatCurrency(summary.largestDeposit)} 
-            subtitle={`Largest Expense: ${formatCurrency(summary.largestExpense)}`}
+            label="Last Transaction" 
+            value={summary.lastTransactionAmount ? formatCurrency(summary.lastTransactionAmount) : '—'} 
+            subtitle={summary.lastTransactionDate ? `${new Date(summary.lastTransactionDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} • ${summary.lastTransactionDescription || ''}` : 'No transactions'}
             icon={Wallet}
             colorClass="text-slate-900"
           />
@@ -623,8 +735,8 @@ export const BankAccountDetailsPage: React.FC = () => {
               ) : (
                 ledgerItems.map((item) => {
                   const { dayStr, timeStr } = formatDateTime(item.transactionDate || item.createdAt)
-                  const isExpense = item.relatedEntityType?.toLowerCase() === 'expense' && !!item.relatedEntityId
-                  const isDeposit = item.transactionType?.toLowerCase() === 'deposit'
+                  const relType = (item.relatedEntityType || '').toLowerCase()
+                  const type = (item.transactionType || '').toLowerCase()
 
                   return (
                     <tr 
@@ -652,7 +764,7 @@ export const BankAccountDetailsPage: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-2.5 whitespace-nowrap">
-                        {getTransactionTypeBadge(item.transactionType)}
+                        {getTransactionTypeBadge(item)}
                       </td>
                       <td className="px-4 py-2.5 whitespace-nowrap">
                         <span className="text-xs text-slate-700 font-medium">
@@ -679,72 +791,165 @@ export const BankAccountDetailsPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-2.5 whitespace-nowrap text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Standard Audit Timeline Action */}
                           <button
                             onClick={() => handleOpenViewHistory(item.id, item.referenceNumber)}
-                            title="View Transaction History"
+                            title="View Audit History"
                             className="p-1 rounded-md text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
                           >
                             <History className="w-3.5 h-3.5" />
                           </button>
-                          {isExpense && (
+
+                          {/* Standard Print Action */}
+                          <button
+                            onClick={() => {
+                              setReceiptItem(item)
+                              setIsReceiptOpen(true)
+                            }}
+                            title="Print Payment Receipt"
+                            className="p-1 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Standard Download PDF Action */}
+                          <button
+                            onClick={() => handleDownloadPdf(item)}
+                            title="Download Receipt PDF"
+                            className="p-1 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Conditional Actions based on Source */}
+                          {relType === 'purchase' && (
+                            <>
+                              <button
+                                onClick={() => navigate(`/company/accounts/purchases/${item.relatedEntityId}`)}
+                                title="View Purchase Details"
+                                className="p-1 rounded-md text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 transition-colors"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              {canEdit && (
+                                <button
+                                  onClick={() => navigate(`/company/accounts/purchases/edit/${item.relatedEntityId}`)}
+                                  title="Edit Purchase"
+                                  className="p-1 rounded-md text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
+                                >
+                                  <PenSquare className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              {canReverse && !item.referenceNumber.startsWith('REV-') && (
+                                <button
+                                  onClick={() => handleOpenReversal(item)}
+                                  title="Reverse Ledger Entry"
+                                  className="p-1 rounded-md text-amber-600 hover:text-amber-800 hover:bg-amber-50 transition-colors"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </>
+                          )}
+
+                          {relType === 'expense' && (
                             <>
                               <button
                                 onClick={() => handleOpenViewExpense(item.relatedEntityId!)}
                                 title="View Expense Details"
-                                className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                                className="p-1 rounded-md text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 transition-colors"
                               >
                                 <Eye className="w-3.5 h-3.5" />
                               </button>
-                              <button
-                                type="button"
-                                onClick={(event) => handleOpenEditExpense(item, event)}
-                                title="Edit Expense"
-                                className="p-1 rounded-md text-[#1A56DB] hover:text-[#1A56DB]/80 hover:bg-blue-50 transition-colors"
-                              >
-                                <PenSquare className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleOpenDeleteExpense(item.relatedEntityId!, item.referenceNumber)}
-                                title="Delete Expense"
-                                className="p-1 rounded-md text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              {canEdit && (
+                                <button
+                                  onClick={(event) => handleOpenEditExpense(item, event)}
+                                  title="Edit Expense"
+                                  className="p-1 rounded-md text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
+                                >
+                                  <PenSquare className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              {canReverse && !item.referenceNumber.startsWith('REV-') && (
+                                <button
+                                  onClick={() => handleOpenReversal(item)}
+                                  title="Reverse Ledger Entry"
+                                  className="p-1 rounded-md text-amber-600 hover:text-amber-800 hover:bg-amber-50 transition-colors"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </>
                           )}
-                          {isDeposit && (
+
+                          {(relType === 'salary' || relType === 'payroll' || type.toLowerCase().includes('salary')) && (
+                            <>
+                              <button
+                                onClick={() => navigate('/company/accounts/payroll')}
+                                title="View Payroll Details"
+                                className="p-1 rounded-md text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 transition-colors"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              {canReverse && !item.referenceNumber.startsWith('REV-') && (
+                                <button
+                                  onClick={() => handleOpenReversal(item)}
+                                  title="Reverse Salary Payment"
+                                  className="p-1 rounded-md text-amber-600 hover:text-amber-800 hover:bg-amber-50 transition-colors"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </>
+                          )}
+
+                          {/* Manual Transactions */}
+                          {(type.toLowerCase() === 'deposit' || type.toLowerCase() === 'withdrawal' || type.toLowerCase() === 'opening balance') && (
                             <>
                               <button
                                 onClick={() => {
                                   setSelectedDepositEntry(item)
                                   setIsViewDepositOpen(true)
                                 }}
-                                title="View Deposit Details"
-                                className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                                title="View Details"
+                                className="p-1 rounded-md text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 transition-colors"
                               >
                                 <Eye className="w-3.5 h-3.5" />
                               </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedDepositEntry(item)
-                                  setIsEditDepositOpen(true)
-                                }}
-                                title="Edit Deposit"
-                                className="p-1 rounded-md text-[#1A56DB] hover:text-[#1A56DB]/80 hover:bg-blue-50 transition-colors"
-                              >
-                                <PenSquare className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedDepositEntry(item)
-                                  setIsDeleteDepositOpen(true)
-                                }}
-                                title="Delete Deposit"
-                                className="p-1 rounded-md text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              {canEdit && type.toLowerCase() !== 'opening balance' && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedDepositEntry(item)
+                                    setIsEditDepositOpen(true)
+                                  }}
+                                  title="Edit Transaction"
+                                  className="p-1 rounded-md text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
+                                >
+                                  <PenSquare className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              {canReverse && !item.referenceNumber.startsWith('REV-') && (
+                                <button
+                                  onClick={() => handleOpenReversal(item)}
+                                  title="Reverse Transaction"
+                                  className="p-1 rounded-md text-amber-600 hover:text-amber-800 hover:bg-amber-50 transition-colors"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedDepositEntry(item)
+                                    setIsDeleteDepositOpen(true)
+                                  }}
+                                  title="Delete Transaction"
+                                  className="p-1 rounded-md text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </>
                           )}
                         </div>
@@ -1139,7 +1344,7 @@ export const BankAccountDetailsPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-slate-400 font-medium">Amount</p>
-                <p className="text-sm font-bold text-emerald-600">{formatCurrency(selectedDepositEntry.credit)}</p>
+                <p className="text-sm font-bold text-emerald-600">{formatCurrency(selectedDepositEntry.credit || selectedDepositEntry.debit)}</p>
               </div>
               <div>
                 <p className="text-slate-400 font-medium">Reference Number</p>
@@ -1159,6 +1364,127 @@ export const BankAccountDetailsPage: React.FC = () => {
                 setIsViewDepositOpen(false)
                 setSelectedDepositEntry(null)
               }}>
+                Close
+              </EnterpriseButton>
+            </div>
+          </div>
+        </EnterpriseModal>
+      )}
+
+      {/* REVERSAL MODAL */}
+      {isReversalOpen && reversingEntry && (
+        <EnterpriseModal
+          isOpen={isReversalOpen}
+          onClose={() => {
+            setIsReversalOpen(false)
+            setReversingEntry(null)
+          }}
+          title="Reverse Ledger Transaction"
+        >
+          <form onSubmit={(e) => { e.preventDefault(); handleConfirmReversal(); }} className="space-y-4 text-xs text-left">
+            <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 p-3 rounded-lg text-amber-800">
+              <AlertCircle className="w-5 h-5 shrink-0" />
+              <div>
+                <span className="font-bold text-sm">Are you sure you want to reverse this transaction?</span>
+                <p className="mt-1 text-slate-600 font-medium">
+                  Ref: <span className="font-bold text-slate-800">{reversingEntry.referenceNumber || '—'}</span>
+                </p>
+                <p className="text-slate-600 font-medium">
+                  Amount: <span className="font-bold text-slate-800">{formatCurrency(reversingEntry.debit > 0 ? reversingEntry.debit : reversingEntry.credit)}</span>
+                </p>
+                <p className="mt-2 text-amber-800 font-semibold">
+                  This will create a new counter ledger entry to offset this transaction. Existing data will not be modified, maintaining full audit trail integrity.
+                </p>
+              </div>
+            </div>
+
+            <EnterpriseInput
+              label="Reason for Reversal"
+              placeholder="Provide a detailed explanation for auditing purposes (e.g. Returned goods, invoice cancellation, payment bounce)"
+              value={reversalReason}
+              onChange={(e) => setReversalReason(e.target.value)}
+              required
+            />
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+              <EnterpriseButton variant="secondary" onClick={() => {
+                setIsReversalOpen(false)
+                setReversingEntry(null)
+              }} disabled={submittingReversal}>
+                Cancel
+              </EnterpriseButton>
+              <EnterpriseButton 
+                type="submit" 
+                variant="primary" 
+                loading={submittingReversal}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                Confirm Reversal
+              </EnterpriseButton>
+            </div>
+          </form>
+        </EnterpriseModal>
+      )}
+
+      {/* PRINT RECEIPT MODAL */}
+      {isReceiptOpen && receiptItem && (
+        <EnterpriseModal
+          isOpen={isReceiptOpen}
+          onClose={() => {
+            setIsReceiptOpen(false)
+            setReceiptItem(null)
+          }}
+          title="Payment Receipt"
+        >
+          <div className="space-y-6 text-xs text-left">
+            <div id="payment-receipt-print" className="space-y-6 p-4 text-slate-800 bg-white rounded-lg border border-slate-100 shadow-2xs">
+              <div className="flex justify-between items-start border-b border-slate-200 pb-4">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">AQUORA ERP</h2>
+                  <p className="text-[10px] text-slate-500">Transaction Payment Receipt</p>
+                </div>
+                <div className="text-right">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    SUCCESS
+                  </span>
+                  <p className="text-[10px] text-slate-500 mt-1">Ref: {receiptItem.referenceNumber || '—'}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase">Payment Date</p>
+                  <p className="font-bold text-slate-800">
+                    {new Date(receiptItem.transactionDate || receiptItem.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase">Payment Source</p>
+                  <p className="font-bold text-slate-800">{receiptItem.transactionType}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase">Description</p>
+                  <p className="font-medium text-slate-800 bg-slate-50 p-2.5 rounded-lg border border-slate-200 mt-1">
+                    {receiptItem.description || 'No description provided'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-200 pt-4">
+                <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <span className="text-xs font-bold text-slate-500 uppercase">Total Payment Amount</span>
+                  <span className="text-base font-extrabold text-slate-900">
+                    {formatCurrency(receiptItem.debit > 0 ? receiptItem.debit : receiptItem.credit)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 no-print">
+              <EnterpriseButton variant="secondary" onClick={() => handleDownloadPdf(receiptItem)} className="gap-1.5">
+                <Download className="w-3.5 h-3.5" /> Download PDF
+              </EnterpriseButton>
+              <EnterpriseButton variant="secondary" onClick={() => setIsReceiptOpen(false)}>
                 Close
               </EnterpriseButton>
             </div>

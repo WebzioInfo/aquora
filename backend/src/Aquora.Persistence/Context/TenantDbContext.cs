@@ -83,6 +83,14 @@ namespace Aquora.Persistence.Context
         public DbSet<Aquora.Domain.Entities.Payroll.SalaryPayment> SalaryPayments => Set<Aquora.Domain.Entities.Payroll.SalaryPayment>();
         public DbSet<User> Users => Set<User>();
 
+        // Purchase Management & Asset History Module
+        public DbSet<Aquora.Domain.Entities.Finance.Vendor> Vendors => Set<Aquora.Domain.Entities.Finance.Vendor>();
+        public DbSet<Aquora.Domain.Entities.Finance.Purchase> Purchases => Set<Aquora.Domain.Entities.Finance.Purchase>();
+        public DbSet<Aquora.Domain.Entities.Finance.PurchaseItem> PurchaseItems => Set<Aquora.Domain.Entities.Finance.PurchaseItem>();
+        public DbSet<Aquora.Domain.Entities.Finance.PurchasePayment> PurchasePayments => Set<Aquora.Domain.Entities.Finance.PurchasePayment>();
+        public DbSet<Aquora.Domain.Entities.Finance.PurchaseTimelineEvent> PurchaseTimelineEvents => Set<Aquora.Domain.Entities.Finance.PurchaseTimelineEvent>();
+        public DbSet<Aquora.Domain.Entities.Finance.AssetHistory> AssetHistories => Set<Aquora.Domain.Entities.Finance.AssetHistory>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -105,6 +113,25 @@ namespace Aquora.Persistence.Context
 
             modelBuilder.Entity<RolePermission>()
                 .HasIndex(rp => new { rp.RoleId, rp.PermissionId });
+
+            // Purchase relationship configuration for EF Core cascade deletion
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.Purchase>()
+                .HasMany(p => p.Items)
+                .WithOne(i => i.Purchase)
+                .HasForeignKey(i => i.PurchaseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.Purchase>()
+                .HasMany(p => p.Payments)
+                .WithOne(p => p.Purchase)
+                .HasForeignKey(p => p.PurchaseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.Purchase>()
+                .HasMany(p => p.TimelineEvents)
+                .WithOne(t => t.Purchase)
+                .HasForeignKey(t => t.PurchaseId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // Brand configuration
             modelBuilder.Entity<Brand>()

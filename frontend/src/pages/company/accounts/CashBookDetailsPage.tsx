@@ -1,40 +1,102 @@
-import React, { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import {
-  ArrowLeft,
-  Wallet,
-  ArrowUpRight,
-  ArrowDownRight,
-  Activity,
-  Search,
-  History,
-  PlusCircle,
+import React, { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { 
+  ArrowLeft, 
+  Wallet, 
+  ArrowUpRight, 
+  ArrowDownRight, 
+  Activity, 
+  Search, 
+  Filter,
   Eye,
   PenSquare,
   Trash2,
-  AlertCircle
+  X,
+  CheckCircle2,
+  AlertCircle,
+  History,
+  PlusCircle,
+  Printer,
+  Download,
+  RotateCcw
 } from 'lucide-react'
 import { simpleAccountsService } from '../../../services/simpleAccounts'
-import type { BankLedgerEntry, BankSummary, CashBook } from '../../../services/simpleAccounts'
+import { AddMoneyModal } from './AddMoneyModal'
+import type { 
+  CashBook, 
+  BankSummary, 
+  BankLedgerEntry, 
+  BankLedgerFilter, 
+  SimpleExpense, 
+  UpdateSimpleExpenseRequest,
+  BankLedgerAuditEntry
+} from '../../../services/simpleAccounts'
+import { useNotificationStore } from '../../../store/useNotificationStore'
+import { useAuthStore } from '../../../store/useAuthStore'
 import EnterpriseButton from '../../../components/ui/EnterpriseButton'
 import EnterpriseModal from '../../../components/ui/EnterpriseModal'
+import EnterpriseInput from '../../../components/ui/EnterpriseInput'
+import EnterpriseNumberInput from '../../../components/ui/EnterpriseNumberInput'
+import EnterpriseSelect from '../../../components/ui/EnterpriseSelect'
 import { PageContainer, PageHeader, KPICard, SectionCard } from '../../../components/ui/layout'
-import { useNotificationStore } from '../../../store/useNotificationStore'
-import { AddMoneyModal } from './AddMoneyModal'
+
+const EXPENSE_CATEGORIES = [
+  'Rent & Infrastructure',
+  'Utilities & Power',
+  'Salaries & Wages',
+  'Raw Materials & Supplies',
+  'Logistics & Freight',
+  'Repairs & Maintenance',
+  'Marketing & Sales',
+  'Taxes & Licenses',
+  'Insurance',
+  'Office Supplies',
+  'Travel & Entertainment',
+  'Miscellaneous'
+]
 
 const CashBookDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { showToast } = useNotificationStore()
 
-  // State
   const [cashBook, setCashBook] = useState<CashBook | null>(null)
   const [summary, setSummary] = useState<BankSummary | null>(null)
   const [ledgerItems, setLedgerItems] = useState<BankLedgerEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
+  const [isNotFound, setIsNotFound] = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
+
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [totalCount, setTotalCount] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<BankLedgerFilter>({})
+
+  // Modals for Actions
+  const [isViewExpenseOpen, setIsViewExpenseOpen] = useState(false)
+  const [viewExpense, setViewExpense] = useState<SimpleExpense | null>(null)
+
+  const [isEditExpenseOpen, setIsEditExpenseOpen] = useState(false)
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null)
+  const [editingLedgerEntry, setEditingLedgerEntry] = useState<BankLedgerEntry | null>(null)
+  const [submittingEdit, setSubmittingEdit] = useState(false)
+  const [editFormData, setEditFormData] = useState<UpdateSimpleExpenseRequest>({
+    expenseDate: new Date().toISOString().split('T')[0],
+    category: 'Miscellaneous',
+    vendor: '',
+    description: '',
+    amount: 0,
+    paymentMethod: 'Cash',
+    cashBookId: id,
+    notes: ''
+  })
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null)
+  const [deletingRefNumber, setDeletingRefNumber] = useState<string>('')
+  const [submittingDelete, setSubmittingDelete] = useState(false)
 
   // Deposit Modal States
   const [isAddMoneyOpen, setIsAddMoneyOpen] = useState(false)
@@ -46,36 +108,82 @@ const CashBookDetailsPage: React.FC = () => {
 
   // Audit History Modal State
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
-  const [historyItems, setHistoryItems] = useState<any[]>([])
+  const [historyItems, setHistoryItems] = useState<BankLedgerAuditEntry[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [selectedLedgerRef, setSelectedLedgerRef] = useState('')
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 2
-    }).format(amount || 0)
+  // Reversal & Receipt Modal States
+  const [isReversalOpen, setIsReversalOpen] = useState(false)
+  const [reversingEntry, setReversingEntry] = useState<BankLedgerEntry | null>(null)
+  const [reversalReason, setReversalReason] = useState('')
+  const [submittingReversal, setSubmittingReversal] = useState(false)
 
-  const formatDateTime = (dateStr: string) => {
-    const date = new Date(dateStr?.endsWith('Z') ? dateStr : `${dateStr}Z`)
-    if (Number.isNaN(date.getTime())) return { dayStr: '-', timeStr: '' }
-    return {
-      dayStr: date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      timeStr: date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false)
+  const [receiptItem, setReceiptItem] = useState<BankLedgerEntry | null>(null)
+
+  const { user } = useAuthStore()
+  const roles = user?.roles || []
+  const isAdmin = roles.includes('CompanyAdmin') || roles.includes('SuperAdmin') || roles.includes('PlatformAdmin')
+  const isManager = roles.includes('Manager') || roles.includes('GeneralManager')
+
+  const canEdit = isAdmin
+  const canDelete = isAdmin
+  const canReverse = isAdmin || isManager
+
+  useEffect(() => {
+    if (id) {
+      fetchData()
     }
-  }
+  }, [id])
+
+  useEffect(() => {
+    if (id) {
+      fetchLedger()
+    }
+  }, [id, page, pageSize, filter])
 
   const fetchData = async () => {
     if (!id) return
     setLoading(true)
+    setIsNotFound(false)
+    setFetchError(null)
+
     try {
-      const account = await simpleAccountsService.getCashBookById(id)
-      setCashBook(account)
-      const sum = await simpleAccountsService.getCashBookSummary(id)
-      setSummary(sum)
+      // 1. Fetch Cash Book Details
+      const accountRes = await simpleAccountsService.getCashBookById(id)
+      if (!accountRes) {
+        setIsNotFound(true)
+        setLoading(false)
+        return
+      }
+      setCashBook(accountRes)
+
+      // 2. Fetch Cash Summary safely
+      try {
+        const summaryRes = await simpleAccountsService.getCashBookSummary(id)
+        setSummary(summaryRes)
+      } catch (sumErr: any) {
+        console.error('Failed to load cash summary:', sumErr)
+        setSummary({
+          currentBalance: accountRes.currentBalance,
+          totalTransactions: 0,
+          totalMoneyReceived: 0,
+          totalMoneyPaid: 0,
+          largestDeposit: 0,
+          largestExpense: 0,
+          todaysTransactions: 0,
+          thisMonthTransactions: 0
+        })
+      }
     } catch (err: any) {
-      console.error('Failed to load cash book details:', err)
+      console.error('Error fetching cash book:', err)
+      const status = err.response?.status || err.status
+      if (status === 404 || err.message?.toLowerCase().includes('not found')) {
+        setIsNotFound(true)
+      } else {
+        setFetchError(err.message || 'Failed to load cash book details')
+        showToast(err.message || 'Failed to load cash book details', 'error')
+      }
     } finally {
       setLoading(false)
     }
@@ -86,29 +194,155 @@ const CashBookDetailsPage: React.FC = () => {
     try {
       const res = await simpleAccountsService.getCashBookLedger(id, {
         pageNumber: page,
-        pageSize: 20,
-        search: search || undefined
+        pageSize: pageSize,
+        search: search || undefined,
+        ...filter
       })
       setLedgerItems(res?.items || [])
+      setTotalCount(res?.totalCount || 0)
       setTotalPages(res?.totalPages || 0)
     } catch (err: any) {
-      console.error('Failed to load ledger items:', err)
+      console.error('Failed to load cash ledger:', err)
       setLedgerItems([])
+      setTotalCount(0)
       setTotalPages(0)
     }
   }
 
-  const handleOpenViewHistory = async (entryId: string, refNum: string) => {
-    setSelectedLedgerRef(refNum || '')
-    setIsHistoryOpen(true)
-    setLoadingHistory(true)
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    setPage(1)
+    fetchLedger()
+  }
+
+  const handleOpenViewHistory = async (ledgerEntryId: string, referenceNumber: string) => {
     try {
-      const history = await simpleAccountsService.getLedgerHistory(entryId)
-      setHistoryItems(history || [])
+      setLoadingHistory(true)
+      setSelectedLedgerRef(referenceNumber || 'N/A')
+      setIsHistoryOpen(true)
+      const items = await simpleAccountsService.getLedgerHistory(ledgerEntryId)
+      setHistoryItems(items || [])
     } catch (err: any) {
-      showToast(err.message || 'Failed to load transaction history', 'error')
+      showToast(err.message || 'Failed to fetch transaction history', 'error')
+      setIsHistoryOpen(false)
     } finally {
       setLoadingHistory(false)
+    }
+  }
+
+  const handleOpenViewExpense = async (expenseId: string) => {
+    try {
+      const exp = await simpleAccountsService.getExpenseById(expenseId)
+      setViewExpense(exp)
+      setIsViewExpenseOpen(true)
+    } catch (err: any) {
+      showToast(err.message || 'Failed to fetch expense details', 'error')
+    }
+  }
+
+  const getNumberInputValue = (value: unknown) => {
+    if (typeof value === 'number') return value
+    if (typeof value === 'string') return Number(value) || 0
+
+    const eventValue = (value as { target?: { valueAsNumber?: number; value?: string } })?.target
+    if (eventValue) {
+      if (typeof eventValue.valueAsNumber === 'number' && !Number.isNaN(eventValue.valueAsNumber)) {
+        return eventValue.valueAsNumber
+      }
+      return Number(eventValue.value) || 0
+    }
+
+    return 0
+  }
+
+  const handleOpenEditExpense = async (
+    ledgerEntry: BankLedgerEntry,
+    event?: React.MouseEvent<HTMLButtonElement>
+  ) => {
+    event?.preventDefault()
+    event?.stopPropagation()
+
+    if (!ledgerEntry.relatedEntityId || ledgerEntry.relatedEntityType?.toLowerCase() !== 'expense') {
+      showToast('Only linked expense ledger entries can be edited from this view.', 'error')
+      return
+    }
+
+    try {
+      setEditingLedgerEntry(ledgerEntry)
+      const expenseId = ledgerEntry.relatedEntityId
+      const exp = await simpleAccountsService.getExpenseById(expenseId)
+      setEditingExpenseId(exp.id)
+      setEditFormData({
+        expenseDate: exp.expenseDate ? exp.expenseDate.split('T')[0] : new Date().toISOString().split('T')[0],
+        category: exp.category || 'Miscellaneous',
+        vendor: exp.vendor || '',
+        description: exp.description || '',
+        amount: exp.amount || 0,
+        paymentMethod: exp.paymentMethod || 'Cash',
+        cashBookId: exp.cashBookId || id,
+        notes: exp.notes || ''
+      })
+      setIsEditExpenseOpen(true)
+    } catch (err: any) {
+      console.error('Failed to open ledger expense editor:', err)
+      showToast(err.message || 'Failed to fetch expense for editing', 'error')
+      setEditingLedgerEntry(null)
+    }
+  }
+
+  const handleSaveEditExpense = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (submittingEdit) return
+
+    if (!editingExpenseId) {
+      showToast('Unable to save because no linked expense is selected.', 'error')
+      return
+    }
+
+    if (!editFormData.description.trim()) {
+      showToast('Description is required.', 'error')
+      return
+    }
+
+    if (editFormData.amount <= 0) {
+      showToast('Amount must be greater than zero.', 'error')
+      return
+    }
+
+    try {
+      setSubmittingEdit(true)
+      await simpleAccountsService.updateExpense(editingExpenseId, editFormData)
+      showToast('Expense updated successfully.', 'success')
+      setIsEditExpenseOpen(false)
+      setEditingLedgerEntry(null)
+      await Promise.all([fetchData(), fetchLedger()])
+    } catch (err: any) {
+      console.error('Failed to save ledger expense edit:', err)
+      showToast(err.message || 'Failed to update expense', 'error')
+    } finally {
+      setSubmittingEdit(false)
+    }
+  }
+
+  const handleOpenDeleteExpense = (expenseId: string, refNum: string) => {
+    setDeletingExpenseId(expenseId)
+    setDeletingRefNumber(refNum)
+    setIsDeleteModalOpen(true)
+  }
+
+  const handleConfirmDeleteExpense = async () => {
+    if (!deletingExpenseId) return
+    try {
+      setSubmittingDelete(true)
+      await simpleAccountsService.deleteExpense(deletingExpenseId)
+      showToast('Expense deleted and cash balance updated.', 'success')
+      setIsDeleteModalOpen(false)
+      fetchData()
+      fetchLedger()
+    } catch (err: any) {
+      showToast(err.message || 'Failed to delete expense', 'error')
+    } finally {
+      setSubmittingDelete(false)
     }
   }
 
@@ -129,27 +363,201 @@ const CashBookDetailsPage: React.FC = () => {
     }
   }
 
-  useEffect(() => {
-    fetchData()
-  }, [id])
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount || 0)
 
-  useEffect(() => {
-    fetchLedger()
-  }, [id, page])
+  const formatDateTime = (dateStr: string) => {
+    if (!dateStr) return { dayStr: '—', timeStr: '' }
+    const dateToParse = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : `${dateStr}Z`;
+    const date = new Date(dateToParse)
+    if (isNaN(date.getTime())) return { dayStr: '—', timeStr: '' }
+    const dayStr = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    return { dayStr, timeStr }
+  }
+
+  const handleOpenReversal = (entry: BankLedgerEntry) => {
+    setReversingEntry(entry)
+    setReversalReason('')
+    setIsReversalOpen(true)
+  }
+
+  const handleConfirmReversal = async () => {
+    if (!reversingEntry) return
+    if (!reversalReason.trim()) {
+      showToast('Reversal reason is required.', 'error')
+      return
+    }
+
+    try {
+      setSubmittingReversal(true)
+      await simpleAccountsService.reverseCashLedgerEntry(reversingEntry.id, reversalReason)
+      showToast('Transaction reversed successfully and running balances updated.', 'success')
+      setIsReversalOpen(false)
+      setReversingEntry(null)
+      fetchData()
+      fetchLedger()
+    } catch (err: any) {
+      showToast(err.message || 'Failed to reverse transaction', 'error')
+    } finally {
+      setSubmittingReversal(false)
+    }
+  }
+
+  const handleDownloadPdf = (item: BankLedgerEntry) => {
+    const printContent = document.getElementById('payment-receipt-print')?.innerHTML;
+    const windowUrl = 'about:blank';
+    const uniqueName = new Date().getTime();
+    const windowName = 'Print' + uniqueName;
+    const printWindow = window.open(windowUrl, windowName, 'left=50000,top=50000,width=0,height=0');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Receipt-${item.referenceNumber}</title>
+            <style>
+              body { font-family: sans-serif; padding: 20px; color: #333; }
+              .text-right { text-align: right; }
+              .border-b { border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 20px; }
+              .grid { display: grid; grid-template-cols: 1fr 1fr; gap: 20px; }
+              .col-span-2 { grid-column: span 2; }
+              .bg-slate-50 { background-color: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; }
+              .text-lg { font-size: 18px; font-weight: bold; }
+              .text-xl { font-size: 24px; font-weight: bold; }
+              .no-print { display: none; }
+            </style>
+          </head>
+          <body>
+            ${printContent}
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+      showToast('PDF downloaded successfully.', 'success');
+    }
+  }
+
+  const getTransactionTypeBadge = (item: BankLedgerEntry) => {
+    const type = item.transactionType || ''
+    const relType = item.relatedEntityType || ''
+    const desc = (item.description || '').toLowerCase()
+    
+    if (relType.toLowerCase() === 'reversal' || type.toLowerCase().includes('reversal') || desc.includes('reversal')) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+          Reversal
+        </span>
+      )
+    }
+
+    if (relType.toLowerCase() === 'purchase' || type.toLowerCase().includes('purchase')) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200">
+          Purchase Payment
+        </span>
+      )
+    }
+
+    if (relType.toLowerCase() === 'expense' || type.toLowerCase().includes('expense')) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+          Expense
+        </span>
+      )
+    }
+
+    if (relType.toLowerCase() === 'salary' || relType.toLowerCase() === 'payroll' || type.toLowerCase().includes('salary') || type.toLowerCase().includes('payroll') || desc.includes('salary') || desc.includes('payroll') || desc.includes('payslip')) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+          Salary
+        </span>
+      )
+    }
+
+    if (type.toLowerCase() === 'opening balance' || desc.includes('opening balance')) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+          Opening Balance
+        </span>
+      )
+    }
+
+    if (type.toLowerCase() === 'deposit') {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          Deposit
+        </span>
+      )
+    }
+
+    if (type.toLowerCase() === 'withdrawal') {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-orange-50 text-orange-700 border border-orange-200">
+          Withdrawal
+        </span>
+      )
+    }
+
+    if (type.toLowerCase().includes('transfer') || desc.includes('transfer')) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+          Bank Transfer
+        </span>
+      )
+    }
+
+    if (type.toLowerCase().includes('refund') || desc.includes('refund')) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+          Vendor Refund
+        </span>
+      )
+    }
+
+    if (type.toLowerCase().includes('receipt') || type.toLowerCase().includes('customer') || desc.includes('receipt') || desc.includes('customer')) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-200">
+          Customer Receipt
+        </span>
+      )
+    }
+
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+        {type}
+      </span>
+    )
+  }
 
   if (loading) {
     return (
       <div className="flex h-[calc(100vh-64px)] items-center justify-center bg-slate-50/50">
-        <p className="text-xs font-medium text-slate-500 animate-pulse">Loading cash book details...</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-3 border-slate-200 border-t-[#1A56DB] animate-spin"></div>
+          <p className="text-xs font-medium text-slate-500 animate-pulse">Loading cash book details...</p>
+        </div>
       </div>
     )
   }
 
-  if (!cashBook) {
+  if (isNotFound) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
-        <Wallet className="w-8 h-8 text-rose-500 mb-3" />
-        <h2 className="text-lg font-bold text-slate-900 mb-1">Cash book not found.</h2>
+        <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mb-3 border border-slate-100">
+          <Wallet className="w-6 h-6 text-slate-400" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900 mb-1">Cash Book Not Found</h2>
+        <p className="text-xs text-slate-500 mb-4 max-w-xs">
+          The cash book you are trying to view does not exist or has been deleted.
+        </p>
         <EnterpriseButton variant="primary" onClick={() => navigate('/company/accounts/ledger/cash-books')}>
           Back to Cash Books
         </EnterpriseButton>
@@ -157,32 +565,50 @@ const CashBookDetailsPage: React.FC = () => {
     )
   }
 
+  if (fetchError && !cashBook) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mb-3 border border-amber-100">
+          <Activity className="w-6 h-6 text-amber-500" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900 mb-1">Error Loading Details</h2>
+        <p className="text-xs text-slate-500 mb-4 max-w-xs">{fetchError}</p>
+        <EnterpriseButton variant="primary" onClick={() => fetchData()}>
+          Retry
+        </EnterpriseButton>
+      </div>
+    )
+  }
+
+  if (!cashBook) return null
+
   return (
     <PageContainer>
-      <PageHeader
+      {/* HEADER */}
+      <PageHeader 
         title={cashBook.name}
-        description={cashBook.description || 'Cash book ledger and running balance'}
+        description={cashBook.description || 'Cash ledger running balance statement'}
         icon={Wallet}
         badge={
-          <span
-            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-              cashBook.status === 'Active'
-                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                : 'bg-slate-100 text-slate-700 border border-slate-200'
-            }`}
-          >
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+            cashBook.status === 'Active' 
+              ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' 
+              : 'bg-slate-100 text-slate-700 border border-slate-200'
+          }`}>
             {cashBook.status}
           </span>
         }
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
             <div className="text-right px-3.5 py-1.5 bg-slate-50 rounded-lg border border-slate-200 shadow-2xs">
               <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Current Balance</p>
-              <p className="text-lg font-bold text-slate-900">{formatCurrency(cashBook.currentBalance)}</p>
+              <p className="text-lg font-bold text-slate-900">
+                {formatCurrency(cashBook.currentBalance)}
+              </p>
             </div>
-            <EnterpriseButton
-              variant="primary"
-              onClick={() => setIsAddMoneyOpen(true)}
+            <EnterpriseButton 
+              variant="primary" 
+              onClick={() => setIsAddMoneyOpen(true)} 
               className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 hover:border-emerald-700 text-white shrink-0"
             >
               <PlusCircle className="w-4 h-4" /> Add Money
@@ -194,159 +620,310 @@ const CashBookDetailsPage: React.FC = () => {
         }
       />
 
+      {/* KPI CARDS */}
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard
-            label="Total Received"
-            value={formatCurrency(summary.totalMoneyReceived)}
+          <KPICard 
+            label="Total Received" 
+            value={formatCurrency(summary.totalMoneyReceived)} 
             icon={ArrowDownRight}
             colorClass="text-emerald-600"
             iconColorClass="text-emerald-600"
             iconBgClass="bg-emerald-50"
           />
-          <KPICard
-            label="Total Paid"
-            value={formatCurrency(summary.totalMoneyPaid)}
+          <KPICard 
+            label="Total Paid" 
+            value={formatCurrency(summary.totalMoneyPaid)} 
             icon={ArrowUpRight}
             colorClass="text-rose-600"
             iconColorClass="text-rose-600"
             iconBgClass="bg-rose-50"
           />
-          <KPICard
-            label="Transactions"
-            value={summary.totalTransactions}
-            subtitle={`${summary.todaysTransactions} Today • ${summary.thisMonthTransactions} This Month`}
+          <KPICard 
+            label="Avg Monthly Flow" 
+            value={formatCurrency(summary.averageMonthlyFlow || 0)} 
+            subtitle={`Largest Credit: ${formatCurrency(summary.largestDeposit || 0)}`}
             icon={Activity}
           />
-          <KPICard
-            label="Largest Records"
-            value={formatCurrency(summary.largestDeposit)}
-            subtitle={`Largest Payment: ${formatCurrency(summary.largestExpense)}`}
+          <KPICard 
+            label="Last Transaction" 
+            value={summary.lastTransactionAmount ? formatCurrency(summary.lastTransactionAmount) : '—'} 
+            subtitle={summary.lastTransactionDate ? `${new Date(summary.lastTransactionDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} • ${summary.lastTransactionDescription || ''}` : 'No transactions'}
             icon={Wallet}
+            colorClass="text-slate-900"
           />
         </div>
       )}
 
-      <SectionCard title="Cash Ledger" description="Complete cash transaction history and running balance statement.">
-        <div className="px-4 py-3 bg-slate-50/50 border-b border-slate-200">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              setPage(1)
-              fetchLedger()
-            }}
-            className="relative max-w-xs"
-          >
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search ref or description..."
-              className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </form>
+      {/* COMPACT CASH LEDGER TABLE */}
+      <SectionCard title="Cash Ledger" description="Complete transaction history and running balance statement.">
+        <div className="px-4 py-3 bg-slate-50/50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          
+          <div className="flex items-center gap-2">
+            <form onSubmit={handleSearch} className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search ref or description..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#1A56DB]/20 focus:border-[#1A56DB] w-full sm:w-56 transition-all shadow-2xs"
+              />
+            </form>
+            <EnterpriseButton variant="secondary" onClick={() => {}} className="gap-1.5 py-1.5 text-xs shrink-0">
+              <Filter className="w-3.5 h-3.5" />
+              Filter
+            </EnterpriseButton>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
-              <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                <th className="px-4 py-2.5 text-left">Date</th>
-                <th className="px-4 py-2.5 text-left">Reference</th>
-                <th className="px-4 py-2.5 text-left">Transaction Type</th>
-                <th className="px-4 py-2.5 text-left">Recorded By</th>
-                <th className="px-4 py-2.5 text-right">Debit</th>
-                <th className="px-4 py-2.5 text-right">Credit</th>
-                <th className="px-4 py-2.5 text-right">Running Balance</th>
-                <th className="px-4 py-2.5 text-right">Actions</th>
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Date & Time</th>
+                <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Ref / Details</th>
+                <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Transaction Type</th>
+                <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Recorded By</th>
+                <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider text-right whitespace-nowrap">Debit (Out)</th>
+                <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider text-right whitespace-nowrap">Credit (In)</th>
+                <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider text-right whitespace-nowrap">Running Balance</th>
+                <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-slate-100">
               {ledgerItems.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-xs text-slate-500">
-                    There are no ledger entries for this cash book yet.
+                  <td colSpan={8}>
+                    <div className="flex flex-col items-center justify-center py-12 px-4">
+                      <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mb-3 border border-slate-100">
+                        <Activity className="w-6 h-6 text-slate-300" />
+                      </div>
+                      <h3 className="text-sm font-bold text-slate-900 mb-0.5">No transactions available.</h3>
+                      <p className="text-xs text-slate-500 text-center max-w-xs">
+                        There are no ledger entries for this cash book yet.
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 ledgerItems.map((item) => {
-                  const d = formatDateTime(item.transactionDate || item.createdAt)
-                  const isDeposit = item.transactionType?.toLowerCase() === 'deposit'
+                  const { dayStr, timeStr } = formatDateTime(item.transactionDate || item.createdAt)
+                  const relType = (item.relatedEntityType || '').toLowerCase()
+                  const type = (item.transactionType || '').toLowerCase()
 
                   return (
-                    <tr key={item.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-2.5">
-                        <span className="text-xs font-semibold text-slate-900">{d.dayStr}</span>
-                        <span className="block text-[10px] text-slate-500">{d.timeStr}</span>
+                    <tr 
+                      key={item.id} 
+                      className="group hover:bg-slate-50/80 transition-colors"
+                    >
+                      <td className="px-4 py-2.5 whitespace-nowrap">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-semibold text-slate-900">
+                            {dayStr}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-medium">
+                            {timeStr}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-4 py-2.5">
-                        <span className="text-xs font-semibold text-slate-900">{item.referenceNumber || '-'}</span>
-                        <span className="block text-[11px] text-slate-500 truncate max-w-xs" title={item.description}>
-                          {item.description || 'No description'}
+                        <div className="flex flex-col max-w-xs">
+                          <span className="text-xs font-semibold text-slate-900 truncate">
+                            {item.referenceNumber || '—'}
+                          </span>
+                          <span className="text-[11px] text-slate-500 truncate" title={item.description}>
+                            {item.description || 'No description provided'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 whitespace-nowrap">
+                        {getTransactionTypeBadge(item)}
+                      </td>
+                      <td className="px-4 py-2.5 whitespace-nowrap">
+                        <span className="text-xs text-slate-700 font-medium">
+                          {item.createdBy || 'System'}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5">
-                        {item.transactionType?.toLowerCase() === 'deposit' ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            Deposit
+                      <td className="px-4 py-2.5 whitespace-nowrap text-right">
+                        {item.debit > 0 ? (
+                          <span className="text-xs font-bold text-rose-600">
+                            {formatCurrency(item.debit)}
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-50 text-slate-700 border border-slate-200">
-                            {item.transactionType}
+                        ) : <span className="text-xs text-slate-300">—</span>}
+                      </td>
+                      <td className="px-4 py-2.5 whitespace-nowrap text-right">
+                        {item.credit > 0 ? (
+                          <span className="text-xs font-bold text-emerald-600">
+                            {formatCurrency(item.credit)}
                           </span>
-                        )}
+                        ) : <span className="text-xs text-slate-300">—</span>}
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-slate-700">{item.createdBy || 'System'}</td>
-                      <td className="px-4 py-2.5 text-right text-xs font-bold text-rose-600">
-                        {item.debit > 0 ? formatCurrency(item.debit) : '-'}
+                      <td className="px-4 py-2.5 whitespace-nowrap text-right">
+                        <span className="text-xs font-bold text-slate-900">
+                          {formatCurrency(item.runningBalance)}
+                        </span>
                       </td>
-                      <td className="px-4 py-2.5 text-right text-xs font-bold text-emerald-600">
-                        {item.credit > 0 ? formatCurrency(item.credit) : '-'}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-xs font-bold text-slate-900">
-                        {formatCurrency(item.runningBalance)}
-                      </td>
-                      <td className="px-4 py-2.5 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                      <td className="px-4 py-2.5 whitespace-nowrap text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Standard Audit Timeline Action */}
                           <button
                             onClick={() => handleOpenViewHistory(item.id, item.referenceNumber)}
-                            title="View Transaction History"
-                            className="p-1 rounded-md text-indigo-500 hover:bg-indigo-50 transition-colors"
+                            title="View Audit History"
+                            className="p-1 rounded-md text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
                           >
                             <History className="w-3.5 h-3.5" />
                           </button>
-                          {isDeposit && (
+
+                          {/* Standard Print Action */}
+                          <button
+                            onClick={() => {
+                              setReceiptItem(item)
+                              setIsReceiptOpen(true)
+                            }}
+                            title="Print Payment Receipt"
+                            className="p-1 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Standard Download PDF Action */}
+                          <button
+                            onClick={() => handleDownloadPdf(item)}
+                            title="Download Receipt PDF"
+                            className="p-1 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Conditional Actions based on Source */}
+                          {relType === 'purchase' && (
+                            <>
+                              <button
+                                onClick={() => navigate(`/company/accounts/purchases/${item.relatedEntityId}`)}
+                                title="View Purchase Details"
+                                className="p-1 rounded-md text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 transition-colors"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              {canEdit && (
+                                <button
+                                  onClick={() => navigate(`/company/accounts/purchases/edit/${item.relatedEntityId}`)}
+                                  title="Edit Purchase"
+                                  className="p-1 rounded-md text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
+                                >
+                                  <PenSquare className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              {canReverse && !item.referenceNumber.startsWith('REV-') && (
+                                <button
+                                  onClick={() => handleOpenReversal(item)}
+                                  title="Reverse Ledger Entry"
+                                  className="p-1 rounded-md text-amber-600 hover:text-amber-800 hover:bg-amber-50 transition-colors"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </>
+                          )}
+
+                          {relType === 'expense' && (
+                            <>
+                              <button
+                                onClick={() => handleOpenViewExpense(item.relatedEntityId!)}
+                                title="View Expense Details"
+                                className="p-1 rounded-md text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 transition-colors"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              {canEdit && (
+                                <button
+                                  onClick={(event) => handleOpenEditExpense(item, event)}
+                                  title="Edit Expense"
+                                  className="p-1 rounded-md text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
+                                >
+                                  <PenSquare className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              {canReverse && !item.referenceNumber.startsWith('REV-') && (
+                                <button
+                                  onClick={() => handleOpenReversal(item)}
+                                  title="Reverse Ledger Entry"
+                                  className="p-1 rounded-md text-amber-600 hover:text-amber-800 hover:bg-amber-50 transition-colors"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </>
+                          )}
+
+                          {(relType === 'salary' || relType === 'payroll' || type.toLowerCase().includes('salary')) && (
+                            <>
+                              <button
+                                onClick={() => navigate('/company/accounts/payroll')}
+                                title="View Payroll Details"
+                                className="p-1 rounded-md text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 transition-colors"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              {canReverse && !item.referenceNumber.startsWith('REV-') && (
+                                <button
+                                  onClick={() => handleOpenReversal(item)}
+                                  title="Reverse Salary Payment"
+                                  className="p-1 rounded-md text-amber-600 hover:text-amber-800 hover:bg-amber-50 transition-colors"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </>
+                          )}
+
+                          {/* Manual Transactions */}
+                          {(type.toLowerCase() === 'deposit' || type.toLowerCase() === 'withdrawal' || type.toLowerCase() === 'opening balance') && (
                             <>
                               <button
                                 onClick={() => {
                                   setSelectedDepositEntry(item)
                                   setIsViewDepositOpen(true)
                                 }}
-                                title="View Deposit Details"
-                                className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                                title="View Details"
+                                className="p-1 rounded-md text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 transition-colors"
                               >
                                 <Eye className="w-3.5 h-3.5" />
                               </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedDepositEntry(item)
-                                  setIsEditDepositOpen(true)
-                                }}
-                                title="Edit Deposit"
-                                className="p-1 rounded-md text-[#1A56DB] hover:text-[#1A56DB]/80 hover:bg-blue-50 transition-colors"
-                              >
-                                <PenSquare className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedDepositEntry(item)
-                                  setIsDeleteDepositOpen(true)
-                                }}
-                                title="Delete Deposit"
-                                className="p-1 rounded-md text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              {canEdit && type.toLowerCase() !== 'opening balance' && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedDepositEntry(item)
+                                    setIsEditDepositOpen(true)
+                                  }}
+                                  title="Edit Transaction"
+                                  className="p-1 rounded-md text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
+                                >
+                                  <PenSquare className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              {canReverse && !item.referenceNumber.startsWith('REV-') && (
+                                <button
+                                  onClick={() => handleOpenReversal(item)}
+                                  title="Reverse Transaction"
+                                  className="p-1 rounded-md text-amber-600 hover:text-amber-800 hover:bg-amber-50 transition-colors"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedDepositEntry(item)
+                                    setIsDeleteDepositOpen(true)
+                                  }}
+                                  title="Delete Transaction"
+                                  className="p-1 rounded-md text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </>
                           )}
                         </div>
@@ -359,97 +936,189 @@ const CashBookDetailsPage: React.FC = () => {
           </table>
         </div>
 
+        {/* COMPACT PAGINATION */}
         {totalPages > 1 && (
-          <div className="px-4 py-2.5 border-t border-slate-200 flex justify-end gap-1.5 bg-slate-50">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="px-2.5 py-1 border border-slate-200 rounded-md text-xs disabled:opacity-50 hover:bg-white transition-colors"
-            >
-              Previous
-            </button>
-            <button
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="px-2.5 py-1 border border-slate-200 rounded-md text-xs disabled:opacity-50 hover:bg-white transition-colors"
-            >
-              Next
-            </button>
+          <div className="px-4 py-2.5 border-t border-slate-200 flex items-center justify-between bg-slate-50 text-xs">
+            <span className="text-slate-500">
+              Showing <span className="font-medium text-slate-900">{(page - 1) * pageSize + 1}</span> to <span className="font-medium text-slate-900">{Math.min(page * pageSize, totalCount)}</span> of <span className="font-medium text-slate-900">{totalCount}</span> entries
+            </span>
+            <div className="flex gap-1.5">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage(p => p - 1)}
+                className="px-2.5 py-1 border border-slate-200 rounded-md text-xs font-medium text-slate-600 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed bg-slate-50 transition-colors shadow-2xs"
+              >
+                Previous
+              </button>
+              <button
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => p + 1)}
+                className="px-2.5 py-1 border border-slate-200 rounded-md text-xs font-medium text-slate-600 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed bg-slate-50 transition-colors shadow-2xs"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </SectionCard>
 
-      {/* ADD DEPOSIT MODAL */}
-      <AddMoneyModal
-        isOpen={isAddMoneyOpen}
-        onClose={() => setIsAddMoneyOpen(false)}
-        cashBookId={id}
-        onSuccess={() => {
-          fetchData()
-          fetchLedger()
-        }}
-      />
-
-      {/* EDIT DEPOSIT MODAL */}
-      <AddMoneyModal
-        isOpen={isEditDepositOpen}
-        onClose={() => {
-          setIsEditDepositOpen(false)
-          setSelectedDepositEntry(null)
-        }}
-        cashBookId={id}
-        ledgerEntry={selectedDepositEntry}
-        onSuccess={() => {
-          fetchData()
-          fetchLedger()
-        }}
-      />
-
-      {/* DELETE DEPOSIT MODAL */}
-      {isDeleteDepositOpen && selectedDepositEntry && (
+      {/* VIEW EXPENSE MODAL */}
+      {isViewExpenseOpen && viewExpense && (
         <EnterpriseModal
-          isOpen={isDeleteDepositOpen}
-          onClose={() => {
-            setIsDeleteDepositOpen(false)
-            setSelectedDepositEntry(null)
-          }}
-          title="Delete Deposit Transaction"
+          isOpen={isViewExpenseOpen}
+          onClose={() => setIsViewExpenseOpen(false)}
+          title={`Expense Details - ${viewExpense.expenseNumber}`}
+        >
+          <div className="space-y-4 text-xs text-left">
+            <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3 rounded-lg border border-slate-200">
+              <div>
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Expense Date</p>
+                <p className="text-xs font-bold text-slate-900">
+                  {new Date(viewExpense.expenseDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Amount</p>
+                <p className="text-xs font-bold text-rose-600">{formatCurrency(viewExpense.amount)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Category</p>
+                <p className="text-xs font-medium text-slate-800">{viewExpense.category}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Payment Method</p>
+                <p className="text-xs font-medium text-slate-800">{viewExpense.paidFrom || viewExpense.paymentMethod}</p>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Description</p>
+              <p className="text-xs text-slate-800 bg-white p-2 rounded-lg border border-slate-200">{viewExpense.description || 'N/A'}</p>
+            </div>
+
+            {viewExpense.vendor && (
+              <div>
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Vendor</p>
+                <p className="text-xs text-slate-800">{viewExpense.vendor}</p>
+              </div>
+            )}
+
+            {viewExpense.notes && (
+              <div>
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Notes</p>
+                <p className="text-xs text-slate-600 italic bg-white p-2 rounded-lg border border-slate-200">{viewExpense.notes}</p>
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-slate-200 flex justify-end">
+              <EnterpriseButton variant="secondary" onClick={() => setIsViewExpenseOpen(false)}>
+                Close
+              </EnterpriseButton>
+            </div>
+          </div>
+        </EnterpriseModal>
+      )}
+
+      {/* EDIT EXPENSE MODAL */}
+      {isEditExpenseOpen && (
+        <EnterpriseModal
+          isOpen={isEditExpenseOpen}
+          onClose={() => setIsEditExpenseOpen(false)}
+          title="Edit Expense"
+        >
+          <form onSubmit={handleSaveEditExpense} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+              <EnterpriseInput
+                type="date"
+                label="Expense Date"
+                value={editFormData.expenseDate}
+                onChange={(e) => setEditFormData({ ...editFormData, expenseDate: e.target.value })}
+                required
+              />
+              <EnterpriseSelect
+                label="Category"
+                value={editFormData.category}
+                onChange={(e) => setEditFormData({ ...editFormData, category: e.target.value })}
+                options={EXPENSE_CATEGORIES.map(c => ({ value: c, label: c }))}
+                required
+              />
+            </div>
+
+            <EnterpriseInput
+              label="Description"
+              placeholder="e.g. Office electricity bill payment"
+              value={editFormData.description}
+              onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+              required
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+              <EnterpriseNumberInput
+                label="Amount (₹)"
+                value={editFormData.amount}
+                onChange={(val) => setEditFormData({ ...editFormData, amount: getNumberInputValue(val) })}
+                required
+                min={0.01}
+              />
+              <EnterpriseInput
+                label="Vendor (Optional)"
+                placeholder="e.g. EB Department"
+                value={editFormData.vendor || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, vendor: e.target.value })}
+              />
+            </div>
+
+            <div className="text-left">
+              <EnterpriseInput
+                label="Notes (Optional)"
+                placeholder="Internal notes"
+                value={editFormData.notes || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+              <EnterpriseButton variant="secondary" onClick={() => setIsEditExpenseOpen(false)} disabled={submittingEdit}>
+                Cancel
+              </EnterpriseButton>
+              <EnterpriseButton type="submit" variant="primary" loading={submittingEdit}>
+                Save Changes
+              </EnterpriseButton>
+            </div>
+          </form>
+        </EnterpriseModal>
+      )}
+
+      {/* DELETE EXPENSE MODAL */}
+      {isDeleteModalOpen && (
+        <EnterpriseModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          title="Delete Expense"
         >
           <div className="space-y-4 text-xs text-left">
             <div className="flex items-start gap-3 bg-rose-50 border border-rose-200 p-3 rounded-lg text-rose-700">
               <AlertCircle className="w-5 h-5 shrink-0" />
               <div>
-                <span className="font-bold text-sm">Are you sure you want to delete this deposit?</span>
-                <p className="mt-1 text-slate-600 font-medium">
-                  Ref: <span className="font-bold text-slate-800">{selectedDepositEntry.referenceNumber || '—'}</span>
-                </p>
-                <p className="text-slate-600 font-medium">
-                  Amount: <span className="font-bold text-slate-800">{formatCurrency(selectedDepositEntry.credit)}</span>
-                </p>
+                <span className="font-bold text-sm">Delete this expense?</span>
+                <p className="mt-1 text-slate-600 font-medium">Ref: <span className="font-bold text-slate-800">{deletingRefNumber}</span></p>
                 <p className="mt-2 text-rose-700 font-semibold">
-                  Deleting this deposit will permanently remove it from the ledger history and decrease the current cash balance. This cannot be undone.
+                  This will permanently delete the expense from the system and restore the cash book balance. This action cannot be undone.
                 </p>
               </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
-              <EnterpriseButton
-                variant="secondary"
-                onClick={() => {
-                  setIsDeleteDepositOpen(false)
-                  setSelectedDepositEntry(null)
-                }}
-                disabled={submittingDeleteDeposit}
-              >
+              <EnterpriseButton variant="secondary" onClick={() => setIsDeleteModalOpen(false)} disabled={submittingDelete}>
                 Cancel
               </EnterpriseButton>
-              <EnterpriseButton
-                variant="primary"
-                onClick={handleDeleteDeposit}
-                loading={submittingDeleteDeposit}
+              <EnterpriseButton 
+                variant="primary" 
+                onClick={handleConfirmDeleteExpense} 
+                loading={submittingDelete}
                 className="bg-rose-600 hover:bg-rose-700 text-white"
               >
-                Delete Deposit
+                Delete Expense
               </EnterpriseButton>
             </div>
           </div>
@@ -476,7 +1145,7 @@ const CashBookDetailsPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-slate-400 font-medium">Amount</p>
-                <p className="text-sm font-bold text-emerald-600">{formatCurrency(selectedDepositEntry.credit)}</p>
+                <p className="text-sm font-bold text-emerald-600">{formatCurrency(selectedDepositEntry.credit || selectedDepositEntry.debit)}</p>
               </div>
               <div>
                 <p className="text-slate-400 font-medium">Reference Number</p>
@@ -489,18 +1158,134 @@ const CashBookDetailsPage: React.FC = () => {
             </div>
             <div>
               <p className="text-slate-400 font-medium">Description</p>
-              <p className="text-xs font-semibold text-slate-900 bg-slate-50 p-2 border border-slate-100 rounded-lg">
-                {selectedDepositEntry.description || '—'}
-              </p>
+              <p className="text-xs font-semibold text-slate-900 bg-slate-50 p-2 border border-slate-100 rounded-lg">{selectedDepositEntry.description || '—'}</p>
             </div>
             <div className="pt-2 border-t border-slate-200 flex justify-end">
-              <EnterpriseButton
-                variant="secondary"
-                onClick={() => {
-                  setIsViewDepositOpen(false)
-                  setSelectedDepositEntry(null)
-                }}
+              <EnterpriseButton variant="secondary" onClick={() => {
+                setIsViewDepositOpen(false)
+                setSelectedDepositEntry(null)
+              }}>
+                Close
+              </EnterpriseButton>
+            </div>
+          </div>
+        </EnterpriseModal>
+      )}
+
+      {/* REVERSAL MODAL */}
+      {isReversalOpen && reversingEntry && (
+        <EnterpriseModal
+          isOpen={isReversalOpen}
+          onClose={() => {
+            setIsReversalOpen(false)
+            setReversingEntry(null)
+          }}
+          title="Reverse Ledger Transaction"
+        >
+          <form onSubmit={(e) => { e.preventDefault(); handleConfirmReversal(); }} className="space-y-4 text-xs text-left">
+            <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 p-3 rounded-lg text-amber-800">
+              <AlertCircle className="w-5 h-5 shrink-0" />
+              <div>
+                <span className="font-bold text-sm">Are you sure you want to reverse this transaction?</span>
+                <p className="mt-1 text-slate-600 font-medium">
+                  Ref: <span className="font-bold text-slate-800">{reversingEntry.referenceNumber || '—'}</span>
+                </p>
+                <p className="text-slate-600 font-medium">
+                  Amount: <span className="font-bold text-slate-800">{formatCurrency(reversingEntry.debit > 0 ? reversingEntry.debit : reversingEntry.credit)}</span>
+                </p>
+                <p className="mt-2 text-amber-800 font-semibold">
+                  This will create a new counter ledger entry to offset this transaction. Existing data will not be modified, maintaining full audit trail integrity.
+                </p>
+              </div>
+            </div>
+
+            <EnterpriseInput
+              label="Reason for Reversal"
+              placeholder="Provide a detailed explanation for auditing purposes (e.g. Returned goods, invoice cancellation, payment bounce)"
+              value={reversalReason}
+              onChange={(e) => setReversalReason(e.target.value)}
+              required
+            />
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+              <EnterpriseButton variant="secondary" onClick={() => {
+                setIsReversalOpen(false)
+                setReversingEntry(null)
+              }} disabled={submittingReversal}>
+                Cancel
+              </EnterpriseButton>
+              <EnterpriseButton 
+                type="submit" 
+                variant="primary" 
+                loading={submittingReversal}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
               >
+                Confirm Reversal
+              </EnterpriseButton>
+            </div>
+          </form>
+        </EnterpriseModal>
+      )}
+
+      {/* PRINT RECEIPT MODAL */}
+      {isReceiptOpen && receiptItem && (
+        <EnterpriseModal
+          isOpen={isReceiptOpen}
+          onClose={() => {
+            setIsReceiptOpen(false)
+            setReceiptItem(null)
+          }}
+          title="Payment Receipt"
+        >
+          <div className="space-y-6 text-xs text-left">
+            <div id="payment-receipt-print" className="space-y-6 p-4 text-slate-800 bg-white rounded-lg border border-slate-100 shadow-2xs">
+              <div className="flex justify-between items-start border-b border-slate-200 pb-4">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">AQUORA ERP</h2>
+                  <p className="text-[10px] text-slate-500">Transaction Payment Receipt</p>
+                </div>
+                <div className="text-right">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    SUCCESS
+                  </span>
+                  <p className="text-[10px] text-slate-500 mt-1">Ref: {receiptItem.referenceNumber || '—'}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase">Payment Date</p>
+                  <p className="font-bold text-slate-800">
+                    {new Date(receiptItem.transactionDate || receiptItem.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase">Payment Source</p>
+                  <p className="font-bold text-slate-800">{receiptItem.transactionType}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase">Description</p>
+                  <p className="font-medium text-slate-800 bg-slate-50 p-2.5 rounded-lg border border-slate-200 mt-1">
+                    {receiptItem.description || 'No description provided'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-200 pt-4">
+                <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <span className="text-xs font-bold text-slate-500 uppercase">Total Payment Amount</span>
+                  <span className="text-base font-extrabold text-slate-900">
+                    {formatCurrency(receiptItem.debit > 0 ? receiptItem.debit : receiptItem.credit)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 no-print">
+              <EnterpriseButton variant="secondary" onClick={() => handleDownloadPdf(receiptItem)} className="gap-1.5">
+                <Download className="w-3.5 h-3.5" /> Download PDF
+              </EnterpriseButton>
+              <EnterpriseButton variant="secondary" onClick={() => setIsReceiptOpen(false)}>
                 Close
               </EnterpriseButton>
             </div>

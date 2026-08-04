@@ -1,0 +1,41 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Aquora.Application.DTOs.Purchase;
+using Aquora.Shared.Models;
+
+namespace Aquora.Application.Interfaces.Services
+{
+    public interface IPurchaseService
+    {
+        Task<PagedPurchasesResponseDto> GetPurchasesPagedAsync(
+            int pageNumber,
+            int pageSize,
+            string? search,
+            DateTime? startDate,
+            DateTime? endDate,
+            Guid? vendorId,
+            string? category,
+            string? paymentStatus);
+
+        Task<PagedResult<PurchaseDto>> GetPurchasesAsync(
+            int pageNumber,
+            int pageSize,
+            string? search,
+            DateTime? startDate,
+            DateTime? endDate,
+            Guid? vendorId,
+            string? category,
+            string? paymentStatus);
+
+        Task<PurchaseDto?> GetPurchaseByIdAsync(Guid id);
+        Task<PurchaseDto> CreatePurchaseAsync(CreatePurchaseRequest request);
+        Task<PurchaseDto?> UpdatePurchaseAsync(Guid id, UpdatePurchaseRequest request);
+        Task<bool> CancelPurchaseAsync(Guid id);
+        Task<CreatePurchaseRequest?> DuplicatePurchaseAsync(Guid id);
+        Task<bool> DeletePurchaseAsync(Guid id);
+
+        Task<PurchaseDto?> AddPaymentAsync(Guid purchaseId, AddPurchasePaymentRequest request);
+        Task<List<AssetHistoryDto>> GetAssetHistoryAsync(Guid assetId);
+    }
+}

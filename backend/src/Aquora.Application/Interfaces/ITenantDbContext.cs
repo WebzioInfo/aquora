@@ -62,7 +62,15 @@ namespace Aquora.Application.Interfaces
         DbSet<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry> BankLedgerAuditEntries { get; }
         DbSet<User> Users { get; }
         DbSet<Aquora.Domain.Entities.Payroll.SalaryPayment> SalaryPayments { get; }
-        
+
+        // Purchase Management & Asset History Module
+        DbSet<Aquora.Domain.Entities.Finance.Vendor> Vendors { get; }
+        DbSet<Aquora.Domain.Entities.Finance.Purchase> Purchases { get; }
+        DbSet<Aquora.Domain.Entities.Finance.PurchaseItem> PurchaseItems { get; }
+        DbSet<Aquora.Domain.Entities.Finance.PurchasePayment> PurchasePayments { get; }
+        DbSet<Aquora.Domain.Entities.Finance.PurchaseTimelineEvent> PurchaseTimelineEvents { get; }
+        DbSet<Aquora.Domain.Entities.Finance.AssetHistory> AssetHistories { get; }
+
         Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade Database { get; }
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
