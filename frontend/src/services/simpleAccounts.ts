@@ -523,15 +523,5 @@ export const simpleAccountsService = {
   deleteCashDeposit: async (ledgerEntryId: string) => {
     const res = await api.delete<{ data: boolean }>(`/api/v1/cash-books/deposit/${ledgerEntryId}`)
     return res.data.data
-  },
-  
-  reverseBankLedgerEntry: async (ledgerEntryId: string, reason: string) => {
-    const res = await api.post<{ data: string }>(`/api/v1/bank-accounts/ledger/${ledgerEntryId}/reverse`, { reason })
-    return res.data.data
-  },
-
-  reverseCashLedgerEntry: async (ledgerEntryId: string, reason: string) => {
-    const res = await api.post<{ data: string }>(`/api/v1/cash-books/ledger/${ledgerEntryId}/reverse`, { reason })
-    return res.data.data
   }
 }

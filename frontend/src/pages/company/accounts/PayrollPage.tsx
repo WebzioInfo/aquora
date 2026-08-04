@@ -15,6 +15,7 @@ import { api } from '../../../services/api'
 import { Plus, Search, Eye, Edit2, Trash2, Printer, Landmark, Wallet, Receipt, FileText, History } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
+import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
 
 export const PayrollPage: React.FC = () => {
   const queryClient = useQueryClient()
@@ -36,6 +37,10 @@ export const PayrollPage: React.FC = () => {
   const [historyItems, setHistoryItems] = useState<any[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [selectedSalaryNo, setSelectedSalaryNo] = useState('')
+
+  // Print Preview Modal States
+  const [printModalOpen, setPrintModalOpen] = useState(false)
+  const [printDocData, setPrintDocData] = useState<any>(null)
 
   const [selectedPayment, setSelectedPayment] = useState<SalaryPaymentDetails | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
@@ -224,6 +229,70 @@ export const PayrollPage: React.FC = () => {
       showToast('Failed to load payment details.', 'error')
     }
   }
+
+  const handlePrintPayslip = async (paymentId: string) => {
+    try {
+      const p = await payrollService.getSalaryPaymentById(paymentId)
+      if (p) {
+        setPrintDocData({
+          title: 'Salary Pay Slip',
+          docNumber: p.salaryNo || 'PAY-SLIP',
+          date: new Date(p.paymentDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+          partyLabel: 'Employee',
+          partyInfo: {
+            name: p.employeeName || 'General Employee',
+            details1: `Designation: ${p.designation || 'N/A'} | Department: ${p.department || 'N/A'}`,
+            details2: `Salary Month: ${p.salaryMonth}`
+          },
+          preparedBy: 'Accounts Admin',
+          paymentDetails: {
+            method: p.paymentMethod === 'BankAccount' ? 'Bank Transfer' : 'Cash Book',
+            reference: '—'
+          },
+          items: [
+            {
+              sno: 1,
+              description: `Basic Salary Earned (Days: ${p.daysWorked}/${p.workingDays})`,
+              quantity: 1,
+              unitPrice: p.grossSalary,
+              amount: p.grossSalary
+            },
+            {
+              sno: 2,
+              description: `Performance Bonus / Allowances`,
+              quantity: 1,
+              unitPrice: p.bonus,
+              amount: p.bonus
+            },
+            {
+              sno: 3,
+              description: `Advance Salary Deductions`,
+              quantity: 1,
+              unitPrice: -p.advanceDeduction,
+              amount: -p.advanceDeduction
+            },
+            {
+              sno: 4,
+              description: `Other Deductions (TDS / LOP)`,
+              quantity: 1,
+              unitPrice: -p.otherDeduction,
+              amount: -p.otherDeduction
+            }
+          ],
+          financialSummary: {
+            subTotal: p.grossSalary + p.bonus,
+            grandTotal: p.netSalary,
+            amountPaid: p.netSalary,
+            balance: 0
+          },
+          notes: p.remarks || 'This pay slip serves as a system-generated statement of salary disbursement.'
+        });
+        setPrintModalOpen(true);
+      }
+    } catch {
+      showToast('Failed to load salary slip details for print.', 'error')
+    }
+  };
 
   const openViewModal = async (paymentId: string) => {
     try {
@@ -594,13 +663,52 @@ export const PayrollPage: React.FC = () => {
                     <td className="py-3.5 px-4">
                       <EnterpriseBadge variant="success">{payment.status}</EnterpriseBadge>
                     </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex gap-1 justify-end">
-                        <button onClick={() => openViewModal(payment.id)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors" title="View Transaction"><Eye className="w-4 h-4" /></button>
-                        <button onClick={() => openHistoryModal(payment.id, payment.salaryNo)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors" title="View Audit History"><History className="w-4 h-4" /></button>
-                        <button onClick={() => openSlipModal(payment.id)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors" title="Print Slip"><Printer className="w-4 h-4" /></button>
-                        <button onClick={() => openEditModal(payment.id)} className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg cursor-pointer transition-colors" title="Edit salary payment"><Edit2 className="w-4 h-4" /></button>
-                        <button onClick={() => handleDelete(payment.id, payment.salaryNo)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer transition-colors" title="Delete & reverse"><Trash2 className="w-4 h-4" /></button>
+                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                      <div className="flex gap-1.5 justify-end">
+                        {/* VIEW */}
+                        <button
+                          onClick={() => openViewModal(payment.id)}
+                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors cursor-pointer"
+                          title="View Transaction"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* EDIT */}
+                        <button
+                          onClick={() => openEditModal(payment.id)}
+                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors cursor-pointer"
+                          title="Edit salary payment"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* PRINT */}
+                        <button
+                          onClick={() => handlePrintPayslip(payment.id)}
+                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors cursor-pointer"
+                          title="Print Slip"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* DELETE */}
+                        <button
+                          onClick={() => handleDelete(payment.id, payment.salaryNo)}
+                          className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                          title="Delete salary payment"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* AUDIT HISTORY */}
+                        <button
+                          onClick={() => openHistoryModal(payment.id, payment.salaryNo)}
+                          className="p-1 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded transition-colors cursor-pointer"
+                          title="View Audit History"
+                        >
+                          <History className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1445,6 +1553,18 @@ export const PayrollPage: React.FC = () => {
             </div>
           </div>
         </EnterpriseModal>
+      )}
+
+      {/* PRINT PREVIEW MODAL */}
+      {printModalOpen && printDocData && (
+        <PrintPreviewModal
+          isOpen={printModalOpen}
+          onClose={() => {
+            setPrintModalOpen(false)
+            setPrintDocData(null)
+          }}
+          documentData={printDocData}
+        />
       )}
     </div>
   )

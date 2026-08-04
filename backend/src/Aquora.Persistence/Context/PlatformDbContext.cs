@@ -10,10 +10,15 @@ namespace Aquora.Persistence.Context
     public class PlatformDbContext : DbContext, IPlatformDbContext
     {
         private readonly ICurrentUserContext _currentUserContext;
+        private readonly IDateTimeProvider _dateTimeProvider;
 
-        public PlatformDbContext(DbContextOptions<PlatformDbContext> options, ICurrentUserContext currentUserContext = null) : base(options)
+        public PlatformDbContext(
+            DbContextOptions<PlatformDbContext> options,
+            ICurrentUserContext currentUserContext = null,
+            IDateTimeProvider dateTimeProvider = null) : base(options)
         {
             _currentUserContext = currentUserContext;
+            _dateTimeProvider = dateTimeProvider ?? new DefaultDateTimeProvider();
         }
 
         public DbSet<Tenant> Tenants => Set<Tenant>();
@@ -99,13 +104,13 @@ namespace Aquora.Persistence.Context
                 {
                     if (entry.State == EntityState.Added)
                     {
-                        auditableEntity.CreatedAt = System.DateTime.UtcNow;
+                        auditableEntity.CreatedAt = _dateTimeProvider.UtcNow;
                         auditableEntity.CreatedBy = currentUserId;
                         auditableEntity.CreatedByIP = currentIp;
                     }
                     else if (entry.State == EntityState.Modified)
                     {
-                        auditableEntity.UpdatedAt = System.DateTime.UtcNow;
+                        auditableEntity.UpdatedAt = _dateTimeProvider.UtcNow;
                         auditableEntity.UpdatedBy = currentUserId;
                         auditableEntity.UpdatedByIP = currentIp;
                     }

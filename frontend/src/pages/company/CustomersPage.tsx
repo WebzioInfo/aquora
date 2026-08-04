@@ -4,8 +4,10 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { 
   Search, Plus, Eye, Edit2, Trash2, X, AlertTriangle, 
   MapPin, Phone as PhoneIcon, FileText, Landmark, ShieldAlert,
-  ArrowUpDown, Filter, ChevronLeft, ChevronRight, CheckCircle2, XCircle
+  ArrowUpDown, Filter, ChevronLeft, ChevronRight, CheckCircle2, XCircle,
+  Printer
 } from 'lucide-react'
+import { PrintPreviewModal } from '../../components/ui/PrintPreviewModal'
 import { customersService } from '../../services/customers'
 import type { Customer } from '../../services/customers'
 import { brandService } from '../../services/brands'
@@ -101,6 +103,48 @@ export const CustomersPage: React.FC = () => {
   // View Modal State
   const [selectedCustomerForView, setSelectedCustomerForView] = useState<Customer | null>(null)
   const [activeTab, setActiveTab] = useState<'profile' | 'sales' | 'ledger' | 'jars' | 'payments' | 'docs'>('profile')
+
+  // Print Preview Modal States
+  const [printModalOpen, setPrintModalOpen] = useState(false)
+  const [printDocData, setPrintDocData] = useState<any>(null)
+
+  const handlePrintCustomerStatement = (customer: Customer) => {
+    setPrintDocData({
+      title: 'Customer Statement',
+      docNumber: customer.customerCode || `CST-${customer.id.substring(0, 4).toUpperCase()}`,
+      date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      partyLabel: 'Customer Info',
+      partyInfo: {
+        name: customer.customerName,
+        details1: `Email: ${customer.email || 'N/A'} | Phone: ${customer.phone || 'N/A'}`,
+        details2: `GST: ${customer.gstNumber || 'N/A'} | Address: ${customer.addressLine1 || '—'}`
+      },
+      preparedBy: 'Accounts Admin',
+      paymentDetails: {
+        method: 'Statement Record'
+      },
+      items: [
+        {
+          sno: 1,
+          description: 'Opening Balance Ledger Entry',
+          amount: Number(customer.openingBalance) || 0
+        },
+        {
+          sno: 2,
+          description: 'Current Outstandings & Sales',
+          amount: customer.openingBalance || 0
+        }
+      ],
+      financialSummary: {
+        subTotal: (Number(customer.openingBalance) || 0) + (customer.openingBalance || 0),
+        grandTotal: (Number(customer.openingBalance) || 0) + (customer.openingBalance || 0),
+        amountPaid: Number(customer.openingBalance) || 0,
+        balance: customer.openingBalance || 0
+      },
+      notes: 'This statement summarizes the outstanding balances and billing mapping for customer accounts.'
+    });
+    setPrintModalOpen(true);
+  };
 
   // Debounced search logic
   useEffect(() => {
@@ -903,32 +947,46 @@ export const CustomersPage: React.FC = () => {
                         {c.status}
                       </button>
                     </td>
-                    <td className="py-3.5 px-4 text-right">
+                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
                       <div className="flex gap-1.5 justify-end">
+                        {/* VIEW */}
                         <button 
                           onClick={() => navigate(`/company/customers/profile/${c.id}`)}
-                          className="p-1.5 hover:bg-slate-100 hover:text-[#1A56DB] text-slate-400 rounded-[6px] transition-colors cursor-pointer"
+                          className="p-1 hover:bg-slate-50 hover:text-slate-700 text-slate-500 rounded transition-colors cursor-pointer"
                           title="View Profile Details"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" />
                         </button>
+
+                        {/* EDIT */}
                         {canWrite && (
-                          <>
-                            <button 
-                              onClick={() => handleOpenEditDrawer(c)}
-                              className="p-1.5 hover:bg-slate-100 hover:text-amber-600 text-slate-400 rounded-[6px] transition-colors cursor-pointer"
-                              title="Edit Customer"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteCustomer(c)}
-                              className="p-1.5 hover:bg-slate-100 hover:text-red-600 text-slate-400 rounded-[6px] transition-colors cursor-pointer"
-                              title="Delete (Soft Delete)"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
+                          <button 
+                            onClick={() => handleOpenEditDrawer(c)}
+                            className="p-1 hover:bg-slate-50 hover:text-slate-700 text-slate-500 rounded transition-colors cursor-pointer"
+                            title="Edit Customer"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
+                        {/* PRINT */}
+                        <button 
+                          onClick={() => handlePrintCustomerStatement(c)}
+                          className="p-1 hover:bg-slate-50 hover:text-slate-700 text-slate-500 rounded transition-colors cursor-pointer"
+                          title="Print Customer Statement"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* DELETE */}
+                        {canWrite && (
+                          <button 
+                            onClick={() => handleDeleteCustomer(c)}
+                            className="p-1 hover:bg-slate-50 hover:text-rose-700 text-rose-500 rounded transition-colors cursor-pointer"
+                            title="Delete Customer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         )}
                       </div>
                     </td>
@@ -1447,9 +1505,17 @@ export const CustomersPage: React.FC = () => {
         </div>
       )}
 
-      {/* ======================================================== */}
-
-
+      {/* PRINT PREVIEW MODAL */}
+      {printModalOpen && printDocData && (
+        <PrintPreviewModal
+          isOpen={printModalOpen}
+          onClose={() => {
+            setPrintModalOpen(false)
+            setPrintDocData(null)
+          }}
+          documentData={printDocData}
+        />
+      )}
     </PageContainer>
   )
 }

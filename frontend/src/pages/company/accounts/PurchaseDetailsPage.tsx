@@ -21,9 +21,15 @@ import {
   Info,
   DollarSign,
   User,
-  Tag
+  Tag,
+  Activity,
+  FileSpreadsheet,
+  TrendingUp,
+  Wallet
 } from 'lucide-react'
+import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
 import { purchaseService, type Purchase, type AddPurchasePaymentRequest } from '../../../services/purchases'
+import { vendorService, type Vendor } from '../../../services/vendors'
 import { simpleAccountsService } from '../../../services/simpleAccounts'
 import { useNotificationStore } from '../../../store/useNotificationStore'
 import EnterpriseHeader from '../../../components/ui/EnterpriseHeader'
@@ -33,6 +39,7 @@ import EnterpriseBadge from '../../../components/ui/EnterpriseBadge'
 import EnterpriseModal from '../../../components/ui/EnterpriseModal'
 import EnterpriseLoading from '../../../components/ui/EnterpriseLoading'
 import EnterpriseNumberInput from '../../../components/ui/EnterpriseNumberInput'
+import { formatDate, formatTime, formatDateTime } from '../../../utils/dateFormatter'
 
 interface BankAccountOption {
   id: string
@@ -51,6 +58,7 @@ export const PurchaseDetailsPage: React.FC = () => {
   const { showToast } = useNotificationStore()
 
   const [purchase, setPurchase] = useState<Purchase | null>(null)
+  const [vendor, setVendor] = useState<Vendor | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
 
   // Payment Modal State
@@ -58,6 +66,10 @@ export const PurchaseDetailsPage: React.FC = () => {
   const [paymentSubmitting, setPaymentSubmitting] = useState<boolean>(false)
   const [bankAccounts, setBankAccounts] = useState<BankAccountOption[]>([])
   const [cashBooks, setCashBooks] = useState<CashBookOption[]>([])
+
+  // Print Preview Modal States
+  const [printModalOpen, setPrintModalOpen] = useState(false)
+  const [printDocData, setPrintDocData] = useState<any>(null)
 
   const [paymentRequest, setPaymentRequest] = useState<AddPurchasePaymentRequest>({
     paymentDate: new Date().toISOString().slice(0, 10),
@@ -68,6 +80,50 @@ export const PurchaseDetailsPage: React.FC = () => {
     referenceNo: '',
     notes: ''
   })
+
+  const handlePrintPurchase = (p: Purchase) => {
+    setPrintDocData({
+      title: 'Purchase Invoice',
+      docNumber: p.purchaseNo,
+      date: formatDate(p.purchaseDate),
+      partyLabel: 'Vendor',
+      partyInfo: {
+        name: p.vendorName || 'General Vendor',
+        details1: p.vendorCode || '—',
+        details2: '—'
+      },
+      preparedBy: p.createdByName || 'System',
+      paymentDetails: {
+        method: p.paymentMethod || 'N/A',
+        reference: p.referenceNumber || '—'
+      },
+      items: p.items?.map((item, index) => ({
+        sno: index + 1,
+        description: item.rawMaterialName || item.itemName || 'Raw Material Item',
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        amount: item.totalAmount
+      })) || [
+        {
+          sno: 1,
+          description: `Purchase record: ${p.purchaseCategory || ''}`,
+          quantity: 1,
+          unitPrice: p.grandTotal,
+          amount: p.grandTotal
+        }
+      ],
+      financialSummary: {
+        subTotal: p.subTotal || p.grandTotal,
+        taxAmount: p.taxAmount || 0,
+        discountAmount: p.discountAmount || 0,
+        grandTotal: p.grandTotal,
+        amountPaid: p.amountPaid || 0,
+        balance: p.balanceAmount || 0
+      },
+      notes: p.notes || 'No remarks provided.'
+    });
+    setPrintModalOpen(true);
+  };
 
   const fetchPurchaseDetails = async () => {
     if (!id) return
@@ -80,6 +136,14 @@ export const PurchaseDetailsPage: React.FC = () => {
           ...prev,
           amount: data.balanceAmount
         }))
+        if (data.vendorId) {
+          try {
+            const v = await vendorService.getVendorById(data.vendorId)
+            setVendor(v)
+          } catch (vErr) {
+            console.error('Failed to prefetch vendor details:', vErr)
+          }
+        }
       }
     } catch (err: any) {
       showToast(err?.message || 'Failed to load purchase details', 'error')
@@ -202,19 +266,171 @@ export const PurchaseDetailsPage: React.FC = () => {
     }
   }
 
+  const renderCategoryDetails = () => {
+    const meta = categoryMeta || {}
+    switch (purchase.purchaseCategory) {
+      case 'RawMaterial':
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 mt-4">
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Raw Material Name</span>
+              <span className="text-xs font-semibold text-slate-800">{meta.rawMaterialName || purchase.items[0]?.rawMaterialName || purchase.items[0]?.itemName || '—'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Grade / Specification</span>
+              <span className="text-xs font-semibold text-slate-800">{meta.grade || meta.specification || '—'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Quantity & Unit</span>
+              <span className="text-xs font-semibold text-slate-800">{purchase.items[0]?.quantity} {purchase.items[0]?.unit || 'Pcs'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Supplier Batch</span>
+              <span className="text-xs font-semibold font-mono text-slate-800">{meta.supplierBatch || '—'}</span>
+            </div>
+          </div>
+        )
+      case 'Machine':
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 mt-4">
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Machine Name</span>
+              <span className="text-xs font-semibold text-slate-800">{meta.machineName || purchase.assetName || '—'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Brand & Model</span>
+              <span className="text-xs font-semibold text-slate-800">{meta.brand || '—'} / {meta.model || '—'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Serial Number</span>
+              <span className="text-xs font-semibold font-mono text-slate-800">{meta.serialNumber || '—'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Warranty</span>
+              <span className="text-xs font-semibold text-slate-800">{meta.warranty || '—'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Asset ID</span>
+              <span className="text-xs font-semibold font-mono text-slate-800">{purchase.assetId || '—'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Installation Status</span>
+              <span className="text-xs font-semibold text-slate-800">{meta.installationStatus || '—'}</span>
+            </div>
+          </div>
+        )
+      case 'OfficeAsset':
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 mt-4">
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Asset Name</span>
+              <span className="text-xs font-semibold text-slate-800">{meta.assetName || purchase.assetName || '—'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Asset Type</span>
+              <span className="text-xs font-semibold text-slate-800">{meta.assetType || '—'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Department</span>
+              <span className="text-xs font-semibold text-slate-800">{meta.department || '—'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Assigned Location</span>
+              <span className="text-xs font-semibold text-slate-800">{meta.assignedLocation || '—'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Useful Life</span>
+              <span className="text-xs font-semibold text-slate-800">{meta.usefulLife || '—'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Depreciation Method</span>
+              <span className="text-xs font-semibold text-slate-800">{meta.depreciationMethod || '—'}</span>
+            </div>
+          </div>
+        )
+      case 'Service':
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 mt-4">
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Service Name</span>
+              <span className="text-xs font-semibold text-slate-800">{meta.serviceName || '—'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Service Period</span>
+              <span className="text-xs font-semibold text-slate-800">{meta.servicePeriod || '—'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Provider</span>
+              <span className="text-xs font-semibold text-slate-800">{meta.provider || '—'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Remarks</span>
+              <span className="text-xs font-semibold text-slate-800">{meta.remarks || meta.notes || purchase.notes || '—'}</span>
+            </div>
+          </div>
+        )
+      case 'Vehicle':
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 mt-4">
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Vehicle Name</span>
+              <span className="text-xs font-semibold text-slate-800">{meta.vehicleName || '—'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Registration Number</span>
+              <span className="text-xs font-semibold font-mono text-slate-800">{meta.registrationNumber || '—'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Chassis Number</span>
+              <span className="text-xs font-semibold font-mono text-slate-800">{meta.chassisNumber || '—'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">Engine Number</span>
+              <span className="text-xs font-semibold font-mono text-slate-800">{meta.engineNumber || '—'}</span>
+            </div>
+          </div>
+        )
+      default:
+        return null
+    }
+  }
+
+  // Double entry accounting helper titles
+  const getDebitAccount = () => {
+    switch (purchase.purchaseCategory) {
+      case 'RawMaterial':
+        return 'Raw Material Inventory Stock'
+      case 'Machine':
+      case 'OfficeAsset':
+        return 'Capitalized Fixed Asset'
+      default:
+        return 'General Operating Expense'
+    }
+  }
+
+  const getCreditAccount = () => {
+    if (purchase.paymentMethod === 'Credit') {
+      return `Accounts Payable - ${purchase.vendorName}`
+    } else if (purchase.paymentMethod === 'BankAccount' || purchase.paymentMethod === 'UPI' || purchase.paymentMethod === 'Cheque') {
+      return `Cash at Bank - ${purchase.bankAccountName || 'Bank Account'}`
+    } else {
+      return `Cash on Hand - ${purchase.cashBookName || 'Cash Book'}`
+    }
+  }
+
   return (
-    <div className="space-y-6 select-none w-full">
+    <div className="space-y-6 select-none w-full pb-12">
       {/* Header */}
       <EnterpriseHeader
-        title={`Purchase Order: ${purchase.purchaseNo}`}
-        description={`Vendor: ${purchase.vendorName} | Category: ${purchase.purchaseCategory} | Date: ${new Date(purchase.purchaseDate).toLocaleDateString('en-IN')}`}
+        title={`Purchase: ${purchase.purchaseNo}`}
+        description={`Record Created: ${formatDate(purchase.createdAt)} | Invoice: ${purchase.invoiceNumber || '—'}`}
         actions={
           <div className="flex items-center gap-2">
             <EnterpriseButton variant="secondary" size="sm" onClick={() => navigate('/company/accounts/purchases')}>
-              <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
+              <ArrowLeft className="w-4 h-4 mr-1.5" /> Directory
             </EnterpriseButton>
-            <EnterpriseButton variant="secondary" size="sm" onClick={() => window.print()}>
-              <Printer className="w-4 h-4 mr-1.5" /> Print Invoice
+            <EnterpriseButton variant="secondary" size="sm" onClick={() => handlePrintPurchase(purchase)}>
+              <Printer className="w-4 h-4 mr-1.5" /> Print
             </EnterpriseButton>
             {!purchase.isCancelled && (
               <>
@@ -226,7 +442,7 @@ export const PurchaseDetailsPage: React.FC = () => {
                 </EnterpriseButton>
                 {purchase.balanceAmount > 0 && (
                   <EnterpriseButton variant="primary" size="sm" onClick={() => setShowPaymentModal(true)}>
-                    <Plus className="w-4 h-4 mr-1.5" /> Record Payment
+                    <Plus className="w-4 h-4 mr-1.5" /> Pay Balance
                   </EnterpriseButton>
                 )}
                 <EnterpriseButton variant="danger" size="sm" onClick={handleCancel}>
@@ -238,284 +454,383 @@ export const PurchaseDetailsPage: React.FC = () => {
         }
       />
 
-      {/* KPI Cards Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <EnterpriseCard className="p-4 border-l-4 border-l-blue-600">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Grand Total</span>
-          <div className="text-2xl font-extrabold text-slate-900 font-mono mt-1">
-            ₹{purchase.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-          </div>
-        </EnterpriseCard>
-
-        <EnterpriseCard className="p-4 border-l-4 border-l-emerald-600">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Total Amount Paid</span>
-          <div className="text-2xl font-extrabold text-emerald-600 font-mono mt-1">
-            ₹{purchase.amountPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-          </div>
-        </EnterpriseCard>
-
-        <EnterpriseCard className="p-4 border-l-4 border-l-red-600">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Remaining Balance</span>
-          <div className="text-2xl font-extrabold text-red-600 font-mono mt-1">
-            ₹{purchase.balanceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-          </div>
-        </EnterpriseCard>
-
-        <EnterpriseCard className="p-4 border-l-4 border-l-purple-600">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Payment Status</span>
-          <div className="mt-2 flex items-center justify-between">
-            {getStatusBadge()}
-            <span className="text-xs text-slate-400 font-mono">{purchase.paymentMethod}</span>
-          </div>
-        </EnterpriseCard>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2-Column Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        {/* Main Left Columns: Purchased Items register takes center stage */}
         <div className="lg:col-span-2 space-y-6">
-          {/* General & Vendor Info */}
-          <EnterpriseCard title="General & Vendor Information">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
-              <div>
-                <span className="text-slate-400 block font-medium">Purchase Number</span>
-                <span className="font-bold text-[#1A56DB] font-mono">{purchase.purchaseNo}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block font-medium">Purchase Date</span>
-                <span className="font-semibold text-slate-900">{new Date(purchase.purchaseDate).toLocaleDateString('en-IN')}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block font-medium">Vendor Name</span>
-                <span className="font-bold text-slate-900">{purchase.vendorName}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block font-medium">Vendor Code</span>
-                <span className="font-mono text-slate-700">{purchase.vendorCode || '-'}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block font-medium">Invoice Number</span>
-                <span className="font-mono text-slate-900 font-bold">{purchase.invoiceNumber || '-'}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block font-medium">Tax Mode</span>
-                <span className="font-semibold text-slate-900">{purchase.taxAmount > 0 ? 'GST Purchase' : 'Non-GST Purchase'}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block font-medium">Created By</span>
-                <span className="font-semibold text-slate-900">{purchase.createdByName || 'Unknown User'}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block font-medium">Posting Status</span>
-                <span className="text-emerald-700 font-bold">Posted to Ledger</span>
-              </div>
-            </div>
-            {purchase.notes && (
-              <div className="pt-3 mt-3 border-t border-[#E5E9F2]">
-                <span className="text-xs text-slate-400 block font-medium mb-1">Remarks & Notes</span>
-                <p className="text-xs text-slate-700 bg-slate-50 p-3 rounded-[8px] border border-[#E5E9F2]">{purchase.notes}</p>
-              </div>
-            )}
-          </EnterpriseCard>
-
-          {/* Full Width Line Items Table */}
-          {purchase.items && purchase.items.length > 0 && (
-            <EnterpriseCard title={`Purchase Item Register (${purchase.items.length})`}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-[#F8FAFC] border-b border-[#E5E9F2] text-slate-600 font-bold uppercase tracking-wider">
-                      <th className="p-3">Item Name</th>
-                      <th className="p-3">Quantity</th>
-                      <th className="p-3 text-right">Unit Rate (₹)</th>
-                      {purchase.taxAmount > 0 && <th className="p-3 text-right">GST %</th>}
-                      <th className="p-3 text-right">Discount</th>
-                      <th className="p-3 text-right">Taxable Amt</th>
-                      <th className="p-3 text-right font-mono">Row Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#E5E9F2]">
-                    {purchase.items.map((item) => {
-                      const base = item.quantity * item.unitPrice
+          
+          {/* 1. Large Purchased Items register */}
+          <EnterpriseCard title={`Purchased Items Register (${purchase.items?.length || 0})`}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
+                    <th className="p-3">Item Name</th>
+                    <th className="p-3">Category</th>
+                    <th className="p-3 text-right">Quantity</th>
+                    <th className="p-3 text-right">Unit Rate (₹)</th>
+                    <th className="p-3 text-right">Discount (₹)</th>
+                    <th className="p-3 text-right">GST %</th>
+                    <th className="p-3 text-right">Taxable Amt (₹)</th>
+                    <th className="p-3 text-right">Total Amt (₹)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {purchase.items && purchase.items.length > 0 ? (
+                    purchase.items.map((item) => {
+                      const taxable = (item.quantity * item.unitPrice) - item.discountAmount
                       return (
-                        <tr key={item.id} className="hover:bg-slate-50">
-                          <td className="p-3 font-bold text-slate-900">
+                        <tr key={item.id} className="hover:bg-slate-50/50">
+                          <td className="p-3 font-semibold text-slate-900">
                             {item.rawMaterialName || item.itemName}
                           </td>
-                          <td className="p-3 text-slate-600">{item.quantity} {item.unit}</td>
-                          <td className="p-3 text-right font-mono">₹{item.unitPrice.toFixed(2)}</td>
-                          {purchase.taxAmount > 0 && <td className="p-3 text-right font-mono">{item.gstPercent}%</td>}
-                          <td className="p-3 text-right font-mono">₹{item.discountAmount.toFixed(2)}</td>
-                          <td className="p-3 text-right font-mono text-slate-700">₹{base.toFixed(2)}</td>
-                          <td className="p-3 text-right font-extrabold font-mono text-slate-900">₹{item.totalAmount.toFixed(2)}</td>
+                          <td className="p-3 text-slate-500">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">
+                              {purchase.purchaseCategory}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right font-medium text-slate-700">{item.quantity} {item.unit}</td>
+                          <td className="p-3 text-right font-mono text-slate-600">₹{item.unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          <td className="p-3 text-right font-mono text-emerald-600">₹{item.discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          <td className="p-3 text-right font-mono text-slate-500">{item.gstPercent}%</td>
+                          <td className="p-3 text-right font-mono text-slate-700">₹{taxable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          <td className="p-3 text-right font-bold font-mono text-slate-900">₹{item.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                         </tr>
                       )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </EnterpriseCard>
-          )}
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={8} className="p-4 text-center text-slate-400 italic">No purchase items recorded.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-          {/* ERP Subsystem Impacts: Accounting Ledger & Inventory */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <EnterpriseCard title="Accounting Entry Impact">
-              <div className="space-y-2 text-xs">
-                <div className="p-2.5 bg-emerald-50/70 rounded-[6px] border border-emerald-200 text-emerald-950 flex items-center justify-between">
-                  <div>
-                    <span className="font-bold block">Debit: {purchase.purchaseCategory} Account</span>
-                    <span className="text-[11px] text-emerald-800">Inventory Stock / Asset Account</span>
-                  </div>
-                  <span className="font-extrabold font-mono text-emerald-700">₹{purchase.grandTotal.toFixed(2)}</span>
+            {/* Category-Specific Specifications Adaptable View */}
+            {renderCategoryDetails()}
+          </EnterpriseCard>
+
+          {/* 2. Purchase Summary directly below the items table */}
+          <EnterpriseCard title="Financial Breakdown Summary">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+              <div className="space-y-2 text-slate-600">
+                <div className="flex justify-between">
+                  <span>Number of Items:</span>
+                  <span className="font-semibold text-slate-900">{purchase.items?.length || 0}</span>
                 </div>
-                <div className="p-2.5 bg-blue-50/70 rounded-[6px] border border-blue-200 text-blue-950 flex items-center justify-between">
-                  <div>
-                    <span className="font-bold block">Credit: {purchase.paymentMethod === 'Credit' ? 'Vendor Creditors' : purchase.paymentMethod}</span>
-                    <span className="text-[11px] text-blue-800">{purchase.vendorName}</span>
-                  </div>
-                  <span className="font-extrabold font-mono text-blue-700">₹{purchase.grandTotal.toFixed(2)}</span>
+                <div className="flex justify-between">
+                  <span>Total Quantity:</span>
+                  <span className="font-semibold text-slate-900">
+                    {purchase.items?.reduce((sum, item) => sum + item.quantity, 0) || 0} units
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Gross Subtotal:</span>
+                  <span className="font-mono text-slate-900">₹{purchase.subTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total Discount Allowed:</span>
+                  <span className="font-mono text-emerald-600">- ₹{purchase.discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
-            </EnterpriseCard>
 
-            <EnterpriseCard title="Subsystem Impact Status">
-              <div className="space-y-2 text-xs">
-                {purchase.purchaseCategory === 'RawMaterial' && (
-                  <div className="p-3 bg-emerald-50 rounded-[8px] border border-emerald-200 flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold text-emerald-900 block">Inventory Stock Increased</span>
-                      <span className="text-[11px] text-emerald-700">Raw materials automatically logged as Stock IN movements.</span>
-                    </div>
-                  </div>
-                )}
-                {(purchase.purchaseCategory === 'Machine' || purchase.purchaseCategory === 'OfficeAsset') && (
-                  <div className="p-3 bg-purple-50 rounded-[8px] border border-purple-200 flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold text-purple-900 block">Capital Asset Registered</span>
-                      <span className="text-[11px] text-purple-700">Asset record and audit history timeline automatically generated.</span>
-                    </div>
-                  </div>
-                )}
-                {['OfficeExpense', 'Service', 'Maintenance', 'Utility', 'Vehicle', 'Software', 'Other'].includes(purchase.purchaseCategory) && (
-                  <div className="p-3 bg-blue-50 rounded-[8px] border border-blue-200 flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold text-blue-900 block">Operating Expense Posted</span>
-                      <span className="text-[11px] text-blue-700">Expense voucher posted into general ledger balances.</span>
-                    </div>
-                  </div>
-                )}
+              <div className="space-y-2 text-slate-600 border-t md:border-t-0 md:border-l border-slate-100 pt-3 md:pt-0 md:pl-6">
+                <div className="flex justify-between">
+                  <span>Freight & Other Charges:</span>
+                  <span className="font-mono text-slate-800">+ ₹{purchase.otherCharges.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>GST Tax amount:</span>
+                  <span className="font-mono text-slate-800">₹{purchase.taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between text-slate-900 font-extrabold text-sm border-t border-slate-200 pt-2">
+                  <span>Grand Total:</span>
+                  <span className="font-mono text-blue-600">₹{purchase.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
               </div>
-            </EnterpriseCard>
-          </div>
+            </div>
+          </EnterpriseCard>
 
-          {/* Payment History */}
+          {/* 3. Accounting Ledger double entry impact display */}
+          <EnterpriseCard title="General Ledger Journal Impact">
+            <div className="overflow-x-auto text-xs">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
+                    <th className="p-2.5">Account Ledger Description</th>
+                    <th className="p-2.5 text-right">Debit (₹)</th>
+                    <th className="p-2.5 text-right">Credit (₹)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  <tr>
+                    <td className="p-3 font-semibold text-slate-800 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      {getDebitAccount()}
+                    </td>
+                    <td className="p-3 text-right font-extrabold font-mono text-slate-900">
+                      ₹{purchase.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-3 text-right text-slate-400 font-mono">—</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 font-semibold text-slate-800 pl-8 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-blue-500" />
+                      {getCreditAccount()}
+                    </td>
+                    <td className="p-3 text-right text-slate-400 font-mono">—</td>
+                    <td className="p-3 text-right font-extrabold font-mono text-slate-900">
+                      ₹{purchase.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </EnterpriseCard>
+
+          {/* 4. Subsystem status updates */}
+          <EnterpriseCard title="Integrated Subsystem Posting Impact">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" />
+                <div className="text-xs">
+                  <span className="font-bold text-slate-900 block">General Ledger Posted</span>
+                  <span className="text-[11px] text-slate-500 mt-0.5 block">Double-entry accounting journal vouchers generated & committed.</span>
+                </div>
+              </div>
+
+              {purchase.purchaseCategory === 'RawMaterial' ? (
+                <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" />
+                  <div className="text-xs">
+                    <span className="font-bold text-slate-900 block">Inventory Stock Increased</span>
+                    <span className="text-[11px] text-slate-500 mt-0.5 block">Raw materials added to current stock balances and registered.</span>
+                  </div>
+                </div>
+              ) : (purchase.purchaseCategory === 'Machine' || purchase.purchaseCategory === 'OfficeAsset') ? (
+                <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" />
+                  <div className="text-xs">
+                    <span className="font-bold text-slate-900 block">Capital Asset Registered</span>
+                    <span className="text-[11px] text-slate-500 mt-0.5 block">Capitalized assets generated & linked to asset registers.</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" />
+                  <div className="text-xs">
+                    <span className="font-bold text-slate-900 block">Operating Expense Post</span>
+                    <span className="text-[11px] text-slate-500 mt-0.5 block">Expense voucher logged against corporate operating budgets.</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" />
+                <div className="text-xs">
+                  <span className="font-bold text-slate-900 block">Vendor Balance Updated</span>
+                  <span className="text-[11px] text-slate-500 mt-0.5 block">Outstanding balance for {purchase.vendorName} adjusted.</span>
+                </div>
+              </div>
+
+              {purchase.amountPaid > 0 && (
+                <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" />
+                  <div className="text-xs">
+                    <span className="font-bold text-slate-900 block">Bank / Cash Balance Reduced</span>
+                    <span className="text-[11px] text-slate-500 mt-0.5 block">Settled funds deducted from {purchase.bankAccountName || purchase.cashBookName || 'General Account'}.</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </EnterpriseCard>
+
+          {/* 5. Payment Settlement history logs */}
           <EnterpriseCard
-            title={`Payment Settlement History (${purchase.payments.length})`}
+            title={`Payment Settlements Ledger (${purchase.payments?.length || 0})`}
             extra={
               purchase.balanceAmount > 0 && !purchase.isCancelled ? (
                 <button
                   onClick={() => setShowPaymentModal(true)}
-                  className="text-xs text-[#1A56DB] hover:underline font-semibold flex items-center gap-1"
+                  className="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Add Payment
+                  <Plus className="w-3.5 h-3.5" /> Record Payment
                 </button>
               ) : null
             }
           >
-            {purchase.payments.length === 0 ? (
-              <p className="text-xs text-slate-400 italic p-2">No payments recorded for this purchase yet.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
+            {purchase.payments && purchase.payments.length > 0 ? (
+              <div className="overflow-x-auto text-xs">
+                <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-[#F8FAFC] border-b border-[#E5E9F2] text-slate-600 font-bold uppercase tracking-wider">
+                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
                       <th className="p-2.5">Date</th>
-                      <th className="p-2.5">Method</th>
-                      <th className="p-2.5">Ref / UTR</th>
-                      <th className="p-2.5 text-right font-mono">Amount Paid</th>
+                      <th className="p-2.5">Payment Method</th>
+                      <th className="p-2.5">Reference No / UTR</th>
+                      <th className="p-2.5 text-right">Amount Settled (₹)</th>
                       <th className="p-2.5">Recorded By</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#E5E9F2]">
+                  <tbody className="divide-y divide-slate-100">
                     {purchase.payments.map((pay) => (
-                      <tr key={pay.id} className="hover:bg-slate-50">
-                        <td className="p-2.5 font-semibold text-slate-900">{new Date(pay.paymentDate).toLocaleDateString('en-IN')}</td>
-                        <td className="p-2.5"><EnterpriseBadge variant="info">{pay.paymentMethod}</EnterpriseBadge></td>
-                        <td className="p-2.5 font-mono text-slate-600">{pay.referenceNo || '-'}</td>
-                        <td className="p-2.5 text-right font-extrabold font-mono text-emerald-600">₹{pay.amount.toFixed(2)}</td>
-                        <td className="p-2.5 text-slate-600">{pay.createdByName || 'Unknown User'}</td>
+                      <tr key={pay.id} className="hover:bg-slate-50/50">
+                        <td className="p-3 font-semibold text-slate-800">{formatDate(pay.paymentDate)}</td>
+                        <td className="p-3 text-slate-600">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100">
+                            {pay.paymentMethod}
+                          </span>
+                        </td>
+                        <td className="p-3 font-mono text-slate-500">{pay.referenceNo || '—'}</td>
+                        <td className="p-3 text-right font-extrabold font-mono text-emerald-600">
+                          ₹{pay.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="p-3 text-slate-600">{pay.createdByName || 'System'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+            ) : (
+              <p className="text-xs text-slate-400 italic p-3 text-center">No payment settlements found for this invoice.</p>
             )}
           </EnterpriseCard>
+
         </div>
 
-        {/* Right 1-Column Section: Financial Summary & Timeline */}
+        {/* Sidebar columns: Vendor Profile & Payment Summary */}
         <div className="space-y-6">
-          {/* Financial Breakdown Card */}
-          <EnterpriseCard title="Financial Breakdown">
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between text-slate-600">
-                <span>Subtotal Amount:</span>
-                <span className="font-mono font-bold text-slate-900">₹{purchase.subTotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Discount Allowed:</span>
-                <span className="font-mono text-emerald-600">- ₹{purchase.discountAmount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Freight & Other Charges:</span>
-                <span className="font-mono text-slate-800">+ ₹{purchase.otherCharges.toFixed(2)}</span>
-              </div>
 
-              {purchase.taxAmount > 0 && (
-                <div className="pt-2 border-t border-[#E5E9F2] space-y-1 text-[11px] text-slate-500">
-                  <div className="flex justify-between">
-                    <span>CGST (Central Tax):</span>
-                    <span className="font-mono">₹{cgstAmount.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>SGST (State Tax):</span>
-                    <span className="font-mono">₹{sgstAmount.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-800 font-bold">
-                    <span>Total Tax (GST):</span>
-                    <span className="font-mono">₹{purchase.taxAmount.toFixed(2)}</span>
-                  </div>
+          {/* 1. Standardized Vendor Profile Card */}
+          <EnterpriseCard title="Vendor Profile Summary">
+            <div className="space-y-4 text-xs">
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+                <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 font-extrabold flex items-center justify-center text-sm border border-blue-100">
+                  {purchase.vendorName.charAt(0)}
                 </div>
-              )}
+                <div>
+                  <h4 className="font-extrabold text-slate-800 text-sm leading-tight">{purchase.vendorName}</h4>
+                  <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">{purchase.vendorCode || 'VENDOR-CODE-NA'}</span>
+                </div>
+              </div>
 
-              <div className="flex justify-between text-slate-900 font-extrabold text-sm border-t border-[#E5E9F2] pt-2.5">
-                <span>Grand Total:</span>
-                <span className="font-mono text-[#1A56DB]">₹{purchase.grandTotal.toFixed(2)}</span>
+              <div className="space-y-2.5 text-slate-600">
+                <div className="flex justify-between">
+                  <span>Contact Person:</span>
+                  <span className="font-semibold text-slate-850">{vendor?.name || purchase.vendorName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Phone Number:</span>
+                  <span className="font-semibold font-mono text-slate-800">{vendor?.phone || '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Email Address:</span>
+                  <span className="font-semibold text-slate-800">{vendor?.email || '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>GSTIN Identifier:</span>
+                  <span className="font-semibold font-mono text-slate-800">{vendor?.gst || '—'}</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Outstanding balance:</span>
+                  <span className="font-bold text-red-600 font-mono">
+                    ₹{(vendor?.currentBalance ?? purchase.balanceAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Total Purchase Value:</span>
+                  <span className="font-semibold text-slate-800 font-mono">
+                    ₹{(vendor?.totalPurchaseValue ?? purchase.grandTotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Last Purchase date:</span>
+                  <span className="font-semibold text-slate-700">
+                    {vendor?.lastPurchaseDate ? formatDate(vendor.lastPurchaseDate) : formatDate(purchase.purchaseDate)}
+                  </span>
+                </div>
+              </div>
+
+              {purchase.vendorId && (
+                <EnterpriseButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => navigate(`/company/accounts/vendors/${purchase.vendorId}`)}
+                  className="w-full mt-2 font-bold"
+                >
+                  View Vendor Details
+                </EnterpriseButton>
+              )}
+            </div>
+          </EnterpriseCard>
+
+          {/* 2. Core Payment Information Card */}
+          <EnterpriseCard title="Payment & Settlements Status">
+            <div className="space-y-3.5 text-xs text-slate-600">
+              <div className="flex justify-between items-center pb-2.5 border-b border-slate-100">
+                <span>Payment Status:</span>
+                {getStatusBadge()}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Settlement Method:</span>
+                  <span className="font-bold text-slate-800">{purchase.paymentMethod}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Bank Account / Cash Book:</span>
+                  <span className="font-semibold text-slate-700">
+                    {purchase.bankAccountName || purchase.cashBookName || '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Amount Settled:</span>
+                  <span className="font-mono font-bold text-slate-800">
+                    ₹{purchase.amountPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Unpaid Balance:</span>
+                  <span className="font-mono font-bold text-red-600">
+                    ₹{purchase.balanceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Reference Number / UTR:</span>
+                  <span className="font-mono text-slate-700">{purchase.referenceNumber || '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Settlement Date:</span>
+                  <span className="font-medium text-slate-800">{formatDate(purchase.purchaseDate)}</span>
+                </div>
               </div>
             </div>
           </EnterpriseCard>
 
-          {/* Audit Lifecycle Timeline */}
-          <EnterpriseCard title="Audit Lifecycle Timeline">
-            {purchase.timelineEvents.length === 0 ? (
-              <p className="text-xs text-slate-400 italic p-2">No timeline events recorded.</p>
-            ) : (
-              <div className="relative border-l-2 border-slate-200 ml-3 space-y-5 py-2">
+          {/* 3. visual Audit & Timeline Card */}
+          <EnterpriseCard title="Audit Lifecycle History">
+            {purchase.timelineEvents && purchase.timelineEvents.length > 0 ? (
+              <div className="relative border-l-2 border-slate-200 ml-2 space-y-4 py-1 text-xs">
                 {purchase.timelineEvents.map((t) => (
-                  <div key={t.id} className="relative pl-5">
-                    <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#1A56DB] border-2 border-white" />
-                    <p className="text-xs font-bold text-slate-900">{t.action}</p>
-                    <p className="text-xs text-slate-600 mt-0.5">{t.details}</p>
-                    <span className="text-[10px] text-slate-400 font-mono mt-1 block">
-                      {new Date(t.eventDate).toLocaleString('en-IN')} | {t.performedByName || 'Unknown User'}
-                    </span>
+                  <div key={t.id} className="relative pl-4">
+                    <div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-blue-600 border border-white" />
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-800 leading-tight">{t.action}</span>
+                      <span className="text-[11px] text-slate-500 mt-0.5">{t.details}</span>
+                      <span className="text-[10px] text-slate-400 font-mono mt-1 block">
+                        {formatDateTime(t.eventDate)} • {t.performedByName || 'System'}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
+            ) : (
+              <p className="text-xs text-slate-400 italic text-center p-3">No timeline events recorded.</p>
             )}
           </EnterpriseCard>
+
         </div>
       </div>
 
@@ -610,6 +925,18 @@ export const PurchaseDetailsPage: React.FC = () => {
             </div>
           </form>
         </EnterpriseModal>
+      )}
+
+      {/* PRINT PREVIEW MODAL */}
+      {printModalOpen && printDocData && (
+        <PrintPreviewModal
+          isOpen={printModalOpen}
+          onClose={() => {
+            setPrintModalOpen(false)
+            setPrintDocData(null)
+          }}
+          documentData={printDocData}
+        />
       )}
     </div>
   )

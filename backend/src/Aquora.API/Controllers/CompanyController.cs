@@ -55,6 +55,9 @@ namespace Aquora.API.Controllers
                 TenantCode = tenant?.Code ?? company.Code,
                 SchemaName = tenant?.SchemaName ?? "public",
                 SubscriptionPlan = tenant?.SubscriptionPlan ?? "Starter",
+                TimeZone = company.TimeZone ?? "Asia/Kolkata",
+                DateFormat = company.DateFormat ?? "dd MMM yyyy",
+                TimeFormat = company.TimeFormat ?? "12h",
                 CreatedAt = company.CreatedAt
             }, "Company settings loaded successfully.");
         }
@@ -68,6 +71,9 @@ namespace Aquora.API.Controllers
             if (company == null) return Failure<object>("Company not found.", "Not Found");
 
             company.Name = request.Name;
+            company.TimeZone = request.Timezone ?? "Asia/Kolkata";
+            company.DateFormat = request.DateFormat ?? "dd MMM yyyy";
+            company.TimeFormat = request.TimeFormat ?? "12h";
 
             // Sync with Platform DB Tenant record
             var tenant = await _platformContext.Tenants.FirstOrDefaultAsync(t => t.Id == _userContext.TenantId);
@@ -78,7 +84,7 @@ namespace Aquora.API.Controllers
                 tenant.OwnerPhone = request.Phone;
                 tenant.GstNumber = request.GstNumber;
                 tenant.Address = request.Address;
-                tenant.Timezone = request.Timezone;
+                tenant.Timezone = request.Timezone ?? "Asia/Kolkata";
                 tenant.Language = request.Language;
                 tenant.LogoUrl = request.LogoUrl;
                 await _platformContext.SaveChangesAsync();
@@ -205,6 +211,7 @@ namespace Aquora.API.Controllers
         public string Timezone { get; set; } = "UTC";
         public string Language { get; set; } = "en";
         public string DateFormat { get; set; } = "YYYY-MM-DD";
+        public string TimeFormat { get; set; } = "12h";
         public string? LogoUrl { get; set; }
     }
 

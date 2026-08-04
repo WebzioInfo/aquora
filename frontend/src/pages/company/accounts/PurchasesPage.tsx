@@ -21,6 +21,7 @@ import {
   ArrowUpDown,
   RotateCcw
 } from 'lucide-react'
+import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
 import { purchaseService, type Purchase, type PurchaseSummaryStats } from '../../../services/purchases'
 import { vendorService, type VendorDropdownItem } from '../../../services/vendors'
 import { useNotificationStore } from '../../../store/useNotificationStore'
@@ -66,6 +67,10 @@ export const PurchasesPage: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<string>('BankAccount')
   const [paymentRef, setPaymentRef] = useState<string>('')
   const [paymentSubmitting, setPaymentSubmitting] = useState<boolean>(false)
+
+  // Print Preview Modal States
+  const [printModalOpen, setPrintModalOpen] = useState(false)
+  const [printDocData, setPrintDocData] = useState<any>(null)
 
   const categories = [
     'RawMaterial',
@@ -209,6 +214,50 @@ export const PurchasesPage: React.FC = () => {
       setPaymentSubmitting(false)
     }
   }
+
+  const handlePrintPurchase = (p: Purchase) => {
+    setPrintDocData({
+      title: 'Purchase Invoice',
+      docNumber: p.purchaseNo,
+      date: new Date(p.purchaseDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      partyLabel: 'Vendor',
+      partyInfo: {
+        name: p.vendorName || 'General Vendor',
+        details1: '—',
+        details2: '—'
+      },
+      preparedBy: p.createdByName || 'System',
+      paymentDetails: {
+        method: p.paymentMethod || 'N/A',
+        reference: '—'
+      },
+      items: p.items?.map((item, index) => ({
+        sno: index + 1,
+        description: item.rawMaterialName || item.itemName || 'Raw Material Item',
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        amount: item.totalAmount
+      })) || [
+        {
+          sno: 1,
+          description: `Purchase record: ${p.purchaseCategory || ''}`,
+          quantity: 1,
+          unitPrice: p.grandTotal,
+          amount: p.grandTotal
+        }
+      ],
+      financialSummary: {
+        subTotal: p.subTotal || p.grandTotal,
+        taxAmount: p.taxAmount || 0,
+        discountAmount: p.discountAmount || 0,
+        grandTotal: p.grandTotal,
+        amountPaid: p.amountPaid || 0,
+        balance: p.balanceAmount || 0
+      },
+      notes: p.notes || 'No remarks provided.'
+    });
+    setPrintModalOpen(true);
+  };
 
   const exportCSV = () => {
     if (purchases.length === 0) return
@@ -515,43 +564,62 @@ export const PurchasesPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {/* VIEW */}
                         <button
                           onClick={() => navigate(`/company/accounts/purchases/${purchase.id}`)}
-                          className="p-1 text-slate-600 hover:text-[#1A56DB] hover:bg-blue-50 rounded"
+                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
                           title="View Details"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
 
+                        {/* EDIT */}
                         {!purchase.isCancelled && (
-                          <>
-                            <button
-                              onClick={() => navigate(`/company/accounts/purchases/edit/${purchase.id}`)}
-                              className="p-1 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded"
-                              title="Edit Purchase"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-
-                            {purchase.balanceAmount > 0 && (
-                              <button
-                                onClick={() => {
-                                  setPaymentModalPurchase(purchase)
-                                  setPaymentAmount(purchase.balanceAmount)
-                                }}
-                                className="p-1 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded"
-                                title="Record Payment"
-                              >
-                                <CreditCard className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </>
+                          <button
+                            onClick={() => navigate(`/company/accounts/purchases/edit/${purchase.id}`)}
+                            className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
+                            title="Edit Purchase"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
                         )}
 
+                        {/* PRINT */}
+                        <button
+                          onClick={() => handlePrintPurchase(purchase)}
+                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
+                          title="Print Purchase Invoice"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* DELETE */}
+                        <button
+                          onClick={() => handleDelete(purchase.id, purchase.purchaseNo)}
+                          className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors"
+                          title="Delete Purchase"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* MODULE SPECIFIC EXTRA ACTIONS */}
+                        {!purchase.isCancelled && purchase.balanceAmount > 0 && (
+                          <button
+                            onClick={() => {
+                              setPaymentModalPurchase(purchase)
+                              setPaymentAmount(purchase.balanceAmount)
+                            }}
+                            className="p-1 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded transition-colors"
+                            title="Record Payment"
+                          >
+                            <CreditCard className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        
                         <button
                           onClick={() => handleDuplicate(purchase.id)}
-                          className="p-1 text-slate-600 hover:text-purple-600 hover:bg-purple-50 rounded"
+                          className="p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded transition-colors"
                           title="Duplicate Purchase"
                         >
                           <Copy className="w-3.5 h-3.5" />
@@ -560,20 +628,12 @@ export const PurchasesPage: React.FC = () => {
                         {!purchase.isCancelled && (
                           <button
                             onClick={() => handleCancel(purchase.id, purchase.purchaseNo)}
-                            className="p-1 text-slate-600 hover:text-amber-600 hover:bg-amber-50 rounded"
+                            className="p-1 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded transition-colors"
                             title="Cancel Purchase"
                           >
                             <XCircle className="w-3.5 h-3.5" />
                           </button>
                         )}
-
-                        <button
-                          onClick={() => handleDelete(purchase.id, purchase.purchaseNo)}
-                          className="p-1 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded"
-                          title="Soft Delete"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -672,6 +732,18 @@ export const PurchasesPage: React.FC = () => {
             </div>
           </form>
         </EnterpriseModal>
+      )}
+
+      {/* PRINT PREVIEW MODAL */}
+      {printModalOpen && printDocData && (
+        <PrintPreviewModal
+          isOpen={printModalOpen}
+          onClose={() => {
+            setPrintModalOpen(false)
+            setPrintDocData(null)
+          }}
+          documentData={printDocData}
+        />
       )}
     </div>
   )

@@ -286,37 +286,5 @@ namespace Aquora.API.Controllers
                 return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Error", HttpContext.TraceIdentifier));
             }
         }
-
-        [HttpPost("ledger/{ledgerEntryId:guid}/reverse")]
-        public async Task<IActionResult> ReverseBankLedgerEntry(Guid ledgerEntryId, [FromBody] ReverseLedgerRequest request)
-        {
-            if (string.IsNullOrWhiteSpace(request.Reason))
-            {
-                return BadRequest(ApiResponse<object>.CreateFailure("Reversal reason is required.", "Validation Error", HttpContext.TraceIdentifier));
-            }
-
-            try
-            {
-                var reversalId = await _bankLedgerService.ReverseTransactionAsync(ledgerEntryId, request.Reason);
-                return Ok(ApiResponse<Guid>.CreateSuccess(reversalId, "Ledger entry reversed successfully."));
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(ApiResponse<object>.CreateFailure(ex.Message, "Not Found", HttpContext.TraceIdentifier));
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Business Rule Violation", HttpContext.TraceIdentifier));
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Error", HttpContext.TraceIdentifier));
-            }
-        }
-    }
-
-    public class ReverseLedgerRequest
-    {
-        public string Reason { get; set; } = string.Empty;
     }
 }

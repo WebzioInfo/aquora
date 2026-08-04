@@ -24,6 +24,7 @@ import {
   ToggleLeft,
   ToggleRight
 } from 'lucide-react'
+import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
 import { vendorService, type VendorDetails } from '../../../services/vendors'
 import { purchaseService, type Purchase } from '../../../services/purchases'
 import { useNotificationStore } from '../../../store/useNotificationStore'
@@ -41,6 +42,89 @@ export const VendorDetailsPage: React.FC = () => {
   const [details, setDetails] = useState<VendorDetails | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [activeTab, setActiveTab] = useState<'purchases' | 'ledger' | 'timeline' | 'summary'>('purchases')
+
+  // Print Preview Modal States
+  const [printModalOpen, setPrintModalOpen] = useState(false)
+  const [printDocData, setPrintDocData] = useState<any>(null)
+
+  const handlePrintVendorStatement = () => {
+    if (!details) return
+    const vendor = details.vendor
+    setPrintDocData({
+      title: 'Vendor Statement',
+      docNumber: vendor.vendorCode || `VND-${vendor.id.substring(0, 4).toUpperCase()}`,
+      date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      partyLabel: 'Vendor Info',
+      partyInfo: {
+        name: vendor.name,
+        details1: `Email: ${vendor.email || 'N/A'} | Phone: ${vendor.phone || 'N/A'}`,
+        details2: `GST: ${vendor.gst || 'N/A'} | Address: ${vendor.address || '—'}`
+      },
+      preparedBy: 'Accounts Admin',
+      paymentDetails: {
+        method: 'Statement Record'
+      },
+      items: [
+        {
+          sno: 1,
+          description: 'Opening Balance Statement Mapping',
+          amount: Number(vendor.openingBalance) || 0
+        },
+        {
+          sno: 2,
+          description: 'Accumulated Purchases Value',
+          amount: details.purchases?.length > 0 ? details.purchases.reduce((acc, curr) => acc + curr.grandTotal, 0) : 0
+        }
+      ],
+      financialSummary: {
+        subTotal: (Number(vendor.openingBalance) || 0) + details.purchases.reduce((acc, curr) => acc + curr.grandTotal, 0),
+        grandTotal: (Number(vendor.openingBalance) || 0) + details.purchases.reduce((acc, curr) => acc + curr.grandTotal, 0),
+        amountPaid: ((Number(vendor.openingBalance) || 0) + details.purchases.reduce((acc, curr) => acc + curr.grandTotal, 0)) - (vendor.currentBalance || 0),
+        balance: vendor.currentBalance || 0
+      },
+      notes: vendor.notes || 'This statement summarizes the ledger standing for the vendor accounts.'
+    });
+    setPrintModalOpen(true);
+  };
+
+  const handlePrintPurchase = (p: Purchase) => {
+    if (!details) return
+    setPrintDocData({
+      title: 'Purchase Invoice',
+      docNumber: p.purchaseNo,
+      date: new Date(p.purchaseDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      partyLabel: 'Vendor',
+      partyInfo: {
+        name: details.vendor.name,
+        details1: details.vendor.email || '—',
+        details2: details.vendor.phone || '—'
+      },
+      preparedBy: p.createdByName || 'System',
+      paymentDetails: {
+        method: p.paymentMethod || 'N/A',
+        reference: '—'
+      },
+      items: [
+        {
+          sno: 1,
+          description: `Purchase record: ${p.purchaseCategory || ''}`,
+          quantity: 1,
+          unitPrice: p.grandTotal,
+          amount: p.grandTotal
+        }
+      ],
+      financialSummary: {
+        subTotal: p.grandTotal,
+        taxAmount: 0,
+        discountAmount: 0,
+        grandTotal: p.grandTotal,
+        amountPaid: p.amountPaid || 0,
+        balance: p.balanceAmount || 0
+      },
+      notes: p.notes || 'No remarks provided.'
+    });
+    setPrintModalOpen(true);
+  };
 
   const fetchVendorDetails = async () => {
     if (!id) return
@@ -120,6 +204,9 @@ export const VendorDetailsPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <EnterpriseButton variant="secondary" size="sm" onClick={() => navigate('/company/accounts/vendors')}>
               <ArrowLeft className="w-4 h-4 mr-1.5" /> Back to Vendors
+            </EnterpriseButton>
+            <EnterpriseButton variant="secondary" size="sm" onClick={handlePrintVendorStatement}>
+              <Printer className="w-4 h-4 mr-1.5" /> Print Statement
             </EnterpriseButton>
             <EnterpriseButton variant="secondary" size="sm" onClick={fetchVendorDetails}>
               <RefreshCw className="w-4 h-4 mr-1.5" /> Refresh
@@ -253,20 +340,51 @@ export const VendorDetailsPage: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => navigate(`/company/accounts/purchases/${p.id}`)} className="p-1 text-slate-600 hover:text-[#1A56DB] hover:bg-blue-50 rounded" title="View Purchase">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* VIEW */}
+                          <button
+                            onClick={() => navigate(`/company/accounts/purchases/${p.id}`)}
+                            className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
+                            title="View Purchase"
+                          >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
+
+                          {/* EDIT */}
                           {!p.isCancelled && (
-                            <button onClick={() => navigate(`/company/accounts/purchases/edit/${p.id}`)} className="p-1 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded" title="Edit Purchase">
+                            <button
+                              onClick={() => navigate(`/company/accounts/purchases/edit/${p.id}`)}
+                              className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
+                              title="Edit Purchase"
+                            >
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
                           )}
-                          <button onClick={() => handleDuplicatePurchase(p.id)} className="p-1 text-slate-600 hover:text-purple-600 hover:bg-purple-50 rounded" title="Duplicate">
+
+                          {/* PRINT */}
+                          <button
+                            onClick={() => handlePrintPurchase(p)}
+                            className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
+                            title="Print Purchase Invoice"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* MODULE SPECIFIC EXTRA ACTIONS */}
+                          <button
+                            onClick={() => handleDuplicatePurchase(p.id)}
+                            className="p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded transition-colors"
+                            title="Duplicate"
+                          >
                             <Copy className="w-3.5 h-3.5" />
                           </button>
+
                           {!p.isCancelled && (
-                            <button onClick={() => handleCancelPurchase(p.id, p.purchaseNo)} className="p-1 text-slate-600 hover:text-amber-600 hover:bg-amber-50 rounded" title="Cancel">
+                            <button
+                              onClick={() => handleCancelPurchase(p.id, p.purchaseNo)}
+                              className="p-1 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded transition-colors"
+                              title="Cancel"
+                            >
                               <XCircle className="w-3.5 h-3.5" />
                             </button>
                           )}
@@ -402,6 +520,17 @@ export const VendorDetailsPage: React.FC = () => {
             </div>
           )}
         </EnterpriseCard>
+      )}
+      {/* PRINT PREVIEW MODAL */}
+      {printModalOpen && printDocData && (
+        <PrintPreviewModal
+          isOpen={printModalOpen}
+          onClose={() => {
+            setPrintModalOpen(false)
+            setPrintDocData(null)
+          }}
+          documentData={printDocData}
+        />
       )}
     </div>
   )

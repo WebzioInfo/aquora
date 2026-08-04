@@ -368,7 +368,120 @@ namespace Aquora.Persistence.Services
                                 {
                                     jp.Category = "20L Jar";
                                 }
-                                await tenantContext.SaveChangesAsync();
+                            }
+
+                            // Auto-repair invalid default dates (0001-01-01, default/empty values, etc.)
+                            _logger.LogInformation($"[REPAIR-DATETIME] Repairing default/invalid timestamps in schema '{tenant.SchemaName}'...");
+                            var schema = tenant.SchemaName;
+                            try
+                            {
+                                using (var cmd = tenantContext.Database.GetDbConnection().CreateCommand())
+                                {
+                                    if (cmd.Connection.State != System.Data.ConnectionState.Open)
+                                    {
+                                        await cmd.Connection.OpenAsync();
+                                    }
+
+                                    var tables = new[] {
+                                        "Purchases", "PurchasePayments", "PurchaseTimelineEvents", "SimpleExpenses", 
+                                        "BankLedgerEntries", "BankLedgerAuditEntries", "SalaryPayments", "Users", 
+                                        "Vendors", "Customers", "InventoryMovements", "PlatformAuditLogs", "Companies"
+                                    };
+
+                                    foreach (var table in tables)
+                                    {
+                                        try
+                                        {
+                                            cmd.CommandText = $@"
+                                                UPDATE ""{schema}"".""{table}"" 
+                                                SET ""CreatedAt"" = NOW() AT TIME ZONE 'utc'
+                                                WHERE ""CreatedAt"" IS NULL OR ""CreatedAt"" < '2020-01-01'::timestamp;";
+                                            await cmd.ExecuteNonQueryAsync();
+                                        }
+                                        catch { }
+                                        
+                                        try
+                                        {
+                                            cmd.CommandText = $@"
+                                                UPDATE ""{schema}"".""{table}"" 
+                                                SET ""UpdatedAt"" = NOW() AT TIME ZONE 'utc'
+                                                WHERE ""UpdatedAt"" IS NOT NULL AND ""UpdatedAt"" < '2020-01-01'::timestamp;";
+                                            await cmd.ExecuteNonQueryAsync();
+                                        }
+                                        catch { }
+                                    }
+
+                                    try
+                                    {
+                                        cmd.CommandText = $@"
+                                            UPDATE ""{schema}"".""Purchases"" 
+                                            SET ""PurchaseDate"" = NOW() AT TIME ZONE 'utc'
+                                            WHERE ""PurchaseDate"" IS NULL OR ""PurchaseDate"" < '2020-01-01'::timestamp;";
+                                        await cmd.ExecuteNonQueryAsync();
+                                    }
+                                    catch {}
+
+                                    try
+                                    {
+                                        cmd.CommandText = $@"
+                                            UPDATE ""{schema}"".""PurchasePayments"" 
+                                            SET ""PaymentDate"" = NOW() AT TIME ZONE 'utc'
+                                            WHERE ""PaymentDate"" IS NULL OR ""PaymentDate"" < '2020-01-01'::timestamp;";
+                                        await cmd.ExecuteNonQueryAsync();
+                                    }
+                                    catch {}
+
+                                    try
+                                    {
+                                        cmd.CommandText = $@"
+                                            UPDATE ""{schema}"".""SimpleExpenses"" 
+                                            SET ""ExpenseDate"" = NOW() AT TIME ZONE 'utc'
+                                            WHERE ""ExpenseDate"" IS NULL OR ""ExpenseDate"" < '2020-01-01'::timestamp;";
+                                        await cmd.ExecuteNonQueryAsync();
+                                    }
+                                    catch {}
+
+                                    try
+                                    {
+                                        cmd.CommandText = $@"
+                                            UPDATE ""{schema}"".""BankLedgerEntries"" 
+                                            SET ""TransactionDate"" = NOW() AT TIME ZONE 'utc'
+                                            WHERE ""TransactionDate"" IS NULL OR ""TransactionDate"" < '2020-01-01'::timestamp;";
+                                        await cmd.ExecuteNonQueryAsync();
+                                    }
+                                    catch {}
+
+                                    try
+                                    {
+                                        cmd.CommandText = $@"
+                                            UPDATE ""{schema}"".""SalaryPayments"" 
+                                            SET ""PaymentDate"" = NOW() AT TIME ZONE 'utc'
+                                            WHERE ""PaymentDate"" IS NULL OR ""PaymentDate"" < '2020-01-01'::timestamp;";
+                                        await cmd.ExecuteNonQueryAsync();
+                                    }
+                                    catch {}
+                                    try
+                                    {
+                                        cmd.CommandText = $@"
+                                            UPDATE ""{schema}"".""Companies"" 
+                                            SET ""TimeZone"" = 'Asia/Kolkata'
+                                            WHERE ""TimeZone"" IS NULL;
+                                            
+                                            UPDATE ""{schema}"".""Companies"" 
+                                            SET ""DateFormat"" = 'dd MMM yyyy'
+                                            WHERE ""DateFormat"" IS NULL;
+                                            
+                                            UPDATE ""{schema}"".""Companies"" 
+                                            SET ""TimeFormat"" = '12h'
+                                            WHERE ""TimeFormat"" IS NULL;";
+                                        await cmd.ExecuteNonQueryAsync();
+                                    }
+                                    catch {}
+                                }
+                            }
+                            catch (Exception repairEx)
+                            {
+                                _logger.LogWarning($"[REPAIR-DATETIME WARN]: Failed timestamp cleanup for {tenant.SchemaName}: {repairEx.Message}");
                             }
 
                             // GOD MODE ENFORCEMENT: Validate the Tenant Schema after repair

@@ -47,6 +47,5 @@ namespace Aquora.Application.Interfaces.Services
         Task ReconcileMissingLedgerEntriesAsync(Guid? bankAccountId = null);
 
         Task<System.Collections.Generic.List<BankLedgerAuditEntryDto>> GetLedgerHistoryAsync(Guid ledgerEntryId);
-        Task<Guid> ReverseTransactionAsync(Guid ledgerEntryId, string reason);
     }
 }

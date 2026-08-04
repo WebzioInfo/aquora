@@ -96,15 +96,19 @@ namespace Aquora.Application.Services
                 .ToListAsync();
 
             var sortedEntries = allEntries
-                .OrderBy(entry => entry.TransactionType == "Opening Balance" ? 0 : 1)
-                .ThenBy(x => x.TransactionDate)
-                .ThenBy(x => x.CreatedAt)
-                .ThenBy(x => x.LedgerSequence)
+                .OrderBy(x => x.CreatedAt)
+                .ThenBy(x => x.Id)
                 .ToList();
 
-            decimal runningBalance = 0m;
+            decimal runningBalance = bank.OpeningBalance;
             foreach (var entry in sortedEntries)
             {
+                if (entry.TransactionType == "Opening Balance")
+                {
+                    entry.RunningBalance = bank.OpeningBalance;
+                    continue;
+                }
+
                 runningBalance = runningBalance - entry.Debit + entry.Credit;
                 entry.RunningBalance = runningBalance;
             }
@@ -793,15 +797,19 @@ namespace Aquora.Application.Services
                 .ToListAsync();
 
             var sortedEntries = allEntries
-                .OrderBy(entry => entry.TransactionType == "Opening Balance" ? 0 : 1)
-                .ThenBy(x => x.TransactionDate)
-                .ThenBy(x => x.CreatedAt)
-                .ThenBy(x => x.LedgerSequence)
+                .OrderBy(x => x.CreatedAt)
+                .ThenBy(x => x.Id)
                 .ToList();
 
-            decimal runningBalance = 0m;
+            decimal runningBalance = cashBook.OpeningBalance;
             foreach (var entry in sortedEntries)
             {
+                if (entry.TransactionType == "Opening Balance")
+                {
+                    entry.RunningBalance = cashBook.OpeningBalance;
+                    continue;
+                }
+
                 runningBalance = runningBalance - entry.Debit + entry.Credit;
                 entry.RunningBalance = runningBalance;
             }
@@ -1391,93 +1399,6 @@ namespace Aquora.Application.Services
                     }
                 });
             }
-        }
-
-        public async Task<Guid> ReverseTransactionAsync(Guid ledgerEntryId, string reason)
-        {
-            var tenantId = GetTenantId();
-            var companyId = await GetCompanyIdAsync();
-            var currentUser = _currentUserContext.Email ?? "Unknown User";
-
-            var originalEntry = await _context.BankLedgerEntries
-                .FirstOrDefaultAsync(e => e.Id == ledgerEntryId && e.TenantId == tenantId);
-
-            if (originalEntry == null)
-                throw new KeyNotFoundException("Ledger entry not found.");
-
-            var alreadyReversed = await _context.BankLedgerEntries
-                .AnyAsync(e => e.TenantId == tenantId && (e.ReferenceNumber == "REV-" + originalEntry.ReferenceNumber || (e.RelatedEntityId == originalEntry.Id && e.RelatedEntityType == "Reversal")));
-            if (alreadyReversed)
-                throw new InvalidOperationException("This transaction has already been reversed.");
-
-            decimal debit = originalEntry.Credit;
-            decimal credit = originalEntry.Debit;
-
-            var reversalEntry = new BankLedgerEntry
-            {
-                Id = Guid.NewGuid(),
-                TenantId = tenantId,
-                CompanyId = companyId,
-                BankAccountId = originalEntry.BankAccountId,
-                CashBookId = originalEntry.CashBookId,
-                LedgerAccountType = originalEntry.LedgerAccountType,
-                TransactionDate = DateTime.UtcNow,
-                ReferenceNumber = "REV-" + originalEntry.ReferenceNumber,
-                TransactionType = originalEntry.TransactionType + " Reversal",
-                Description = $"Reversal of: {originalEntry.Description}",
-                Debit = debit,
-                Credit = credit,
-                RunningBalance = 0m,
-                RelatedEntityId = originalEntry.Id,
-                RelatedEntityType = "Reversal",
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = currentUser
-            };
-
-            _context.BankLedgerEntries.Add(reversalEntry);
-
-            var originalAudit = new BankLedgerAuditEntry
-            {
-                Id = Guid.NewGuid(),
-                TenantId = tenantId,
-                CompanyId = companyId,
-                BankLedgerEntryId = originalEntry.Id,
-                Action = "Reversed",
-                OldAmount = originalEntry.Debit > 0 ? originalEntry.Debit : originalEntry.Credit,
-                NewAmount = originalEntry.Debit > 0 ? originalEntry.Debit : originalEntry.Credit,
-                Remarks = reason,
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = currentUser
-            };
-            _context.BankLedgerAuditEntries.Add(originalAudit);
-
-            var reversalAudit = new BankLedgerAuditEntry
-            {
-                Id = Guid.NewGuid(),
-                TenantId = tenantId,
-                CompanyId = companyId,
-                BankLedgerEntryId = reversalEntry.Id,
-                Action = "Created",
-                OldAmount = 0m,
-                NewAmount = debit > 0 ? debit : credit,
-                Remarks = $"Reversal of entry {originalEntry.ReferenceNumber}. Reason: {reason}",
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = currentUser
-            };
-            _context.BankLedgerAuditEntries.Add(reversalAudit);
-
-            await _context.SaveChangesAsync();
-
-            if (originalEntry.LedgerAccountType == "BankAccount" && originalEntry.BankAccountId.HasValue)
-            {
-                await RecalculateBankLedgerBalancesAsync(originalEntry.BankAccountId.Value);
-            }
-            else if (originalEntry.LedgerAccountType == "CashBook" && originalEntry.CashBookId.HasValue)
-            {
-                await RecalculateCashBookLedgerBalancesAsync(originalEntry.CashBookId.Value);
-            }
-
-            return reversalEntry.Id;
         }
     }
 }

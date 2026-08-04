@@ -13,6 +13,7 @@ namespace Aquora.Persistence.Context
     {
         private readonly ITenantProvider _tenantProvider;
         private readonly ICurrentUserContext _currentUserContext;
+        private readonly IDateTimeProvider _dateTimeProvider;
 
         public string SchemaName => !string.IsNullOrWhiteSpace(_tenantProvider.TenantSchemaName)
             ? _tenantProvider.TenantSchemaName
@@ -21,10 +22,12 @@ namespace Aquora.Persistence.Context
         public TenantDbContext(
             DbContextOptions<TenantDbContext> options,
             ITenantProvider tenantProvider,
-            ICurrentUserContext currentUserContext) : base(options)
+            ICurrentUserContext currentUserContext,
+            IDateTimeProvider? dateTimeProvider = null) : base(options)
         {
             _tenantProvider = tenantProvider;
             _currentUserContext = currentUserContext;
+            _dateTimeProvider = dateTimeProvider ?? new DefaultDateTimeProvider();
         }
 
         public DbSet<Company> Companies => Set<Company>();
@@ -500,22 +503,54 @@ namespace Aquora.Persistence.Context
 
         public override int SaveChanges()
         {
+            if (_isRecalculating)
+            {
+                return base.SaveChanges();
+            }
+
             LogDatabaseContextState();
-            return base.SaveChanges();
+            var currentUserId = _currentUserContext.UserId ?? "System";
+            var currentTenantId = _tenantProvider.TenantId;
+            OnBeforeSaving(currentUserId, currentTenantId);
+
+            GetAffectedLedgerAccounts(out var bankAccountIds, out var cashBookIds);
+
+            var result = base.SaveChanges();
+
+            if (bankAccountIds.Any() || cashBookIds.Any())
+            {
+                RecalculateBalances(bankAccountIds, cashBookIds);
+            }
+
+            return result;
         }
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
-            LogDatabaseContextState();
-            return base.SaveChanges(acceptAllChangesOnSuccess);
-        }
+            if (_isRecalculating)
+            {
+                return base.SaveChanges(acceptAllChangesOnSuccess);
+            }
 
-        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
             LogDatabaseContextState();
             var currentUserId = _currentUserContext.UserId ?? "System";
             var currentTenantId = _tenantProvider.TenantId;
+            OnBeforeSaving(currentUserId, currentTenantId);
 
+            GetAffectedLedgerAccounts(out var bankAccountIds, out var cashBookIds);
+
+            var result = base.SaveChanges(acceptAllChangesOnSuccess);
+
+            if (bankAccountIds.Any() || cashBookIds.Any())
+            {
+                RecalculateBalances(bankAccountIds, cashBookIds);
+            }
+
+            return result;
+        }
+
+        private void OnBeforeSaving(string currentUserId, Guid currentTenantId)
+        {
             foreach (var entry in ChangeTracker.Entries())
             {
                 if (entry.State == EntityState.Added && entry.Entity is IMultiTenant multiTenantEntity)
@@ -530,7 +565,7 @@ namespace Aquora.Persistence.Context
                 {
                     entry.State = EntityState.Modified;
                     softDeleteEntity.IsDeleted = true;
-                    softDeleteEntity.DeletedAt = DateTime.UtcNow;
+                    softDeleteEntity.DeletedAt = _dateTimeProvider.UtcNow;
                     softDeleteEntity.DeletedBy = currentUserId;
                 }
 
@@ -538,38 +573,65 @@ namespace Aquora.Persistence.Context
                 {
                     if (entry.State == EntityState.Added)
                     {
-                        auditableEntity.CreatedAt = DateTime.UtcNow;
+                        if (auditableEntity.CreatedAt == default(DateTime))
+                        {
+                            auditableEntity.CreatedAt = _dateTimeProvider.UtcNow;
+                        }
                         auditableEntity.CreatedBy = currentUserId;
                         auditableEntity.CreatedByIP = _currentUserContext.IpAddress ?? "127.0.0.1";
                     }
                     else if (entry.State == EntityState.Modified)
                     {
-                        auditableEntity.UpdatedAt = DateTime.UtcNow;
+                        auditableEntity.UpdatedAt = _dateTimeProvider.UtcNow;
                         auditableEntity.UpdatedBy = currentUserId;
                         auditableEntity.UpdatedByIP = _currentUserContext.IpAddress ?? "127.0.0.1";
                     }
                 }
             }
+        }
+
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            if (_isRecalculating)
+            {
+                return await base.SaveChangesAsync(cancellationToken);
+            }
+
+            LogDatabaseContextState();
+            var currentUserId = _currentUserContext.UserId ?? "System";
+            var currentTenantId = _tenantProvider.TenantId;
+
+            OnBeforeSaving(currentUserId, currentTenantId);
+
+            GetAffectedLedgerAccounts(out var bankAccountIds, out var cashBookIds);
 
             if (AuditState.IsDisabled)
             {
+                int result;
                 try
                 {
-                    return await base.SaveChangesAsync(cancellationToken);
+                    result = await base.SaveChangesAsync(cancellationToken);
                 }
                 catch (DbUpdateException dbEx)
                 {
                     LogDbUpdateException(dbEx);
                     throw;
                 }
+
+                if (bankAccountIds.Any() || cashBookIds.Any())
+                {
+                    await RecalculateBalancesAsync(bankAccountIds, cashBookIds, cancellationToken);
+                }
+
+                return result;
             }
 
             var auditLogs = GenerateAuditLogs(currentUserId, currentTenantId);
 
-            int result;
+            int resultWithAudit;
             try
             {
-                result = await base.SaveChangesAsync(cancellationToken);
+                resultWithAudit = await base.SaveChangesAsync(cancellationToken);
             }
             catch (DbUpdateException dbEx)
             {
@@ -607,7 +669,12 @@ namespace Aquora.Persistence.Context
                 }
             }
 
-            return result;
+            if (bankAccountIds.Any() || cashBookIds.Any())
+            {
+                await RecalculateBalancesAsync(bankAccountIds, cashBookIds, cancellationToken);
+            }
+
+            return resultWithAudit;
         }
 
         private System.Collections.Generic.List<AuditLog> GenerateAuditLogs(string userId, Guid tenantId)
@@ -693,6 +760,210 @@ namespace Aquora.Persistence.Context
                 {
                     Console.WriteLine($"[AFFECTED ENTITY]: Type={entry.Entity.GetType().Name}, State={entry.State}");
                 }
+            }
+        }
+
+        private bool _isRecalculating = false;
+
+        private void GetAffectedLedgerAccounts(out HashSet<Guid> bankAccountIds, out HashSet<Guid> cashBookIds)
+        {
+            bankAccountIds = new HashSet<Guid>();
+            cashBookIds = new HashSet<Guid>();
+
+            foreach (var entry in ChangeTracker.Entries<Aquora.Domain.Entities.Finance.BankLedgerEntry>())
+            {
+                if (entry.State == EntityState.Added || entry.State == EntityState.Modified || entry.State == EntityState.Deleted)
+                {
+                    var bankAccountId = entry.State == EntityState.Deleted 
+                        ? (Guid?)entry.OriginalValues[nameof(Aquora.Domain.Entities.Finance.BankLedgerEntry.BankAccountId)]
+                        : entry.Entity.BankAccountId;
+
+                    var cashBookId = entry.State == EntityState.Deleted
+                        ? (Guid?)entry.OriginalValues[nameof(Aquora.Domain.Entities.Finance.BankLedgerEntry.CashBookId)]
+                        : entry.Entity.CashBookId;
+
+                    if (bankAccountId.HasValue && bankAccountId.Value != Guid.Empty)
+                    {
+                        bankAccountIds.Add(bankAccountId.Value);
+                    }
+                    if (cashBookId.HasValue && cashBookId.Value != Guid.Empty)
+                    {
+                        cashBookIds.Add(cashBookId.Value);
+                    }
+
+                    if (entry.State == EntityState.Modified)
+                    {
+                        var originalBankAccountId = (Guid?)entry.OriginalValues[nameof(Aquora.Domain.Entities.Finance.BankLedgerEntry.BankAccountId)];
+                        if (originalBankAccountId.HasValue && originalBankAccountId.Value != Guid.Empty && originalBankAccountId.Value != bankAccountId)
+                        {
+                            bankAccountIds.Add(originalBankAccountId.Value);
+                        }
+
+                        var originalCashBookId = (Guid?)entry.OriginalValues[nameof(Aquora.Domain.Entities.Finance.BankLedgerEntry.CashBookId)];
+                        if (originalCashBookId.HasValue && originalCashBookId.Value != Guid.Empty && originalCashBookId.Value != cashBookId)
+                        {
+                            cashBookIds.Add(originalCashBookId.Value);
+                        }
+                    }
+                }
+            }
+        }
+
+        private async Task RecalculateBalancesAsync(HashSet<Guid> bankAccountIds, HashSet<Guid> cashBookIds, CancellationToken cancellationToken)
+        {
+            if (_isRecalculating) return;
+
+            try
+            {
+                _isRecalculating = true;
+                var tenantId = _tenantProvider.TenantId;
+
+                foreach (var bankAccountId in bankAccountIds)
+                {
+                    var bank = await BankAccounts.FirstOrDefaultAsync(b => b.Id == bankAccountId && b.TenantId == tenantId, cancellationToken);
+                    if (bank == null) continue;
+
+                    var entries = await BankLedgerEntries
+                        .Where(x => x.TenantId == tenantId && x.BankAccountId == bankAccountId)
+                        .ToListAsync(cancellationToken);
+
+                    var sortedEntries = entries
+                        .OrderBy(x => x.CreatedAt)
+                        .ThenBy(x => x.Id)
+                        .ToList();
+
+                    decimal runningBalance = bank.OpeningBalance;
+                    foreach (var entry in sortedEntries)
+                    {
+                        if (entry.TransactionType == "Opening Balance")
+                        {
+                            entry.RunningBalance = bank.OpeningBalance;
+                            continue;
+                        }
+
+                        runningBalance = runningBalance - entry.Debit + entry.Credit;
+                        entry.RunningBalance = runningBalance;
+                    }
+
+                    bank.CurrentBalance = runningBalance;
+                    bank.UpdatedAt = _dateTimeProvider.UtcNow;
+                }
+
+                foreach (var cashBookId in cashBookIds)
+                {
+                    var cashBook = await CashBooks.FirstOrDefaultAsync(b => b.Id == cashBookId && b.TenantId == tenantId, cancellationToken);
+                    if (cashBook == null) continue;
+
+                    var entries = await BankLedgerEntries
+                        .Where(x => x.TenantId == tenantId && x.CashBookId == cashBookId && x.LedgerAccountType == "CashBook")
+                        .ToListAsync(cancellationToken);
+
+                    var sortedEntries = entries
+                        .OrderBy(x => x.CreatedAt)
+                        .ThenBy(x => x.Id)
+                        .ToList();
+
+                    decimal runningBalance = cashBook.OpeningBalance;
+                    foreach (var entry in sortedEntries)
+                    {
+                        if (entry.TransactionType == "Opening Balance")
+                        {
+                            entry.RunningBalance = cashBook.OpeningBalance;
+                            continue;
+                        }
+
+                        runningBalance = runningBalance - entry.Debit + entry.Credit;
+                        entry.RunningBalance = runningBalance;
+                    }
+
+                    cashBook.CurrentBalance = runningBalance;
+                    cashBook.UpdatedAt = _dateTimeProvider.UtcNow;
+                }
+
+                await base.SaveChangesAsync(cancellationToken);
+            }
+            finally
+            {
+                _isRecalculating = false;
+            }
+        }
+
+        private void RecalculateBalances(HashSet<Guid> bankAccountIds, HashSet<Guid> cashBookIds)
+        {
+            if (_isRecalculating) return;
+
+            try
+            {
+                _isRecalculating = true;
+                var tenantId = _tenantProvider.TenantId;
+
+                foreach (var bankAccountId in bankAccountIds)
+                {
+                    var bank = BankAccounts.FirstOrDefault(b => b.Id == bankAccountId && b.TenantId == tenantId);
+                    if (bank == null) continue;
+
+                    var entries = BankLedgerEntries
+                        .Where(x => x.TenantId == tenantId && x.BankAccountId == bankAccountId)
+                        .ToList();
+
+                    var sortedEntries = entries
+                        .OrderBy(x => x.CreatedAt)
+                        .ThenBy(x => x.Id)
+                        .ToList();
+
+                    decimal runningBalance = bank.OpeningBalance;
+                    foreach (var entry in sortedEntries)
+                    {
+                        if (entry.TransactionType == "Opening Balance")
+                        {
+                            entry.RunningBalance = bank.OpeningBalance;
+                            continue;
+                        }
+
+                        runningBalance = runningBalance - entry.Debit + entry.Credit;
+                        entry.RunningBalance = runningBalance;
+                    }
+
+                    bank.CurrentBalance = runningBalance;
+                    bank.UpdatedAt = _dateTimeProvider.UtcNow;
+                }
+
+                foreach (var cashBookId in cashBookIds)
+                {
+                    var cashBook = CashBooks.FirstOrDefault(b => b.Id == cashBookId && b.TenantId == tenantId);
+                    if (cashBook == null) continue;
+
+                    var entries = BankLedgerEntries
+                        .Where(x => x.TenantId == tenantId && x.CashBookId == cashBookId && x.LedgerAccountType == "CashBook")
+                        .ToList();
+
+                    var sortedEntries = entries
+                        .OrderBy(x => x.CreatedAt)
+                        .ThenBy(x => x.Id)
+                        .ToList();
+
+                    decimal runningBalance = cashBook.OpeningBalance;
+                    foreach (var entry in sortedEntries)
+                    {
+                        if (entry.TransactionType == "Opening Balance")
+                        {
+                            entry.RunningBalance = cashBook.OpeningBalance;
+                            continue;
+                        }
+
+                        runningBalance = runningBalance - entry.Debit + entry.Credit;
+                        entry.RunningBalance = runningBalance;
+                    }
+
+                    cashBook.CurrentBalance = runningBalance;
+                    cashBook.UpdatedAt = _dateTimeProvider.UtcNow;
+                }
+
+                base.SaveChanges();
+            }
+            finally
+            {
+                _isRecalculating = false;
             }
         }
     }

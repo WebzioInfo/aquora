@@ -5,6 +5,8 @@ import { useThemeStore } from '../store/useThemeStore'
 import { useNotificationStore } from '../store/useNotificationStore'
 import ToastContainer from '../components/ui/ToastContainer'
 import BRAND from '../config/brand'
+import { api } from '../services/api'
+import { setCompanyPrefs } from '../utils/dateFormatter'
 import {
   LayoutDashboard, Factory, Package, TrendingUp, Users, Truck,
   Settings, ChevronRight, Play, Plus, X, Layers, Workflow, CalendarClock,
@@ -28,6 +30,22 @@ export const CompanyLayout: React.FC = () => {
 
   useEffect(() => {
     initTheme()
+    const loadSettings = async () => {
+      try {
+        const res = await api.get('/api/v1/company/settings')
+        if (res.data?.success && res.data?.data) {
+          const data = res.data.data
+          setCompanyPrefs({
+            timeZone: data.timeZone || 'Asia/Kolkata',
+            dateFormat: data.dateFormat || 'dd MMM yyyy',
+            timeFormat: data.timeFormat || '12h'
+          })
+        }
+      } catch (err) {
+        console.error('Failed to prefetch company settings:', err)
+      }
+    }
+    loadSettings()
   }, [])
 
   const handleLogout = () => {

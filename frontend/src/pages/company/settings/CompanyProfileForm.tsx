@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { api } from '../../../services/api'
 import { useNotificationStore } from '../../../store/useNotificationStore'
 import { Building2, Mail, Phone, MapPin, Globe2, Calendar, ShieldCheck, Database, Layers } from 'lucide-react'
+import { setCompanyPrefs } from '../../../utils/dateFormatter'
 
 export const CompanyProfileForm: React.FC = () => {
   const { showToast } = useNotificationStore()
@@ -16,9 +17,10 @@ export const CompanyProfileForm: React.FC = () => {
   const [phone, setPhone] = useState('')
   const [gstNumber, setGstNumber] = useState('')
   const [address, setAddress] = useState('')
-  const [timezone, setTimezone] = useState('UTC')
+  const [timezone, setTimezone] = useState('Asia/Kolkata')
   const [language, setLanguage] = useState('en')
-  const [dateFormat, setDateFormat] = useState('YYYY-MM-DD')
+  const [dateFormat, setDateFormat] = useState('dd MMM yyyy')
+  const [timeFormat, setTimeFormat] = useState('12h')
   const [logoUrl, setLogoUrl] = useState('')
 
   const fetchProfile = async () => {
@@ -34,10 +36,18 @@ export const CompanyProfileForm: React.FC = () => {
         setPhone(data.phone || '')
         setGstNumber(data.gstNumber || '')
         setAddress(data.address || '')
-        setTimezone(data.timezone || 'UTC')
+        setTimezone(data.timeZone || 'Asia/Kolkata')
         setLanguage(data.language || 'en')
-        setDateFormat(data.dateFormat || 'YYYY-MM-DD')
+        setDateFormat(data.dateFormat || 'dd MMM yyyy')
+        setTimeFormat(data.timeFormat || '12h')
         setLogoUrl(data.logoUrl || '')
+        
+        // Cache globally for UI formatting
+        setCompanyPrefs({
+          timeZone: data.timeZone || 'Asia/Kolkata',
+          dateFormat: data.dateFormat || 'dd MMM yyyy',
+          timeFormat: data.timeFormat || '12h'
+        })
       }
     } catch (err: any) {
       showToast(err.message || 'Failed to load company profile.', 'error')
@@ -64,6 +74,7 @@ export const CompanyProfileForm: React.FC = () => {
         timezone,
         language,
         dateFormat,
+        timeFormat,
         logoUrl
       })
       if (res.data?.success) {
@@ -241,7 +252,7 @@ export const CompanyProfileForm: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Time Zone</label>
                 <select
@@ -249,10 +260,11 @@ export const CompanyProfileForm: React.FC = () => {
                   onChange={(e) => setTimezone(e.target.value)}
                   className="w-full text-sm border-slate-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg p-2.5 border"
                 >
-                  <option value="UTC">UTC</option>
                   <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
-                  <option value="America/New_York">EST / EDT</option>
-                  <option value="Europe/London">GMT / BST</option>
+                  <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+                  <option value="Asia/Singapore">Asia/Singapore (SGT)</option>
+                  <option value="Europe/London">Europe/London (GMT/BST)</option>
+                  <option value="UTC">UTC (GMT)</option>
                 </select>
               </div>
               <div>
@@ -274,9 +286,21 @@ export const CompanyProfileForm: React.FC = () => {
                   onChange={(e) => setDateFormat(e.target.value)}
                   className="w-full text-sm border-slate-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg p-2.5 border"
                 >
-                  <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                  <option value="DD-MM-YYYY">DD-MM-YYYY</option>
-                  <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                  <option value="dd MMM yyyy">dd MMM yyyy (e.g. 04 Aug 2026)</option>
+                  <option value="yyyy-MM-dd">yyyy-MM-dd</option>
+                  <option value="dd-MM-yyyy">dd-MM-yyyy</option>
+                  <option value="MM/dd/yyyy">MM/dd/yyyy</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Time Format</label>
+                <select
+                  value={timeFormat}
+                  onChange={(e) => setTimeFormat(e.target.value)}
+                  className="w-full text-sm border-slate-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg p-2.5 border"
+                >
+                  <option value="12h">12-Hour (AM/PM)</option>
+                  <option value="24h">24-Hour</option>
                 </select>
               </div>
             </div>

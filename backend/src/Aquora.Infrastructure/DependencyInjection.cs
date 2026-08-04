@@ -21,6 +21,7 @@ namespace Aquora.Infrastructure
             // Core services registration
             services.AddScoped<ITenantProvider, TenantProvider>();
             services.AddScoped<ICurrentUserContext, CurrentUserContext>();
+            services.AddScoped<IDateTimeProvider, DateTimeProvider>();
             
             services.AddSingleton<ITokenService, TokenService>();
             services.AddSingleton<IPasswordHasher, PasswordHasher>();

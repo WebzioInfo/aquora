@@ -10,7 +10,8 @@ import EnterpriseBadge from '../../../components/ui/EnterpriseBadge'
 import EnterpriseModal from '../../../components/ui/EnterpriseModal'
 import EnterpriseLoading from '../../../components/ui/EnterpriseLoading'
 import EnterpriseNumberInput from '../../../components/ui/EnterpriseNumberInput'
-import { Plus, Search, Eye, Edit2, Trash2, Landmark, RefreshCw } from 'lucide-react'
+import { Plus, Search, Eye, Edit2, Trash2, Landmark, RefreshCw, Printer } from 'lucide-react'
+import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
 
 const EXPENSE_CATEGORIES = [
   'Salary',
@@ -46,6 +47,10 @@ export const ExpenseManagementPage: React.FC = () => {
   const [selectedExpense, setSelectedExpense] = useState<SimpleExpense | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
 
+  // Print Preview Modal States
+  const [printModalOpen, setPrintModalOpen] = useState(false)
+  const [printDocData, setPrintDocData] = useState<any>(null)
+
   // Form Fields
   const [formData, setFormData] = useState<{
     expenseDate: string
@@ -68,6 +73,41 @@ export const ExpenseManagementPage: React.FC = () => {
     cashBookId: '',
     notes: ''
   })
+
+  const handlePrintExpense = (exp: SimpleExpense) => {
+    setPrintDocData({
+      title: 'Expense Voucher',
+      docNumber: exp.expenseNumber || 'EXP-VOUCHER',
+      date: new Date(exp.expenseDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      partyLabel: 'Paid To / Vendor',
+      partyInfo: {
+        name: exp.vendor || 'General Vendor',
+        details1: 'Category: ' + exp.category
+      },
+      preparedBy: 'Authorized Person',
+      paymentDetails: {
+        method: exp.paymentMethod || 'Cash',
+        reference: exp.expenseNumber || '—'
+      },
+      items: [
+        {
+          sno: 1,
+          description: exp.description || 'Business operational expense',
+          quantity: 1,
+          unitPrice: exp.amount,
+          amount: exp.amount
+        }
+      ],
+      financialSummary: {
+        subTotal: exp.amount,
+        grandTotal: exp.amount,
+        amountPaid: exp.amount,
+        balance: 0
+      },
+      notes: exp.notes || 'No remarks provided.'
+    });
+    setPrintModalOpen(true);
+  };
 
   // Bank Search Term in Modal
   const [bankSearchTerm, setBankSearchTerm] = useState('')
@@ -378,27 +418,34 @@ export const ExpenseManagementPage: React.FC = () => {
                         )}
                       </td>
                       <td className="p-3 text-slate-600 font-semibold">{expense.createdByName || expense.createdBy || 'System'}</td>
-                      <td className="p-3 text-right space-x-1">
+                      <td className="p-3 text-right space-x-1 whitespace-nowrap">
                         <button
                           onClick={() => handleOpenView(expense)}
-                          className="p-1.5 text-slate-500 hover:text-slate-900 rounded hover:bg-slate-100"
+                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
                           title="View Details"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleOpenEdit(expense)}
-                          className="p-1.5 text-blue-600 hover:text-blue-800 rounded hover:bg-blue-50"
+                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
                           title="Edit Expense"
                         >
-                          <Edit2 className="w-4 h-4" />
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handlePrintExpense(expense)}
+                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
+                          title="Print Expense Voucher"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleDelete(expense.id)}
-                          className="p-1.5 text-rose-600 hover:text-rose-800 rounded hover:bg-rose-50"
+                          className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors"
                           title="Delete Expense"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </td>
                     </tr>
@@ -802,6 +849,18 @@ export const ExpenseManagementPage: React.FC = () => {
             </div>
           </div>
         </EnterpriseModal>
+      )}
+
+      {/* PRINT PREVIEW MODAL */}
+      {printModalOpen && printDocData && (
+        <PrintPreviewModal
+          isOpen={printModalOpen}
+          onClose={() => {
+            setPrintModalOpen(false)
+            setPrintDocData(null)
+          }}
+          documentData={printDocData}
+        />
       )}
     </div>
   )

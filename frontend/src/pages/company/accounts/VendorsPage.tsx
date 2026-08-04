@@ -15,8 +15,10 @@ import {
   ToggleLeft,
   ToggleRight,
   ShoppingBag,
-  DollarSign
+  DollarSign,
+  Printer
 } from 'lucide-react'
+import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
 import { vendorService, type Vendor, type CreateVendorRequest } from '../../../services/vendors'
 import { useNotificationStore } from '../../../store/useNotificationStore'
 import EnterpriseHeader from '../../../components/ui/EnterpriseHeader'
@@ -42,6 +44,10 @@ export const VendorsPage: React.FC = () => {
   const [showModal, setShowModal] = useState<boolean>(false)
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null)
   const [submitting, setSubmitting] = useState<boolean>(false)
+
+  // Print Preview Modal States
+  const [printModalOpen, setPrintModalOpen] = useState(false)
+  const [printDocData, setPrintDocData] = useState<any>(null)
 
   // Form State
   const [formData, setFormData] = useState<{
@@ -84,6 +90,44 @@ export const VendorsPage: React.FC = () => {
   useEffect(() => {
     fetchVendors()
   }, [pageNumber, search])
+
+  const handlePrintVendorStatement = (vendor: Vendor) => {
+    setPrintDocData({
+      title: 'Vendor Statement',
+      docNumber: vendor.vendorCode || `VND-${vendor.id.substring(0, 4).toUpperCase()}`,
+      date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      partyLabel: 'Vendor Info',
+      partyInfo: {
+        name: vendor.name,
+        details1: `Email: ${vendor.email || 'N/A'} | Phone: ${vendor.phone || 'N/A'}`,
+        details2: `GST: ${vendor.gst || 'N/A'} | Address: ${vendor.address || '—'}`
+      },
+      preparedBy: 'Accounts Admin',
+      paymentDetails: {
+        method: 'Statement Record'
+      },
+      items: [
+        {
+          sno: 1,
+          description: 'Opening Balance Statement Mapping',
+          amount: Number(vendor.openingBalance) || 0
+        },
+        {
+          sno: 2,
+          description: 'Accumulated Purchases Value',
+          amount: (vendor.totalPurchasesCount || 0) > 0 ? (vendor.totalPurchaseValue || 0) : 0
+        }
+      ],
+      financialSummary: {
+        subTotal: (Number(vendor.openingBalance) || 0) + (vendor.totalPurchaseValue || 0),
+        grandTotal: (Number(vendor.openingBalance) || 0) + (vendor.totalPurchaseValue || 0),
+        amountPaid: ((Number(vendor.openingBalance) || 0) + (vendor.totalPurchaseValue || 0)) - (vendor.currentBalance || 0),
+        balance: vendor.currentBalance || 0
+      },
+      notes: vendor.notes || 'This statement summarizes the ledger standing for the vendor accounts.'
+    });
+    setPrintModalOpen(true);
+  };
 
   const handleOpenCreateModal = () => {
     setEditingVendor(null)
@@ -288,34 +332,50 @@ export const VendorsPage: React.FC = () => {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {/* VIEW */}
                         <button
                           onClick={() => navigate(`/company/accounts/vendors/${vendor.id}`)}
-                          className="p-1 text-slate-600 hover:text-[#1A56DB] hover:bg-blue-50 rounded"
-                          title="View Vendor Details Profile"
+                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
+                          title="View Details"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
+
+                        {/* EDIT */}
                         <button
                           onClick={() => handleOpenEditModal(vendor)}
-                          className="p-1 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded"
+                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
                           title="Edit Vendor"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
+
+                        {/* PRINT */}
                         <button
-                          onClick={() => handleToggleStatus(vendor.id, vendor.name)}
-                          className="p-1 text-slate-600 hover:text-purple-600 hover:bg-purple-50 rounded"
-                          title={vendor.isActive ? 'Deactivate Vendor' : 'Activate Vendor'}
+                          onClick={() => handlePrintVendorStatement(vendor)}
+                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
+                          title="Print Vendor Statement"
                         >
-                          {vendor.isActive ? <ToggleRight className="w-3.5 h-3.5 text-emerald-600" /> : <ToggleLeft className="w-3.5 h-3.5 text-slate-400" />}
+                          <Printer className="w-3.5 h-3.5" />
                         </button>
+
+                        {/* DELETE */}
                         <button
                           onClick={() => handleDelete(vendor.id, vendor.name)}
-                          className="p-1 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded"
+                          className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors"
                           title="Delete Vendor"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* STATUS TOGGLE */}
+                        <button
+                          onClick={() => handleToggleStatus(vendor.id, vendor.name)}
+                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
+                          title={vendor.isActive ? 'Deactivate Vendor' : 'Activate Vendor'}
+                        >
+                          {vendor.isActive ? <ToggleRight className="w-3.5 h-3.5 text-emerald-600" /> : <ToggleLeft className="w-3.5 h-3.5 text-slate-400" />}
                         </button>
                       </div>
                     </td>
@@ -465,6 +525,18 @@ export const VendorsPage: React.FC = () => {
             </div>
           </form>
         </EnterpriseModal>
+      )}
+
+      {/* PRINT PREVIEW MODAL */}
+      {printModalOpen && printDocData && (
+        <PrintPreviewModal
+          isOpen={printModalOpen}
+          onClose={() => {
+            setPrintModalOpen(false)
+            setPrintDocData(null)
+          }}
+          documentData={printDocData}
+        />
       )}
     </div>
   )

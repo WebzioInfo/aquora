@@ -9,6 +9,10 @@ namespace Aquora.Domain.Entities
         public string Code { get; set; }
         public bool IsActive { get; set; } = true;
 
+        public string? TimeZone { get; set; } = "Asia/Kolkata";
+        public string? DateFormat { get; set; } = "dd MMM yyyy";
+        public string? TimeFormat { get; set; } = "12h";
+
         // Profile Details
         // (Removed due to schema mismatch)
 
