@@ -26,6 +26,18 @@ namespace Aquora.Domain.Entities
         public string? Remarks { get; set; }
         public string Status { get; set; } = "Completed";
 
+        // New ERP Sales Fields
+        public string? PaymentMethod { get; set; }
+        public Guid? BankAccountId { get; set; }
+        public Guid? CashBookId { get; set; }
+        public decimal UnitPrice { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal TaxAmount { get; set; }
+        public decimal CGST { get; set; }
+        public decimal SGST { get; set; }
+        public decimal IGST { get; set; }
+        public string? MetadataJson { get; set; }
+
         // Sales Account Tracking
         public decimal TotalAmount { get; set; }
         public decimal AmountReceived { get; set; }

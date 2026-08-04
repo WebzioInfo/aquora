@@ -473,7 +473,18 @@ namespace Aquora.Persistence.Services
                                             
                                             UPDATE ""{schema}"".""Companies"" 
                                             SET ""TimeFormat"" = '12h'
-                                            WHERE ""TimeFormat"" IS NULL;";
+                                            WHERE ""TimeFormat"" IS NULL;
+
+                                            ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""PaymentMethod"" text NULL;
+                                            ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""BankAccountId"" uuid NULL;
+                                            ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""CashBookId"" uuid NULL;
+                                            ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""UnitPrice"" numeric(18,2) NOT NULL DEFAULT 0.0;
+                                            ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""DiscountAmount"" numeric(18,2) NOT NULL DEFAULT 0.0;
+                                            ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""TaxAmount"" numeric(18,2) NOT NULL DEFAULT 0.0;
+                                            ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""CGST"" numeric(18,2) NOT NULL DEFAULT 0.0;
+                                            ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""SGST"" numeric(18,2) NOT NULL DEFAULT 0.0;
+                                            ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""IGST"" numeric(18,2) NOT NULL DEFAULT 0.0;
+                                            ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""MetadataJson"" text NULL;";
                                         await cmd.ExecuteNonQueryAsync();
                                     }
                                     catch {}

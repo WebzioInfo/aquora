@@ -21,7 +21,20 @@ export interface SalesTransaction {
   createdByName: string
   createdAt: string
   updatedAt: string | null
-  // Simple Accounts V1 Fields
+  // Simple Accounts V1 & New ERP Fields
+  paymentMethod?: string | null
+  bankAccountId?: string | null
+  bankAccountName?: string | null
+  cashBookId?: string | null
+  cashBookName?: string | null
+  unitPrice?: number
+  discountAmount?: number
+  taxAmount?: number
+  cgst?: number
+  sgst?: number
+  igst?: number
+  metadataJson?: string | null
+
   totalAmount?: number
   amountReceived?: number
   outstandingAmount?: number
@@ -52,6 +65,29 @@ export interface CreateSalesTransactionRequest {
   transactionDate: string
   referenceNumber?: string
   remarks?: string
+
+  // ERP & V1 Fields
+  paymentMethod?: string
+  bankAccountId?: string
+  cashBookId?: string
+  unitPrice?: number
+  discountAmount?: number
+  taxAmount?: number
+  cgst?: number
+  sgst?: number
+  igst?: number
+  metadataJson?: string
+
+  totalAmount?: number
+  amountReceived?: number
+  returnedAmount?: number
+  refundAmount?: number
+  adjustmentAmount?: number
+  returnType?: string
+  isReplacementRequired?: boolean
+  productValue?: number
+  damageCost?: number
+  damageReason?: string
 }
 
 export const salesService = {

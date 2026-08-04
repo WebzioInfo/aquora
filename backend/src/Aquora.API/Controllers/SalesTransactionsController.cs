@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Aquora.Application.Interfaces;
 using Aquora.Application.Interfaces.Services;
 using Aquora.Domain.Entities;
+using Aquora.Domain.Entities.Finance;
 using Aquora.Shared.Models;
 using Aquora.Application.DTOs.Finance;
 
@@ -26,19 +27,22 @@ namespace Aquora.API.Controllers
         private readonly IInventoryMovementService _inventoryMovementService;
         private readonly IPlatformDbContext _platformContext;
         private readonly IHubContext<DashboardHub> _dashboardHub;
+        private readonly ILedgerService _ledgerService;
 
         public SalesController(
             ITenantDbContext tenantContext,
             ICurrentUserContext currentUserContext,
             IInventoryMovementService inventoryMovementService,
             IPlatformDbContext platformContext,
-            IHubContext<DashboardHub> dashboardHub)
+            IHubContext<DashboardHub> dashboardHub,
+            ILedgerService ledgerService)
         {
             _tenantContext = tenantContext;
             _currentUserContext = currentUserContext;
             _inventoryMovementService = inventoryMovementService;
             _platformContext = platformContext;
             _dashboardHub = dashboardHub;
+            _ledgerService = ledgerService;
         }
 
         private async Task NotifyDashboardAsync(string eventName, object? data = null)
@@ -60,6 +64,15 @@ namespace Aquora.API.Controllers
             }
         }
 
+        private static bool IsBankPaymentMethod(string? paymentMethod)
+        {
+            var method = paymentMethod?.Trim();
+            return method != null &&
+                (method.Equals("Bank", StringComparison.OrdinalIgnoreCase) ||
+                 method.Equals("BankAccount", StringComparison.OrdinalIgnoreCase) ||
+                 method.Equals("UPI", StringComparison.OrdinalIgnoreCase) ||
+                 method.Equals("Cheque", StringComparison.OrdinalIgnoreCase));
+        }
         private bool IsAuthorizedToWrite()
         {
             var allowedRoles = new[] { "CompanyAdmin", "Admin", "Manager" };
@@ -121,21 +134,23 @@ namespace Aquora.API.Controllers
 
                 if (startDate.HasValue)
                 {
-                    query = query.Where(t => t.TransactionDate >= startDate.Value);
+                    query = query.Where(t => t.TransactionDate >= startDate.Value.ToUniversalTime());
                 }
 
                 if (endDate.HasValue)
                 {
-                    query = query.Where(t => t.TransactionDate <= endDate.Value);
+                    query = query.Where(t => t.TransactionDate <= endDate.Value.ToUniversalTime());
                 }
 
                 // Sorting
-                query = sort?.ToLower() switch
+                if (sort == "oldest")
                 {
-                    "oldest" => query.OrderBy(t => t.TransactionDate).ThenBy(t => t.CreatedAt),
-                    "largest_qty" => query.OrderByDescending(t => t.Cases),
-                    _ => query.OrderByDescending(t => t.TransactionDate).ThenByDescending(t => t.CreatedAt) // newest
-                };
+                    query = query.OrderBy(t => t.TransactionDate).ThenBy(t => t.Id);
+                }
+                else
+                {
+                    query = query.OrderByDescending(t => t.TransactionDate).ThenByDescending(t => t.Id);
+                }
 
                 var totalCount = await query.CountAsync();
                 var items = await query
@@ -155,6 +170,9 @@ namespace Aquora.API.Controllers
                     .Where(u => creatorIds.Contains(u.Id))
                     .ToDictionaryAsync(u => u.Id.ToString(), u => $"{u.FirstName} {u.LastName}");
 
+                var bankAccountsDict = await _tenantContext.BankAccounts.ToDictionaryAsync(b => b.Id, b => b.BankName);
+                var cashBooksDict = await _tenantContext.CashBooks.ToDictionaryAsync(c => c.Id, c => c.Name);
+
                 var dtos = items.Select(t => new SalesTransactionDto
                 {
                     Id = t.Id,
@@ -171,6 +189,30 @@ namespace Aquora.API.Controllers
                     ReferenceNumber = t.ReferenceNumber,
                     Remarks = t.Remarks,
                     Status = t.Status,
+                    PaymentMethod = t.PaymentMethod,
+                    BankAccountId = t.BankAccountId,
+                    BankAccountName = t.BankAccountId.HasValue && bankAccountsDict.TryGetValue(t.BankAccountId.Value, out var bName) ? bName : null,
+                    CashBookId = t.CashBookId,
+                    CashBookName = t.CashBookId.HasValue && cashBooksDict.TryGetValue(t.CashBookId.Value, out var cName) ? cName : null,
+                    UnitPrice = t.UnitPrice,
+                    DiscountAmount = t.DiscountAmount,
+                    TaxAmount = t.TaxAmount,
+                    CGST = t.CGST,
+                    SGST = t.SGST,
+                    IGST = t.IGST,
+                    MetadataJson = t.MetadataJson,
+                    TotalAmount = t.TotalAmount,
+                    AmountReceived = t.AmountReceived,
+                    OutstandingAmount = t.OutstandingAmount,
+                    PaymentStatus = t.PaymentStatus,
+                    ReturnedAmount = t.ReturnedAmount,
+                    RefundAmount = t.RefundAmount,
+                    AdjustmentAmount = t.AdjustmentAmount,
+                    ReturnType = t.ReturnType,
+                    IsReplacementRequired = t.IsReplacementRequired,
+                    ProductValue = t.ProductValue,
+                    DamageCost = t.DamageCost,
+                    DamageReason = t.DamageReason,
                     CreatedBy = t.CreatedBy,
                     CreatedByName = users.TryGetValue(t.CreatedBy, out var name) ? name : "System",
                     CreatedAt = t.CreatedAt,
@@ -212,6 +254,9 @@ namespace Aquora.API.Controllers
                     }
                 }
 
+                var bankAccount = txn.BankAccountId.HasValue ? await _tenantContext.BankAccounts.FindAsync(txn.BankAccountId.Value) : null;
+                var cashBook = txn.CashBookId.HasValue ? await _tenantContext.CashBooks.FindAsync(txn.CashBookId.Value) : null;
+
                 var dto = new SalesTransactionDto
                 {
                     Id = txn.Id,
@@ -228,6 +273,30 @@ namespace Aquora.API.Controllers
                     ReferenceNumber = txn.ReferenceNumber,
                     Remarks = txn.Remarks,
                     Status = txn.Status,
+                    PaymentMethod = txn.PaymentMethod,
+                    BankAccountId = txn.BankAccountId,
+                    BankAccountName = bankAccount?.BankName,
+                    CashBookId = txn.CashBookId,
+                    CashBookName = cashBook?.Name,
+                    UnitPrice = txn.UnitPrice,
+                    DiscountAmount = txn.DiscountAmount,
+                    TaxAmount = txn.TaxAmount,
+                    CGST = txn.CGST,
+                    SGST = txn.SGST,
+                    IGST = txn.IGST,
+                    MetadataJson = txn.MetadataJson,
+                    TotalAmount = txn.TotalAmount,
+                    AmountReceived = txn.AmountReceived,
+                    OutstandingAmount = txn.OutstandingAmount,
+                    PaymentStatus = txn.PaymentStatus,
+                    ReturnedAmount = txn.ReturnedAmount,
+                    RefundAmount = txn.RefundAmount,
+                    AdjustmentAmount = txn.AdjustmentAmount,
+                    ReturnType = txn.ReturnType,
+                    IsReplacementRequired = txn.IsReplacementRequired,
+                    ProductValue = txn.ProductValue,
+                    DamageCost = txn.DamageCost,
+                    DamageReason = txn.DamageReason,
                     CreatedBy = txn.CreatedBy,
                     CreatedByName = createdByName,
                     CreatedAt = txn.CreatedAt,
@@ -250,7 +319,7 @@ namespace Aquora.API.Controllers
                 return Unauthorized(ApiResponse<SalesTransactionDto>.CreateFailure("Unauthorized to create transactions.", "Unauthorized", HttpContext.TraceIdentifier));
             }
 
-            if (request.Cases <= 0)
+            if (request.Cases <= 0 && request.TransactionType != "Stock Adjustment")
             {
                 return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Quantity of cases must be greater than zero.", "Validation Error", HttpContext.TraceIdentifier));
             }
@@ -267,13 +336,6 @@ namespace Aquora.API.Controllers
                 var tenantId = _currentUserContext.TenantId;
                 var currentUserId = _currentUserContext.UserId ?? "System";
 
-                // Load customer
-                var customer = await _tenantContext.Customers.FirstOrDefaultAsync(c => c.Id == request.CustomerId && c.TenantId == tenantId && !c.IsDeleted);
-                if (customer == null)
-                {
-                    return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Customer not found.", "Validation Error", HttpContext.TraceIdentifier));
-                }
-
                 // Load product
                 var product = await _tenantContext.Products.FirstOrDefaultAsync(p => p.Id == request.ProductId && !p.IsDeleted);
                 if (product == null)
@@ -287,12 +349,41 @@ namespace Aquora.API.Controllers
                     return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Company not found.", "Validation Error", HttpContext.TraceIdentifier));
                 }
 
+                // Load customer
+                var customer = await _tenantContext.Customers.FirstOrDefaultAsync(c => c.Id == request.CustomerId && c.TenantId == tenantId && !c.IsDeleted);
+                if (customer == null && (request.TransactionType == "Sales Dispatch" || request.TransactionType == "Customer Return" || request.TransactionType == "Free Sample"))
+                {
+                    return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure($"Customer is required for {request.TransactionType}.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                // Auto-resolve customer if not required but constraint needs one
+                if (customer == null)
+                {
+                    customer = await _tenantContext.Customers.FirstOrDefaultAsync(c => c.TenantId == tenantId && !c.IsDeleted);
+                    if (customer == null)
+                    {
+                        customer = new Customer
+                        {
+                            Id = Guid.NewGuid(),
+                            TenantId = tenantId,
+                            CompanyId = company.Id,
+                            CustomerName = "General / System Customer",
+                            CustomerCode = "CUST-SYS",
+                            Phone = "0000000000",
+                            Email = "system@aquora.com",
+                            OutstandingPlaceholder = 0,
+                            IsActive = true,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        _tenantContext.Customers.Add(customer);
+                        await _tenantContext.SaveChangesAsync();
+                    }
+                }
+
                 // Generate txn number
                 var randomCode = new Random().Next(1000, 9999);
                 var txnNumber = $"TXN-{DateTime.UtcNow:yyyyMMdd}-{randomCode}";
-
-                // Simple Accounts Accounting Calculations
-                decimal unitPrice = product.SellingPrice > 0 ? product.SellingPrice : (product.CostPrice > 0 ? product.CostPrice : 0m);
+                var transactionId = Guid.NewGuid();
 
                 decimal totalAmount = 0m;
                 decimal amountReceived = 0m;
@@ -303,15 +394,19 @@ namespace Aquora.API.Controllers
                 decimal refundAmount = 0m;
                 decimal adjustmentAmount = 0m;
                 string? returnType = null;
-                bool isReplacementRequired = request.IsReplacementRequired;
 
                 decimal productValue = 0m;
                 decimal damageCost = 0m;
                 string? damageReason = null;
 
+                decimal stockAdjustment = 0;
+
+                // Journal ledger lines accumulator
+                var journalLines = new List<(Account account, decimal debit, decimal credit, string description)>();
+
                 if (request.TransactionType == "Sales Dispatch")
                 {
-                    totalAmount = request.TotalAmount > 0 ? request.TotalAmount : (request.Cases * unitPrice);
+                    totalAmount = request.TotalAmount;
                     amountReceived = request.AmountReceived;
                     outstandingAmount = Math.Max(0m, totalAmount - amountReceived);
 
@@ -321,35 +416,155 @@ namespace Aquora.API.Controllers
 
                     // Account Movement: Increase Customer Outstanding Balance
                     customer.OutstandingPlaceholder += outstandingAmount;
+                    AppendCustomerLedgerEntry(customer, "Sales Dispatch", txnNumber, totalAmount, amountReceived, customer.OutstandingPlaceholder);
+
+                    // Resolve general ledger accounts
+                    var salesRevenueAccount = await ResolveAccountAsync("Sales Revenue", "4001", "Revenue", "Cr", tenantId, company.Id);
+                    var inventoryAccount = await ResolveAccountAsync("Finished Goods Inventory", "1003", "Assets", "Dr", tenantId, company.Id);
+                    var cogsAccount = await ResolveAccountAsync("Cost of Goods Sold", "5002", "Expenses", "Dr", tenantId, company.Id);
+
+                    Account debitAccount;
+                    if (IsBankPaymentMethod(request.PaymentMethod))
+                    {
+                        debitAccount = await ResolveAccountAsync("Bank Account", "1002", "Assets", "Dr", tenantId, company.Id);
+                    }
+                    else if (request.PaymentMethod == "Cash")
+                    {
+                        debitAccount = await ResolveAccountAsync("Cash", "1001", "Assets", "Dr", tenantId, company.Id);
+                    }
+                    else
+                    {
+                        debitAccount = await ResolveAccountAsync("Accounts Receivable", "1200", "Assets", "Dr", tenantId, company.Id);
+                    }
+
+                    // Journal lines
+                    journalLines.Add((debitAccount, totalAmount, 0m, $"Customer dispatch record: {txnNumber}"));
+                    journalLines.Add((salesRevenueAccount, 0m, totalAmount, $"Dispatch sales revenue: {txnNumber}"));
+
+                    decimal cost = request.Cases * product.CostPrice;
+                    if (cost > 0)
+                    {
+                        journalLines.Add((cogsAccount, cost, 0m, $"Cost of goods sold: {txnNumber}"));
+                        journalLines.Add((inventoryAccount, 0m, cost, $"Inventory deduction: {txnNumber}"));
+                    }
+
+                    stockAdjustment = -request.Cases;
                 }
                 else if (request.TransactionType == "Customer Return")
                 {
-                    returnedAmount = request.ReturnedAmount > 0 ? request.ReturnedAmount : (request.Cases * unitPrice);
+                    returnedAmount = request.ReturnedAmount;
                     refundAmount = request.RefundAmount;
                     adjustmentAmount = request.AdjustmentAmount > 0 ? request.AdjustmentAmount : Math.Max(0m, returnedAmount - refundAmount);
                     returnType = request.ReturnType ?? "Customer Return";
 
-                    if (!isReplacementRequired)
+                    // Reduce customer balance if credit-note/receivable adjustments
+                    if (adjustmentAmount > 0)
                     {
-                        // Account Movement: Reduce Customer Outstanding Balance
-                        decimal decVal = adjustmentAmount > 0 ? adjustmentAmount : returnedAmount;
-                        customer.OutstandingPlaceholder = Math.Max(0m, customer.OutstandingPlaceholder - decVal);
+                        customer.OutstandingPlaceholder = Math.Max(0m, customer.OutstandingPlaceholder - adjustmentAmount);
+                        AppendCustomerLedgerEntry(customer, "Customer Return Note", txnNumber, 0, adjustmentAmount, customer.OutstandingPlaceholder);
                     }
+
+                    var salesReturnAccount = await ResolveAccountAsync("Sales Return", "4002", "Revenue", "Dr", tenantId, company.Id);
+                    var inventoryAccount = await ResolveAccountAsync("Finished Goods Inventory", "1003", "Assets", "Dr", tenantId, company.Id);
+                    var cogsAccount = await ResolveAccountAsync("Cost of Goods Sold", "5002", "Expenses", "Dr", tenantId, company.Id);
+
+                    Account creditAccount;
+                    if (IsBankPaymentMethod(request.PaymentMethod))
+                    {
+                        creditAccount = await ResolveAccountAsync("Bank Account", "1002", "Assets", "Dr", tenantId, company.Id);
+                    }
+                    else if (request.PaymentMethod == "Cash")
+                    {
+                        creditAccount = await ResolveAccountAsync("Cash", "1001", "Assets", "Dr", tenantId, company.Id);
+                    }
+                    else
+                    {
+                        creditAccount = await ResolveAccountAsync("Accounts Receivable", "1200", "Assets", "Dr", tenantId, company.Id);
+                    }
+
+                    journalLines.Add((salesReturnAccount, returnedAmount, 0m, $"Customer returns: {txnNumber}"));
+                    journalLines.Add((creditAccount, 0m, returnedAmount, $"Returns refund settlement: {txnNumber}"));
+
+                    decimal cost = request.Cases * product.CostPrice;
+                    if (cost > 0)
+                    {
+                        journalLines.Add((inventoryAccount, cost, 0m, $"Restoring stock: {txnNumber}"));
+                        journalLines.Add((cogsAccount, 0m, cost, $"COGS credit reversal: {txnNumber}"));
+                    }
+
+                    stockAdjustment = request.Cases;
                 }
-                else if (request.TransactionType == "Damage")
+                else if (request.TransactionType == "Damage" || request.TransactionType == "Damaged Goods")
                 {
-                    productValue = request.ProductValue > 0 ? request.ProductValue : (product.CostPrice > 0 ? product.CostPrice : unitPrice);
-                    damageCost = request.DamageCost > 0 ? request.DamageCost : (request.Cases * productValue);
+                    productValue = product.CostPrice;
+                    damageCost = request.Cases * productValue;
                     damageReason = request.DamageReason ?? request.Remarks;
+
+                    var lossAccount = await ResolveAccountAsync("Inventory Loss Expense", "5003", "Expenses", "Dr", tenantId, company.Id);
+                    var inventoryAccount = await ResolveAccountAsync("Finished Goods Inventory", "1003", "Assets", "Dr", tenantId, company.Id);
+
+                    journalLines.Add((lossAccount, damageCost, 0m, $"Unsellable inventory loss: {txnNumber}"));
+                    journalLines.Add((inventoryAccount, 0m, damageCost, $"Writedown inventory: {txnNumber}"));
+
+                    stockAdjustment = -request.Cases;
+                }
+                else if (request.TransactionType == "Internal Consumption")
+                {
+                    productValue = product.CostPrice;
+                    damageCost = request.Cases * productValue;
+
+                    var officeExpenseAccount = await ResolveAccountAsync("Office Expense", "5004", "Expenses", "Dr", tenantId, company.Id);
+                    var inventoryAccount = await ResolveAccountAsync("Finished Goods Inventory", "1003", "Assets", "Dr", tenantId, company.Id);
+
+                    journalLines.Add((officeExpenseAccount, damageCost, 0m, $"Internal department usage: {txnNumber}"));
+                    journalLines.Add((inventoryAccount, 0m, damageCost, $"Finished goods consumption: {txnNumber}"));
+
+                    stockAdjustment = -request.Cases;
+                }
+                else if (request.TransactionType == "Free Sample")
+                {
+                    productValue = product.CostPrice;
+                    damageCost = request.Cases * productValue;
+
+                    var marketingExpenseAccount = await ResolveAccountAsync("Marketing Expense", "5005", "Expenses", "Dr", tenantId, company.Id);
+                    var inventoryAccount = await ResolveAccountAsync("Finished Goods Inventory", "1003", "Assets", "Dr", tenantId, company.Id);
+
+                    journalLines.Add((marketingExpenseAccount, damageCost, 0m, $"Marketing sample distribution: {txnNumber}"));
+                    journalLines.Add((inventoryAccount, 0m, damageCost, $"Finished goods sample: {txnNumber}"));
+
+                    stockAdjustment = -request.Cases;
+                }
+                else if (request.TransactionType == "Stock Adjustment")
+                {
+                    productValue = product.CostPrice;
+                    damageCost = request.Cases * productValue; // Quantity * Cost
+
+                    var inventoryAccount = await ResolveAccountAsync("Finished Goods Inventory", "1003", "Assets", "Dr", tenantId, company.Id);
+
+                    if (request.Cases >= 0)
+                    {
+                        var adjustmentGainAccount = await ResolveAccountAsync("Inventory Adjustment Gain", "4003", "Revenue", "Cr", tenantId, company.Id);
+                        journalLines.Add((inventoryAccount, Math.Abs(damageCost), 0m, $"Physical audit surplus: {txnNumber}"));
+                        journalLines.Add((adjustmentGainAccount, 0m, Math.Abs(damageCost), $"Inventory adjustment gain: {txnNumber}"));
+                    }
+                    else
+                    {
+                        var adjustmentLossAccount = await ResolveAccountAsync("Inventory Adjustment Loss", "5006", "Expenses", "Dr", tenantId, company.Id);
+                        journalLines.Add((adjustmentLossAccount, Math.Abs(damageCost), 0m, $"Physical audit shortage: {txnNumber}"));
+                        journalLines.Add((inventoryAccount, 0m, Math.Abs(damageCost), $"Inventory adjustment loss: {txnNumber}"));
+                    }
+
+                    stockAdjustment = request.Cases;
                 }
 
+                // Add main transaction record
                 var transaction = new SalesTransaction
                 {
-                    Id = Guid.NewGuid(),
+                    Id = transactionId,
                     TenantId = tenantId,
                     CompanyId = company.Id,
                     TransactionNumber = txnNumber,
-                    CustomerId = request.CustomerId,
+                    CustomerId = customer.Id,
                     ProductId = request.ProductId,
                     Cases = request.Cases,
                     TransactionType = request.TransactionType,
@@ -357,6 +572,16 @@ namespace Aquora.API.Controllers
                     ReferenceNumber = request.ReferenceNumber?.Trim(),
                     Remarks = request.Remarks?.Trim(),
                     Status = "Completed",
+                    PaymentMethod = request.PaymentMethod,
+                    BankAccountId = request.BankAccountId,
+                    CashBookId = request.CashBookId,
+                    UnitPrice = request.UnitPrice,
+                    DiscountAmount = request.DiscountAmount,
+                    TaxAmount = request.TaxAmount,
+                    CGST = request.CGST,
+                    SGST = request.SGST,
+                    IGST = request.IGST,
+                    MetadataJson = request.MetadataJson,
                     TotalAmount = totalAmount,
                     AmountReceived = amountReceived,
                     OutstandingAmount = outstandingAmount,
@@ -365,42 +590,95 @@ namespace Aquora.API.Controllers
                     RefundAmount = refundAmount,
                     AdjustmentAmount = adjustmentAmount,
                     ReturnType = returnType,
-                    IsReplacementRequired = isReplacementRequired,
+                    IsReplacementRequired = request.IsReplacementRequired,
                     ProductValue = productValue,
                     DamageCost = damageCost,
                     DamageReason = damageReason,
                     CreatedBy = currentUserId
                 };
 
-                // Centralized Stock Movement Adjustment
-                decimal stockAdjustment = 0;
-                if (request.TransactionType == "Sales Dispatch" || request.TransactionType == "Damage")
+                // Apply general ledger journal entries
+                if (journalLines.Any())
                 {
-                    stockAdjustment = -request.Cases;
-                }
-                else if (request.TransactionType == "Customer Return")
-                {
-                    stockAdjustment = request.Cases;
-                }
-                else
-                {
-                    return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure($"Invalid transaction type: {request.TransactionType}", "Validation Error", HttpContext.TraceIdentifier));
+                    await CreateJournalEntryAsync(tenantId, company.Id, "Journal Voucher", $"Sales module auto-posting: {txnNumber}", txnNumber, journalLines, currentUserId);
                 }
 
-                // Call service to apply stock modification and log movement
-                await _inventoryMovementService.RecordProductMovementAsync(
-                    _tenantContext,
-                    request.ProductId,
-                    stockAdjustment,
-                    "SalesTransaction",
-                    transaction.Id,
-                    $"{request.TransactionType}: {txnNumber}",
-                    tenantId,
-                    company.Id,
-                    currentUserId);
+                // Apply stock movement
+                if (stockAdjustment != 0)
+                {
+                    await _inventoryMovementService.RecordProductMovementAsync(
+                        _tenantContext,
+                        request.ProductId,
+                        stockAdjustment,
+                        "SalesTransaction",
+                        transaction.Id,
+                        $"{request.TransactionType}: {txnNumber}",
+                        tenantId,
+                        company.Id,
+                        currentUserId);
+                }
 
                 _tenantContext.SalesTransactions.Add(transaction);
                 await _tenantContext.SaveChangesAsync();
+
+                if (transaction.TransactionType == "Sales Dispatch" && transaction.AmountReceived > 0)
+                {
+                    if (IsBankPaymentMethod(transaction.PaymentMethod))
+                    {
+                        await _ledgerService.RecordTransactionAsync(
+                            transaction.BankAccountId.GetValueOrDefault(),
+                            transaction.TransactionDate,
+                            transaction.ReferenceNumber ?? transaction.TransactionNumber,
+                            "Sales Receipt",
+                            $"Sales payment received from {customer.CustomerName}",
+                            0m,
+                            transaction.AmountReceived,
+                            transaction.Id,
+                            "SalesTransaction");
+                    }
+                    else if (transaction.PaymentMethod == "Cash")
+                    {
+                        await _ledgerService.RecordCashTransactionAsync(
+                            transaction.CashBookId.GetValueOrDefault(),
+                            transaction.TransactionDate,
+                            transaction.ReferenceNumber ?? transaction.TransactionNumber,
+                            "Sales Receipt",
+                            $"Sales payment received from {customer.CustomerName}",
+                            0m,
+                            transaction.AmountReceived,
+                            transaction.Id,
+                            "SalesTransaction");
+                    }
+                }
+                else if (transaction.TransactionType == "Customer Return" && transaction.RefundAmount > 0)
+                {
+                    if (IsBankPaymentMethod(transaction.PaymentMethod))
+                    {
+                        await _ledgerService.RecordTransactionAsync(
+                            transaction.BankAccountId.GetValueOrDefault(),
+                            transaction.TransactionDate,
+                            transaction.ReferenceNumber ?? transaction.TransactionNumber,
+                            "Sales Return Refund",
+                            $"Sales return refund: {transaction.TransactionNumber} - {customer.CustomerName} - {product.Name}",
+                            transaction.RefundAmount,
+                            0m,
+                            transaction.Id,
+                            "SalesTransaction");
+                    }
+                    else if (transaction.PaymentMethod == "Cash")
+                    {
+                        await _ledgerService.RecordCashTransactionAsync(
+                            transaction.CashBookId.GetValueOrDefault(),
+                            transaction.TransactionDate,
+                            transaction.ReferenceNumber ?? transaction.TransactionNumber,
+                            "Sales Return Refund",
+                            $"Sales return refund: {transaction.TransactionNumber} - {customer.CustomerName} - {product.Name}",
+                            transaction.RefundAmount,
+                            0m,
+                            transaction.Id,
+                            "SalesTransaction");
+                    }
+                }
 
                 await dbTransaction.CommitAsync();
 
@@ -422,6 +700,18 @@ namespace Aquora.API.Controllers
                     ReferenceNumber = transaction.ReferenceNumber,
                     Remarks = transaction.Remarks,
                     Status = transaction.Status,
+                    PaymentMethod = transaction.PaymentMethod,
+                    BankAccountId = transaction.BankAccountId,
+                    BankAccountName = transaction.BankAccountId.HasValue ? (await _tenantContext.BankAccounts.FindAsync(transaction.BankAccountId.Value))?.BankName : null,
+                    CashBookId = transaction.CashBookId,
+                    CashBookName = transaction.CashBookId.HasValue ? (await _tenantContext.CashBooks.FindAsync(transaction.CashBookId.Value))?.Name : null,
+                    UnitPrice = transaction.UnitPrice,
+                    DiscountAmount = transaction.DiscountAmount,
+                    TaxAmount = transaction.TaxAmount,
+                    CGST = transaction.CGST,
+                    SGST = transaction.SGST,
+                    IGST = transaction.IGST,
+                    MetadataJson = transaction.MetadataJson,
                     TotalAmount = transaction.TotalAmount,
                     AmountReceived = transaction.AmountReceived,
                     OutstandingAmount = transaction.OutstandingAmount,
@@ -462,11 +752,6 @@ namespace Aquora.API.Controllers
                 return Unauthorized(ApiResponse<SalesTransactionDto>.CreateFailure("Unauthorized to edit transactions.", "Unauthorized", HttpContext.TraceIdentifier));
             }
 
-            if (request.Cases <= 0)
-            {
-                return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Quantity of cases must be greater than zero.", "Validation Error", HttpContext.TraceIdentifier));
-            }
-
             var dbContext = _tenantContext as DbContext;
             if (dbContext == null)
             {
@@ -488,85 +773,317 @@ namespace Aquora.API.Controllers
                     return NotFound(ApiResponse<SalesTransactionDto>.CreateFailure("Sales transaction not found.", "Not Found", HttpContext.TraceIdentifier));
                 }
 
-                // Load customer
-                var customer = await _tenantContext.Customers.FirstOrDefaultAsync(c => c.Id == request.CustomerId && c.TenantId == tenantId && !c.IsDeleted);
-                if (customer == null)
+                // 1. REVERSE PREVIOUS GL ENTRIES & BANK LEDGERS
+                var journalEntry = await _tenantContext.JournalEntries
+                    .Include(j => j.Lines)
+                    .FirstOrDefaultAsync(j => j.ReferenceNumber == existingTxn.TransactionNumber && j.TenantId == tenantId);
+
+                if (journalEntry != null)
                 {
-                    return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Customer not found.", "Validation Error", HttpContext.TraceIdentifier));
+                    foreach (var line in journalEntry.Lines)
+                    {
+                        var account = await _tenantContext.Accounts.FindAsync(line.AccountId);
+                        if (account != null)
+                        {
+                            // Reverse the current balances
+                            if (line.DebitAmount > 0)
+                            {
+                                if (account.BalanceType == "Dr") account.CurrentBalance -= line.DebitAmount;
+                                else account.CurrentBalance += line.DebitAmount;
+                            }
+                            if (line.CreditAmount > 0)
+                            {
+                                if (account.BalanceType == "Cr") account.CurrentBalance -= line.CreditAmount;
+                                else account.CurrentBalance += line.CreditAmount;
+                            }
+                        }
+                    }
+                    _tenantContext.JournalEntries.Remove(journalEntry);
+                }
+                await _ledgerService.RemoveLedgerEntryForEntityAsync(existingTxn.Id, "SalesTransaction");
+
+                // Restore customer outstanding
+                var customer = await _tenantContext.Customers.FindAsync(existingTxn.CustomerId);
+                if (customer != null)
+                {
+                    if (existingTxn.TransactionType == "Sales Dispatch")
+                    {
+                        customer.OutstandingPlaceholder = Math.Max(0m, customer.OutstandingPlaceholder - existingTxn.OutstandingAmount);
+                    }
+                    else if (existingTxn.TransactionType == "Customer Return")
+                    {
+                        customer.OutstandingPlaceholder += existingTxn.AdjustmentAmount;
+                    }
                 }
 
-                // Load new product
-                var product = await _tenantContext.Products.FirstOrDefaultAsync(p => p.Id == request.ProductId && !p.IsDeleted);
-                if (product == null)
-                {
-                    return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Product not found.", "Validation Error", HttpContext.TraceIdentifier));
-                }
-
-                var company = await _tenantContext.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
-                if (company == null)
-                {
-                    return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Company not found.", "Validation Error", HttpContext.TraceIdentifier));
-                }
-
-                // 1. REVERSE STOCK MOVEMENT ALGORITHM
-                // Find old movement associated with the sales transaction
+                // 2. REVERSE STOCK MOVEMENT ALGORITHM
                 var oldMovement = await _tenantContext.InventoryMovements
                     .FirstOrDefaultAsync(m => m.ReferenceType == "SalesTransaction" && m.ReferenceId == existingTxn.Id && !m.IsDeleted);
 
                 if (oldMovement != null)
                 {
-                    // Reverse the stock change: subtract the quantity recorded in oldMovement.
                     var oldProduct = await _tenantContext.Products.FirstOrDefaultAsync(p => p.Id == oldMovement.ProductId && !p.IsDeleted);
                     if (oldProduct != null)
                     {
                         oldProduct.CurrentStock -= oldMovement.Quantity;
-                        if (oldProduct.CurrentStock < 0)
-                        {
-                            return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure($"Reversal failed: restoring stock would result in negative inventory for '{oldProduct.Name}'.", "Validation Error", HttpContext.TraceIdentifier));
-                        }
                     }
-
-                    // Soft delete the old movement log
                     oldMovement.IsDeleted = true;
                     oldMovement.DeletedAt = DateTime.UtcNow;
                     oldMovement.DeletedBy = currentUserId;
                 }
 
-                // 2. APPLY NEW MOVEMENT
-                decimal stockAdjustment = 0;
-                if (request.TransactionType == "Sales Dispatch" || request.TransactionType == "Damage")
+                await _tenantContext.SaveChangesAsync();
+
+                // 3. APPLY NEW TRANSACTIONS (Re-runs the post workflow safely)
+                var newProduct = await _tenantContext.Products.FirstOrDefaultAsync(p => p.Id == request.ProductId && !p.IsDeleted);
+                if (newProduct == null)
                 {
+                    return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("New product not found.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                var company = await _tenantContext.Companies.FirstAsync();
+
+                // Recalculate
+                decimal totalAmount = 0m;
+                decimal amountReceived = 0m;
+                decimal outstandingAmount = 0m;
+                string paymentStatus = "Pending";
+
+                decimal returnedAmount = 0m;
+                decimal refundAmount = 0m;
+                decimal adjustmentAmount = 0m;
+                string? returnType = null;
+
+                decimal productValue = 0m;
+                decimal damageCost = 0m;
+                string? damageReason = null;
+
+                decimal stockAdjustment = 0;
+                var journalLines = new List<(Account account, decimal debit, decimal credit, string description)>();
+
+                // Auto-resolve customer
+                var newCustomer = await _tenantContext.Customers.FirstOrDefaultAsync(c => c.Id == request.CustomerId && c.TenantId == tenantId && !c.IsDeleted);
+                if (newCustomer == null)
+                {
+                    newCustomer = customer ?? await _tenantContext.Customers.FirstAsync(c => c.TenantId == tenantId);
+                }
+
+                if (request.TransactionType == "Sales Dispatch")
+                {
+                    totalAmount = request.TotalAmount;
+                    amountReceived = request.AmountReceived;
+                    outstandingAmount = Math.Max(0m, totalAmount - amountReceived);
+
+                    if (amountReceived == 0m) paymentStatus = "Pending";
+                    else if (amountReceived < totalAmount) paymentStatus = "Partial";
+                    else paymentStatus = "Paid";
+
+                    newCustomer.OutstandingPlaceholder += outstandingAmount;
+                    AppendCustomerLedgerEntry(newCustomer, "Sales Dispatch (Edited)", existingTxn.TransactionNumber, totalAmount, amountReceived, newCustomer.OutstandingPlaceholder);
+
+                    var salesRevenueAccount = await ResolveAccountAsync("Sales Revenue", "4001", "Revenue", "Cr", tenantId, company.Id);
+                    var inventoryAccount = await ResolveAccountAsync("Finished Goods Inventory", "1003", "Assets", "Dr", tenantId, company.Id);
+                    var cogsAccount = await ResolveAccountAsync("Cost of Goods Sold", "5002", "Expenses", "Dr", tenantId, company.Id);
+
+                    Account debitAccount;
+                    if (IsBankPaymentMethod(request.PaymentMethod))
+                    {
+                        debitAccount = await ResolveAccountAsync("Bank Account", "1002", "Assets", "Dr", tenantId, company.Id);
+                        if (request.BankAccountId.HasValue && request.BankAccountId.Value != Guid.Empty && amountReceived > 0)
+                        {
+                            await _ledgerService.RecordTransactionAsync(request.BankAccountId.Value, request.TransactionDate, request.ReferenceNumber?.Trim() ?? existingTxn.TransactionNumber, "Sales Receipt", $"Sales payment received from {newCustomer.CustomerName}", 0m, amountReceived, existingTxn.Id, "SalesTransaction");
+                        }
+                    }
+                    else if (request.PaymentMethod == "Cash")
+                    {
+                        debitAccount = await ResolveAccountAsync("Cash", "1001", "Assets", "Dr", tenantId, company.Id);
+                        if (request.CashBookId.HasValue && request.CashBookId.Value != Guid.Empty && amountReceived > 0)
+                        {
+                            await _ledgerService.RecordCashTransactionAsync(request.CashBookId.Value, request.TransactionDate, request.ReferenceNumber?.Trim() ?? existingTxn.TransactionNumber, "Sales Receipt", $"Sales payment received from {newCustomer.CustomerName}", 0m, amountReceived, existingTxn.Id, "SalesTransaction");
+                        }
+                    }
+                    else
+                    {
+                        debitAccount = await ResolveAccountAsync("Accounts Receivable", "1200", "Assets", "Dr", tenantId, company.Id);
+                    }
+
+                    journalLines.Add((debitAccount, totalAmount, 0m, $"Customer dispatch record: {existingTxn.TransactionNumber}"));
+                    journalLines.Add((salesRevenueAccount, 0m, totalAmount, $"Dispatch sales revenue: {existingTxn.TransactionNumber}"));
+
+                    decimal cost = request.Cases * newProduct.CostPrice;
+                    if (cost > 0)
+                    {
+                        journalLines.Add((cogsAccount, cost, 0m, $"Cost of goods sold: {existingTxn.TransactionNumber}"));
+                        journalLines.Add((inventoryAccount, 0m, cost, $"Inventory deduction: {existingTxn.TransactionNumber}"));
+                    }
+
                     stockAdjustment = -request.Cases;
                 }
                 else if (request.TransactionType == "Customer Return")
                 {
+                    returnedAmount = request.ReturnedAmount;
+                    refundAmount = request.RefundAmount;
+                    adjustmentAmount = request.AdjustmentAmount > 0 ? request.AdjustmentAmount : Math.Max(0m, returnedAmount - refundAmount);
+                    returnType = request.ReturnType ?? "Customer Return";
+
+                    if (adjustmentAmount > 0)
+                    {
+                        newCustomer.OutstandingPlaceholder = Math.Max(0m, newCustomer.OutstandingPlaceholder - adjustmentAmount);
+                        AppendCustomerLedgerEntry(newCustomer, "Customer Return Note (Edited)", existingTxn.TransactionNumber, 0, adjustmentAmount, newCustomer.OutstandingPlaceholder);
+                    }
+
+                    var salesReturnAccount = await ResolveAccountAsync("Sales Return", "4002", "Revenue", "Dr", tenantId, company.Id);
+                    var inventoryAccount = await ResolveAccountAsync("Finished Goods Inventory", "1003", "Assets", "Dr", tenantId, company.Id);
+                    var cogsAccount = await ResolveAccountAsync("Cost of Goods Sold", "5002", "Expenses", "Dr", tenantId, company.Id);
+
+                    Account creditAccount;
+                    if (IsBankPaymentMethod(request.PaymentMethod))
+                    {
+                        creditAccount = await ResolveAccountAsync("Bank Account", "1002", "Assets", "Dr", tenantId, company.Id);
+                        if (request.BankAccountId.HasValue && request.BankAccountId.Value != Guid.Empty && refundAmount > 0)
+                        {
+                            await _ledgerService.RecordTransactionAsync(request.BankAccountId.Value, request.TransactionDate, request.ReferenceNumber?.Trim() ?? existingTxn.TransactionNumber, "Sales Return Refund", $"Sales return refund: {existingTxn.TransactionNumber} - {newCustomer.CustomerName} - {newProduct.Name}", refundAmount, 0m, existingTxn.Id, "SalesTransaction");
+                        }
+                    }
+                    else if (request.PaymentMethod == "Cash")
+                    {
+                        creditAccount = await ResolveAccountAsync("Cash", "1001", "Assets", "Dr", tenantId, company.Id);
+                        if (request.CashBookId.HasValue && request.CashBookId.Value != Guid.Empty && refundAmount > 0)
+                        {
+                            await _ledgerService.RecordCashTransactionAsync(request.CashBookId.Value, request.TransactionDate, request.ReferenceNumber?.Trim() ?? existingTxn.TransactionNumber, "Sales Return Refund", $"Sales return refund: {existingTxn.TransactionNumber} - {newCustomer.CustomerName} - {newProduct.Name}", refundAmount, 0m, existingTxn.Id, "SalesTransaction");
+                        }
+                    }
+                    else
+                    {
+                        creditAccount = await ResolveAccountAsync("Accounts Receivable", "1200", "Assets", "Dr", tenantId, company.Id);
+                    }
+
+                    journalLines.Add((salesReturnAccount, returnedAmount, 0m, $"Customer returns: {existingTxn.TransactionNumber}"));
+                    journalLines.Add((creditAccount, 0m, returnedAmount, $"Returns refund settlement: {existingTxn.TransactionNumber}"));
+
+                    decimal cost = request.Cases * newProduct.CostPrice;
+                    if (cost > 0)
+                    {
+                        journalLines.Add((inventoryAccount, cost, 0m, $"Restoring stock: {existingTxn.TransactionNumber}"));
+                        journalLines.Add((cogsAccount, 0m, cost, $"COGS credit reversal: {existingTxn.TransactionNumber}"));
+                    }
+
                     stockAdjustment = request.Cases;
                 }
-                else
+                else if (request.TransactionType == "Damage" || request.TransactionType == "Damaged Goods")
                 {
-                    return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure($"Invalid transaction type: {request.TransactionType}", "Validation Error", HttpContext.TraceIdentifier));
+                    productValue = newProduct.CostPrice;
+                    damageCost = request.Cases * productValue;
+                    damageReason = request.DamageReason ?? request.Remarks;
+
+                    var lossAccount = await ResolveAccountAsync("Inventory Loss Expense", "5003", "Expenses", "Dr", tenantId, company.Id);
+                    var inventoryAccount = await ResolveAccountAsync("Finished Goods Inventory", "1003", "Assets", "Dr", tenantId, company.Id);
+
+                    journalLines.Add((lossAccount, damageCost, 0m, $"Unsellable inventory loss: {existingTxn.TransactionNumber}"));
+                    journalLines.Add((inventoryAccount, 0m, damageCost, $"Writedown inventory: {existingTxn.TransactionNumber}"));
+
+                    stockAdjustment = -request.Cases;
+                }
+                else if (request.TransactionType == "Internal Consumption")
+                {
+                    productValue = newProduct.CostPrice;
+                    damageCost = request.Cases * productValue;
+
+                    var officeExpenseAccount = await ResolveAccountAsync("Office Expense", "5004", "Expenses", "Dr", tenantId, company.Id);
+                    var inventoryAccount = await ResolveAccountAsync("Finished Goods Inventory", "1003", "Assets", "Dr", tenantId, company.Id);
+
+                    journalLines.Add((officeExpenseAccount, damageCost, 0m, $"Internal department usage: {existingTxn.TransactionNumber}"));
+                    journalLines.Add((inventoryAccount, 0m, damageCost, $"Finished goods consumption: {existingTxn.TransactionNumber}"));
+
+                    stockAdjustment = -request.Cases;
+                }
+                else if (request.TransactionType == "Free Sample")
+                {
+                    productValue = newProduct.CostPrice;
+                    damageCost = request.Cases * productValue;
+
+                    var marketingExpenseAccount = await ResolveAccountAsync("Marketing Expense", "5005", "Expenses", "Dr", tenantId, company.Id);
+                    var inventoryAccount = await ResolveAccountAsync("Finished Goods Inventory", "1003", "Assets", "Dr", tenantId, company.Id);
+
+                    journalLines.Add((marketingExpenseAccount, damageCost, 0m, $"Marketing sample distribution: {existingTxn.TransactionNumber}"));
+                    journalLines.Add((inventoryAccount, 0m, damageCost, $"Finished goods sample: {existingTxn.TransactionNumber}"));
+
+                    stockAdjustment = -request.Cases;
+                }
+                else if (request.TransactionType == "Stock Adjustment")
+                {
+                    productValue = newProduct.CostPrice;
+                    damageCost = request.Cases * productValue;
+
+                    var inventoryAccount = await ResolveAccountAsync("Finished Goods Inventory", "1003", "Assets", "Dr", tenantId, company.Id);
+
+                    if (request.Cases >= 0)
+                    {
+                        var adjustmentGainAccount = await ResolveAccountAsync("Inventory Adjustment Gain", "4003", "Revenue", "Cr", tenantId, company.Id);
+                        journalLines.Add((inventoryAccount, Math.Abs(damageCost), 0m, $"Physical audit surplus: {existingTxn.TransactionNumber}"));
+                        journalLines.Add((adjustmentGainAccount, 0m, Math.Abs(damageCost), $"Inventory adjustment gain: {existingTxn.TransactionNumber}"));
+                    }
+                    else
+                    {
+                        var adjustmentLossAccount = await ResolveAccountAsync("Inventory Adjustment Loss", "5006", "Expenses", "Dr", tenantId, company.Id);
+                        journalLines.Add((adjustmentLossAccount, Math.Abs(damageCost), 0m, $"Physical audit shortage: {existingTxn.TransactionNumber}"));
+                        journalLines.Add((inventoryAccount, 0m, Math.Abs(damageCost), $"Inventory adjustment loss: {existingTxn.TransactionNumber}"));
+                    }
+
+                    stockAdjustment = request.Cases;
                 }
 
-                // Record the new movement through the central service (automatically validates and adjusts new product stock)
-                await _inventoryMovementService.RecordProductMovementAsync(
-                    _tenantContext,
-                    request.ProductId,
-                    stockAdjustment,
-                    "SalesTransaction",
-                    existingTxn.Id,
-                    $"{request.TransactionType}: {existingTxn.TransactionNumber} (Edited)",
-                    tenantId,
-                    company.Id,
-                    currentUserId);
+                // Apply GL entries
+                if (journalLines.Any())
+                {
+                    await CreateJournalEntryAsync(tenantId, company.Id, "Journal Voucher", $"Sales module auto-posting (Edited): {existingTxn.TransactionNumber}", existingTxn.TransactionNumber, journalLines, currentUserId);
+                }
 
-                // 3. UPDATE TRANSACTION DATA
-                existingTxn.CustomerId = request.CustomerId;
+                // Apply stock movement
+                if (stockAdjustment != 0)
+                {
+                    await _inventoryMovementService.RecordProductMovementAsync(
+                        _tenantContext,
+                        request.ProductId,
+                        stockAdjustment,
+                        "SalesTransaction",
+                        existingTxn.Id,
+                        $"{request.TransactionType}: {existingTxn.TransactionNumber} (Edited)",
+                        tenantId,
+                        company.Id,
+                        currentUserId);
+                }
+
+                // Update properties
+                existingTxn.CustomerId = newCustomer.Id;
                 existingTxn.ProductId = request.ProductId;
                 existingTxn.Cases = request.Cases;
                 existingTxn.TransactionType = request.TransactionType;
                 existingTxn.TransactionDate = request.TransactionDate.ToUniversalTime();
                 existingTxn.ReferenceNumber = request.ReferenceNumber?.Trim();
                 existingTxn.Remarks = request.Remarks?.Trim();
+                existingTxn.PaymentMethod = request.PaymentMethod;
+                existingTxn.BankAccountId = request.BankAccountId;
+                existingTxn.CashBookId = request.CashBookId;
+                existingTxn.UnitPrice = request.UnitPrice;
+                existingTxn.DiscountAmount = request.DiscountAmount;
+                existingTxn.TaxAmount = request.TaxAmount;
+                existingTxn.CGST = request.CGST;
+                existingTxn.SGST = request.SGST;
+                existingTxn.IGST = request.IGST;
+                existingTxn.MetadataJson = request.MetadataJson;
+                existingTxn.TotalAmount = totalAmount;
+                existingTxn.AmountReceived = amountReceived;
+                existingTxn.OutstandingAmount = outstandingAmount;
+                existingTxn.PaymentStatus = paymentStatus;
+                existingTxn.ReturnedAmount = returnedAmount;
+                existingTxn.RefundAmount = refundAmount;
+                existingTxn.AdjustmentAmount = adjustmentAmount;
+                existingTxn.ReturnType = returnType;
+                existingTxn.IsReplacementRequired = request.IsReplacementRequired;
+                existingTxn.ProductValue = productValue;
+                existingTxn.DamageCost = damageCost;
+                existingTxn.DamageReason = damageReason;
                 existingTxn.UpdatedAt = DateTime.UtcNow;
                 existingTxn.UpdatedBy = currentUserId;
 
@@ -579,17 +1096,41 @@ namespace Aquora.API.Controllers
                     Id = existingTxn.Id,
                     TransactionNumber = existingTxn.TransactionNumber,
                     CustomerId = existingTxn.CustomerId,
-                    CustomerName = customer.CustomerName,
-                    CustomerCode = customer.CustomerCode,
+                    CustomerName = newCustomer.CustomerName,
+                    CustomerCode = newCustomer.CustomerCode,
                     ProductId = existingTxn.ProductId,
-                    ProductName = product.Name,
-                    ProductSku = product.SKU ?? string.Empty,
+                    ProductName = newProduct.Name,
+                    ProductSku = newProduct.SKU ?? string.Empty,
                     Cases = existingTxn.Cases,
                     TransactionType = existingTxn.TransactionType,
                     TransactionDate = existingTxn.TransactionDate,
                     ReferenceNumber = existingTxn.ReferenceNumber,
                     Remarks = existingTxn.Remarks,
                     Status = existingTxn.Status,
+                    PaymentMethod = existingTxn.PaymentMethod,
+                    BankAccountId = existingTxn.BankAccountId,
+                    BankAccountName = existingTxn.BankAccountId.HasValue ? (await _tenantContext.BankAccounts.FindAsync(existingTxn.BankAccountId.Value))?.BankName : null,
+                    CashBookId = existingTxn.CashBookId,
+                    CashBookName = existingTxn.CashBookId.HasValue ? (await _tenantContext.CashBooks.FindAsync(existingTxn.CashBookId.Value))?.Name : null,
+                    UnitPrice = existingTxn.UnitPrice,
+                    DiscountAmount = existingTxn.DiscountAmount,
+                    TaxAmount = existingTxn.TaxAmount,
+                    CGST = existingTxn.CGST,
+                    SGST = existingTxn.SGST,
+                    IGST = existingTxn.IGST,
+                    MetadataJson = existingTxn.MetadataJson,
+                    TotalAmount = existingTxn.TotalAmount,
+                    AmountReceived = existingTxn.AmountReceived,
+                    OutstandingAmount = existingTxn.OutstandingAmount,
+                    PaymentStatus = existingTxn.PaymentStatus,
+                    ReturnedAmount = existingTxn.ReturnedAmount,
+                    RefundAmount = existingTxn.RefundAmount,
+                    AdjustmentAmount = existingTxn.AdjustmentAmount,
+                    ReturnType = existingTxn.ReturnType,
+                    IsReplacementRequired = existingTxn.IsReplacementRequired,
+                    ProductValue = existingTxn.ProductValue,
+                    DamageCost = existingTxn.DamageCost,
+                    DamageReason = existingTxn.DamageReason,
                     CreatedBy = existingTxn.CreatedBy,
                     CreatedByName = _currentUserContext.Email?.Split('@')[0] ?? "System",
                     CreatedAt = existingTxn.CreatedAt,
@@ -639,7 +1180,51 @@ namespace Aquora.API.Controllers
                     return NotFound(ApiResponse<object>.CreateFailure("Sales transaction not found.", "Not Found", HttpContext.TraceIdentifier));
                 }
 
-                // 1. REVERSE STOCK MOVEMENT ALGORITHM
+                // 1. REVERSE GL ENTRIES & BANK LEDGERS
+                var journalEntry = await _tenantContext.JournalEntries
+                    .Include(j => j.Lines)
+                    .FirstOrDefaultAsync(j => j.ReferenceNumber == transaction.TransactionNumber && j.TenantId == tenantId);
+
+                if (journalEntry != null)
+                {
+                    foreach (var line in journalEntry.Lines)
+                    {
+                        var account = await _tenantContext.Accounts.FindAsync(line.AccountId);
+                        if (account != null)
+                        {
+                            if (line.DebitAmount > 0)
+                            {
+                                if (account.BalanceType == "Dr") account.CurrentBalance -= line.DebitAmount;
+                                else account.CurrentBalance += line.DebitAmount;
+                            }
+                            if (line.CreditAmount > 0)
+                            {
+                                if (account.BalanceType == "Cr") account.CurrentBalance -= line.CreditAmount;
+                                else account.CurrentBalance += line.CreditAmount;
+                            }
+                        }
+                    }
+                    _tenantContext.JournalEntries.Remove(journalEntry);
+                }
+                await _ledgerService.RemoveLedgerEntryForEntityAsync(transaction.Id, "SalesTransaction");
+
+                // Restore customer balance
+                var customer = await _tenantContext.Customers.FindAsync(transaction.CustomerId);
+                if (customer != null)
+                {
+                    if (transaction.TransactionType == "Sales Dispatch")
+                    {
+                        customer.OutstandingPlaceholder = Math.Max(0m, customer.OutstandingPlaceholder - transaction.OutstandingAmount);
+                        AppendCustomerLedgerEntry(customer, "Sales Cancelled", transaction.TransactionNumber, 0, transaction.TotalAmount, customer.OutstandingPlaceholder);
+                    }
+                    else if (transaction.TransactionType == "Customer Return")
+                    {
+                        customer.OutstandingPlaceholder += transaction.AdjustmentAmount;
+                        AppendCustomerLedgerEntry(customer, "Returns Cancelled", transaction.TransactionNumber, transaction.ReturnedAmount, 0, customer.OutstandingPlaceholder);
+                    }
+                }
+
+                // 2. REVERSE STOCK MOVEMENT ALGORITHM
                 var oldMovement = await _tenantContext.InventoryMovements
                     .FirstOrDefaultAsync(m => m.ReferenceType == "SalesTransaction" && m.ReferenceId == transaction.Id && !m.IsDeleted);
 
@@ -649,19 +1234,14 @@ namespace Aquora.API.Controllers
                     if (product != null)
                     {
                         product.CurrentStock -= oldMovement.Quantity;
-                        if (product.CurrentStock < 0)
-                        {
-                            return BadRequest(ApiResponse<object>.CreateFailure($"Reversal failed: restoring stock would result in negative inventory for '{product.Name}'.", "Validation Error", HttpContext.TraceIdentifier));
-                        }
                     }
 
-                    // Soft delete the inventory movement log
                     oldMovement.IsDeleted = true;
                     oldMovement.DeletedAt = DateTime.UtcNow;
                     oldMovement.DeletedBy = currentUserId;
                 }
 
-                // 2. SOFT DELETE TRANSACTION
+                // 3. SOFT DELETE TRANSACTION
                 transaction.IsDeleted = true;
                 transaction.DeletedAt = DateTime.UtcNow;
                 transaction.DeletedBy = currentUserId;
@@ -670,13 +1250,146 @@ namespace Aquora.API.Controllers
 
                 await dbTransaction.CommitAsync();
 
-                return Success<object?>(null, "Sales transaction deleted and stock restored successfully.");
+                return Success<object?>(null, "Sales transaction deleted successfully.");
             }
             catch (Exception ex)
             {
                 await dbTransaction.RollbackAsync();
                 return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Transaction Failed", HttpContext.TraceIdentifier));
             }
+        }
+
+        private async Task<Account> ResolveAccountAsync(string name, string code, string groupName, string balanceType, Guid tenantId, Guid companyId)
+        {
+            var account = await _tenantContext.Accounts.FirstOrDefaultAsync(a => a.AccountName == name && a.TenantId == tenantId);
+            if (account == null)
+            {
+                var group = await _tenantContext.AccountGroups.FirstOrDefaultAsync(g => g.Name == groupName && g.TenantId == tenantId);
+                if (group == null)
+                {
+                    group = new AccountGroup
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenantId,
+                        CompanyId = companyId,
+                        Name = groupName,
+                        Type = groupName == "Revenue" ? "Revenue" : (groupName == "Expenses" ? "Expense" : "Asset"),
+                        Code = code.Substring(0, 1) + "000",
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "System"
+                    };
+                    _tenantContext.AccountGroups.Add(group);
+                    await _tenantContext.SaveChangesAsync();
+                }
+
+                account = new Account
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    CompanyId = companyId,
+                    AccountName = name,
+                    AccountCode = code,
+                    AccountGroupId = group.Id,
+                    BalanceType = balanceType,
+                    CurrentBalance = 0,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = "System"
+                };
+                _tenantContext.Accounts.Add(account);
+                await _tenantContext.SaveChangesAsync();
+            }
+            return account;
+        }
+
+        private async Task CreateJournalEntryAsync(
+            Guid tenantId, 
+            Guid companyId, 
+            string voucherType, 
+            string remarks, 
+            string referenceNumber,
+            List<(Account account, decimal debit, decimal credit, string description)> lines,
+            string currentUserId)
+        {
+            if (!lines.Any()) return;
+
+            var journalEntry = new JournalEntry
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                VoucherNumber = $"JV-{DateTime.UtcNow:yyyyMMdd}-{new Random().Next(1000, 9999)}",
+                TransactionDate = DateTime.UtcNow,
+                VoucherType = voucherType,
+                ReferenceNumber = referenceNumber,
+                Remarks = remarks,
+                TotalAmount = lines.Sum(l => l.debit),
+                Status = "Posted",
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = currentUserId
+            };
+
+            foreach (var line in lines)
+            {
+                journalEntry.Lines.Add(new JournalEntryLine
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    CompanyId = companyId,
+                    AccountId = line.account.Id,
+                    Description = line.description,
+                    DebitAmount = line.debit,
+                    CreditAmount = line.credit
+                });
+
+                // Update running balance
+                if (line.debit > 0)
+                {
+                    if (line.account.BalanceType == "Dr") line.account.CurrentBalance += line.debit;
+                    else line.account.CurrentBalance -= line.debit;
+                }
+                if (line.credit > 0)
+                {
+                    if (line.account.BalanceType == "Cr") line.account.CurrentBalance += line.credit;
+                    else line.account.CurrentBalance -= line.credit;
+                }
+            }
+
+            _tenantContext.JournalEntries.Add(journalEntry);
+        }
+
+        private void AppendCustomerLedgerEntry(Customer customer, string type, string refNo, decimal debit, decimal credit, decimal balance)
+        {
+            var list = new List<CustomerLedgerEntry>();
+            if (!string.IsNullOrWhiteSpace(customer.LedgerPlaceholder))
+            {
+                try
+                {
+                    list = System.Text.Json.JsonSerializer.Deserialize<List<CustomerLedgerEntry>>(customer.LedgerPlaceholder) ?? new List<CustomerLedgerEntry>();
+                }
+                catch {}
+            }
+
+            list.Add(new CustomerLedgerEntry
+            {
+                Date = DateTime.UtcNow,
+                TransactionType = type,
+                Reference = refNo,
+                Debit = debit,
+                Credit = credit,
+                Balance = balance
+            });
+
+            customer.LedgerPlaceholder = System.Text.Json.JsonSerializer.Serialize(list);
+        }
+
+        public class CustomerLedgerEntry
+        {
+            public DateTime Date { get; set; }
+            public string TransactionType { get; set; } = string.Empty;
+            public string Reference { get; set; } = string.Empty;
+            public decimal Debit { get; set; }
+            public decimal Credit { get; set; }
+            public decimal Balance { get; set; }
         }
 
         [HttpGet("dashboard")]
@@ -749,7 +1462,20 @@ namespace Aquora.API.Controllers
         public string? Remarks { get; set; }
         public string Status { get; set; } = string.Empty;
 
-        // Simple Accounts V1 Fields
+        // Simple Accounts V1 & New ERP Fields
+        public string? PaymentMethod { get; set; }
+        public Guid? BankAccountId { get; set; }
+        public string? BankAccountName { get; set; }
+        public Guid? CashBookId { get; set; }
+        public string? CashBookName { get; set; }
+        public decimal UnitPrice { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal TaxAmount { get; set; }
+        public decimal CGST { get; set; }
+        public decimal SGST { get; set; }
+        public decimal IGST { get; set; }
+        public string? MetadataJson { get; set; }
+
         public decimal TotalAmount { get; set; }
         public decimal AmountReceived { get; set; }
         public decimal OutstandingAmount { get; set; }
@@ -779,7 +1505,18 @@ namespace Aquora.API.Controllers
         public string? ReferenceNumber { get; set; }
         public string? Remarks { get; set; }
 
-        // Simple Accounts V1 Fields
+        // Simple Accounts V1 & New ERP Fields
+        public string? PaymentMethod { get; set; }
+        public Guid? BankAccountId { get; set; }
+        public Guid? CashBookId { get; set; }
+        public decimal UnitPrice { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal TaxAmount { get; set; }
+        public decimal CGST { get; set; }
+        public decimal SGST { get; set; }
+        public decimal IGST { get; set; }
+        public string? MetadataJson { get; set; }
+
         public decimal TotalAmount { get; set; }
         public decimal AmountReceived { get; set; }
         public decimal ReturnedAmount { get; set; }
@@ -801,3 +1538,7 @@ namespace Aquora.API.Controllers
         public decimal MonthlyDispatch { get; set; }
     }
 }
+
+
+
+

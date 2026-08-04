@@ -1,6 +1,5 @@
 import PageContainer from '../../components/ui/layout/PageContainer';
 import PageHeader from '../../components/ui/layout/PageHeader';
-import KPICard from '../../components/ui/layout/KPICard';
 import FilterBar from '../../components/ui/layout/FilterBar';
 import React, { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -8,14 +7,16 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { 
   Search, Plus, Eye, Edit2, Trash2, X, AlertTriangle, 
   User as UserIcon, Calendar, ArrowUpDown, Filter, ChevronLeft, ChevronRight, CheckCircle2,
-  Package, ShoppingCart, Info, Phone, MessageSquare, Tag, FileSpreadsheet, FileText, Landmark
+  Package, ShoppingCart, Info, Phone, Tag, FileSpreadsheet, FileText, Landmark, Printer, Download, ArrowLeft, Send
 } from 'lucide-react'
+import { api } from '../../services/api'
 import { salesService } from '../../services/sales'
 import type { SalesTransaction, CreateSalesTransactionRequest } from '../../services/sales'
 import { productsService } from '../../services/products'
 import { customersService } from '../../services/customers'
+import { simpleAccountsService } from '../../services/simpleAccounts'
 import { useAuthStore } from '../../store/useAuthStore'
-import EnterpriseHeader from '../../components/ui/EnterpriseHeader'
+import { generateERPDocumentPDF } from '../../utils/pdfTemplateEngine'
 import EnterpriseBadge from '../../components/ui/EnterpriseBadge'
 import EnterpriseButton from '../../components/ui/EnterpriseButton'
 import EnterpriseNumberInput from '../../components/ui/EnterpriseNumberInput'
@@ -50,15 +51,14 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
 
   // Modals
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [isViewOpen, setIsViewOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
 
-  // Selected records
-  const [selectedTxnId, setSelectedTxnId] = useState<string | null>(null)
+  // Selected records (Full screen details layout when viewing)
   const [selectedTxn, setSelectedTxn] = useState<SalesTransaction | null>(null)
+  const [isViewingDetails, setIsViewingDetails] = useState(false)
 
-  // Forms
+  // Dynamic Form State Variables
   const [formType, setFormType] = useState('Sales Dispatch')
   const [formProductId, setFormProductId] = useState('')
   const [formCustomerId, setFormCustomerId] = useState('')
@@ -66,6 +66,37 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
   const [formDate, setFormDate] = useState(new Date().toISOString().substring(0, 10))
   const [formRef, setFormRef] = useState('')
   const [formRemarks, setFormRemarks] = useState('')
+
+  // New ERP Form State Variables
+  const [formUnitPrice, setFormUnitPrice] = useState('')
+  const [formDiscount, setFormDiscount] = useState('')
+  const [isGstEnabled, setIsGstEnabled] = useState(false)
+  const [formPaymentMethod, setFormPaymentMethod] = useState('Credit')
+  const [formBankAccountId, setFormBankAccountId] = useState('')
+  const [formCashBookId, setFormCashBookId] = useState('')
+
+  // Return specific fields
+  const [formOriginalInvoice, setFormOriginalInvoice] = useState('')
+  const [formReturnReason, setFormReturnReason] = useState('')
+  const [formReturnCondition, setFormReturnCondition] = useState('Good')
+  const [formRefundMethod, setFormRefundMethod] = useState('Credit Note')
+
+  // Damage specific fields
+  const [formWarehouse, setFormWarehouse] = useState('Main Warehouse')
+  const [formDamageType, setFormDamageType] = useState('Broken')
+  const [formApprovedBy, setFormApprovedBy] = useState('')
+
+  // Consumption specific fields
+  const [formDepartment, setFormDepartment] = useState('')
+  const [formPurpose, setFormPurpose] = useState('')
+
+  // Free Sample specific fields
+  const [formMarketingCampaign, setFormMarketingCampaign] = useState('')
+  const [formSalesPerson, setFormSalesPerson] = useState('')
+
+  // Stock Adjustment specific fields
+  const [formAdjustmentReason, setFormAdjustmentReason] = useState('Correction')
+  const [formAdjustmentMode, setFormAdjustmentMode] = useState('Increase')
 
   // Searchable customer dropdown UI state
   const [customerSearch, setCustomerSearch] = useState('')
@@ -82,7 +113,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
   const transactions = txnsData?.data?.items || []
   const pagination = txnsData?.data
 
-  // Fetch all active products for selection
+  // Fetch all active products
   const { data: productsData } = useQuery({
     queryKey: ['activeProductsForSales'],
     queryFn: async () => {
@@ -92,7 +123,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
   })
   const products = productsData || []
 
-  // Fetch all active customers for selection
+  // Fetch all active customers
   const { data: customersData, refetch: refetchCustomers } = useQuery({
     queryKey: ['activeCustomersForSales'],
     queryFn: async () => {
@@ -102,7 +133,29 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
   })
   const customers = customersData || []
 
-  // Quick Customer Creation navigation handler
+  // Fetch Bank Accounts and Cash Books
+  const { data: bankAccounts } = useQuery({
+    queryKey: ['bankAccountsDropdown'],
+    queryFn: () => simpleAccountsService.getBankAccountDropdown()
+  })
+  const banks = bankAccounts || []
+
+  const { data: cashBooks } = useQuery({
+    queryKey: ['cashBooksDropdown'],
+    queryFn: () => simpleAccountsService.getCashBookDropdown()
+  })
+  const cashRegisters = cashBooks || []
+
+  // Fetch Company Settings for PDF details
+  const { data: companySettings } = useQuery({
+    queryKey: ['companySettings'],
+    queryFn: async () => {
+      const res = await api.get('/api/v1/company/settings')
+      return res.data?.data
+    }
+  })
+
+  // Quick Customer Creation navigation
   const handleQuickCreateCustomer = () => {
     if (!canWrite) {
       showToast('You do not have write permissions.', 'warning')
@@ -126,7 +179,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     })
   }
 
-  // Effect to restore sales state and auto-select newly created customer upon return
+  // Restore state after customer creation
   useEffect(() => {
     if (location.state?.fromCustomerCreation) {
       const { salesForm, newCreatedCustomerId } = location.state
@@ -140,10 +193,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
         if (salesForm.isCreateOpen) setIsCreateOpen(true)
       }
 
-      // Clear navigation state
       navigate(location.pathname, { replace: true, state: {} })
-
-      // Invalidate and refetch customers list from API
       queryClient.invalidateQueries({ queryKey: ['activeCustomersForSales'] })
       refetchCustomers().then((res) => {
         const fetched = res.data || []
@@ -151,36 +201,12 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
         if (createdCustomer) {
           setFormCustomerId(createdCustomer.id)
           setCustomerSearch(createdCustomer.customerName)
-        } else if (newCreatedCustomerId) {
-          customersService.getCustomerById(newCreatedCustomerId).then(cRes => {
-            if (cRes.data) {
-              setFormCustomerId(cRes.data.id)
-              setCustomerSearch(cRes.data.customerName)
-            }
-          }).catch(() => {
-            showToast('Failed to auto-select created customer.', 'warning')
-          })
         }
-      }).catch(() => {
-        showToast('Failed to refresh customer list.', 'error')
       })
-    } else if (location.state?.fromSales && location.state?.salesForm) {
-      const { salesForm } = location.state
-      if (salesForm) {
-        if (salesForm.formType !== undefined) setFormType(salesForm.formType)
-        if (salesForm.formProductId !== undefined) setFormProductId(salesForm.formProductId)
-        if (salesForm.formCustomerId !== undefined) setFormCustomerId(salesForm.formCustomerId)
-        if (salesForm.formCases !== undefined) setFormCases(salesForm.formCases)
-        if (salesForm.formDate !== undefined) setFormDate(salesForm.formDate)
-        if (salesForm.formRef !== undefined) setFormRef(salesForm.formRef)
-        if (salesForm.formRemarks !== undefined) setFormRemarks(salesForm.formRemarks)
-        if (salesForm.isCreateOpen) setIsCreateOpen(true)
-      }
-      navigate(location.pathname, { replace: true, state: {} })
     }
   }, [location.state])
 
-  // Computed properties for selected product and customer in form
+  // Computed properties
   const selectedProductInForm = useMemo(() => {
     return products.find(p => p.id === formProductId)
   }, [products, formProductId])
@@ -189,23 +215,153 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     return customers.find(c => c.id === formCustomerId)
   }, [customers, formCustomerId])
 
-  // Filtered customers list for the searchable dropdown
   const filteredCustomersForForm = useMemo(() => {
     if (!customerSearch) return customers
     const s = customerSearch.toLowerCase()
     return customers.filter(c => 
       c.customerName.toLowerCase().includes(s) || 
-      c.customerCode.toLowerCase().includes(s) || 
-      (c.businessName && c.businessName.toLowerCase().includes(s))
+      c.customerCode.toLowerCase().includes(s)
     )
   }, [customers, customerSearch])
+
+  // Live Accounting preview calculations
+  const accountingImpactPreview = useMemo(() => {
+    if (!selectedProductInForm || !formCases) return []
+    const cases = parseFloat(formCases) || 0
+    if (cases <= 0 && formType !== 'Stock Adjustment') return []
+
+    const costPrice = selectedProductInForm.costPrice || 0
+    const sellingPrice = parseFloat(formUnitPrice) || selectedProductInForm.sellingPrice || 0
+    const discount = parseFloat(formDiscount) || 0
+    
+    const subtotal = cases * sellingPrice - discount
+    let cgst = 0, sgst = 0, igst = 0
+    if (isGstEnabled) {
+      cgst = subtotal * 0.09
+      sgst = subtotal * 0.09
+    }
+    const taxAmount = cgst + sgst + igst
+    const grandTotal = subtotal + taxAmount
+    const costValue = Math.abs(cases) * costPrice
+
+    if (formType === 'Sales Dispatch') {
+      let debitAccount = 'Accounts Receivable'
+      if (formPaymentMethod === 'Cash') debitAccount = 'Cash'
+      else if (['Bank', 'UPI', 'Cheque'].includes(formPaymentMethod)) debitAccount = 'Bank Account'
+
+      return [
+        { type: 'Debit', account: debitAccount, amount: grandTotal },
+        { type: 'Credit', account: 'Sales Revenue', amount: subtotal },
+        ...(taxAmount > 0 ? [
+          { type: 'Credit', account: 'CGST Output Tax', amount: cgst },
+          { type: 'Credit', account: 'SGST Output Tax', amount: sgst }
+        ] : []),
+        ...(costValue > 0 ? [
+          { type: 'Debit', account: 'Cost of Goods Sold', amount: costValue },
+          { type: 'Credit', account: 'Finished Goods Inventory', amount: costValue }
+        ] : [])
+      ]
+    } else if (formType === 'Customer Return') {
+      let creditAccount = 'Accounts Receivable'
+      if (formRefundMethod === 'Cash') creditAccount = 'Cash'
+      else if (formRefundMethod === 'Bank') creditAccount = 'Bank Account'
+
+      return [
+        { type: 'Debit', account: 'Sales Return', amount: grandTotal },
+        { type: 'Credit', account: creditAccount, amount: grandTotal },
+        ...(costValue > 0 ? [
+          { type: 'Debit', account: 'Finished Goods Inventory', amount: costValue },
+          { type: 'Credit', account: 'Cost of Goods Sold', amount: costValue }
+        ] : [])
+      ]
+    } else if (formType === 'Damage' || formType === 'Damaged Goods') {
+      return [
+        { type: 'Debit', account: 'Inventory Loss Expense', amount: costValue },
+        { type: 'Credit', account: 'Finished Goods Inventory', amount: costValue }
+      ]
+    } else if (formType === 'Internal Consumption') {
+      return [
+        { type: 'Debit', account: 'Office Expense', amount: costValue },
+        { type: 'Credit', account: 'Finished Goods Inventory', amount: costValue }
+      ]
+    } else if (formType === 'Free Sample') {
+      return [
+        { type: 'Debit', account: 'Marketing Expense', amount: costValue },
+        { type: 'Credit', account: 'Finished Goods Inventory', amount: costValue }
+      ]
+    } else if (formType === 'Stock Adjustment') {
+      const isIncrease = formAdjustmentMode === 'Increase'
+      return [
+        { type: isIncrease ? 'Debit' : 'Debit', account: isIncrease ? 'Finished Goods Inventory' : 'Inventory Adjustment Loss', amount: costValue },
+        { type: isIncrease ? 'Credit' : 'Credit', account: isIncrease ? 'Inventory Adjustment Gain' : 'Finished Goods Inventory', amount: costValue }
+      ]
+    }
+    return []
+  }, [formType, selectedProductInForm, formCases, formUnitPrice, formDiscount, isGstEnabled, formPaymentMethod, formRefundMethod, formAdjustmentMode])
+
+  // PDF Exporter
+  const handleDownloadPDF = (txn: SalesTransaction) => {
+    const compName = companySettings?.displayName || companySettings?.name || user?.companyName || 'Corporate Enterprise Tenant'
+    const compGst = companySettings?.gstNumber || '36AAACU9876D1Z5'
+    const compAddr = companySettings?.address || 'Industrial Park, Hyderabad'
+
+    const total = txn.totalAmount || (txn.cases * (txn.unitPrice || 0))
+    const tax = txn.taxAmount || 0
+    const sub = total - tax
+
+    const pdf = generateERPDocumentPDF({
+      title: `${txn.transactionType.toUpperCase()} TRANSACTION REGISTER`,
+      docNumber: txn.transactionNumber,
+      date: new Date(txn.transactionDate).toLocaleDateString('en-IN', { dateStyle: 'medium' }),
+      companyInfo: {
+        name: compName,
+        displayName: compName,
+        gstNumber: compGst,
+        address: compAddr,
+        email: user?.email || 'accounts@tenant.com'
+      },
+      partyLabel: 'Business Connection / Customer',
+      partyInfo: {
+        name: txn.customerName || 'System Internal Ledger',
+        details1: txn.customerCode ? `Code: ${txn.customerCode}` : 'Internal Consumption / Physical Correction',
+        details2: txn.referenceNumber ? `Ref: ${txn.referenceNumber}` : undefined
+      },
+      preparedBy: txn.createdByName || 'ERP Core Integration',
+      paymentDetails: {
+        method: txn.paymentMethod || 'Credit',
+        reference: txn.referenceNumber || undefined,
+        status: txn.paymentStatus || undefined
+      },
+      items: [
+        {
+          sno: 1,
+          description: `${txn.productName} (SKU: ${txn.productSku || 'N/A'})`,
+          quantity: txn.cases,
+          unitPrice: txn.unitPrice || 0,
+          amount: total
+        }
+      ],
+      financialSummary: {
+        subTotal: sub,
+        taxAmount: tax,
+        discountAmount: txn.discountAmount || 0,
+        grandTotal: total,
+        amountPaid: txn.amountReceived || 0,
+        balance: txn.outstandingAmount || 0
+      },
+      notes: 'Generated by Aquora ERP system. All postings remain locked under tenant cryptographic ledgers.',
+      remarks: txn.remarks || undefined
+    })
+
+    pdf.save(`Invoice_${txn.transactionNumber}.pdf`)
+  }
 
   // Mutations
   const createMutation = useMutation({
     mutationFn: salesService.createTransaction,
     onSuccess: (res) => {
       if (res.success) {
-        showToast('Sales transaction recorded successfully.', 'success')
+        showToast('Sales transaction recorded and general ledger posted.', 'success')
         queryClient.invalidateQueries({ queryKey: ['salesTransactionsList'] })
         queryClient.invalidateQueries({ queryKey: ['salesDashboard'] })
         queryClient.invalidateQueries({ queryKey: ['activeProductsForSales'] })
@@ -216,7 +372,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       }
     },
     onError: (err: any) => {
-      showToast(err.response?.data?.message || 'Error creating transaction.', 'error')
+      showToast(err.response?.data?.message || 'Error recording transaction.', 'error')
     }
   })
 
@@ -224,12 +380,15 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     mutationFn: salesService.updateTransaction,
     onSuccess: (res) => {
       if (res.success) {
-        showToast('Sales transaction updated successfully.', 'success')
+        showToast('Sales transaction updated, ledger balances recalculated.', 'success')
         queryClient.invalidateQueries({ queryKey: ['salesTransactionsList'] })
         queryClient.invalidateQueries({ queryKey: ['salesDashboard'] })
         queryClient.invalidateQueries({ queryKey: ['activeProductsForSales'] })
         setIsEditOpen(false)
         resetForm()
+        if (selectedTxn && selectedTxn.id === res.data.id) {
+          setSelectedTxn(res.data)
+        }
       } else {
         showToast(res.message || 'Failed to update transaction.', 'error')
       }
@@ -243,14 +402,15 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     mutationFn: salesService.deleteTransaction,
     onSuccess: (res) => {
       if (res.success) {
-        showToast('Transaction deleted and stock successfully restored.', 'success')
+        showToast('Transaction successfully reversed and ledger accounts adjusted.', 'success')
         queryClient.invalidateQueries({ queryKey: ['salesTransactionsList'] })
         queryClient.invalidateQueries({ queryKey: ['salesDashboard'] })
         queryClient.invalidateQueries({ queryKey: ['activeProductsForSales'] })
         setIsDeleteOpen(false)
+        setIsViewingDetails(false)
         setSelectedTxn(null)
       } else {
-        showToast(res.message || 'Failed to delete transaction.', 'error')
+        showToast(res.message || 'Failed to reverse transaction.', 'error')
       }
     },
     onError: (err: any) => {
@@ -268,6 +428,25 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     setFormRef('')
     setFormRemarks('')
     setCustomerSearch('')
+    setFormUnitPrice('')
+    setFormDiscount('')
+    setIsGstEnabled(false)
+    setFormPaymentMethod('Credit')
+    setFormBankAccountId('')
+    setFormCashBookId('')
+    setFormOriginalInvoice('')
+    setFormReturnReason('')
+    setFormReturnCondition('Good')
+    setFormRefundMethod('Credit Note')
+    setFormWarehouse('Main Warehouse')
+    setFormDamageType('Broken')
+    setFormApprovedBy('')
+    setFormDepartment('')
+    setFormPurpose('')
+    setFormMarketingCampaign('')
+    setFormSalesPerson('')
+    setFormAdjustmentReason('Correction')
+    setFormAdjustmentMode('Increase')
   }
 
   const handleOpenCreate = () => {
@@ -281,7 +460,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
 
   const handleOpenView = (txn: SalesTransaction) => {
     setSelectedTxn(txn)
-    setIsViewOpen(true)
+    setIsViewingDetails(true)
   }
 
   const handleOpenEdit = (txn: SalesTransaction) => {
@@ -293,12 +472,41 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     setFormType(txn.transactionType)
     setFormProductId(txn.productId)
     setFormCustomerId(txn.customerId)
-    setFormCases(txn.cases.toString())
+    setFormCases(Math.abs(txn.cases).toString())
     setFormDate(txn.transactionDate.substring(0, 10))
     setFormRef(txn.referenceNumber || '')
     setFormRemarks(txn.remarks || '')
+    
     const matchedCustomer = customers.find(c => c.id === txn.customerId)
     setCustomerSearch(matchedCustomer ? matchedCustomer.customerName : '')
+
+    // ERP specific state restorations
+    setFormUnitPrice(txn.unitPrice?.toString() || '')
+    setFormDiscount(txn.discountAmount?.toString() || '')
+    setIsGstEnabled((txn.taxAmount || 0) > 0)
+    setFormPaymentMethod(txn.paymentMethod || 'Credit')
+    setFormBankAccountId(txn.bankAccountId || '')
+    setFormCashBookId(txn.cashBookId || '')
+
+    try {
+      const meta = txn.metadataJson ? JSON.parse(txn.metadataJson) : {}
+      setFormOriginalInvoice(meta.originalInvoice || '')
+      setFormReturnReason(meta.returnReason || '')
+      setFormReturnCondition(meta.returnCondition || 'Good')
+      setFormRefundMethod(meta.refundMethod || 'Credit Note')
+      setFormWarehouse(meta.warehouse || 'Main Warehouse')
+      setFormDamageType(meta.damageType || 'Broken')
+      setFormApprovedBy(meta.approvedBy || '')
+      setFormDepartment(meta.department || '')
+      setFormPurpose(meta.purpose || '')
+      setFormMarketingCampaign(meta.marketingCampaign || '')
+      setFormSalesPerson(meta.salesPerson || '')
+      setFormAdjustmentReason(meta.adjustmentReason || 'Correction')
+      setFormAdjustmentMode(txn.cases >= 0 ? 'Increase' : 'Decrease')
+    } catch {
+      // safe fallback
+    }
+
     setIsEditOpen(true)
   }
 
@@ -311,29 +519,32 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     setIsDeleteOpen(true)
   }
 
-  // Submission validation logic
   const validateForm = (): boolean => {
-    if (!formType || !formProductId || !formCustomerId || !formCases || !formDate) {
+    const isCustomerRequired = ['Sales Dispatch', 'Customer Return', 'Free Sample'].includes(formType)
+    if (isCustomerRequired && !formCustomerId) {
+      showToast('Please select a customer for this transaction.', 'warning')
+      return false
+    }
+
+    if (!formProductId || !formCases || !formDate) {
       showToast('Please fill in all required fields.', 'warning')
       return false
     }
 
     const casesNum = parseFloat(formCases)
     if (isNaN(casesNum) || casesNum <= 0) {
-      showToast('Cases must be a valid number greater than 0.', 'warning')
+      showToast('Quantity must be greater than zero.', 'warning')
       return false
     }
 
-    // Check available stock for Sales Dispatch and Damage
-    if (formType === 'Sales Dispatch' || formType === 'Damage') {
+    // Verify stock availability
+    if (formType === 'Sales Dispatch' || formType === 'Damage' || formType === 'Damaged Goods' || formType === 'Internal Consumption' || formType === 'Free Sample' || (formType === 'Stock Adjustment' && formAdjustmentMode === 'Decrease')) {
       const prod = products.find(p => p.id === formProductId)
       if (prod) {
         let maxAvailable = prod.currentStock
-        // If we are editing, we add back the original cases of this transaction to calculate stock correctly
         if (isEditOpen && selectedTxn && selectedTxn.productId === formProductId) {
-          maxAvailable += selectedTxn.cases
+          maxAvailable += Math.abs(selectedTxn.cases)
         }
-
         if (casesNum > maxAvailable) {
           showToast(`Insufficient stock. Max available: ${maxAvailable} Cases.`, 'error')
           return false
@@ -344,39 +555,385 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     return true
   }
 
-  const handleCreateSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!validateForm()) return
+  const buildRequestPayload = (): CreateSalesTransactionRequest => {
+    const casesVal = parseFloat(formCases)
+    const finalCases = (formType === 'Stock Adjustment' && formAdjustmentMode === 'Decrease') ? -casesVal : casesVal
+    
+    const up = parseFloat(formUnitPrice) || 0
+    const disc = parseFloat(formDiscount) || 0
+    const sub = finalCases * up - disc
+    
+    let cgst = 0, sgst = 0
+    if (isGstEnabled) {
+      cgst = sub * 0.09
+      sgst = sub * 0.09
+    }
+    const tax = cgst + sgst
 
-    const payload: CreateSalesTransactionRequest = {
-      customerId: formCustomerId,
+    const meta = {
+      originalInvoice: formOriginalInvoice,
+      returnReason: formReturnReason,
+      returnCondition: formReturnCondition,
+      refundMethod: formRefundMethod,
+      warehouse: formWarehouse,
+      damageType: formDamageType,
+      approvedBy: formApprovedBy,
+      department: formDepartment,
+      purpose: formPurpose,
+      marketingCampaign: formMarketingCampaign,
+      salesPerson: formSalesPerson,
+      adjustmentReason: formAdjustmentReason
+    }
+
+    return {
+      customerId: formCustomerId || '00000000-0000-0000-0000-000000000000',
       productId: formProductId,
-      cases: parseFloat(formCases),
+      cases: finalCases,
       transactionType: formType,
       transactionDate: formDate,
       referenceNumber: formRef ? formRef.trim() : undefined,
-      remarks: formRemarks ? formRemarks.trim() : undefined
+      remarks: formRemarks ? formRemarks.trim() : undefined,
+      paymentMethod: formPaymentMethod,
+      bankAccountId: formBankAccountId || undefined,
+      cashBookId: formCashBookId || undefined,
+      unitPrice: up,
+      discountAmount: disc,
+      taxAmount: tax,
+      cgst: cgst,
+      sgst: sgst,
+      igst: 0,
+      metadataJson: JSON.stringify(meta),
+      totalAmount: sub + tax,
+      amountReceived: formPaymentMethod === 'Credit' ? 0 : (sub + tax),
+      returnedAmount: formType === 'Customer Return' ? sub + tax : 0,
+      refundAmount: (formType === 'Customer Return' && formRefundMethod !== 'Credit Note') ? sub + tax : 0,
+      adjustmentAmount: (formType === 'Customer Return' && formRefundMethod === 'Credit Note') ? sub + tax : 0,
+      returnType: formType === 'Customer Return' ? formRefundMethod : undefined
     }
+  }
 
-    createMutation.mutate(payload)
+  const handleCreateSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!validateForm()) return
+    createMutation.mutate(buildRequestPayload())
   }
 
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedTxn) return
     if (!validateForm()) return
+    updateMutation.mutate({ id: selectedTxn.id, data: buildRequestPayload() })
+  }
 
-    const payload: CreateSalesTransactionRequest = {
-      customerId: formCustomerId,
-      productId: formProductId,
-      cases: parseFloat(formCases),
-      transactionType: formType,
-      transactionDate: formDate,
-      referenceNumber: formRef ? formRef.trim() : undefined,
-      remarks: formRemarks ? formRemarks.trim() : undefined
+  // Parse dynamic metadata for detail viewing
+  const viewMeta = useMemo(() => {
+    if (!selectedTxn || !selectedTxn.metadataJson) return {}
+    try {
+      return JSON.parse(selectedTxn.metadataJson)
+    } catch {
+      return {}
     }
+  }, [selectedTxn])
 
-    updateMutation.mutate({ id: selectedTxn.id, data: payload })
+  if (isViewingDetails && selectedTxn) {
+    // Dynamic General Ledger View for the Sales Transaction details
+    const total = selectedTxn.totalAmount || (Math.abs(selectedTxn.cases) * (selectedTxn.unitPrice || 0))
+    const tax = selectedTxn.taxAmount || 0
+    const sub = total - tax
+    const cost = Math.abs(selectedTxn.cases) * (selectedProductInForm?.costPrice || 15)
+
+    const resolvedDebit = selectedTxn.paymentMethod === 'Cash' ? 'Cash Account' : (selectedTxn.paymentMethod === 'BankAccount' ? 'Bank Account' : 'Accounts Receivable')
+
+    return (
+      <PageContainer>
+        <div className="bg-slate-50 min-h-screen pb-12">
+          {/* Details header */}
+          <div className="bg-white border-b border-slate-200 px-8 py-5 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setIsViewingDetails(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-900 transition-all cursor-pointer"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <h1 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                  <ShoppingCart className="w-6 h-6 text-blue-600" />
+                  {selectedTxn.transactionType} Register
+                </h1>
+                <span className="font-mono text-xs font-semibold text-slate-400 mt-1 block">
+                  Document Reference: {selectedTxn.transactionNumber}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleDownloadPDF(selectedTxn)}
+                className="h-[36px] px-4 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm shadow-blue-150/40"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                Print / Export Invoice PDF
+              </button>
+              {canWrite && (
+                <button
+                  onClick={() => {
+                    setIsViewingDetails(false);
+                    handleOpenEdit(selectedTxn);
+                  }}
+                  className="h-[36px] px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[12px] font-bold rounded-lg transition-all cursor-pointer"
+                >
+                  Edit Document
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="max-w-7xl mx-auto px-8 mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main content pane */}
+            <div className="lg:col-span-2 space-y-6">
+              
+              {/* Product Sold Section */}
+              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                <h3 className="text-[14px] font-extrabold text-slate-800 mb-4 flex items-center gap-2">
+                  <Package className="w-4 h-4 text-blue-600" />
+                  Purchased Finished Goods
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider h-[32px]">
+                        <th className="py-2 px-3">Item Description</th>
+                        <th className="py-2 px-3 text-right">Quantity</th>
+                        <th className="py-2 px-3 text-right">Unit Price</th>
+                        <th className="py-2 px-3 text-right">Discount</th>
+                        <th className="py-2 px-3 text-right">Taxable Amt</th>
+                        <th className="py-2 px-3 text-right">Total Amt</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-[13px] text-slate-700">
+                      <tr className="h-[40px]">
+                        <td className="py-3 px-3 font-semibold text-slate-800">
+                          {selectedTxn.productName}
+                          <span className="block text-[10px] text-slate-400 font-mono mt-0.5">{selectedTxn.productSku || 'NO_SKU_CODE'}</span>
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-bold">{Math.abs(selectedTxn.cases)} Cases</td>
+                        <td className="py-3 px-3 text-right font-mono">₹{(selectedTxn.unitPrice || 0).toLocaleString()}</td>
+                        <td className="py-3 px-3 text-right font-mono text-rose-500">₹{(selectedTxn.discountAmount || 0).toLocaleString()}</td>
+                        <td className="py-3 px-3 text-right font-mono">₹{sub.toLocaleString()}</td>
+                        <td className="py-3 px-3 text-right font-mono font-black text-slate-850">₹{total.toLocaleString()}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Subsystem fields for categories */}
+                {selectedTxn.transactionType === 'Customer Return' && (
+                  <div className="mt-5 grid grid-cols-2 md:grid-cols-3 gap-4 border-t border-slate-100 pt-4 text-xs">
+                    <div>
+                      <span className="text-slate-400 block mb-0.5">Condition:</span>
+                      <span className="font-bold text-slate-700">{viewMeta.returnCondition || 'Good'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block mb-0.5">Return Reason:</span>
+                      <span className="font-bold text-slate-700">{viewMeta.returnReason || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block mb-0.5">Refund Settlement:</span>
+                      <span className="font-bold text-slate-700">{viewMeta.refundMethod || 'Credit Note'}</span>
+                    </div>
+                  </div>
+                )}
+
+                {selectedTxn.transactionType === 'Damage' && (
+                  <div className="mt-5 grid grid-cols-2 md:grid-cols-3 gap-4 border-t border-slate-100 pt-4 text-xs">
+                    <div>
+                      <span className="text-slate-400 block mb-0.5">Damage Reason:</span>
+                      <span className="font-bold text-slate-700">{selectedTxn.damageReason || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block mb-0.5">Approved By:</span>
+                      <span className="font-bold text-slate-700">{viewMeta.approvedBy || 'System Audit'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block mb-0.5">Warehouse Location:</span>
+                      <span className="font-bold text-slate-700">{viewMeta.warehouse || 'Main Warehouse'}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Accounting double-entry register impact */}
+              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                <h3 className="text-[14px] font-extrabold text-slate-800 mb-4 flex items-center gap-2">
+                  <Landmark className="w-4 h-4 text-emerald-600" />
+                  Cryptographic Ledger Posting Impact
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider h-[32px]">
+                        <th className="py-2 px-3">Account Ledger</th>
+                        <th className="py-2 px-3 text-right">Debit (Dr)</th>
+                        <th className="py-2 px-3 text-right">Credit (Cr)</th>
+                        <th className="py-2 px-3">Transaction Narration</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-[13px] text-slate-700 font-mono">
+                      {selectedTxn.transactionType === 'Sales Dispatch' && (
+                        <>
+                          <tr className="h-[38px]">
+                            <td className="py-3 px-3 font-semibold text-slate-800">{resolvedDebit}</td>
+                            <td className="py-3 px-3 text-right font-bold text-blue-600">₹{total.toLocaleString()}</td>
+                            <td className="py-3 px-3 text-right text-slate-300">—</td>
+                            <td className="py-3 px-3 text-slate-400 font-sans text-xs">Sales dispatch accounts receivable posting</td>
+                          </tr>
+                          <tr className="h-[38px]">
+                            <td className="py-3 px-3 pl-8 text-slate-600 font-medium">Sales Revenue</td>
+                            <td className="py-3 px-3 text-right text-slate-300">—</td>
+                            <td className="py-3 px-3 text-right font-bold text-slate-800">₹{sub.toLocaleString()}</td>
+                            <td className="py-3 px-3 text-slate-400 font-sans text-xs">Finished goods income recognition</td>
+                          </tr>
+                          {tax > 0 && (
+                            <tr className="h-[38px]">
+                              <td className="py-3 px-3 pl-8 text-slate-650">GST Output Liabilities</td>
+                              <td className="py-3 px-3 text-right text-slate-300">—</td>
+                              <td className="py-3 px-3 text-right font-bold text-slate-800">₹{tax.toLocaleString()}</td>
+                              <td className="py-3 px-3 text-slate-400 font-sans text-xs">Postings for statutory GST liabilities</td>
+                            </tr>
+                          )}
+                          <tr className="h-[38px]">
+                            <td className="py-3 px-3 font-semibold text-slate-850">Cost of Goods Sold</td>
+                            <td className="py-3 px-3 text-right font-bold text-slate-800">₹{cost.toLocaleString()}</td>
+                            <td className="py-3 px-3 text-right text-slate-300">—</td>
+                            <td className="py-3 px-3 text-slate-400 font-sans text-xs">Asset cost conversion expense</td>
+                          </tr>
+                          <tr className="h-[38px]">
+                            <td className="py-3 px-3 pl-8 text-slate-600">Finished Goods Inventory</td>
+                            <td className="py-3 px-3 text-right text-slate-300">—</td>
+                            <td className="py-3 px-3 text-right font-bold text-rose-500">₹{cost.toLocaleString()}</td>
+                            <td className="py-3 px-3 text-slate-400 font-sans text-xs">Stock reduction posting</td>
+                          </tr>
+                        </>
+                      )}
+                      {selectedTxn.transactionType === 'Customer Return' && (
+                        <>
+                          <tr className="h-[38px]">
+                            <td className="py-3 px-3 font-semibold text-slate-850">Sales Return Note</td>
+                            <td className="py-3 px-3 text-right font-bold text-blue-600">₹{total.toLocaleString()}</td>
+                            <td className="py-3 px-3 text-right text-slate-300">—</td>
+                            <td className="py-3 px-3 text-slate-400 font-sans text-xs">Contra-income returns registration</td>
+                          </tr>
+                          <tr className="h-[38px]">
+                            <td className="py-3 px-3 pl-8 text-slate-600">{resolvedDebit}</td>
+                            <td className="py-3 px-3 text-right text-slate-300">—</td>
+                            <td className="py-3 px-3 text-right font-bold text-slate-800">₹{total.toLocaleString()}</td>
+                            <td className="py-3 px-3 text-slate-400 font-sans text-xs">Customer return refund/credit settlement</td>
+                          </tr>
+                        </>
+                      )}
+                      {selectedTxn.transactionType === 'Damage' && (
+                        <>
+                          <tr className="h-[38px]">
+                            <td className="py-3 px-3 font-semibold text-slate-850">Inventory Loss Expense</td>
+                            <td className="py-3 px-3 text-right font-bold text-slate-800">₹{cost.toLocaleString()}</td>
+                            <td className="py-3 px-3 text-right text-slate-300">—</td>
+                            <td className="py-3 px-3 text-slate-400 font-sans text-xs">Unsellable damage loss allocation</td>
+                          </tr>
+                          <tr className="h-[38px]">
+                            <td className="py-3 px-3 pl-8 text-slate-600">Finished Goods Inventory</td>
+                            <td className="py-3 px-3 text-right text-slate-300">—</td>
+                            <td className="py-3 px-3 text-right font-bold text-rose-500">₹{cost.toLocaleString()}</td>
+                            <td className="py-3 px-3 text-slate-400 font-sans text-xs">Reduction of stock asset values</td>
+                          </tr>
+                        </>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Sidebar metadata card */}
+            <div className="space-y-6">
+              
+              {/* Customer and payments summaries */}
+              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2">
+                  Business Connection Summary
+                </h3>
+                <div className="space-y-3.5 text-xs text-slate-600">
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-slate-400">Customer name:</span>
+                    <span className="font-bold text-slate-800">{selectedTxn.customerName || 'N/A (System Internal)'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-slate-400">Customer Code:</span>
+                    <span className="font-mono text-slate-800">{selectedTxn.customerCode || '—'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-slate-400">Payment Status:</span>
+                    <span className={`px-2 py-0.5 rounded font-bold ${
+                      selectedTxn.paymentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                    }`}>{selectedTxn.paymentStatus || 'POSTED'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-slate-400">Payment Mode:</span>
+                    <span className="font-bold text-slate-700">{selectedTxn.paymentMethod || 'Credit'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Subsystem status indicators */}
+              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2">
+                  System Posting Registry
+                </h3>
+                <div className="space-y-2.5 text-xs">
+                  <div className="flex items-center justify-between text-slate-650">
+                    <span>1. Inventory Subsystem Impact:</span>
+                    <span className="text-emerald-600 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Adjusted
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-650">
+                    <span>2. Customer Ledger Impact:</span>
+                    <span className="text-emerald-600 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Adjusted
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-650">
+                    <span>3. General Ledger double-entry:</span>
+                    <span className="text-emerald-600 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      JV Posted
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* System Audit Details */}
+              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2">
+                  Chronological Audit Log
+                </h3>
+                <div className="space-y-4 relative pl-4 border-l border-slate-100 text-xs">
+                  <div className="relative">
+                    <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 bg-blue-600 rounded-full border border-white" />
+                    <span className="text-slate-450 block text-[10px]">
+                      {new Date(selectedTxn.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </span>
+                    <span className="font-bold text-slate-700 mt-0.5 block">Document Initialized & Posted</span>
+                    <span className="text-slate-400 block text-[11px] mt-0.5">Recorded by: {selectedTxn.createdByName}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </PageContainer>
+    )
   }
 
   return (
@@ -591,11 +1148,11 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       {/* CREATE MODAL */}
       {isCreateOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-center items-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+          <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
             <div className="flex justify-between items-center border-b border-slate-100 px-6 py-4">
               <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-blue-600" />
-                Record Sales Transaction
+                Record ERP Sales transaction
               </h2>
               <button onClick={() => setIsCreateOpen(false)} className="text-slate-400 hover:text-slate-650">
                 <X className="w-5 h-5" />
@@ -609,250 +1166,20 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                   <PremiumLabel label="Transaction Type *" />
                   <select
                     value={formType}
-                    onChange={(e) => setFormType(e.target.value)}
-                    className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] bg-white rounded-lg focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100/50 appearance-none cursor-pointer"
+                    onChange={(e) => {
+                      setFormType(e.target.value)
+                      if (e.target.value === 'Stock Adjustment') {
+                        setFormCases('')
+                      }
+                    }}
+                    className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] bg-white rounded-lg focus:outline-none focus:border-blue-500 cursor-pointer"
                   >
                     <option value="Sales Dispatch">Sales Dispatch</option>
                     <option value="Customer Return">Customer Return</option>
-                    <option value="Damage">Damage</option>
-                  </select>
-                </div>
-
-                {/* Transaction Date */}
-                <div className="flex flex-col">
-                  <PremiumLabel label="Transaction Date *" />
-                  <input
-                    type="date"
-                    value={formDate}
-                    onChange={(e) => setFormDate(e.target.value)}
-                    className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100/50"
-                  />
-                </div>
-              </div>
-
-              {/* Product Selection */}
-              <div className="flex flex-col">
-                <PremiumLabel label="Product *" />
-                <select
-                  value={formProductId}
-                  onChange={(e) => setFormProductId(e.target.value)}
-                  className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] bg-white rounded-lg focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100/50"
-                >
-                  <option value="">Select Finished Product...</option>
-                  {products.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} {p.sku ? `(SKU: ${p.sku})` : ''}</option>
-                  ))}
-                </select>
-
-                {/* Live Product details indicator */}
-                {selectedProductInForm && (
-                  <div className="mt-2.5 bg-blue-50/50 border border-blue-100 rounded-lg px-3 py-2 text-[11px]">
-                    <div className="flex items-center justify-between text-blue-800">
-                      <span className="font-medium flex items-center gap-1">
-                        <Package className="w-3.5 h-3.5 text-blue-600" />
-                        Current Stock:
-                      </span>
-                      <span className="font-bold font-mono text-[12px]">{selectedProductInForm.currentStock.toLocaleString()} Cases</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Searchable Customer Selection */}
-              <div className="flex flex-col relative">
-                <PremiumLabel label="Customer *" />
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      placeholder="Search and select active customer..."
-                      value={customerSearch}
-                      onChange={(e) => {
-                        setCustomerSearch(e.target.value)
-                        setIsCustomerDropdownOpen(true)
-                      }}
-                      onFocus={() => setIsCustomerDropdownOpen(true)}
-                      className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100/50"
-                    />
-                    {customerSearch && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCustomerSearch('')
-                          setFormCustomerId('')
-                        }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-
-                    {isCustomerDropdownOpen && (
-                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                        {filteredCustomersForForm.length === 0 ? (
-                          <div className="py-3 px-4 text-xs text-slate-400 italic">No customers found.</div>
-                        ) : (
-                          filteredCustomersForForm.map(c => (
-                            <button
-                              key={c.id}
-                              type="button"
-                              onClick={() => {
-                                setFormCustomerId(c.id)
-                                setCustomerSearch(c.customerName)
-                                setIsCustomerDropdownOpen(false)
-                              }}
-                              className="w-full text-left py-2.5 px-4 text-xs hover:bg-slate-50 transition-colors border-b border-slate-100/50 last:border-0"
-                            >
-                              <div className="font-bold text-slate-700">{c.customerName}</div>
-                              <div className="text-[10px] text-slate-450 mt-0.5">{c.customerCode} &bull; {c.phone}</div>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {canWrite && (
-                    <button
-                      type="button"
-                      onClick={handleQuickCreateCustomer}
-                      className="h-[40px] px-3 border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
-                      title="Create a new customer"
-                    >
-                      <Plus className="w-3.5 h-3.5 text-blue-600" />
-                      <span>+ New Customer</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Selected Customer details panel */}
-                {selectedCustomerInForm && (
-                  <div className="mt-2.5 bg-slate-50 border border-slate-150 rounded-lg px-3 py-2 text-[11px] space-y-1">
-                    <div className="flex items-center justify-between text-slate-650">
-                      <span className="font-medium flex items-center gap-1">
-                        <Phone className="w-3.5 h-3.5 text-slate-400" />
-                        Contact Number:
-                      </span>
-                      <span className="font-semibold text-slate-800">{selectedCustomerInForm.phone || '—'}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-slate-650">
-                      <span className="font-medium flex items-center gap-1">
-                        <Info className="w-3.5 h-3.5 text-slate-400" />
-                        Outstanding Balance:
-                      </span>
-                      <span className={`font-bold font-mono ${
-                        selectedCustomerInForm.balanceType === 'Receivable' ? 'text-blue-600' : selectedCustomerInForm.balanceType === 'Payable' ? 'text-rose-500' : 'text-slate-700'
-                      }`}>
-                        {selectedCustomerInForm.balanceType === 'Receivable' ? '+' : selectedCustomerInForm.balanceType === 'Payable' ? '-' : ''}
-                        ₹{selectedCustomerInForm.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Cases Quantity and Reference Number */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex flex-col">
-                  <EnterpriseNumberInput
-                    label="Quantity (Cases) *"
-                    placeholder="Enter cases..."
-                    allowDecimals={false}
-                    min={1}
-                    value={formCases}
-                    onChange={(e) => setFormCases(e.target.value)}
-                  />
-                </div>
-
-                <div className="flex flex-col">
-                  <PremiumLabel label="Reference Number" />
-                  <input
-                    type="text"
-                    placeholder="E.g., Invoice, Lorry No..."
-                    value={formRef}
-                    onChange={(e) => setFormRef(e.target.value)}
-                    className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100/50"
-                  />
-                </div>
-              </div>
-
-              {/* Remarks */}
-              <div className="flex flex-col">
-                <PremiumLabel label="Remarks" />
-                <textarea
-                  placeholder="Notes about transport, payment, etc..."
-                  value={formRemarks}
-                  onChange={(e) => setFormRemarks(e.target.value)}
-                  className="w-full p-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100/50 min-h-[70px]"
-                />
-              </div>
-
-              <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
-                <EnterpriseButton
-                  type="submit"
-                  disabled={createMutation.isPending}
-                  className="flex-1 bg-blue-650 hover:bg-blue-750 text-white rounded-lg h-11 text-sm font-semibold transition-all shadow-md shadow-blue-200/50 flex items-center justify-center gap-2"
-                >
-                  {createMutation.isPending ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Saving Transaction...
-                    </>
-                  ) : (
-                    'Record Transaction'
-                  )}
-                </EnterpriseButton>
-                <button
-                  type="button"
-                  onClick={() => setIsCreateOpen(false)}
-                  className="w-[100px] h-11 border border-slate-200 text-slate-500 font-semibold text-sm rounded-lg hover:bg-slate-50 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* EDIT MODAL */}
-      {isEditOpen && selectedTxn && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-center items-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-            <div className="flex justify-between items-center border-b border-slate-100 px-6 py-4">
-              <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                <ShoppingCart className="w-5 h-5 text-amber-500" />
-                Edit Transaction: {selectedTxn.transactionNumber}
-              </h2>
-              <button onClick={() => setIsEditOpen(false)} className="text-slate-400 hover:text-slate-650">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleEditSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
-              {/* Important transactional warning banner */}
-              <div className="bg-amber-50 border border-amber-250 rounded-lg p-3.5 text-xs text-amber-800 flex items-start gap-2.5 leading-relaxed">
-                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold">Important Stock Reversal Alert:</span>
-                  <p className="mt-0.5">
-                    Modifying this transaction will automatically reverse the original stock movement of <strong>{selectedTxn.cases} Cases</strong> before applying the new quantity. This prevents stock duplication or inconsistencies.
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Transaction Type */}
-                <div className="flex flex-col">
-                  <PremiumLabel label="Transaction Type *" />
-                  <select
-                    value={formType}
-                    onChange={(e) => setFormType(e.target.value)}
-                    className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] bg-white rounded-lg focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100/50 appearance-none cursor-pointer"
-                  >
-                    <option value="Sales Dispatch">Sales Dispatch</option>
-                    <option value="Customer Return">Customer Return</option>
-                    <option value="Damage">Damage</option>
+                    <option value="Damage">Damaged Goods</option>
+                    <option value="Internal Consumption">Internal Consumption</option>
+                    <option value="Free Sample">Free Sample</option>
+                    <option value="Stock Adjustment">Stock Adjustment</option>
                   </select>
                 </div>
 
@@ -882,134 +1209,516 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                   ))}
                 </select>
 
-                {/* Live Product details indicator */}
+                {/* Current Stock indicators */}
                 {selectedProductInForm && (
-                  <div className="mt-2.5 bg-blue-50/50 border border-blue-100 rounded-lg px-3 py-2 text-[11px]">
-                    <div className="flex items-center justify-between text-blue-800">
-                      <span className="font-medium flex items-center gap-1">
-                        <Package className="w-3.5 h-3.5 text-blue-600" />
-                        Current Stock:
-                      </span>
-                      <span className="font-bold font-mono text-[12px]">{selectedProductInForm.currentStock.toLocaleString()} Cases</span>
-                    </div>
+                  <div className="mt-2.5 bg-blue-50/50 border border-blue-100 rounded-lg px-3 py-2 text-[11px] flex justify-between">
+                    <span className="font-semibold text-blue-800">Current Stock:</span>
+                    <span className="font-bold text-blue-800">{selectedProductInForm.currentStock.toLocaleString()} Cases</span>
                   </div>
                 )}
               </div>
 
-              {/* Searchable Customer Selection */}
-              <div className="flex flex-col relative">
-                <PremiumLabel label="Customer *" />
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search and select active customer..."
-                    value={customerSearch}
-                    onChange={(e) => {
-                      setCustomerSearch(e.target.value)
-                      setIsCustomerDropdownOpen(true)
-                    }}
-                    onFocus={() => setIsCustomerDropdownOpen(true)}
-                    className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none focus:border-blue-500"
-                  />
-                  {customerSearch && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCustomerSearch('')
-                        setFormCustomerId('')
-                      }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
+              {/* CONDITIONAL FIELDSETS DEPENDING ON TRANSACTION TYPE */}
+              
+              {/* Sales Dispatch Conditional UI */}
+              {formType === 'Sales Dispatch' && (
+                <div className="space-y-4 border-t border-slate-100 pt-4">
+                  {/* Customer search selection */}
+                  <div className="flex flex-col relative">
+                    <PremiumLabel label="Customer *" />
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          placeholder="Search customer..."
+                          value={customerSearch}
+                          onChange={(e) => { setCustomerSearch(e.target.value); setIsCustomerDropdownOpen(true); }}
+                          onFocus={() => setIsCustomerDropdownOpen(true)}
+                          className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none"
+                        />
+                        {isCustomerDropdownOpen && (
+                          <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                            {filteredCustomersForForm.map(c => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => { setFormCustomerId(c.id); setCustomerSearch(c.customerName); setIsCustomerDropdownOpen(false); }}
+                                className="w-full text-left py-2 px-3 hover:bg-slate-50 text-xs text-slate-700"
+                              >
+                                {c.customerName} ({c.customerCode})
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <button type="button" onClick={handleQuickCreateCustomer} className="px-3 border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-lg text-xs font-bold">+ New Customer</button>
+                    </div>
+                  </div>
 
-                {isCustomerDropdownOpen && (
-                  <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    {filteredCustomersForForm.length === 0 ? (
-                      <div className="py-3 px-4 text-xs text-slate-400 italic">No customers found.</div>
-                    ) : (
-                      filteredCustomersForForm.map(c => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => {
-                            setFormCustomerId(c.id)
-                            setCustomerSearch(c.customerName)
-                            setIsCustomerDropdownOpen(false)
-                          }}
-                          className="w-full text-left py-2.5 px-4 text-xs hover:bg-slate-50 transition-colors border-b border-slate-100/50 last:border-0"
-                        >
-                          <div className="font-bold text-slate-700">{c.customerName}</div>
-                          <div className="text-[10px] text-slate-450 mt-0.5">{c.customerCode} &bull; {c.phone}</div>
-                        </button>
-                      ))
+                  <div className="grid grid-cols-2 gap-4">
+                    <EnterpriseNumberInput label="Cases Quantity *" value={formCases} onChange={(e) => setFormCases(e.target.value)} placeholder="0" allowDecimals={false} />
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Unit Price (₹) *" />
+                      <input type="number" value={formUnitPrice} onChange={(e) => setFormUnitPrice(e.target.value)} placeholder={selectedProductInForm?.sellingPrice?.toString() || '0.00'} className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Discount (₹)" />
+                      <input type="number" value={formDiscount} onChange={(e) => setFormDiscount(e.target.value)} placeholder="0.00" className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
+                    </div>
+                    <div className="flex items-center gap-2 h-10 mt-6 pl-2">
+                      <input type="checkbox" id="isGst" checked={isGstEnabled} onChange={(e) => setIsGstEnabled(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
+                      <label htmlFor="isGst" className="text-xs font-semibold text-slate-650 cursor-pointer">GST Applicable (Calculated 18%)</label>
+                    </div>
+                  </div>
+
+                  {/* Payment Type Selection */}
+                  <div className="border-t border-slate-100 pt-4 space-y-4">
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Payment Method *" />
+                      <div className="flex gap-3">
+                        {['Cash', 'Bank', 'Credit', 'UPI', 'Cheque'].map(m => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => setFormPaymentMethod(m)}
+                            className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${
+                              formPaymentMethod === m ? 'bg-blue-600 text-white border-blue-600 shadow' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {m}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Bank Account dropdown */}
+                    {['Bank', 'UPI', 'Cheque'].includes(formPaymentMethod) && (
+                      <div className="flex flex-col">
+                        <PremiumLabel label="Company Bank Account *" />
+                        <select value={formBankAccountId} onChange={(e) => setFormBankAccountId(e.target.value)} className="w-full h-[40px] border border-slate-200 rounded-lg text-sm bg-white">
+                          <option value="">Select Account...</option>
+                          {banks.map(b => (
+                            <option key={b.id} value={b.id}>{b.bankName} — {b.accountNumber}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Cash Book dropdown */}
+                    {formPaymentMethod === 'Cash' && (
+                      <div className="flex flex-col">
+                        <PremiumLabel label="Company Cash Book Register *" />
+                        <select value={formCashBookId} onChange={(e) => setFormCashBookId(e.target.value)} className="w-full h-[40px] border border-slate-200 rounded-lg text-sm bg-white">
+                          <option value="">Select Cash Register...</option>
+                          {cashRegisters.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
                     )}
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* Selected Customer details panel */}
-                {selectedCustomerInForm && (
-                  <div className="mt-2.5 bg-slate-50 border border-slate-150 rounded-lg px-3 py-2 text-[11px] space-y-1">
-                    <div className="flex items-center justify-between text-slate-650">
-                      <span className="font-medium flex items-center gap-1">
-                        <Phone className="w-3.5 h-3.5 text-slate-400" />
-                        Contact Number:
-                      </span>
-                      <span className="font-semibold text-slate-800">{selectedCustomerInForm.phone || '—'}</span>
+              {/* Customer Return Conditional UI */}
+              {formType === 'Customer Return' && (
+                <div className="space-y-4 border-t border-slate-100 pt-4">
+                  {/* Customer search selection */}
+                  <div className="flex flex-col relative">
+                    <PremiumLabel label="Customer *" />
+                    <input
+                      type="text"
+                      placeholder="Select return customer..."
+                      value={customerSearch}
+                      onChange={(e) => { setCustomerSearch(e.target.value); setIsCustomerDropdownOpen(true); }}
+                      onFocus={() => setIsCustomerDropdownOpen(true)}
+                      className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none"
+                    />
+                    {isCustomerDropdownOpen && (
+                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                        {filteredCustomersForForm.map(c => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => { setFormCustomerId(c.id); setCustomerSearch(c.customerName); setIsCustomerDropdownOpen(false); }}
+                            className="w-full text-left py-2 px-3 hover:bg-slate-50 text-xs text-slate-700"
+                          >
+                            {c.customerName}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Original Reference Invoice" />
+                      <input type="text" value={formOriginalInvoice} onChange={(e) => setFormOriginalInvoice(e.target.value)} placeholder="E.g., TXN-2026..." className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
                     </div>
-                    <div className="flex items-center justify-between text-slate-650">
-                      <span className="font-medium flex items-center gap-1">
-                        <Info className="w-3.5 h-3.5 text-slate-400" />
-                        Outstanding Balance:
-                      </span>
-                      <span className={`font-bold font-mono ${
-                        selectedCustomerInForm.balanceType === 'Receivable' ? 'text-blue-600' : selectedCustomerInForm.balanceType === 'Payable' ? 'text-rose-500' : 'text-slate-700'
-                      }`}>
-                        {selectedCustomerInForm.balanceType === 'Receivable' ? '+' : selectedCustomerInForm.balanceType === 'Payable' ? '-' : ''}
-                        ₹{selectedCustomerInForm.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Return Condition" />
+                      <select value={formReturnCondition} onChange={(e) => setFormReturnCondition(e.target.value)} className="w-full h-[40px] px-3 border border-slate-200 text-sm bg-white rounded-lg">
+                        <option value="Good">Good (Restock Asset)</option>
+                        <option value="Damaged">Damaged / Rejected</option>
+                      </select>
                     </div>
                   </div>
-                )}
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <EnterpriseNumberInput label="Cases Returned *" value={formCases} onChange={(e) => setFormCases(e.target.value)} placeholder="0" allowDecimals={false} />
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Refund Method *" />
+                      <select value={formRefundMethod} onChange={(e) => setFormRefundMethod(e.target.value)} className="w-full h-[40px] px-3 border border-slate-200 text-sm bg-white rounded-lg">
+                        <option value="Credit Note">Credit Note Note</option>
+                        <option value="Cash">Cash Refund</option>
+                        <option value="Bank">Bank Settlement</option>
+                        <option value="Replacement">Direct Replacement</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <PremiumLabel label="Reason for Return" />
+                    <input type="text" value={formReturnReason} onChange={(e) => setFormReturnReason(e.target.value)} placeholder="Incorrect goods, defective..." className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
+                  </div>
+                </div>
+              )}
+
+              {/* Damaged Goods Conditional UI */}
+              {formType === 'Damage' && (
+                <div className="space-y-4 border-t border-slate-100 pt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Damage Reason *" />
+                      <select value={formDamageType} onChange={(e) => setFormDamageType(e.target.value)} className="w-full h-[40px] px-3 border border-slate-200 text-sm bg-white rounded-lg">
+                        <option value="Broken">Broken</option>
+                        <option value="Leak">Leak</option>
+                        <option value="Expired">Expired</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Warehouse Location" />
+                      <input type="text" value={formWarehouse} onChange={(e) => setFormWarehouse(e.target.value)} className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <EnterpriseNumberInput label="Quantity (Cases) *" value={formCases} onChange={(e) => setFormCases(e.target.value)} placeholder="0" allowDecimals={false} />
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Authorized By" />
+                      <input type="text" value={formApprovedBy} onChange={(e) => setFormApprovedBy(e.target.value)} placeholder="Manager initials..." className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Internal Consumption Conditional UI */}
+              {formType === 'Internal Consumption' && (
+                <div className="space-y-4 border-t border-slate-100 pt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Department *" />
+                      <input type="text" value={formDepartment} onChange={(e) => setFormDepartment(e.target.value)} placeholder="E.g., Office, Logistics..." className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
+                    </div>
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Purpose / Reason" />
+                      <input type="text" value={formPurpose} onChange={(e) => setFormPurpose(e.target.value)} placeholder="E.g., Event, QA Test..." className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <EnterpriseNumberInput label="Quantity (Cases) *" value={formCases} onChange={(e) => setFormCases(e.target.value)} placeholder="0" allowDecimals={false} />
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Approved By" />
+                      <input type="text" value={formApprovedBy} onChange={(e) => setFormApprovedBy(e.target.value)} placeholder="Approved by..." className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Free Sample Conditional UI */}
+              {formType === 'Free Sample' && (
+                <div className="space-y-4 border-t border-slate-100 pt-4">
+                  {/* Customer search selection */}
+                  <div className="flex flex-col relative">
+                    <PremiumLabel label="Customer *" />
+                    <input
+                      type="text"
+                      placeholder="Select customer target..."
+                      value={customerSearch}
+                      onChange={(e) => { setCustomerSearch(e.target.value); setIsCustomerDropdownOpen(true); }}
+                      onFocus={() => setIsCustomerDropdownOpen(true)}
+                      className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none"
+                    />
+                    {isCustomerDropdownOpen && (
+                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                        {filteredCustomersForForm.map(c => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => { setFormCustomerId(c.id); setCustomerSearch(c.customerName); setIsCustomerDropdownOpen(false); }}
+                            className="w-full text-left py-2 px-3 hover:bg-slate-50 text-xs text-slate-700"
+                          >
+                            {c.customerName}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Marketing Campaign" />
+                      <input type="text" value={formMarketingCampaign} onChange={(e) => setFormMarketingCampaign(e.target.value)} placeholder="Summer promotion..." className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
+                    </div>
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Sales Executive" />
+                      <input type="text" value={formSalesPerson} onChange={(e) => setFormSalesPerson(e.target.value)} placeholder="Representative name..." className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1">
+                    <EnterpriseNumberInput label="Quantity (Cases) *" value={formCases} onChange={(e) => setFormCases(e.target.value)} placeholder="0" allowDecimals={false} />
+                  </div>
+                </div>
+              )}
+
+              {/* Stock Adjustment Conditional UI */}
+              {formType === 'Stock Adjustment' && (
+                <div className="space-y-4 border-t border-slate-100 pt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Adjustment Type *" />
+                      <select value={formAdjustmentMode} onChange={(e) => setFormAdjustmentMode(e.target.value)} className="w-full h-[40px] px-3 border border-slate-200 text-sm bg-white rounded-lg">
+                        <option value="Increase">Increase Stock (+)</option>
+                        <option value="Decrease">Decrease Stock (-)</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Adjustment Reason" />
+                      <select value={formAdjustmentReason} onChange={(e) => setFormAdjustmentReason(e.target.value)} className="w-full h-[40px] px-3 border border-slate-200 text-sm bg-white rounded-lg">
+                        <option value="Correction">Physical Audit Correction</option>
+                        <option value="Reconciliation">Reconciliation Offset</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1">
+                    <EnterpriseNumberInput label="Adjustment Quantity (Cases) *" value={formCases} onChange={(e) => setFormCases(e.target.value)} placeholder="0" allowDecimals={false} />
+                  </div>
+                </div>
+              )}
+
+              {/* General Reference & Remarks fields for non-sales types */}
+              {formType !== 'Sales Dispatch' && formType !== 'Customer Return' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 pt-4">
+                  <div className="flex flex-col">
+                    <PremiumLabel label="Reference Number" />
+                    <input type="text" value={formRef} onChange={(e) => setFormRef(e.target.value)} className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
+                  </div>
+                  <div className="flex flex-col">
+                    <PremiumLabel label="Remarks" />
+                    <input type="text" value={formRemarks} onChange={(e) => setFormRemarks(e.target.value)} className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
+                  </div>
+                </div>
+              )}
+
+              {/* LIVE GENERAL LEDGER ACCOUNTING IMPACT PREVIEW */}
+              {accountingImpactPreview.length > 0 && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+                    <Landmark className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
+                    Live Accounting Double-Entry Preview
+                  </span>
+                  <div className="divide-y divide-slate-100 text-[12px] font-mono">
+                    {accountingImpactPreview.map((item, i) => (
+                      <div key={i} className="flex justify-between py-1.5">
+                        <span className={item.type === 'Credit' ? 'pl-6 text-slate-500' : 'font-semibold text-slate-800'}>
+                          {item.type === 'Credit' ? 'To ' : ''}{item.account}
+                        </span>
+                        <span className={`font-bold ${item.type === 'Credit' ? 'text-slate-500' : 'text-blue-650'}`}>
+                          ({item.type === 'Credit' ? 'Cr' : 'Dr'}) ₹{item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
+                <EnterpriseButton
+                  type="submit"
+                  disabled={createMutation.isPending}
+                  className="flex-1 bg-blue-650 hover:bg-blue-750 text-white rounded-lg h-11 text-sm font-semibold transition-all shadow-md shadow-blue-200/50 flex items-center justify-center gap-2"
+                >
+                  {createMutation.isPending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Saving Transaction...
+                    </>
+                  ) : (
+                    'Record Transaction'
+                  )}
+                </EnterpriseButton>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateOpen(false)}
+                  className="w-[100px] h-11 border border-slate-200 text-slate-500 font-semibold text-sm rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT MODAL */}
+      {isEditOpen && selectedTxn && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-center items-center p-4">
+          <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="flex justify-between items-center border-b border-slate-100 px-6 py-4">
+              <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5 text-amber-500" />
+                Edit Transaction: {selectedTxn.transactionNumber}
+              </h2>
+              <button onClick={() => setIsEditOpen(false)} className="text-slate-400 hover:text-slate-650">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="bg-amber-50 border border-amber-250 rounded-lg p-3.5 text-xs text-amber-800 flex items-start gap-2.5 leading-relaxed">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Important Stock Reversal Alert:</span>
+                  <p className="mt-0.5">
+                    Modifying this transaction will automatically reverse the original stock movement of <strong>{selectedTxn.cases} Cases</strong> before applying the new quantity. This prevents stock duplication or inconsistencies.
+                  </p>
+                </div>
               </div>
 
-              {/* Cases Quantity and Reference Number */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col">
-                  <EnterpriseNumberInput
-                    label="Quantity (Cases) *"
-                    placeholder="Enter cases..."
-                    allowDecimals={false}
-                    min={1}
-                    value={formCases}
-                    onChange={(e) => setFormCases(e.target.value)}
-                  />
+                  <PremiumLabel label="Transaction Type *" />
+                  <select
+                    value={formType}
+                    onChange={(e) => setFormType(e.target.value)}
+                    className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] bg-white rounded-lg focus:outline-none focus:border-blue-500 cursor-pointer"
+                  >
+                    <option value="Sales Dispatch">Sales Dispatch</option>
+                    <option value="Customer Return">Customer Return</option>
+                    <option value="Damage">Damaged Goods</option>
+                    <option value="Internal Consumption">Internal Consumption</option>
+                    <option value="Free Sample">Free Sample</option>
+                    <option value="Stock Adjustment">Stock Adjustment</option>
+                  </select>
                 </div>
 
                 <div className="flex flex-col">
-                  <PremiumLabel label="Reference Number" />
+                  <PremiumLabel label="Transaction Date *" />
                   <input
-                    type="text"
-                    placeholder="Reference..."
-                    value={formRef}
-                    onChange={(e) => setFormRef(e.target.value)}
+                    type="date"
+                    value={formDate}
+                    onChange={(e) => setFormDate(e.target.value)}
                     className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none"
                   />
                 </div>
               </div>
 
-              {/* Remarks */}
+              {/* Product Selection */}
               <div className="flex flex-col">
-                <PremiumLabel label="Remarks" />
-                <textarea
-                  placeholder="Notes..."
-                  value={formRemarks}
-                  onChange={(e) => setFormRemarks(e.target.value)}
-                  className="w-full p-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none min-h-[70px]"
-                />
+                <PremiumLabel label="Product *" />
+                <select
+                  value={formProductId}
+                  onChange={(e) => setFormProductId(e.target.value)}
+                  className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] bg-white rounded-lg focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">Select Finished Product...</option>
+                  {products.map(p => (
+                    <option key={p.id} value={p.id}>{p.name} {p.sku ? `(SKU: ${p.sku})` : ''}</option>
+                  ))}
+                </select>
               </div>
+
+              {/* Conditional sections mapped identically to create form */}
+              {formType === 'Sales Dispatch' && (
+                <div className="space-y-4 border-t border-slate-100 pt-4">
+                  <div className="flex flex-col">
+                    <PremiumLabel label="Customer *" />
+                    <select value={formCustomerId} onChange={(e) => setFormCustomerId(e.target.value)} className="w-full h-[40px] border border-slate-200 text-sm bg-white rounded-lg">
+                      <option value="">Select Customer...</option>
+                      {customers.map(c => (
+                        <option key={c.id} value={c.id}>{c.customerName}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <EnterpriseNumberInput label="Cases Quantity *" value={formCases} onChange={(e) => setFormCases(e.target.value)} placeholder="0" allowDecimals={false} />
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Unit Price (₹) *" />
+                      <input type="number" value={formUnitPrice} onChange={(e) => setFormUnitPrice(e.target.value)} placeholder="0.00" className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Discount (₹)" />
+                      <input type="number" value={formDiscount} onChange={(e) => setFormDiscount(e.target.value)} placeholder="0.00" className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
+                    </div>
+                    <div className="flex items-center gap-2 h-10 mt-6 pl-2">
+                      <input type="checkbox" id="isGstEdit" checked={isGstEnabled} onChange={(e) => setIsGstEnabled(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
+                      <label htmlFor="isGstEdit" className="text-xs font-semibold text-slate-650 cursor-pointer">GST Applicable (18%)</label>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-100 pt-4 space-y-4">
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Payment Method *" />
+                      <div className="flex gap-3">
+                        {['Cash', 'Bank', 'Credit', 'UPI', 'Cheque'].map(m => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => setFormPaymentMethod(m)}
+                            className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${
+                              formPaymentMethod === m ? 'bg-blue-600 text-white border-blue-600 shadow' : 'bg-slate-50 text-slate-600 border-slate-200'
+                            }`}
+                          >
+                            {m}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {formType !== 'Sales Dispatch' && (
+                <div className="grid grid-cols-1 gap-4 border-t border-slate-100 pt-4">
+                  <EnterpriseNumberInput label="Cases Quantity *" value={formCases} onChange={(e) => setFormCases(e.target.value)} placeholder="0" allowDecimals={false} />
+                </div>
+              )}
+
+              {/* Accounting preview for edits */}
+              {accountingImpactPreview.length > 0 && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Live Accounting Impact Preview</span>
+                  <div className="divide-y divide-slate-100 text-[12px] font-mono">
+                    {accountingImpactPreview.map((item, i) => (
+                      <div key={i} className="flex justify-between py-1.5">
+                        <span className={item.type === 'Credit' ? 'pl-6 text-slate-500' : 'font-semibold text-slate-800'}>{item.account}</span>
+                        <span className="font-bold">({item.type === 'Credit' ? 'Cr' : 'Dr'}) ₹{item.amount.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
                 <EnterpriseButton
@@ -1029,7 +1738,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                 <button
                   type="button"
                   onClick={() => setIsEditOpen(false)}
-                  className="w-[100px] h-11 border border-slate-200 text-slate-500 font-semibold text-sm rounded-lg hover:bg-slate-50 transition-colors"
+                  className="w-[100px] h-11 border border-slate-200 text-slate-500 font-semibold text-sm rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1039,281 +1748,10 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
         </div>
       )}
 
-      {/* VIEW MODAL - Clean Enterprise Light Theme */}
-      {isViewOpen && selectedTxn && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex justify-center items-center p-4 transition-opacity duration-200">
-          <div className="bg-white border border-gray-200 w-full max-w-lg rounded-[16px] shadow-[0_10px_30px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col max-h-[90vh]">
-            
-            {/* Enterprise Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-[10px] bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1A56DB]">
-                  <FileText className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-[16px] font-semibold text-gray-900">
-                    Sales Transaction Details
-                  </h2>
-                  <p className="text-xs font-mono font-medium text-gray-500 mt-0.5">
-                    {selectedTxn.transactionNumber}
-                  </p>
-                </div>
-              </div>
-              <button 
-                type="button"
-                onClick={() => setIsViewOpen(false)} 
-                className="p-1.5 rounded-[8px] text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
-                aria-label="Close modal"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Scrollable Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-5 text-left">
-              
-              {/* Transaction Status Badge & Date Row */}
-              <div className="flex justify-between items-center pb-1">
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${
-                  selectedTxn.transactionType === 'Sales Dispatch' 
-                    ? 'bg-blue-50 text-blue-700 border-blue-100' 
-                    : selectedTxn.transactionType === 'Customer Return' 
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
-                    : 'bg-rose-50 text-rose-700 border-rose-100'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${
-                    selectedTxn.transactionType === 'Sales Dispatch' 
-                      ? 'bg-blue-600' 
-                      : selectedTxn.transactionType === 'Customer Return' 
-                      ? 'bg-emerald-600' 
-                      : 'bg-rose-600'
-                  }`} />
-                  {selectedTxn.transactionType}
-                </span>
-
-                <span className="text-xs font-medium text-gray-500 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                  {new Date(selectedTxn.transactionDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </span>
-              </div>
-
-              {/* Product Information Card */}
-              <div className="bg-white border border-gray-200 rounded-[12px] p-4 space-y-3">
-                <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
-                  <Package className="w-4 h-4 text-gray-400" />
-                  <h3 className="text-[13px] font-semibold text-gray-900">Product Information</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <span className="text-gray-500 block mb-0.5">Product</span>
-                    <span className="font-semibold text-gray-900 block">{selectedTxn.productName}</span>
-                    <span className="text-[11px] font-mono text-gray-400 block mt-0.5">{selectedTxn.productSku || 'NO_SKU_CODE'}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 block mb-0.5">Stock Impact</span>
-                    <span className={`text-sm font-semibold font-mono inline-block ${
-                      selectedTxn.transactionType === 'Customer Return' ? 'text-emerald-600' : 'text-rose-600'
-                    }`}>
-                      {selectedTxn.transactionType === 'Customer Return' ? '+' : '−'}
-                      {selectedTxn.cases.toLocaleString()} Cases
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Customer Information Card */}
-              <div className="bg-white border border-gray-200 rounded-[12px] p-4 space-y-3">
-                <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
-                  <UserIcon className="w-4 h-4 text-gray-400" />
-                  <h3 className="text-[13px] font-semibold text-gray-900">Customer Details</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <span className="text-gray-500 block mb-0.5">Customer</span>
-                    <span className="font-semibold text-gray-900 block">{selectedTxn.customerName}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 block mb-0.5">Customer Code</span>
-                    <span className="font-mono font-medium text-gray-700 block">{selectedTxn.customerCode}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 block mb-0.5">Phone</span>
-                    <span className="font-medium text-gray-700 block">{selectedCustomerInForm?.phone || '—'}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 block mb-0.5">Outstanding Balance</span>
-                    <span className="font-mono font-medium text-gray-900 block">
-                      ₹{(selectedCustomerInForm?.openingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Additional Information Card (Reference & Remarks) */}
-              <div className="bg-white border border-gray-200 rounded-[12px] p-4 space-y-3">
-                <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
-                  <FileText className="w-4 h-4 text-gray-400" />
-                  <h3 className="text-[13px] font-semibold text-gray-900">Additional Information</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <span className="text-gray-500 block mb-0.5">Reference Code</span>
-                    <span className="font-mono font-medium text-gray-900 block">{selectedTxn.referenceNumber || '—'}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 block mb-0.5">Remarks</span>
-                    <span className="text-gray-700 font-medium block">{selectedTxn.remarks || '—'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* ACCOUNT INFORMATION SECTION (Read-only) */}
-              {selectedTxn.transactionType === 'Sales Dispatch' && (
-                <div className="bg-white border border-gray-200 rounded-[12px] p-4 space-y-3">
-                  <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
-                    <div className="flex items-center gap-2">
-                      <Landmark className="w-4 h-4 text-emerald-600" />
-                      <h3 className="text-[13px] font-semibold text-gray-900">Account Information</h3>
-                    </div>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                      selectedTxn.paymentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-800' :
-                      selectedTxn.paymentStatus === 'Partial' ? 'bg-amber-100 text-amber-800' :
-                      'bg-rose-100 text-rose-800'
-                    }`}>
-                      {selectedTxn.paymentStatus || 'Pending'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3 text-xs">
-                    <div>
-                      <span className="text-gray-500 block mb-0.5">Invoice Amount</span>
-                      <span className="font-extrabold text-gray-900 block">
-                        ₹{(selectedTxn.totalAmount || (selectedTxn.cases * 15)).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500 block mb-0.5">Amount Received</span>
-                      <span className="font-bold text-emerald-600 block">
-                        ₹{(selectedTxn.amountReceived || 0).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500 block mb-0.5">Outstanding</span>
-                      <span className="font-bold text-rose-600 block">
-                        ₹{(selectedTxn.outstandingAmount ?? (selectedTxn.totalAmount || (selectedTxn.cases * 15))).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* SALES RETURN ACCOUNT INFORMATION */}
-              {selectedTxn.transactionType === 'Customer Return' && (
-                <div className="bg-white border border-gray-200 rounded-[12px] p-4 space-y-3">
-                  <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
-                    <div className="flex items-center gap-2">
-                      <Landmark className="w-4 h-4 text-indigo-600" />
-                      <h3 className="text-[13px] font-semibold text-gray-900">Return Account Details</h3>
-                    </div>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                      selectedTxn.isReplacementRequired ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
-                    }`}>
-                      {selectedTxn.isReplacementRequired ? 'Replacement' : 'Account Adjustment'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3 text-xs">
-                    <div>
-                      <span className="text-gray-500 block mb-0.5">Returned Amount</span>
-                      <span className="font-bold text-slate-900 block">
-                        ₹{(selectedTxn.returnedAmount || (selectedTxn.cases * 15)).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500 block mb-0.5">Refund Amount</span>
-                      <span className="font-bold text-rose-600 block">
-                        ₹{(selectedTxn.refundAmount || 0).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500 block mb-0.5">Adjustment Amount</span>
-                      <span className="font-bold text-indigo-600 block">
-                        ₹{(selectedTxn.adjustmentAmount || 0).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* DAMAGE ACCOUNT INFORMATION */}
-              {selectedTxn.transactionType === 'Damage' && (
-                <div className="bg-white border border-gray-200 rounded-[12px] p-4 space-y-3">
-                  <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
-                    <Landmark className="w-4 h-4 text-rose-600" />
-                    <h3 className="text-[13px] font-semibold text-gray-900">Damage Account Details</h3>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3 text-xs">
-                    <div>
-                      <span className="text-gray-500 block mb-0.5">Damage Cost</span>
-                      <span className="font-extrabold text-rose-600 block">
-                        ₹{(selectedTxn.damageCost || (selectedTxn.cases * 15)).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500 block mb-0.5">Product Value</span>
-                      <span className="font-bold text-slate-900 block">
-                        ₹{(selectedTxn.productValue || (selectedTxn.cases * 15)).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500 block mb-0.5">Damage Reason</span>
-                      <span className="font-medium text-slate-700 block truncate" title={selectedTxn.damageReason || selectedTxn.remarks || 'Stock Loss'}>
-                        {selectedTxn.damageReason || selectedTxn.remarks || 'Stock Loss'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Audit Information Card */}
-              <div className="bg-white border border-gray-200 rounded-[12px] p-4 space-y-3">
-                <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
-                  <Landmark className="w-4 h-4 text-gray-400" />
-                  <h3 className="text-[13px] font-semibold text-gray-900">Audit Information</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <span className="text-gray-500 block mb-0.5">Recorded By</span>
-                    <span className="font-medium text-gray-900 block">{selectedTxn.createdByName}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 block mb-0.5">Recorded On</span>
-                    <span className="font-mono text-gray-700 font-medium block">
-                      {new Date(selectedTxn.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Footer */}
-            <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex items-center justify-end">
-              <button
-                type="button"
-                onClick={() => setIsViewOpen(false)}
-                className="w-full h-[44px] bg-[#1A56DB] hover:bg-[#1E40AF] active:bg-[#123E97] text-white text-sm font-semibold rounded-[10px] shadow-sm transition-all duration-150 active:scale-[0.99] cursor-pointer"
-              >
-                Close Details
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
       {/* DELETE MODAL */}
       {isDeleteOpen && selectedTxn && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex justify-center items-center p-4">
-          <div className="bg-white border border-slate-100 w-full max-w-md rounded-3xl shadow-2xl p-6 space-y-5 animate-scaleUp">
+          <div className="bg-white border border-slate-100 w-full max-w-md rounded-3xl shadow-2xl p-6 space-y-5">
             <div className="flex items-center gap-3.5 text-rose-600">
               <div className="w-12 h-12 bg-rose-50 border border-rose-100 rounded-2xl flex items-center justify-center shadow-inner shrink-0">
                 <AlertTriangle className="w-6 h-6 text-rose-600" />
