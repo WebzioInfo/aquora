@@ -16,12 +16,12 @@ namespace Aquora.Infrastructure.Services
             _httpContextAccessor = httpContextAccessor;
         }
 
-        private HttpContext HttpContext => _httpContextAccessor.HttpContext;
+        private HttpContext? HttpContext => _httpContextAccessor.HttpContext;
 
-        public string UserId => HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+        public string? UserId => HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value 
             ?? HttpContext?.User?.FindFirst("sub")?.Value;
 
-        public string Email => HttpContext?.User?.FindFirst(ClaimTypes.Email)?.Value 
+        public string? Email => HttpContext?.User?.FindFirst(ClaimTypes.Email)?.Value 
             ?? HttpContext?.User?.FindFirst("email")?.Value;
 
         public Guid TenantId
@@ -58,7 +58,7 @@ namespace Aquora.Infrastructure.Services
 
         public string UserAgent => HttpContext?.Request?.Headers["User-Agent"].ToString() ?? "Unknown";
 
-        public string Reason => HttpContext?.Request?.Headers["X-Audit-Reason"].ToString();
+        public string? Reason => HttpContext?.Request?.Headers["X-Audit-Reason"].ToString();
 
         public string Module => HttpContext?.Request?.Headers["X-Audit-Module"].ToString() ?? "Default";
 

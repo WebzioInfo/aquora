@@ -16,7 +16,7 @@ import EnterpriseSidebar from '../components/ui/EnterpriseSidebar'
 import EnterpriseTopbar from '../components/ui/EnterpriseTopbar'
 import EnterpriseModal from '../components/ui/EnterpriseModal'
 
-export const CompanyLayout: React.FC = () => {
+export const QCLayout: React.FC = () => {
   const { user, clearAuth } = useAuthStore()
   const { theme, toggleTheme, initTheme } = useThemeStore()
   const { showToast } = useNotificationStore()
@@ -55,47 +55,23 @@ export const CompanyLayout: React.FC = () => {
   }
 
   const sidebarItems = [
-    { label: 'Dashboard', path: '/company/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
-    { label: 'Production Batches', path: '/company/production', icon: <Layers className="w-5 h-5" /> },
-    { label: 'Production Lines', path: '/company/production?tab=lines', icon: <Workflow className="w-5 h-5" /> },
-    { label: 'Production Shifts', path: '/company/production?tab=shifts', icon: <CalendarClock className="w-5 h-5" /> },
-    { label: '20L Operations', path: '/company/operations', icon: <Droplet className="w-5 h-5" /> },
-    { label: 'Products Inventory', path: '/company/inventory', icon: <Package className="w-5 h-5" /> },
-    { label: 'Raw Materials', path: '/company/inventory?tab=raw_materials', icon: <Boxes className="w-5 h-5" /> },
-    { label: 'Brands', path: '/company/inventory?tab=brands', icon: <Tag className="w-5 h-5" /> },
-    { label: 'Sales', path: '/company/sales', icon: <ShoppingCart className="w-5 h-5" /> },
-    {
-      label: 'Accounts',
-      icon: <PieChart className="w-5 h-5" />,
-      children: [
-        { label: 'Dashboard', path: '/company/accounts/dashboard' },
-        { label: 'Expenses', path: '/company/accounts/expenses' },
-        { label: 'Purchases', path: '/company/accounts/purchases' },
-        { label: 'Vendors', path: '/company/accounts/vendors' },
-        { label: 'Payroll', path: '/company/accounts/payroll' },
-        { label: 'Ledger', path: '/company/accounts/ledger' },
-        { label: 'Owners', path: '/company/accounts/owners' },
-        { label: 'Assets', path: '/company/accounts/assets' },
-      ]
-    },
+    { label: 'Dashboard', path: '/qc/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
     {
       label: 'Quality Control',
       icon: <Beaker className="w-5 h-5" />,
       children: [
-        { label: 'Water Test Reports', path: '/company/qc/water-test' },
+        { label: 'Water Test Reports', path: '/qc/water-tests' },
+        { label: 'Laboratory Parameters', path: '/qc/parameters' },
+        { label: 'QC Settings', path: '/qc/settings' },
       ]
     },
-    { label: 'Business Intelligence', path: '/company/business-finance', icon: <TrendingUp className="w-5 h-5" /> },
-    { label: 'Customers', path: '/company/customers', icon: <Users className="w-5 h-5" /> },
-    { label: 'Employees', path: '/company/employees', icon: <IdCard className="w-5 h-5" /> },
-    { label: 'Company Settings', path: '/company/settings', icon: <Settings className="w-5 h-5" /> },
   ]
 
   const getBreadcrumbs = () => {
     const paths = location.pathname.split('/').filter(x => x)
     return (
       <div className="flex items-center select-none text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">
-        <Link to="/company" className="hover:text-[#111827] transition-colors">
+        <Link to="/qc/dashboard" className="hover:text-[#111827] transition-colors">
           {user?.companyName || user?.tenantName || BRAND.name}
         </Link>
         {paths.map((path, idx) => {
@@ -233,4 +209,4 @@ export const CompanyLayout: React.FC = () => {
     </div>
   )
 }
-export default CompanyLayout
+export default QCLayout

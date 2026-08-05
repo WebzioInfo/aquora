@@ -33,6 +33,9 @@ namespace Aquora.Application
             services.AddScoped<ILedgerService, BankLedgerService>();
             services.AddScoped<IBankLedgerService>(sp => sp.GetRequiredService<ILedgerService>());
             services.AddScoped<IHealthService, HealthService>();
+            services.AddScoped<IQualityEvaluationService, QualityEvaluationService>();
+            services.AddScoped<IQCPdfCertificateService, QCPdfCertificateService>();
+            services.AddScoped<IWaterTestService, WaterTestService>();
             return services;
         }
     }

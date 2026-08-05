@@ -11,6 +11,7 @@ namespace Aquora.Shared.Constants
         public const string HrManager = "HR Manager";
         public const string Operator = "Operator";
         public const string Supervisor = "Supervisor";
+        public const string QC = "QC";
         public const string Viewer = "Viewer";
     }
 }

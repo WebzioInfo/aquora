@@ -3,9 +3,6 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Aquora.Persistence.Context;
 
 #nullable disable
-using Aquora.Persistence.Context;
-
-#nullable disable
 
 namespace Aquora.Persistence.Migrations.Tenant
 {

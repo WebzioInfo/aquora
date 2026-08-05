@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
@@ -11,8 +11,8 @@ namespace Aquora.Infrastructure.Services
     public class CacheService : ICacheService
     {
         private readonly ILogger<CacheService> _logger;
-        private readonly ConnectionMultiplexer _redis;
-        private readonly IDatabase _database;
+        private readonly ConnectionMultiplexer? _redis;
+        private readonly IDatabase? _database;
         private readonly bool _isRedisAvailable;
 
         public CacheService(IConfiguration configuration, ILogger<CacheService> logger)
@@ -37,16 +37,19 @@ namespace Aquora.Infrastructure.Services
             }
         }
 
-        public async Task<T> GetAsync<T>(string key)
+        public async Task<T?> GetAsync<T>(string key)
         {
-            if (!_isRedisAvailable) return default;
+            if (!_isRedisAvailable || _database == null) return default;
 
             try
             {
                 var value = await _database.StringGetAsync(key);
                 if (value.IsNullOrEmpty) return default;
 
-                return JsonSerializer.Deserialize<T>((string)value);
+                var json = (string?)value;
+                if (string.IsNullOrEmpty(json)) return default;
+
+                return JsonSerializer.Deserialize<T>(json);
             }
             catch (Exception ex)
             {
@@ -57,7 +60,7 @@ namespace Aquora.Infrastructure.Services
 
         public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
         {
-            if (!_isRedisAvailable) return;
+            if (!_isRedisAvailable || _database == null) return;
 
             try
             {
@@ -72,7 +75,7 @@ namespace Aquora.Infrastructure.Services
 
         public async Task RemoveAsync(string key)
         {
-            if (!_isRedisAvailable) return;
+            if (!_isRedisAvailable || _database == null) return;
 
             try
             {

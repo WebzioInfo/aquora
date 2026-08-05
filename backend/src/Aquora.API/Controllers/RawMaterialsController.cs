@@ -250,7 +250,7 @@ namespace Aquora.API.Controllers
 
                     return Success(dto, "Raw material created successfully.");
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     await transaction.RollbackAsync();
                     throw;
@@ -376,7 +376,7 @@ namespace Aquora.API.Controllers
                     await _tenantContext.SaveChangesAsync();
                     await transaction.CommitAsync();
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     await transaction.RollbackAsync();
                     throw;

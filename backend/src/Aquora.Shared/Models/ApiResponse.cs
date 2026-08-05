@@ -33,18 +33,18 @@ namespace Aquora.Shared.Models
             return "ERROR";
         }
 
-        public static ApiResponse<T> CreateSuccess(T data, string message = null)
+        public static ApiResponse<T> CreateSuccess(T data, string? message = null)
         {
             return new ApiResponse<T>
             {
                 Success = true,
                 Data = data,
-                Message = message,
+                Message = message ?? "Success",
                 Code = "SUCCESS"
             };
         }
 
-        public static ApiResponse<T> CreateFailure(List<object> errors, string message = "An error occurred", string traceId = null)
+        public static ApiResponse<T> CreateFailure(List<object> errors, string message = "An error occurred", string? traceId = null)
         {
             var finalMessage = message;
             if (errors != null && errors.Count > 0 && (message == "An error occurred" || message == "Validation Error" || message == "Error occurred" || string.IsNullOrWhiteSpace(message)))
@@ -61,11 +61,11 @@ namespace Aquora.Shared.Models
                 Success = false,
                 Message = finalMessage,
                 Errors = errors ?? new List<object>(),
-                TraceId = traceId
+                TraceId = traceId ?? string.Empty
             };
         }
 
-        public static ApiResponse<T> CreateFailure(object error, string message = "An error occurred", string traceId = null)
+        public static ApiResponse<T> CreateFailure(object error, string message = "An error occurred", string? traceId = null)
         {
             var finalMessage = message;
             var finalErrors = new List<object>();

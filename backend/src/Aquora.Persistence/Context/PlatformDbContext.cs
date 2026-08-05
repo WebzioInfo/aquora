@@ -9,13 +9,13 @@ namespace Aquora.Persistence.Context
 {
     public class PlatformDbContext : DbContext, IPlatformDbContext
     {
-        private readonly ICurrentUserContext _currentUserContext;
+        private readonly ICurrentUserContext? _currentUserContext;
         private readonly IDateTimeProvider _dateTimeProvider;
 
         public PlatformDbContext(
             DbContextOptions<PlatformDbContext> options,
-            ICurrentUserContext currentUserContext = null,
-            IDateTimeProvider dateTimeProvider = null) : base(options)
+            ICurrentUserContext? currentUserContext = null,
+            IDateTimeProvider? dateTimeProvider = null) : base(options)
         {
             _currentUserContext = currentUserContext;
             _dateTimeProvider = dateTimeProvider ?? new DefaultDateTimeProvider();

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Aquora.Application.Interfaces;
 using Aquora.Domain.Entities;
 using Aquora.Persistence.Context;
+using Aquora.Shared.Constants;
 
 namespace Aquora.Persistence.Services
 {
@@ -35,10 +36,12 @@ namespace Aquora.Persistence.Services
                 _logger.LogInformation("[SCHEMA FIX] Altering PlatformAuditLogs columns to nullable...");
                 try
                 {
+#pragma warning disable EF1003
                     await _platformContext.Database.ExecuteSqlRawAsync(@"
                         ALTER TABLE public.""PlatformAuditLogs"" ALTER COLUMN ""OldValues"" DROP NOT NULL;
                         ALTER TABLE public.""PlatformAuditLogs"" ALTER COLUMN ""NewValues"" DROP NOT NULL;
                     ");
+#pragma warning restore EF1003
                     _logger.LogInformation("[SCHEMA FIX] PlatformAuditLogs columns altered successfully.");
                 }
                 catch (Exception ex)
@@ -175,7 +178,9 @@ namespace Aquora.Persistence.Services
                     ""IpAddress"" text NOT NULL DEFAULT '127.0.0.1'
                 );
                 ";
+#pragma warning disable EF1003
                 await _platformContext.Database.ExecuteSqlRawAsync(platformRepairScript);
+#pragma warning restore EF1003
 
                 _logger.LogInformation("Executing Tenant Database Migrations for active tenants...");
                 var tenants = await _platformContext.Set<Aquora.Domain.Entities.Tenant>()
@@ -369,6 +374,59 @@ namespace Aquora.Persistence.Services
                                     jp.Category = "20L Jar";
                                 }
                             }
+                            // Ensure QC Role exists for the tenant
+                            var qcRole = await tenantContext.Roles.FirstOrDefaultAsync(r => r.Code == "QC");
+                            if (qcRole == null)
+                            {
+                                _logger.LogInformation($"[REPAIR] Adding missing QC role to schema '{tenant.SchemaName}'...");
+                                qcRole = new Role { Name = "QC", Code = "QC", TenantId = tenant.Id };
+                                tenantContext.Roles.Add(qcRole);
+                                await tenantContext.SaveChangesAsync();
+                            }
+
+                            // Ensure QC Permissions exist
+                            var permQCRead = await tenantContext.Permissions.FirstOrDefaultAsync(p => p.Code == Permissions.QCRead);
+                            if (permQCRead == null)
+                            {
+                                permQCRead = new Permission { Name = "QC Read", Code = Permissions.QCRead };
+                                tenantContext.Permissions.Add(permQCRead);
+                                await tenantContext.SaveChangesAsync();
+                            }
+                            var permQCWrite = await tenantContext.Permissions.FirstOrDefaultAsync(p => p.Code == Permissions.QCWrite);
+                            if (permQCWrite == null)
+                            {
+                                permQCWrite = new Permission { Name = "QC Write", Code = Permissions.QCWrite };
+                                tenantContext.Permissions.Add(permQCWrite);
+                                await tenantContext.SaveChangesAsync();
+                            }
+                            var permDashboard = await tenantContext.Permissions.FirstOrDefaultAsync(p => p.Code == Permissions.DashboardRead);
+
+                            // Map QC permissions to QC Role
+                            var qcPermIds = new List<Guid> { permQCRead.Id, permQCWrite.Id };
+                            if (permDashboard != null) qcPermIds.Add(permDashboard.Id);
+                            
+                            foreach (var pId in qcPermIds)
+                            {
+                                if (!await tenantContext.RolePermissions.AnyAsync(rp => rp.RoleId == qcRole.Id && rp.PermissionId == pId))
+                                {
+                                    tenantContext.RolePermissions.Add(new RolePermission { RoleId = qcRole.Id, PermissionId = pId, TenantId = tenant.Id });
+                                }
+                            }
+
+                            // Map QC permissions to CompanyAdmin Role
+                            var adminRole = await tenantContext.Roles.FirstOrDefaultAsync(r => r.Code == "COMPANYADMIN");
+                            if (adminRole != null)
+                            {
+                                foreach (var pId in new[] { permQCRead.Id, permQCWrite.Id })
+                                {
+                                    if (!await tenantContext.RolePermissions.AnyAsync(rp => rp.RoleId == adminRole.Id && rp.PermissionId == pId))
+                                    {
+                                        tenantContext.RolePermissions.Add(new RolePermission { RoleId = adminRole.Id, PermissionId = pId, TenantId = tenant.Id });
+                                    }
+                                }
+                            }
+                            
+                            await tenantContext.SaveChangesAsync();
 
                             // Auto-repair invalid default dates (0001-01-01, default/empty values, etc.)
                             _logger.LogInformation($"[REPAIR-DATETIME] Repairing default/invalid timestamps in schema '{tenant.SchemaName}'...");
@@ -377,7 +435,7 @@ namespace Aquora.Persistence.Services
                             {
                                 using (var cmd = tenantContext.Database.GetDbConnection().CreateCommand())
                                 {
-                                    if (cmd.Connection.State != System.Data.ConnectionState.Open)
+                                    if (cmd.Connection != null && cmd.Connection.State != System.Data.ConnectionState.Open)
                                     {
                                         await cmd.Connection.OpenAsync();
                                     }
@@ -484,7 +542,64 @@ namespace Aquora.Persistence.Services
                                             ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""CGST"" numeric(18,2) NOT NULL DEFAULT 0.0;
                                             ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""SGST"" numeric(18,2) NOT NULL DEFAULT 0.0;
                                             ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""IGST"" numeric(18,2) NOT NULL DEFAULT 0.0;
-                                            ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""MetadataJson"" text NULL;";
+                                            ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""MetadataJson"" text NULL;
+
+                                            CREATE TABLE IF NOT EXISTS ""{schema}"".""WaterTestParameters"" (
+                                                ""Id"" uuid NOT NULL PRIMARY KEY,
+                                                ""Name"" text NOT NULL,
+                                                ""Category"" text NOT NULL,
+                                                ""Unit"" text NOT NULL,
+                                                ""MinAcceptable"" double precision NULL,
+                                                ""MaxAcceptable"" double precision NULL,
+                                                ""IsActive"" boolean NOT NULL DEFAULT true,
+                                                ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                                ""CreatedBy"" text NOT NULL,
+                                                ""UpdatedAt"" timestamp with time zone NULL,
+                                                ""UpdatedBy"" text NULL
+                                            );
+
+                                            CREATE TABLE IF NOT EXISTS ""{schema}"".""WaterTestReports"" (
+                                                ""Id"" uuid NOT NULL PRIMARY KEY,
+                                                ""TenantId"" uuid NOT NULL,
+                                                ""CompanyId"" uuid NOT NULL,
+                                                ""BatchNumber"" text NOT NULL,
+                                                ""SampleNumber"" text NULL,
+                                                ""ProductionDate"" timestamp with time zone NULL,
+                                                ""ReportType"" text NOT NULL DEFAULT 'DAILY',
+                                                ""Status"" text NOT NULL DEFAULT 'DRAFT',
+                                                ""SampleTime"" timestamp with time zone NULL,
+                                                ""TestedBy"" text NULL,
+                                                ""CollectedBy"" text NULL,
+                                                ""VerifiedBy"" text NULL,
+                                                ""Remarks"" text NULL,
+                                                ""Attachments"" text NULL,
+                                                ""IsActive"" boolean NOT NULL DEFAULT true,
+                                                ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                                ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                                ""CreatedBy"" text NOT NULL,
+                                                ""UpdatedAt"" timestamp with time zone NULL,
+                                                ""UpdatedBy"" text NULL,
+                                                ""DeletedAt"" timestamp with time zone NULL,
+                                                ""DeletedBy"" text NULL
+                                            );
+
+                                            CREATE TABLE IF NOT EXISTS ""{schema}"".""WaterTestResults"" (
+                                                ""Id"" uuid NOT NULL PRIMARY KEY,
+                                                ""ReportId"" uuid NOT NULL,
+                                                ""ParameterId"" uuid NOT NULL,
+                                                ""Value"" double precision NULL,
+                                                ""StringValue"" text NULL,
+                                                ""IsPass"" boolean NOT NULL,
+                                                ""QualityStatus"" text NOT NULL DEFAULT 'PASS',
+                                                ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                                ""CreatedBy"" text NOT NULL,
+                                                ""UpdatedAt"" timestamp with time zone NULL,
+                                                ""UpdatedBy"" text NULL,
+                                                CONSTRAINT fk_report FOREIGN KEY (""ReportId"") REFERENCES ""{schema}"".""WaterTestReports"" (""Id"") ON DELETE CASCADE,
+                                                CONSTRAINT fk_parameter FOREIGN KEY (""ParameterId"") REFERENCES ""{schema}"".""WaterTestParameters"" (""Id"") ON DELETE RESTRICT
+                                            );
+
+                                            CREATE UNIQUE INDEX IF NOT EXISTS uq_water_test_results ON ""{schema}"".""WaterTestResults"" (""ReportId"", ""ParameterId"");";
                                         await cmd.ExecuteNonQueryAsync();
                                     }
                                     catch {}

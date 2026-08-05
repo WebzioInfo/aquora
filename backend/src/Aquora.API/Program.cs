@@ -125,7 +125,6 @@ Log.Information("--------------------------------------------------");
 
 // Add Clean Architecture Layers
 builder.Services.AddApplication();
-builder.Services.AddScoped<Aquora.Application.Interfaces.Services.IHealthService, Aquora.Application.Services.HealthService>();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddPersistence(builder.Configuration);
 
@@ -416,4 +415,3 @@ finally
 {
     Log.CloseAndFlush();
 }
-// Restart trigger 4

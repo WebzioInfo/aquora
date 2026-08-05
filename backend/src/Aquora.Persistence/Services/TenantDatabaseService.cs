@@ -48,8 +48,10 @@ namespace Aquora.Persistence.Services
                 return;
             }
 
+#pragma warning disable EF1003
             await _platformContext.Database.ExecuteSqlRawAsync(
                 "DROP SCHEMA IF EXISTS " + QuoteSchemaName(schemaName) + " CASCADE;");
+#pragma warning restore EF1003
         }
 
         public static string QuoteSchemaName(string schemaName)
@@ -89,8 +91,10 @@ namespace Aquora.Persistence.Services
                 }
 
                 // 1. Create Postgres Schema
+#pragma warning disable EF1003
                 await _platformContext.Database.ExecuteSqlRawAsync(
                     "CREATE SCHEMA IF NOT EXISTS " + QuoteSchemaName(schemaName) + ";");
+#pragma warning restore EF1003
 
                 if (onProgress != null)
                 {
@@ -260,7 +264,9 @@ namespace Aquora.Persistence.Services
 
                             ALTER TABLE ""{schemaName}"".""RawMaterials"" ADD COLUMN IF NOT EXISTS ""CostPerUnit"" numeric NOT NULL DEFAULT 5.0;
                         ";
+#pragma warning disable EF1003
                         await tenantContext.Database.ExecuteSqlRawAsync(repairSql);
+#pragma warning restore EF1003
                     }
                     catch (Exception repairEx)
                     {
@@ -298,11 +304,12 @@ namespace Aquora.Persistence.Services
                         var roleNames = new[]
                         {
                             "CompanyAdmin", "Admin", "Manager", "Supervisor", "Operator",
-                            "Store Keeper", "Sales", "HR"
+                            "Store Keeper", "Sales", "HR", "QC"
                         };
                         Console.WriteLine($"[ROLE SEEDING]: Seeding roles: {string.Join(", ", roleNames)} inside schema '{schemaName}'.");
 
                         Role ownerRole = null!;
+                        Role qcRole = null!;
                         foreach (var roleName in roleNames)
                         {
                             var code = roleName.Replace(" ", "_").ToUpperInvariant();
@@ -311,6 +318,10 @@ namespace Aquora.Persistence.Services
                             if (roleName == "CompanyAdmin")
                             {
                                 ownerRole = role;
+                            }
+                            if (roleName == "QC")
+                            {
+                                qcRole = role;
                             }
                         }
                         await tenantContext.SaveChangesAsync();
@@ -331,7 +342,8 @@ namespace Aquora.Persistence.Services
                             Permissions.RolesRead, Permissions.RolesWrite,
                             Permissions.AuditRead,
                             Permissions.HierarchyRead, Permissions.HierarchyWrite,
-                            Permissions.DashboardRead
+                            Permissions.DashboardRead,
+                            Permissions.QCRead, Permissions.QCWrite
                         };
 
                         var seededPermissions = new List<Permission>();
@@ -362,6 +374,21 @@ namespace Aquora.Persistence.Services
                                 TenantId = tenantId
                             };
                             tenantContext.RolePermissions.Add(rp);
+                        }
+
+                        // Map QC permissions to QC Role
+                        if (qcRole != null)
+                        {
+                            var qcPerms = seededPermissions.Where(p => p.Code.StartsWith("Permissions.QC") || p.Code == Permissions.DashboardRead);
+                            foreach (var perm in qcPerms)
+                            {
+                                tenantContext.RolePermissions.Add(new RolePermission
+                                {
+                                    RoleId = qcRole.Id,
+                                    PermissionId = perm.Id,
+                                    TenantId = tenantId
+                                });
+                            }
                         }
 
                         var userRole = new UserRole

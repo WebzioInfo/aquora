@@ -1,4 +1,4 @@
-﻿namespace Aquora.Shared.Constants
+namespace Aquora.Shared.Constants
 {
     public static class Permissions
     {
@@ -21,5 +21,9 @@
 
         // General
         public const string DashboardRead = "Permissions.Dashboard.Read";
+
+        // Quality Control
+        public const string QCRead = "Permissions.QC.Read";
+        public const string QCWrite = "Permissions.QC.Write";
     }
 }

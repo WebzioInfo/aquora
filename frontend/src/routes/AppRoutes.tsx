@@ -6,6 +6,7 @@ import AuthLayout from '../layouts/AuthLayout'
 import PlatformLayout from '../layouts/PlatformLayout'
 import CompanyLayout from '../layouts/CompanyLayout'
 import OperatorLayout from '../layouts/OperatorLayout'
+import { QCLayout } from '../layouts/QCLayout'
 import FinanceDashboardPage from '../pages/company/finance/FinanceDashboardPage'
 import ChartOfAccountsPage from '../pages/company/finance/ChartOfAccountsPage'
 import JournalEntriesPage from '../pages/company/finance/JournalEntriesPage'
@@ -44,6 +45,13 @@ const CreatePurchasePage = React.lazy(() => import('../pages/company/accounts/Cr
 const PurchaseDetailsPage = React.lazy(() => import('../pages/company/accounts/PurchaseDetailsPage'))
 const VendorsPage = React.lazy(() => import('../pages/company/accounts/VendorsPage'))
 const VendorDetailsPage = React.lazy(() => import('../pages/company/accounts/VendorDetailsPage'))
+const QualityDashboardPage = React.lazy(() => import('../pages/company/qc/QualityDashboardPage').then(module => ({ default: module.QualityDashboardPage })))
+const WaterTestReportsListPage = React.lazy(() => import('../pages/company/qc/WaterTestReportsListPage').then(m => ({ default: m.WaterTestReportsListPage })))
+const WaterTestReportFormPage = React.lazy(() => import('../pages/company/qc/WaterTestReportFormPage').then(m => ({ default: m.WaterTestReportFormPage })))
+const WaterTestReportDetailPage = React.lazy(() => import('../pages/company/qc/WaterTestReportDetailPage').then(m => ({ default: m.WaterTestReportDetailPage })))
+const CompliancePage = React.lazy(() => import('../pages/company/qc/CompliancePage').then(m => ({ default: m.CompliancePage })))
+const ParametersManagementPage = React.lazy(() => import('../pages/company/qc/ParametersManagementPage').then(m => ({ default: m.ParametersManagementPage })))
+const QCSettingsPage = React.lazy(() => import('../pages/company/qc/QCSettingsPage').then(m => ({ default: m.QCSettingsPage })))
 
 export const getDefaultRouteForUser = (user: any): string => {
   const getRoute = () => {
@@ -74,6 +82,7 @@ export const getDefaultRouteForUser = (user: any): string => {
     if (roles.includes('CompanyAdmin')) return '/company/dashboard'
     if (roles.includes('Manager')) return '/manager/dashboard'
     if (roles.includes('Supervisor')) return '/supervisor/dashboard'
+    if (roles.includes('QC')) return '/qc/dashboard'
     
     return '/company/dashboard'
   }
@@ -206,6 +215,38 @@ const OperatorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const roles = user.roles || []
   const hasAccess = roles.some(role => 
     ['Operator', 'Store Keeper', 'StoreKeeper', 'STORE_KEEPER', 'Sales', 'HR'].includes(role)
+  )
+
+  if (!hasAccess) {
+    return <Navigate to="/access-denied" replace />
+  }
+
+  return <>{children}</>
+}
+
+// QC Guard
+const QCRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, user } = useAuthStore()
+
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!user.emailVerified) {
+    return <Navigate to="/verify-otp" replace state={{ email: user.email }} />
+  }
+
+  if (user.tenantId && !user.isTenantInitialized) {
+    return <Navigate to="/account-setup" replace />
+  }
+
+  if (!user.tenantId || !user.isTenantInitialized) {
+    return <Navigate to="/onboarding" replace />
+  }
+
+  const roles = user.roles || []
+  const hasAccess = roles.some(role => 
+    ['QC', 'CompanyAdmin', 'Admin'].includes(role)
   )
 
   if (!hasAccess) {
@@ -478,6 +519,26 @@ export const AppRoutes: React.FC = () => {
         <Route path="employees" element={<CompanyDashboardPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="operations" element={<OperationsPage />} />
+      </Route>
+
+      {/* QC Portal */}
+      <Route
+        path="/qc"
+        element={
+          <QCRoute>
+            <QCLayout />
+          </QCRoute>
+        }
+      >
+        <Route index element={<Navigate to="/qc/dashboard" replace />} />
+        <Route path="dashboard" element={<QualityDashboardPage />} />
+        <Route path="water-tests" element={<WaterTestReportsListPage />} />
+        <Route path="water-tests/new" element={<WaterTestReportFormPage />} />
+        <Route path="water-tests/:id" element={<WaterTestReportDetailPage />} />
+        <Route path="water-tests/:id/edit" element={<WaterTestReportFormPage />} />
+        <Route path="compliance" element={<CompliancePage />} />
+        <Route path="parameters" element={<ParametersManagementPage />} />
+        <Route path="settings" element={<QCSettingsPage />} />
       </Route>
 
       {/* Fallback route */}

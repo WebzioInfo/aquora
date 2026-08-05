@@ -21,13 +21,20 @@
     <ProjectReference Include="..\Aquora.Infrastructure\Aquora.Infrastructure.csproj" />
     <ProjectReference Include="..\Aquora.Persistence\Aquora.Persistence.csproj" />
   </ItemGroup>
+
   <PropertyGroup>
     <DefaultItemExcludes>$(DefaultItemExcludes);Logs\**\*</DefaultItemExcludes>
   </PropertyGroup>
+
   <ItemGroup>
     <Watch Remove="Logs\**\*" />
     <Content Update="Logs\**\*" Watch="false" />
     <None Update="Logs\**\*" Watch="false" />
   </ItemGroup>
+
+  <!-- Terminate orphaned API process before clean/build to prevent MSB3021/MSB3027/MSB3061 locked DLL errors -->
+  <Target Name="KillRunningApi" BeforeTargets="BeforeClean;BeforeBuild" Condition="'$(OS)' == 'Windows_NT' AND '$(BuildingInsideVisualStudio)' != 'true'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;Get-Process Aquora.API -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue&quot;" ContinueOnError="true" IgnoreExitCode="true" />
+  </Target>
 
 </Project>

@@ -24,10 +24,10 @@ namespace Aquora.Persistence.Context
 
         public override IReadOnlyList<MigrationCommand> Generate(
             IReadOnlyList<MigrationOperation> operations,
-            IModel model,
+            IModel? model,
             MigrationsSqlGenerationOptions options)
         {
-            string schema = null;
+            string? schema = null;
             if (_currentDbContext.Context is TenantDbContext tenantContext)
             {
                 schema = tenantContext.SchemaName;

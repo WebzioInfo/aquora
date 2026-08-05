@@ -84,7 +84,7 @@ namespace Aquora.API.Controllers
 
                 _logger.LogInformation("Retrieved {Count} Production Shifts for TenantId {TenantId}.", shifts.Count, tenantId);
 
-                return Ok(ApiResponse<List<ProductionShiftDto>>.CreateSuccess(shifts ?? new List<ProductionShiftDto>(), shifts.Count > 0 ? "Production Shifts loaded successfully." : "No Production Shifts found."));
+                return Ok(ApiResponse<List<ProductionShiftDto>>.CreateSuccess(shifts ?? new List<ProductionShiftDto>(), (shifts?.Count ?? 0) > 0 ? "Production Shifts loaded successfully." : "No Production Shifts found."));
             }
             catch (Exception ex)
             {

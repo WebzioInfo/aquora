@@ -7,8 +7,16 @@ interface Column<T> {
   className?: string
 }
 
+export interface ColumnDef<T> {
+  id: string
+  header: string
+  accessorKey?: string
+  cell?: (row: T) => React.ReactNode
+  className?: string
+}
+
 interface EnterpriseTableProps<T> {
-  columns: Column<T>[]
+  columns: ColumnDef<T>[] | Column<T>[]
   data: T[]
   loading?: boolean
   emptyMessage?: string
@@ -26,9 +34,9 @@ export function EnterpriseTable<T extends { id: string | number }>({
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="h-[48px] border-b border-[#E5E7EB] text-[#374151] font-semibold select-none bg-[#F8FAFC]">
-              {columns.map((col) => (
-                <th key={col.key} className={`py-3 px-4 text-sm ${col.className || ''}`}>
-                  {col.title}
+              {columns.map((col: any, index: number) => (
+                <th key={col.id || col.key || index} className={`py-3 px-4 text-sm ${col.className || ''}`}>
+                  {col.header || col.title}
                 </th>
               ))}
             </tr>
@@ -47,11 +55,11 @@ export function EnterpriseTable<T extends { id: string | number }>({
                 </td>
               </tr>
             ) : data.length > 0 ? (
-              data.map((row) => (
-                <tr key={row.id} className="h-[48px] bg-white hover:bg-[#F9FAFB] text-[#111827] transition-colors">
-                  {columns.map((col) => (
-                    <td key={col.key} className={`py-3 px-4 ${col.className || ''}`}>
-                      {col.render ? col.render(row) : (row as any)[col.key]}
+              data.map((row: any, rIdx: number) => (
+                <tr key={row.id || rIdx} className="h-[48px] bg-white hover:bg-[#F9FAFB] text-[#111827] transition-colors">
+                  {columns.map((col: any, cIdx: number) => (
+                    <td key={col.id || col.key || cIdx} className={`py-3 px-4 ${col.className || ''}`}>
+                      {col.cell ? col.cell(row) : col.render ? col.render(row) : row[col.accessorKey || col.key]}
                     </td>
                   ))}
                 </tr>

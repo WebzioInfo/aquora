@@ -94,6 +94,14 @@ namespace Aquora.Persistence.Context
         public DbSet<Aquora.Domain.Entities.Finance.PurchaseTimelineEvent> PurchaseTimelineEvents => Set<Aquora.Domain.Entities.Finance.PurchaseTimelineEvent>();
         public DbSet<Aquora.Domain.Entities.Finance.AssetHistory> AssetHistories => Set<Aquora.Domain.Entities.Finance.AssetHistory>();
 
+        // Quality Control Module
+        public DbSet<Aquora.Domain.Entities.QC.WaterTestReport> WaterTestReports => Set<Aquora.Domain.Entities.QC.WaterTestReport>();
+        public DbSet<Aquora.Domain.Entities.QC.WaterTestParameter> WaterTestParameters => Set<Aquora.Domain.Entities.QC.WaterTestParameter>();
+        public DbSet<Aquora.Domain.Entities.QC.WaterTestResult> WaterTestResults => Set<Aquora.Domain.Entities.QC.WaterTestResult>();
+        public DbSet<Aquora.Domain.Entities.QC.ComplianceRecord> ComplianceRecords => Set<Aquora.Domain.Entities.QC.ComplianceRecord>();
+        public DbSet<Aquora.Domain.Entities.QC.QCAuditLog> QCAuditLogs => Set<Aquora.Domain.Entities.QC.QCAuditLog>();
+        public DbSet<Aquora.Domain.Entities.QC.QCSettings> QCSettings => Set<Aquora.Domain.Entities.QC.QCSettings>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -110,6 +118,23 @@ namespace Aquora.Persistence.Context
 
             modelBuilder.Entity<TenantDomain>()
                 .ToTable("TenantDomains", "public", t => t.ExcludeFromMigrations());
+
+            // Quality Control Module Configuration
+            modelBuilder.Entity<Aquora.Domain.Entities.QC.WaterTestResult>()
+                .HasIndex(r => new { r.ReportId, r.ParameterId })
+                .IsUnique();
+
+            modelBuilder.Entity<Aquora.Domain.Entities.QC.WaterTestResult>()
+                .HasOne(r => r.Report)
+                .WithMany(rep => rep.Results)
+                .HasForeignKey(r => r.ReportId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Aquora.Domain.Entities.QC.WaterTestResult>()
+                .HasOne(r => r.Parameter)
+                .WithMany(p => p.Results)
+                .HasForeignKey(r => r.ParameterId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<UserRole>()
                 .HasIndex(ur => new { ur.UserId, ur.RoleId });
@@ -711,7 +736,7 @@ namespace Aquora.Persistence.Context
 
                     if (property.Metadata.IsPrimaryKey())
                     {
-                        auditEntry.KeyValues[propertyName] = property.CurrentValue;
+                        auditEntry.KeyValues[propertyName] = property.CurrentValue!;
                         continue;
                     }
 
@@ -719,20 +744,20 @@ namespace Aquora.Persistence.Context
                     {
                         case EntityState.Added:
                             auditEntry.AuditType = "Insert";
-                            auditEntry.NewValues[propertyName] = property.CurrentValue;
+                            auditEntry.NewValues[propertyName] = property.CurrentValue!;
                             break;
 
                         case EntityState.Deleted:
                             auditEntry.AuditType = "Delete";
-                            auditEntry.OldValues[propertyName] = property.OriginalValue;
+                            auditEntry.OldValues[propertyName] = property.OriginalValue!;
                             break;
 
                         case EntityState.Modified:
                             if (property.IsModified)
                             {
                                 auditEntry.AuditType = "Update";
-                                auditEntry.OldValues[propertyName] = property.OriginalValue;
-                                auditEntry.NewValues[propertyName] = property.CurrentValue;
+                                auditEntry.OldValues[propertyName] = property.OriginalValue!;
+                                auditEntry.NewValues[propertyName] = property.CurrentValue!;
                             }
                             break;
                     }
@@ -747,7 +772,9 @@ namespace Aquora.Persistence.Context
         private void LogDbUpdateException(DbUpdateException dbEx)
         {
             var innerMsg = dbEx.InnerException?.Message ?? dbEx.Message;
-            Console.WriteLine($"[DB UPDATE ERROR - SCHEMA: '{SchemaName}']: {dbEx.Message} | Inner: {innerMsg}");
+            Console.WriteLine($"==================================================");
+            Console.WriteLine($"[CRITICAL DB UPDATE ERROR - SCHEMA: '{SchemaName}']: {dbEx.GetType().Name} | {dbEx.Message}");
+            Console.WriteLine($"Inner Exception: {innerMsg}");
             
             if (dbEx.InnerException is Npgsql.PostgresException pgEx)
             {
@@ -758,9 +785,26 @@ namespace Aquora.Persistence.Context
             {
                 foreach (var entry in dbEx.Entries)
                 {
-                    Console.WriteLine($"[AFFECTED ENTITY]: Type={entry.Entity.GetType().Name}, State={entry.State}");
+                    var tableName = entry.Metadata.GetTableName() ?? entry.Entity.GetType().Name;
+                    var pkProp = entry.Metadata.FindPrimaryKey()?.Properties.FirstOrDefault();
+                    var pkVal = pkProp != null ? entry.Property(pkProp.Name)?.CurrentValue : "Unknown";
+
+                    Console.WriteLine($"[FAILED CONCURRENCY ENTITY]");
+                    Console.WriteLine($"  - Table: {tableName}");
+                    Console.WriteLine($"  - Type: {entry.Entity.GetType().FullName}");
+                    Console.WriteLine($"  - Primary Key ({pkProp?.Name}): {pkVal}");
+                    Console.WriteLine($"  - EntityState: {entry.State}");
+
+                    foreach (var prop in entry.Properties)
+                    {
+                        if (prop.IsModified || entry.State == EntityState.Added || entry.State == EntityState.Deleted)
+                        {
+                            Console.WriteLine($"      Property: {prop.Metadata.Name} | IsModified: {prop.IsModified} | Orig: '{prop.OriginalValue}' | Curr: '{prop.CurrentValue}'");
+                        }
+                    }
                 }
             }
+            Console.WriteLine($"==================================================");
         }
 
         private bool _isRecalculating = false;

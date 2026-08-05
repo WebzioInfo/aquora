@@ -71,6 +71,14 @@ namespace Aquora.Application.Interfaces
         DbSet<Aquora.Domain.Entities.Finance.PurchaseTimelineEvent> PurchaseTimelineEvents { get; }
         DbSet<Aquora.Domain.Entities.Finance.AssetHistory> AssetHistories { get; }
 
+        // Quality Control Module
+        DbSet<Aquora.Domain.Entities.QC.WaterTestReport> WaterTestReports { get; }
+        DbSet<Aquora.Domain.Entities.QC.WaterTestParameter> WaterTestParameters { get; }
+        DbSet<Aquora.Domain.Entities.QC.WaterTestResult> WaterTestResults { get; }
+        DbSet<Aquora.Domain.Entities.QC.ComplianceRecord> ComplianceRecords { get; }
+        DbSet<Aquora.Domain.Entities.QC.QCAuditLog> QCAuditLogs { get; }
+        DbSet<Aquora.Domain.Entities.QC.QCSettings> QCSettings { get; }
+
         Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade Database { get; }
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
