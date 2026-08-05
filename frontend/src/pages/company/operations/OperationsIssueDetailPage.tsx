@@ -65,6 +65,11 @@ export const OperationsIssueDetailPage: React.FC = () => {
         setCorrectiveAction(res.data.correctiveAction || '');
         setPreventiveAction(res.data.preventiveAction || '');
         setDowntimeMins(res.data.downtimeMinutes ? res.data.downtimeMinutes.toString() : '');
+
+        // Auto mark as read if unread
+        if (!res.data.isRead) {
+          operationsIssueApi.markIssueAsRead(issueId).catch(() => {});
+        }
       }
     } catch (error) {
       toast.error('Failed to load issue details');

@@ -12,6 +12,8 @@ export interface SidebarItem {
   label: string
   path?: string
   icon: React.ReactNode
+  badge?: number | string
+  pulseBadge?: boolean
   children?: SubSidebarItem[]
 }
 
@@ -118,8 +120,30 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
               {isActive && (
                 <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-[20px] bg-[#1A56DB] rounded-r-md" />
               )}
-              <div className="shrink-0">{item.icon}</div>
-              {!collapsed && <span className="text-xs tracking-wide">{item.label}</span>}
+              <div className="shrink-0 relative">
+                {item.icon}
+                {collapsed && item.badge !== undefined && item.badge !== null && item.badge !== 0 && (
+                  <span
+                    className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-600 border-2 border-white ${
+                      item.pulseBadge ? 'animate-pulse' : ''
+                    }`}
+                  />
+                )}
+              </div>
+              {!collapsed && (
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xs tracking-wide">{item.label}</span>
+                  {item.badge !== undefined && item.badge !== null && item.badge !== 0 && (
+                    <span
+                      className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full text-white bg-red-600 shadow-sm flex items-center justify-center min-w-[20px] ${
+                        item.pulseBadge ? 'animate-pulse ring-2 ring-red-300' : ''
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
+              )}
             </Link>
           )
         })}

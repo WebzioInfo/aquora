@@ -23,6 +23,8 @@ namespace Aquora.Application.Interfaces.Services
         Task<OperationsIssueDetailDto?> GetIssueByIdAsync(Guid id);
         Task<OperationsIssueDto> CreateIssueAsync(CreateOperationsIssueRequest request);
         Task<OperationsIssueDto> QuickOperatorReportAsync(QuickOperatorReportRequest request);
+        Task<OperationsIssueDto> ReportOperatorBatchIssueAsync(OperatorBatchReportIssueRequest request);
+        Task<List<OperationsIssueDto>> GetIssuesForBatchAsync(string batchNumber);
         Task<OperationsIssueDto?> UpdateIssueAsync(Guid id, UpdateOperationsIssueRequest request);
         Task<OperationsIssueDto?> ChangeStatusAsync(Guid id, ChangeIssueStatusRequest request);
         Task<OperationsIssueDto?> AssignIssueAsync(Guid id, AssignIssueRequest request);
@@ -32,5 +34,11 @@ namespace Aquora.Application.Interfaces.Services
         Task<OperationsIssueDto?> CreateMaintenanceWorkOrderAsync(Guid id);
         Task<bool> DeleteIssueAsync(Guid id);
         Task<OperationsIssueDashboardDto> GetDashboardAsync();
+
+        // Real-time Notification & Read Status Tracking
+        Task<int> GetUnreadCountAsync();
+        Task<List<OperationsIssueNotificationDto>> GetLatestNotificationsAsync(int take = 5);
+        Task<bool> MarkIssueAsReadAsync(Guid id, string userId, string userName);
+        Task<int> MarkAllIssuesAsReadAsync(string userId, string userName);
     }
 }

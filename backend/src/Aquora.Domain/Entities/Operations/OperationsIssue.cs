@@ -33,8 +33,15 @@ namespace Aquora.Domain.Entities.Operations
         public Guid? ProductionLineId { get; set; }
         public string? ProductionLineName { get; set; }
 
+        public Guid? BatchId { get; set; }
         public string? BatchNumber { get; set; }
+        public Guid? ProductId { get; set; }
+        public string? ProductName { get; set; }
+        public Guid? StationId { get; set; }
+        public string? StationName { get; set; }
+        public Guid? ProductionSessionId { get; set; }
         public Guid? ShiftId { get; set; }
+        public bool RequiresImmediateStop { get; set; }
 
         // Operational Timestamps
         public DateTime ReportedAt { get; set; } = DateTime.UtcNow;
@@ -42,6 +49,11 @@ namespace Aquora.Domain.Entities.Operations
         public DateTime? ResolvedAt { get; set; }
         public DateTime? ClosedAt { get; set; }
         public DateTime? VerifiedAt { get; set; }
+
+        // Read / Acknowledgement Tracking
+        public bool IsRead { get; set; }
+        public DateTime? ReadAt { get; set; }
+        public string? ReadBy { get; set; }
 
         // Metrics & Maintenance Link
         public decimal? EstimatedCost { get; set; }

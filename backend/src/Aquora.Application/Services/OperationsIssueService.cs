@@ -133,6 +133,9 @@ namespace Aquora.Application.Services
                     CorrectiveAction = i.CorrectiveAction,
                     PreventiveAction = i.PreventiveAction,
                     Attachments = i.Attachments,
+                    IsRead = i.IsRead,
+                    ReadAt = i.ReadAt,
+                    ReadBy = i.ReadBy,
                     CommentsCount = i.Comments.Count,
                     CreatedAt = i.CreatedAt
                 })
@@ -185,6 +188,9 @@ namespace Aquora.Application.Services
                 CorrectiveAction = issue.CorrectiveAction,
                 PreventiveAction = issue.PreventiveAction,
                 Attachments = issue.Attachments,
+                IsRead = issue.IsRead,
+                ReadAt = issue.ReadAt,
+                ReadBy = issue.ReadBy,
                 CommentsCount = issue.Comments.Count,
                 CreatedAt = issue.CreatedAt,
                 Comments = issue.Comments.OrderBy(c => c.CreatedAt).Select(c => new OperationsIssueCommentDto
@@ -237,8 +243,15 @@ namespace Aquora.Application.Services
                 MachineName = request.MachineName,
                 ProductionLineId = request.ProductionLineId,
                 ProductionLineName = request.ProductionLineName,
+                BatchId = request.BatchId,
                 BatchNumber = request.BatchNumber,
+                ProductId = request.ProductId,
+                ProductName = request.ProductName,
+                StationId = request.StationId,
+                StationName = request.StationName,
+                ProductionSessionId = request.ProductionSessionId,
                 ShiftId = request.ShiftId,
+                RequiresImmediateStop = request.RequiresImmediateStop,
                 ReportedAt = DateTime.UtcNow,
                 DueDate = request.DueDate?.ToUniversalTime(),
                 EstimatedCost = request.EstimatedCost,
@@ -255,7 +268,7 @@ namespace Aquora.Application.Services
                 IssueId = issue.Id,
                 PerformedBy = userName,
                 Action = "CREATED",
-                Details = $"Reported issue #{issue.IssueNumber} in {issue.Department} ({issue.Category}) with {issue.Priority} priority.",
+                Details = $"Reported issue #{issue.IssueNumber} in {issue.Department} ({issue.Category}) with {issue.Priority} priority." + (string.IsNullOrWhiteSpace(issue.BatchNumber) ? "" : $" Linked Batch #{issue.BatchNumber}."),
                 Timestamp = DateTime.UtcNow
             });
 
@@ -263,6 +276,92 @@ namespace Aquora.Application.Services
             await _context.SaveChangesAsync();
 
             return (await GetIssueByIdAsync(issue.Id))!;
+        }
+
+        public async Task<OperationsIssueDto> ReportOperatorBatchIssueAsync(OperatorBatchReportIssueRequest request)
+        {
+            var createReq = new CreateOperationsIssueRequest
+            {
+                Title = string.IsNullOrWhiteSpace(request.Title) ? $"[ACTIVE BATCH ISSUE] {request.Category} - Batch {request.BatchNumber}" : request.Title,
+                Description = request.Description,
+                Department = "Production",
+                Category = request.Category,
+                Priority = request.Priority,
+                MachineId = request.MachineId,
+                MachineName = request.MachineName,
+                ProductionLineId = request.ProductionLineId,
+                ProductionLineName = request.ProductionLineName,
+                BatchId = request.BatchId,
+                BatchNumber = request.BatchNumber,
+                ProductId = request.ProductId,
+                ProductName = request.ProductName,
+                StationId = request.StationId,
+                StationName = request.StationName,
+                ProductionSessionId = request.ProductionSessionId,
+                ShiftId = request.ShiftId,
+                RequiresImmediateStop = request.RequiresImmediateStop,
+                RequiresMaintenance = true,
+                Attachments = request.Attachments
+            };
+
+            return await CreateIssueAsync(createReq);
+        }
+
+        public async Task<List<OperationsIssueDto>> GetIssuesForBatchAsync(string batchNumber)
+        {
+            if (string.IsNullOrWhiteSpace(batchNumber)) return new List<OperationsIssueDto>();
+
+            var tenantId = GetTenantId();
+            var bNo = batchNumber.Trim().ToLower();
+
+            return await _context.OperationsIssues
+                .Where(i => i.TenantId == tenantId && !i.IsDeleted && i.BatchNumber != null && i.BatchNumber.ToLower() == bNo)
+                .OrderByDescending(i => i.ReportedAt)
+                .Select(i => new OperationsIssueDto
+                {
+                    Id = i.Id,
+                    IssueNumber = i.IssueNumber,
+                    Title = i.Title,
+                    Description = i.Description,
+                    Department = i.Department,
+                    Category = i.Category,
+                    Priority = i.Priority,
+                    Status = i.Status,
+                    ReportedByUserId = i.ReportedByUserId,
+                    ReportedByName = i.ReportedByName,
+                    AssignedToUserId = i.AssignedToUserId,
+                    AssignedToName = i.AssignedToName,
+                    MachineId = i.MachineId,
+                    MachineName = i.MachineName,
+                    ProductionLineId = i.ProductionLineId,
+                    ProductionLineName = i.ProductionLineName,
+                    BatchId = i.BatchId,
+                    BatchNumber = i.BatchNumber,
+                    ProductId = i.ProductId,
+                    ProductName = i.ProductName,
+                    StationId = i.StationId,
+                    StationName = i.StationName,
+                    ProductionSessionId = i.ProductionSessionId,
+                    ShiftId = i.ShiftId,
+                    RequiresImmediateStop = i.RequiresImmediateStop,
+                    ReportedAt = i.ReportedAt,
+                    DueDate = i.DueDate,
+                    ResolvedAt = i.ResolvedAt,
+                    ClosedAt = i.ClosedAt,
+                    VerifiedAt = i.VerifiedAt,
+                    EstimatedCost = i.EstimatedCost,
+                    ActualCost = i.ActualCost,
+                    DowntimeMinutes = i.DowntimeMinutes,
+                    RequiresMaintenance = i.RequiresMaintenance,
+                    MaintenanceWorkOrderId = i.MaintenanceWorkOrderId,
+                    RootCause = i.RootCause,
+                    CorrectiveAction = i.CorrectiveAction,
+                    PreventiveAction = i.PreventiveAction,
+                    Attachments = i.Attachments,
+                    CommentsCount = i.Comments.Count,
+                    CreatedAt = i.CreatedAt
+                })
+                .ToListAsync();
         }
 
         public async Task<OperationsIssueDto> QuickOperatorReportAsync(QuickOperatorReportRequest request)
@@ -557,6 +656,7 @@ namespace Aquora.Application.Services
             var today = DateTime.UtcNow.Date;
 
             var openIssues = issues.Count(i => i.Status != "Closed" && i.Status != "Resolved" && i.Status != "Rejected");
+            var unreadIssues = issues.Count(i => !i.IsRead && i.Status != "Closed" && i.Status != "Rejected");
             var criticalIssues = issues.Count(i => (i.Priority == "Critical" || i.Priority == "Emergency") && i.Status != "Closed");
             var overdue = issues.Count(i => i.DueDate.HasValue && i.DueDate.Value < DateTime.UtcNow && i.Status != "Closed" && i.Status != "Resolved");
             var resolvedToday = issues.Count(i => i.ResolvedAt.HasValue && i.ResolvedAt.Value.Date == today);
@@ -637,6 +737,9 @@ namespace Aquora.Application.Services
                     CorrectiveAction = i.CorrectiveAction,
                     PreventiveAction = i.PreventiveAction,
                     Attachments = i.Attachments,
+                    IsRead = i.IsRead,
+                    ReadAt = i.ReadAt,
+                    ReadBy = i.ReadBy,
                     CommentsCount = i.Comments.Count,
                     CreatedAt = i.CreatedAt
                 })
@@ -646,6 +749,7 @@ namespace Aquora.Application.Services
             {
                 TotalIssues = issues.Count,
                 OpenIssues = openIssues,
+                UnreadIssues = unreadIssues,
                 CriticalIssues = criticalIssues,
                 OverdueIssues = overdue,
                 ResolvedToday = resolvedToday,
@@ -659,6 +763,82 @@ namespace Aquora.Application.Services
                 TopProblemMachines = topMachines,
                 RecentIssues = recent
             };
+        }
+
+        public async Task<int> GetUnreadCountAsync()
+        {
+            var tenantId = GetTenantId();
+            return await _context.OperationsIssues
+                .CountAsync(i => i.TenantId == tenantId && !i.IsDeleted && !i.IsRead && i.Status != "Closed" && i.Status != "Rejected");
+        }
+
+        public async Task<List<OperationsIssueNotificationDto>> GetLatestNotificationsAsync(int take = 5)
+        {
+            var tenantId = GetTenantId();
+            return await _context.OperationsIssues
+                .Where(i => i.TenantId == tenantId && !i.IsDeleted && !i.IsRead && i.Status != "Closed" && i.Status != "Rejected")
+                .OrderByDescending(i => i.ReportedAt)
+                .Take(take)
+                .Select(i => new OperationsIssueNotificationDto
+                {
+                    Id = i.Id,
+                    IssueNumber = i.IssueNumber,
+                    Title = i.Title,
+                    Category = i.Category,
+                    Priority = i.Priority,
+                    Department = i.Department,
+                    ProductionLineName = i.ProductionLineName,
+                    MachineName = i.MachineName,
+                    ReportedByName = i.ReportedByName,
+                    ReportedAt = i.ReportedAt,
+                    IsRead = i.IsRead
+                })
+                .ToListAsync();
+        }
+
+        public async Task<bool> MarkIssueAsReadAsync(Guid id, string userId, string userName)
+        {
+            var tenantId = GetTenantId();
+            var issue = await _context.OperationsIssues
+                .FirstOrDefaultAsync(i => i.Id == id && i.TenantId == tenantId && !i.IsDeleted);
+
+            if (issue == null) return false;
+
+            if (!issue.IsRead)
+            {
+                issue.IsRead = true;
+                issue.ReadAt = DateTime.UtcNow;
+                issue.ReadBy = !string.IsNullOrWhiteSpace(userName) ? userName : userId;
+                issue.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+            }
+
+            return true;
+        }
+
+        public async Task<int> MarkAllIssuesAsReadAsync(string userId, string userName)
+        {
+            var tenantId = GetTenantId();
+            var unreadIssues = await _context.OperationsIssues
+                .Where(i => i.TenantId == tenantId && !i.IsDeleted && !i.IsRead)
+                .ToListAsync();
+
+            if (!unreadIssues.Any()) return 0;
+
+            var readBy = !string.IsNullOrWhiteSpace(userName) ? userName : userId;
+            var now = DateTime.UtcNow;
+
+            foreach (var issue in unreadIssues)
+            {
+                issue.IsRead = true;
+                issue.ReadAt = now;
+                issue.ReadBy = readBy;
+                issue.UpdatedAt = now;
+            }
+
+            await _context.SaveChangesAsync();
+            return unreadIssues.Count;
         }
     }
 }

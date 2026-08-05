@@ -2,6 +2,17 @@ import React from 'react'
 import { Menu, Bell, LogOut } from 'lucide-react'
 import BRAND from '../../config/brand'
 
+export interface TopbarNotificationItem {
+  id: string;
+  title: string;
+  category: string;
+  priority: string;
+  reportedByName: string;
+  reportedAt: string;
+  machineName?: string;
+  productionLineName?: string;
+}
+
 interface EnterpriseTopbarProps {
   sidebarCollapsed: boolean
   onToggleSidebar: () => void
@@ -13,6 +24,9 @@ interface EnterpriseTopbarProps {
   user: any
   onLogout: () => void
   notificationsCount?: number
+  notificationsList?: TopbarNotificationItem[]
+  onNotificationClick?: (id: string) => void
+  onMarkAllRead?: () => void
 }
 
 export const EnterpriseTopbar: React.FC<EnterpriseTopbarProps> = ({
@@ -25,7 +39,10 @@ export const EnterpriseTopbar: React.FC<EnterpriseTopbarProps> = ({
   onToggleProfileMenu,
   user,
   onLogout,
-  notificationsCount = 2
+  notificationsCount = 0,
+  notificationsList = [],
+  onNotificationClick,
+  onMarkAllRead
 }) => {
   return (
     <header className="h-16 border-b border-[#E5E9F2] bg-white sticky top-0 z-30 px-6 flex items-center justify-between">
@@ -60,31 +77,63 @@ export const EnterpriseTopbar: React.FC<EnterpriseTopbarProps> = ({
         <div className="relative">
           <button 
             onClick={onToggleNotifications}
-            className="p-2 rounded-full hover:bg-slate-55 text-slate-400 hover:text-slate-600 relative cursor-pointer"
+            className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800 relative cursor-pointer transition-colors"
           >
             <Bell className="w-5 h-5" />
             {notificationsCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-[#F04438] text-white font-extrabold text-[9px] rounded-full flex items-center justify-center">
-                {notificationsCount}
+              <span className="absolute top-1 right-1 px-1.5 py-0.5 bg-[#F04438] text-white font-black text-[9px] rounded-full flex items-center justify-center animate-pulse shadow-sm min-w-[18px]">
+                {notificationsCount > 99 ? '99+' : notificationsCount}
               </span>
             )}
           </button>
 
-          {/* Simple Dropdown list */}
+          {/* Notifications Dropdown */}
           {notificationsOpen && (
-            <div className="absolute right-0 mt-2 w-72 bg-white border border-[#E5E9F2] shadow-lg py-2 rounded-[8px] text-xs z-50 animate-in fade-in slide-in-from-top-1 duration-100">
-              <span className="font-semibold text-[#344054] px-4 py-2 block border-b border-[#E5E9F2] uppercase text-[10px] tracking-wider">
-                Notifications
-              </span>
-              <div className="divide-y divide-[#E5E9F2] max-h-48 overflow-y-auto">
-                <div className="p-3 hover:bg-[#EFF4FF] cursor-pointer">
-                  <span className="font-semibold block text-slate-800">Batch #31 finalized</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">Line A processed 12,500 L</span>
-                </div>
-                <div className="p-3 hover:bg-[#EFF4FF] cursor-pointer">
-                  <span className="font-semibold block text-slate-800">Sales order finalized</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">1,200 cases dispatched to Apex</span>
-                </div>
+            <div className="absolute right-0 mt-2 w-80 bg-white border border-[#E5E9F2] shadow-xl rounded-[12px] text-xs z-50 animate-in fade-in slide-in-from-top-1 duration-150 overflow-hidden">
+              <div className="px-4 py-2.5 bg-slate-50 border-b border-[#E5E9F2] flex items-center justify-between">
+                <span className="font-extrabold text-[#344054] uppercase text-[10px] tracking-wider">
+                  Unread Incidents ({notificationsCount})
+                </span>
+                {notificationsCount > 0 && onMarkAllRead && (
+                  <button
+                    onClick={onMarkAllRead}
+                    className="text-[10px] font-bold text-blue-600 hover:underline cursor-pointer"
+                  >
+                    Mark All Read
+                  </button>
+                )}
+              </div>
+
+              <div className="divide-y divide-[#E5E9F2] max-h-72 overflow-y-auto">
+                {notificationsList.length === 0 ? (
+                  <div className="p-4 text-center text-slate-400 text-[11px] italic">
+                    No unread operations notifications.
+                  </div>
+                ) : (
+                  notificationsList.map((item) => (
+                    <div
+                      key={item.id}
+                      onClick={() => onNotificationClick && onNotificationClick(item.id)}
+                      className="p-3 hover:bg-amber-50/70 cursor-pointer transition-colors space-y-1"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-900 text-xs truncate max-w-[180px]">{item.title}</span>
+                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
+                          item.priority === 'Critical' || item.priority === 'Emergency' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {item.priority}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500">
+                        {item.category} {item.machineName ? `• ${item.machineName}` : ''}
+                      </p>
+                      <div className="flex items-center justify-between text-[9px] text-slate-400 font-medium">
+                        <span>Reported by {item.reportedByName}</span>
+                        <span>{new Date(item.reportedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}

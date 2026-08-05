@@ -5,8 +5,9 @@ import { api } from '../../services/api'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import { productionShiftsService } from '../../services/productionShifts'
+import { operationsIssueApi } from '../../services/api/operationsIssue'
 import {
-  Check, Cpu, Save, RefreshCw, Play, X, AlertTriangle, Clock, ChevronDown, Loader2
+  Check, Cpu, Save, RefreshCw, Play, X, AlertTriangle, Clock, ChevronDown, Loader2, Send, CheckCircle2, Lock, Camera, Upload
 } from 'lucide-react'
 import EnterpriseCard from '../../components/ui/EnterpriseCard'
 import EnterpriseButton from '../../components/ui/EnterpriseButton'
@@ -82,6 +83,61 @@ export const OperatorDashboardPage: React.FC = () => {
   // Modals state
   const [showStartModal, setShowStartModal] = useState(false)
   const [showEndModal, setShowEndModal] = useState(false)
+
+  // Active Batch Report Issue Modal States
+  const [showReportIssueModal, setShowReportIssueModal] = useState(false)
+  const [issueCategory, setIssueCategory] = useState('Machine Breakdown')
+  const [issuePriority, setIssuePriority] = useState('High')
+  const [issueTitle, setIssueTitle] = useState('')
+  const [issueDescription, setIssueDescription] = useState('')
+  const [issueRequiresImmediateStop, setIssueRequiresImmediateStop] = useState(false)
+  const [issueAttachment, setIssueAttachment] = useState('')
+  const [isSubmittingIssue, setIsSubmittingIssue] = useState(false)
+  const [createdIssueResult, setCreatedIssueResult] = useState<{ issueNumber: string } | null>(null)
+
+  const handleReportIssueSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!activeSession) {
+      showToast('No active production batch found. Please start a batch first.', 'warning')
+      return
+    }
+    if (!issueTitle.trim() || !issueDescription.trim()) {
+      showToast('Title and Description are required.', 'warning')
+      return
+    }
+
+    setIsSubmittingIssue(true)
+    try {
+      const res = await operationsIssueApi.reportOperatorBatchIssue({
+        category: issueCategory,
+        priority: issuePriority,
+        title: issueTitle.trim(),
+        description: issueDescription.trim(),
+        requiresImmediateStop: issueRequiresImmediateStop,
+        attachments: issueAttachment.trim() || undefined,
+        batchId: activeSession.id,
+        batchNumber: activeSession.batchNumber,
+        productId: activeSession.skuId,
+        productName: activeSession.skuName,
+        productionLineId: selectedLine?.lineId || selectedLine?.id,
+        productionLineName: selectedLine?.name,
+        machineId: selectedLine?.lineId || selectedLine?.id,
+        machineName: selectedLine?.name,
+        shiftId: activeSession.shiftId,
+        shiftName: activeSession.shift,
+        stationId: selectedLine?.lineId || selectedLine?.id,
+        stationName: selectedLine?.name || 'Production Station',
+        productionSessionId: activeSession.id
+      })
+
+      setCreatedIssueResult({ issueNumber: res.data.issueNumber })
+      showToast(`Issue ${res.data.issueNumber} reported successfully.`, 'success')
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to report production issue.', 'error')
+    } finally {
+      setIsSubmittingIssue(false)
+    }
+  }
 
   // Pre-login allocation state
   const [localLine, setLocalLine] = useState<any>(null)
@@ -1463,6 +1519,20 @@ export const OperatorDashboardPage: React.FC = () => {
               <div className="border-t border-[#E5E7EB] pt-5 flex justify-end gap-3 select-none">
                 <button
                   onClick={() => {
+                    if (!activeSession) {
+                      showToast('No active production batch found. Please start a batch first.', 'warning')
+                      return
+                    }
+                    setShowReportIssueModal(true)
+                  }}
+                  className="px-4 h-[38px] bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-300 transition-colors rounded-[6px] text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                >
+                  <AlertTriangle className="w-4 h-4 text-amber-600 stroke-[2.5]" />
+                  <span>⚠ Report Issue</span>
+                </button>
+
+                <button
+                  onClick={() => {
                     setShowEndModal(true)
                     refetchSummary()
                   }}
@@ -2258,7 +2328,7 @@ export const OperatorDashboardPage: React.FC = () => {
               </div>
             )}
 
-            {/* SAVE BUTTON SECTION ONLY */}
+            {/* SAVE BUTTON & REPORT ISSUE SECTION */}
             <div className="border-t border-[#E5E7EB] pt-3 flex flex-col items-end gap-2 select-none">
               {Object.keys(stockErrors).length > 0 && (
                 <div className="w-full bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold p-2 rounded-[6px] flex items-center gap-1.5 animate-pulse">
@@ -2266,17 +2336,34 @@ export const OperatorDashboardPage: React.FC = () => {
                   <span>⚠️ Insufficient Stock: Production will create negative inventory.</span>
                 </div>
               )}
-              <button
-                type="submit"
-                disabled={submitEntryMutation.isPending}
-                className="w-full md:w-auto h-8 px-5 rounded-[6px] text-xs font-bold text-white hover:brightness-110 transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  backgroundColor: lineTheme?.primary || '#1A56DB'
-                }}
-              >
-                <Save className="w-3.5 h-3.5" />
-                <span>Save Batch Entry</span>
-              </button>
+              <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!activeSession) {
+                      showToast('No active production batch found. Please start a batch first.', 'warning')
+                      return
+                    }
+                    setShowReportIssueModal(true)
+                  }}
+                  className="h-8 px-3.5 rounded-[6px] text-xs font-extrabold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                >
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                  <span>⚠ Report Issue</span>
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={submitEntryMutation.isPending}
+                  className="w-full md:w-auto h-8 px-5 rounded-[6px] text-xs font-bold text-white hover:brightness-110 transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: lineTheme?.primary || '#1A56DB'
+                  }}
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Save Batch Entry</span>
+                </button>
+              </div>
             </div>
 
           </form>
@@ -2628,6 +2715,224 @@ export const OperatorDashboardPage: React.FC = () => {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================
+          OPERATOR BATCH ISSUE REPORTING MODAL DIALOG
+         ========================================== */}
+      {showReportIssueModal && (
+        <div className="fixed inset-0 z-50 bg-[#0F172A]/70 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white border border-[#E5E7EB] w-full max-w-[620px] max-h-[90vh] overflow-y-auto rounded-[16px] shadow-2xl p-6 relative text-left transition-all duration-200">
+            
+            {/* Header */}
+            <div className="flex justify-between items-center pb-4 border-b border-[#E5E7EB] mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 tracking-tight uppercase">Report Active Production Issue</h3>
+                  <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Instant incident reporting linked directly to running batch context.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowReportIssueModal(false)
+                  setCreatedIssueResult(null)
+                }}
+                className="p-1.5 rounded-full hover:bg-slate-100 text-[#9CA3AF] hover:text-[#4B5563] cursor-pointer transition-colors"
+              >
+                <X className="w-4.5 h-4.5" />
+              </button>
+            </div>
+
+            {createdIssueResult ? (
+              <div className="text-center py-6 space-y-4">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-7 h-7" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">Issue Reported Successfully!</h3>
+                  <p className="text-xs text-slate-500 mt-1">Incident Number: <span className="font-mono font-bold text-blue-600">#{createdIssueResult.issueNumber}</span></p>
+                  <p className="text-xs text-slate-500 mt-0.5">Plant Management, Maintenance, and Supervisors have been notified in real-time.</p>
+                </div>
+                <div className="pt-2">
+                  <button
+                    onClick={() => {
+                      setCreatedIssueResult(null)
+                      setShowReportIssueModal(false)
+                      setIssueTitle('')
+                      setIssueDescription('')
+                    }}
+                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-sm transition-all cursor-pointer"
+                  >
+                    Continue Production
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleReportIssueSubmit} className="space-y-4 text-xs">
+                
+                {/* Read-only Auto-Filled Context */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-slate-400" /> Auto-Filled Production Context (Locked)
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400">{new Date().toLocaleString()}</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-[11px]">
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase block">Current Batch</span>
+                      <span className="font-mono font-bold text-slate-900">{activeSession?.batchNumber || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase block">Product</span>
+                      <span className="font-bold text-slate-900 truncate block">{activeSession?.skuName || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase block">Line & Equipment</span>
+                      <span className="font-bold text-slate-900">{selectedLine?.name || 'Bottling Line'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase block">Shift</span>
+                      <span className="font-bold text-slate-900">{activeSession?.shift || 'Current Shift'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase block">Station</span>
+                      <span className="font-bold text-slate-900">{selectedLine?.name || 'Production Station'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase block">Operator</span>
+                      <span className="font-bold text-slate-900 truncate block">{user?.fullName || user?.email || 'Operator'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Category & Priority */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-bold text-slate-700">Issue Category *</label>
+                    <select
+                      value={issueCategory}
+                      onChange={(e) => setIssueCategory(e.target.value)}
+                      className="w-full h-9 border border-slate-300 px-2.5 text-xs bg-white rounded-lg font-semibold text-slate-800 focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="Machine Breakdown">Machine Breakdown</option>
+                      <option value="Power Failure">Power Failure</option>
+                      <option value="Generator Failure">Generator Failure</option>
+                      <option value="Material Shortage">Material Shortage</option>
+                      <option value="Bottle Jam">Bottle Jam</option>
+                      <option value="Water Supply Issue">Water Supply Issue</option>
+                      <option value="Quality Issue">Quality Issue</option>
+                      <option value="Leakage">Leakage</option>
+                      <option value="Electrical Issue">Electrical Issue</option>
+                      <option value="Mechanical Issue">Mechanical Issue</option>
+                      <option value="Safety Issue">Safety Issue</option>
+                      <option value="Operator Injury">Operator Injury</option>
+                      <option value="QC Failure">QC Failure</option>
+                      <option value="Packaging Problem">Packaging Problem</option>
+                      <option value="Label Issue">Label Issue</option>
+                      <option value="Shrink Film Issue">Shrink Film Issue</option>
+                      <option value="Cap Issue">Cap Issue</option>
+                      <option value="Preform Issue">Preform Issue</option>
+                      <option value="Internet Issue">Internet Issue</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-bold text-slate-700">Priority Level *</label>
+                    <select
+                      value={issuePriority}
+                      onChange={(e) => setIssuePriority(e.target.value)}
+                      className="w-full h-9 border border-slate-300 px-2.5 text-xs bg-white rounded-lg font-semibold text-slate-800 focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                      <option value="Critical">Critical</option>
+                      <option value="Emergency">Emergency</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Title */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-bold text-slate-700">Issue Title *</label>
+                  <input
+                    type="text"
+                    required
+                    value={issueTitle}
+                    onChange={(e) => setIssueTitle(e.target.value)}
+                    placeholder="e.g. Capping head motor stalled during filling"
+                    className="w-full h-9 border border-slate-300 px-3 text-xs bg-white rounded-lg focus:ring-1 focus:ring-blue-500 font-semibold"
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-bold text-slate-700">Detailed Description *</label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={issueDescription}
+                    onChange={(e) => setIssueDescription(e.target.value)}
+                    placeholder="Describe what happened, error codes, noise, leakage, or immediate impact..."
+                    className="w-full p-2.5 border border-slate-300 text-xs bg-white rounded-lg focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Requires Immediate Stop */}
+                <div className="flex items-center justify-between p-3 bg-amber-50/70 border border-amber-200 rounded-lg">
+                  <div>
+                    <span className="text-xs font-bold text-amber-900 block">Requires Immediate Line Stop?</span>
+                    <span className="text-[10px] text-amber-700">Alerts maintenance & supervisors that production line is halted.</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIssueRequiresImmediateStop(true)}
+                      className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
+                        issueRequiresImmediateStop ? 'bg-red-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200'
+                      }`}
+                    >
+                      YES
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIssueRequiresImmediateStop(false)}
+                      className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
+                        !issueRequiresImmediateStop ? 'bg-slate-700 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200'
+                      }`}
+                    >
+                      NO
+                    </button>
+                  </div>
+                </div>
+
+                {/* Submit Action */}
+                <div className="pt-2 flex justify-end gap-2 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setShowReportIssueModal(false)}
+                    className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingIssue}
+                    className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-lg shadow-sm flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <Send className="w-3.5 h-3.5" /> Submit Issue Report
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

@@ -33,8 +33,25 @@ export interface OperationsIssue {
   correctiveAction?: string;
   preventiveAction?: string;
   attachments?: string;
+  isRead?: boolean;
+  readAt?: string;
+  readBy?: string;
   commentsCount: number;
   createdAt: string;
+}
+
+export interface OperationsIssueNotification {
+  id: string;
+  issueNumber: string;
+  title: string;
+  category: string;
+  priority: string;
+  department: string;
+  productionLineName?: string;
+  machineName?: string;
+  reportedByName: string;
+  reportedAt: string;
+  isRead: boolean;
 }
 
 export interface OperationsIssueComment {
@@ -95,6 +112,7 @@ export interface QuickOperatorReportRequest {
 export interface OperationsIssueDashboard {
   totalIssues: number;
   openIssues: number;
+  unreadIssues: number;
   criticalIssues: number;
   overdueIssues: number;
   resolvedToday: number;
@@ -141,6 +159,31 @@ export const operationsIssueApi = {
   quickOperatorReport: (data: QuickOperatorReportRequest) =>
     api.post<OperationsIssue>('/api/v1/company/operations-issues/quick-report', data),
 
+  reportOperatorBatchIssue: (data: {
+    category: string;
+    priority: string;
+    title: string;
+    description: string;
+    requiresImmediateStop?: boolean;
+    attachments?: string;
+    batchId?: string;
+    batchNumber: string;
+    productId?: string;
+    productName?: string;
+    productionLineId?: string;
+    productionLineName?: string;
+    machineId?: string;
+    machineName?: string;
+    shiftId?: string;
+    shiftName?: string;
+    stationId?: string;
+    stationName?: string;
+    productionSessionId?: string;
+  }) => api.post<OperationsIssue>('/api/v1/company/operations-issues/batch-report', data),
+
+  getIssuesForBatch: (batchNumber: string) =>
+    api.get<OperationsIssue[]>(`/api/v1/company/operations-issues/batch/${encodeURIComponent(batchNumber)}`),
+
   updateIssue: (id: string, data: Partial<CreateOperationsIssueRequest> & { status?: string; assignedToUserId?: string; assignedToName?: string }) =>
     api.put<OperationsIssue>(`/api/v1/company/operations-issues/${id}`, data),
 
@@ -165,5 +208,17 @@ export const operationsIssueApi = {
     api.post<OperationsIssue>(`/api/v1/company/operations-issues/${id}/create-work-order`),
 
   deleteIssue: (id: string) =>
-    api.delete(`/api/v1/company/operations-issues/${id}`)
+    api.delete(`/api/v1/company/operations-issues/${id}`),
+
+  getUnreadCount: () =>
+    api.get<{ unreadCount: number }>('/api/v1/company/operations-issues/unread-count'),
+
+  getLatestNotifications: (take = 5) =>
+    api.get<OperationsIssueNotification[]>(`/api/v1/company/operations-issues/latest-notifications?take=${take}`),
+
+  markIssueAsRead: (id: string) =>
+    api.post<{ message: string }>(`/api/v1/company/operations-issues/${id}/mark-read`),
+
+  markAllIssuesAsRead: () =>
+    api.post<{ message: string; count: number }>('/api/v1/company/operations-issues/mark-all-read')
 };

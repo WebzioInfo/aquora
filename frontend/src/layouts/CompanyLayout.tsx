@@ -16,17 +16,96 @@ import EnterpriseSidebar from '../components/ui/EnterpriseSidebar'
 import EnterpriseTopbar from '../components/ui/EnterpriseTopbar'
 import EnterpriseModal from '../components/ui/EnterpriseModal'
 
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { HubConnectionBuilder, HttpTransportType } from '@microsoft/signalr'
+import { operationsIssueApi } from '../services/api/operationsIssue'
+import API_BASE_URL from '../config/api'
+
 export const CompanyLayout: React.FC = () => {
   const { user, clearAuth } = useAuthStore()
   const { theme, toggleTheme, initTheme } = useThemeStore()
   const { showToast } = useNotificationStore()
   const navigate = useNavigate()
   const location = useLocation()
+  const queryClient = useQueryClient()
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showQuickActions, setShowQuickActions] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+
+  // Unread Count Query (15-second polling fallback)
+  const { data: unreadCount = 0 } = useQuery<number>({
+    queryKey: ['operationsUnreadCount'],
+    queryFn: async () => {
+      try {
+        const res = await operationsIssueApi.getUnreadCount()
+        return res.data?.unreadCount || 0
+      } catch {
+        return 0
+      }
+    },
+    refetchInterval: 15000
+  })
+
+  // Latest Notifications Query
+  const { data: notificationsList = [] } = useQuery<any[]>({
+    queryKey: ['operationsLatestNotifications'],
+    queryFn: async () => {
+      try {
+        const res = await operationsIssueApi.getLatestNotifications(5)
+        return res.data || []
+      } catch {
+        return []
+      }
+    },
+    refetchInterval: 15000
+  })
+
+  // Real-time SignalR Connection to /hubs/dashboard
+  useEffect(() => {
+    let hubConn: any = null
+    let isMounted = true
+
+    const connectHub = async () => {
+      try {
+        hubConn = new HubConnectionBuilder()
+          .withUrl(`${API_BASE_URL}/hubs/dashboard`, {
+            skipNegotiation: true,
+            transport: HttpTransportType.WebSockets
+          })
+          .withAutomaticReconnect([1000, 2000, 5000, 10000, 30000])
+          .build()
+
+        hubConn.on('DashboardEvent', (evt: any) => {
+          if (!isMounted) return
+          const eventType = evt?.event_type || ''
+          if (eventType.includes('operations-issue') || eventType.includes('issue')) {
+            queryClient.invalidateQueries({ queryKey: ['operationsUnreadCount'] })
+            queryClient.invalidateQueries({ queryKey: ['operationsLatestNotifications'] })
+            queryClient.invalidateQueries({ queryKey: ['operationsIssues'] })
+            queryClient.invalidateQueries({ queryKey: ['operationsDashboard'] })
+          }
+        })
+
+        await hubConn.start()
+        if (user?.tenantId) {
+          await hubConn.invoke('SubscribeToTenant', user.tenantId)
+        }
+      } catch (err) {
+        // Fallback polling handles updates if SignalR fails to connect
+      }
+    }
+
+    connectHub()
+
+    return () => {
+      isMounted = false
+      if (hubConn) {
+        hubConn.stop()
+      }
+    }
+  }, [user?.tenantId, queryClient])
 
   useEffect(() => {
     initTheme()
@@ -52,6 +131,23 @@ export const CompanyLayout: React.FC = () => {
     clearAuth()
     showToast('Successfully logged out.', 'info')
     navigate('/login')
+  }
+
+  const handleMarkAllRead = async () => {
+    try {
+      await operationsIssueApi.markAllIssuesAsRead()
+      queryClient.invalidateQueries({ queryKey: ['operationsUnreadCount'] })
+      queryClient.invalidateQueries({ queryKey: ['operationsLatestNotifications'] })
+      queryClient.invalidateQueries({ queryKey: ['operationsIssues'] })
+      showToast('All notifications marked as read.', 'success')
+    } catch {
+      showToast('Failed to mark all read.', 'error')
+    }
+  }
+
+  const handleNotificationClick = (id: string) => {
+    setNotificationsOpen(false)
+    navigate(`/company/operations-issues/${id}`)
   }
 
   const sidebarItems = [
@@ -82,7 +178,13 @@ export const CompanyLayout: React.FC = () => {
     { label: 'Business Intelligence', path: '/company/business-finance', icon: <TrendingUp className="w-5 h-5" /> },
     { label: 'Customers', path: '/company/customers', icon: <Users className="w-5 h-5" /> },
     { label: 'Employees', path: '/company/employees', icon: <IdCard className="w-5 h-5" /> },
-    { label: 'Operations Issues', path: '/company/operations-issues', icon: <AlertTriangle className="w-5 h-5" /> },
+    { 
+      label: 'Operations Issues', 
+      path: '/company/operations-issues', 
+      icon: <AlertTriangle className="w-5 h-5" />,
+      badge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined,
+      pulseBadge: unreadCount > 0
+    },
     { label: 'Company Settings', path: '/company/settings', icon: <Settings className="w-5 h-5" /> },
     { label: 'Backup & Restore', path: '/company/backups', icon: <Database className="w-5 h-5" /> },
   ]
@@ -139,7 +241,6 @@ export const CompanyLayout: React.FC = () => {
         className="flex-1 flex flex-col min-w-0 transition-all duration-300"
         style={{ paddingLeft: sidebarCollapsed ? '80px' : '256px' }}
       >
-        {/* Reusable Enterprise Topbar */}
         <EnterpriseTopbar
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -150,6 +251,10 @@ export const CompanyLayout: React.FC = () => {
           onToggleProfileMenu={() => setProfileMenuOpen(!profileMenuOpen)}
           user={user}
           onLogout={handleLogout}
+          notificationsCount={unreadCount}
+          notificationsList={notificationsList}
+          onNotificationClick={handleNotificationClick}
+          onMarkAllRead={handleMarkAllRead}
         />
 
         {/* Content Viewport */}

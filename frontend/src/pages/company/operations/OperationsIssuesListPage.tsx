@@ -15,7 +15,8 @@ import {
   Cpu,
   UserCheck,
   Eye,
-  Flame
+  Flame,
+  Bell
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from '../../../utils/toast';
@@ -125,8 +126,20 @@ export const OperationsIssuesListPage: React.FC = () => {
         actions={
           <div className="flex items-center gap-2">
             <button
+              onClick={async () => {
+                await operationsIssueApi.markAllIssuesAsRead()
+                refetch()
+                refetchDashboard()
+                queryClient.invalidateQueries({ queryKey: ['operationsUnreadCount'] })
+                showToast('All issues marked as read.', 'success')
+              }}
+              className="h-[32px] px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-slate-600" /> Mark All Read
+            </button>
+            <button
               onClick={() => navigate('/company/operations-issues/quick-report')}
-              className="h-[32px] px-3 bg-amber-500 hover:bg-amber-600 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+              className="h-[32px] px-3 bg-amber-500 hover:bg-amber-600 text-white text-[12px] font-extrabold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
             >
               <Zap className="w-3.5 h-3.5 fill-current" /> 30s Operator Report
             </button>
@@ -143,6 +156,23 @@ export const OperationsIssuesListPage: React.FC = () => {
       {/* KPI Cards */}
       {dashboard && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <EnterpriseCard className="p-4 bg-white border border-slate-200">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Unread Incidents</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <h3 className="text-2xl font-black text-red-600">{dashboard.unreadIssues ?? 0}</h3>
+                  {(dashboard.unreadIssues ?? 0) > 0 && (
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse ring-2 ring-red-300" />
+                  )}
+                </div>
+              </div>
+              <div className="p-2.5 bg-red-50 text-red-600 rounded-lg">
+                <Bell className="w-5 h-5" />
+              </div>
+            </div>
+          </EnterpriseCard>
+
           <EnterpriseCard className="p-4 bg-white border border-slate-200">
             <div className="flex justify-between items-start">
               <div>
@@ -319,9 +349,30 @@ export const OperationsIssuesListPage: React.FC = () => {
                     accessorKey: 'title',
                     cell: (row: OperationsIssue) => (
                       <div className="space-y-0.5">
-                        <p className="font-semibold text-slate-900 text-xs">{row.title}</p>
+                        <div className="flex items-center gap-1.5">
+                          {!row.isRead && (
+                            <span className="bg-red-600 text-white font-black text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse shadow-sm">
+                              NEW
+                            </span>
+                          )}
+                          <p className={`text-xs ${!row.isRead ? 'font-extrabold text-slate-900' : 'font-semibold text-slate-800'}`}>
+                            {row.title}
+                          </p>
+                        </div>
                         <p className="text-[11px] text-slate-500">{row.category} {row.machineName ? `• ${row.machineName}` : ''}</p>
                       </div>
+                    )
+                  },
+                  {
+                    id: 'batchNumber',
+                    header: 'Current Batch',
+                    accessorKey: 'batchNumber',
+                    cell: (row: OperationsIssue) => row.batchNumber ? (
+                      <span className="font-mono text-[11px] font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                        {row.batchNumber}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 text-xs italic">—</span>
                     )
                   },
                   {

@@ -6,7 +6,8 @@ import FilterBar from '../../components/ui/layout/FilterBar';
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { api } from '../../services/api'
-import { ArrowLeft, AlertTriangle, ChevronDown, ChevronUp, Package, Clock, User, Calendar, History, Box, FileText, CheckCircle2, PlayCircle, Layers } from 'lucide-react'
+import { operationsIssueApi } from '../../services/api/operationsIssue'
+import { ArrowLeft, AlertTriangle, ChevronDown, ChevronUp, Package, Clock, User, Calendar, History, Box, FileText, CheckCircle2, PlayCircle, Layers, Wrench, ShieldCheck } from 'lucide-react'
 import EnterpriseLoading from '../../components/ui/EnterpriseLoading'
 
 // ─── Live Duration Cell ────────────────────────────────────────────────────────
@@ -171,6 +172,16 @@ export const BatchDetailsPage: React.FC = () => {
           productionLineName: undefined as any,
         }
       : null)
+
+  const { data: batchIssues = [] } = useQuery<any[]>({
+    queryKey: ['batchIssues', batchMeta?.batchNumber],
+    queryFn: async () => {
+      if (!batchMeta?.batchNumber) return [];
+      const res = await operationsIssueApi.getIssuesForBatch(batchMeta.batchNumber);
+      return res.data || [];
+    },
+    enabled: !!batchMeta?.batchNumber
+  })
 
   if (activeLoading || summaryLoading || entriesLoading) {
     return <EnterpriseLoading label="Loading batch workspace..." />
@@ -354,6 +365,49 @@ export const BatchDetailsPage: React.FC = () => {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+
+            {/* Reported Operations Issues Section */}
+            <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-slate-100 bg-amber-50/50 flex justify-between items-center">
+                <h3 className="text-[14px] font-bold text-slate-900 flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  Reported Batch Incidents & Issues ({batchIssues.length})
+                </h3>
+              </div>
+              <div className="p-3">
+                {batchIssues.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic py-3 text-center">No operations issues reported during this batch.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {batchIssues.map((issue: any) => (
+                      <div key={issue.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between gap-3">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-bold text-blue-600">#{issue.issueNumber}</span>
+                            <span className="text-xs font-bold text-slate-900">{issue.title}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500">{issue.category} • Reported by {issue.reportedByName}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded ${issue.priority === 'Critical' || issue.priority === 'Emergency' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'}`}>
+                            {issue.priority}
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-700">
+                            {issue.status}
+                          </span>
+                          <button
+                            onClick={() => navigate(`/company/operations-issues/${issue.id}`)}
+                            className="px-2.5 py-1 bg-blue-600 text-white text-[11px] font-bold rounded hover:bg-blue-700 transition-colors"
+                          >
+                            Open Issue
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
