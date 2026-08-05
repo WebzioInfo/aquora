@@ -18,6 +18,7 @@ using Aquora.Infrastructure;
 using Aquora.Persistence;
 using Aquora.Persistence.Context;
 using Aquora.Domain.Entities;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -128,6 +129,14 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddPersistence(builder.Configuration);
 
+// Configure Reverse Proxy Forwarded Headers (X-Forwarded-For & X-Forwarded-Proto)
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 // Permission Authorization Core
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
@@ -223,7 +232,7 @@ builder.Services.AddCors(options =>
             }
         }
 
-        // 3. Always include local development origins to prevent local production builds/containers CORS issues
+        // 3. Always include local development origins
         origins.Add("http://localhost:5173");
         origins.Add("http://localhost:5174");
         origins.Add("http://localhost:3000");
@@ -231,7 +240,7 @@ builder.Services.AddCors(options =>
         origins.Add("http://127.0.0.1:5174");
         origins.Add("http://127.0.0.1:3000");
 
-        // Remove duplicates and trailing slashes
+        // Clean and deduplicate origins
         var uniqueOrigins = origins
             .Where(o => !string.IsNullOrWhiteSpace(o))
             .Select(o => o.Trim().TrimEnd('/'))
@@ -239,39 +248,54 @@ builder.Services.AddCors(options =>
             .ToArray();
 
         policy.WithOrigins(uniqueOrigins)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+              .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+              .WithHeaders("Content-Type", "Authorization", "X-Tenant-Id", "Accept", "X-Requested-With", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers")
+              .AllowCredentials()
+              .SetPreflightMaxAge(TimeSpan.FromHours(1));
     });
 });
 
 var app = builder.Build();
 
-// Configure Middleware Pipeline
+// Task 1 & 2: Microsoft Recommended Pipeline Order
+// 1. Forwarded Headers (MUST be first to process reverse proxy headers!)
+app.UseForwardedHeaders();
+
+// 2. Global Exception Middleware
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-if (app.Environment.IsDevelopment() || true) // Enable Swagger in production container too for demo purposes
+// 3. Swagger Documentation
+if (app.Environment.IsDevelopment() || true)
 {
     app.UseSwagger();
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Aquora API SaaS Foundation v1"));
 }
 
-app.UseCors("CorsPolicy");
-
-app.UseRateLimiter();
-
+// 4. HTTPS Redirection (Production only, AFTER ForwardedHeaders and BEFORE UseRouting/UseCors!)
 if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
 
+// 5. UseRouting (MUST be before UseCors!)
+app.UseRouting();
+
+// 6. UseCors (MUST be after UseRouting and UseHttpsRedirection!)
+app.UseCors("CorsPolicy");
+
+// 7. Rate Limiting
+app.UseRateLimiter();
+
+// 8. Authentication
 app.UseAuthentication();
 
-// Tenant resolution placed after Authentication so it can read JWT claims!
+// 9. Tenant Resolution Middleware (after Authentication to read JWT claims)
 app.UseMiddleware<TenantResolutionMiddleware>();
 
+// 10. Authorization
 app.UseAuthorization();
 
+// 11. Endpoint Mapping
 app.MapControllers();
 app.MapHealthChecks("/health");
 app.MapHub<NotificationHub>("/hub/notifications");
