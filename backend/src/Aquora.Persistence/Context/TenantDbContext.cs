@@ -102,6 +102,10 @@ namespace Aquora.Persistence.Context
         public DbSet<Aquora.Domain.Entities.QC.QCAuditLog> QCAuditLogs => Set<Aquora.Domain.Entities.QC.QCAuditLog>();
         public DbSet<Aquora.Domain.Entities.QC.QCSettings> QCSettings => Set<Aquora.Domain.Entities.QC.QCSettings>();
 
+        // Administration & Backup Module
+        public DbSet<Aquora.Domain.Entities.Administration.BackupHistory> BackupHistories => Set<Aquora.Domain.Entities.Administration.BackupHistory>();
+        public DbSet<Aquora.Domain.Entities.Administration.RestoreHistory> RestoreHistories => Set<Aquora.Domain.Entities.Administration.RestoreHistory>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -118,6 +122,18 @@ namespace Aquora.Persistence.Context
 
             modelBuilder.Entity<TenantDomain>()
                 .ToTable("TenantDomains", "public", t => t.ExcludeFromMigrations());
+
+            // BackupHistory Configuration (Make tracking fields safely nullable for backward compatibility)
+            modelBuilder.Entity<Aquora.Domain.Entities.Administration.BackupHistory>()
+                .Property(b => b.Format).IsRequired(false);
+            modelBuilder.Entity<Aquora.Domain.Entities.Administration.BackupHistory>()
+                .Property(b => b.TenantName).IsRequired(false);
+            modelBuilder.Entity<Aquora.Domain.Entities.Administration.BackupHistory>()
+                .Property(b => b.Version).IsRequired(false);
+            modelBuilder.Entity<Aquora.Domain.Entities.Administration.BackupHistory>()
+                .Property(b => b.EngineVersion).IsRequired(false);
+            modelBuilder.Entity<Aquora.Domain.Entities.Administration.BackupHistory>()
+                .Property(b => b.Encryption).IsRequired(false);
 
             // Quality Control Module Configuration
             modelBuilder.Entity<Aquora.Domain.Entities.QC.WaterTestResult>()

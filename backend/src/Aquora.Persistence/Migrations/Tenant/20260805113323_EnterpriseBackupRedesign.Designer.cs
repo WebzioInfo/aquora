@@ -3,6 +3,7 @@ using System;
 using Aquora.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Aquora.Persistence.Migrations.Tenant
 {
     [DbContext(typeof(TenantDbContext))]
-    partial class TenantDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260805113323_EnterpriseBackupRedesign")]
+    partial class EnterpriseBackupRedesign
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -67,9 +70,11 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .HasColumnType("integer");
 
                     b.Property<string>("Encryption")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("EngineVersion")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("FilePath")
@@ -77,6 +82,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .HasColumnType("text");
 
                     b.Property<string>("Format")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Hash")
@@ -122,6 +128,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .HasColumnType("uuid");
 
                     b.Property<string>("TenantName")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -134,6 +141,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .HasColumnType("text");
 
                     b.Property<string>("Version")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");

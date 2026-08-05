@@ -36,6 +36,9 @@ namespace Aquora.Application
             services.AddScoped<IQualityEvaluationService, QualityEvaluationService>();
             services.AddScoped<IQCPdfCertificateService, QCPdfCertificateService>();
             services.AddScoped<IWaterTestService, WaterTestService>();
+            services.AddScoped<IBackupService, BackupService>();
+            services.AddScoped<IExportService, ExportService>();
+
             return services;
         }
     }

@@ -52,6 +52,7 @@ const WaterTestReportDetailPage = React.lazy(() => import('../pages/company/qc/W
 const CompliancePage = React.lazy(() => import('../pages/company/qc/CompliancePage').then(m => ({ default: m.CompliancePage })))
 const ParametersManagementPage = React.lazy(() => import('../pages/company/qc/ParametersManagementPage').then(m => ({ default: m.ParametersManagementPage })))
 const QCSettingsPage = React.lazy(() => import('../pages/company/qc/QCSettingsPage').then(m => ({ default: m.QCSettingsPage })))
+const BackupRestorePage = React.lazy(() => import('../pages/admin/BackupRestorePage'))
 
 export const getDefaultRouteForUser = (user: any): string => {
   const getRoute = () => {
@@ -518,6 +519,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="suppliers" element={<CompanyDashboardPage />} />
         <Route path="employees" element={<CompanyDashboardPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="backups" element={<BackupRestorePage />} />
         <Route path="operations" element={<OperationsPage />} />
       </Route>
 

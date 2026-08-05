@@ -79,6 +79,10 @@ namespace Aquora.Application.Interfaces
         DbSet<Aquora.Domain.Entities.QC.QCAuditLog> QCAuditLogs { get; }
         DbSet<Aquora.Domain.Entities.QC.QCSettings> QCSettings { get; }
 
+        // Administration & Backup Module
+        DbSet<Aquora.Domain.Entities.Administration.BackupHistory> BackupHistories { get; }
+        DbSet<Aquora.Domain.Entities.Administration.RestoreHistory> RestoreHistories { get; }
+
         Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade Database { get; }
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }

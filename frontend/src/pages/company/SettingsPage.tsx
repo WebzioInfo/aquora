@@ -8,8 +8,10 @@ import { CompanyProfileForm } from './settings/CompanyProfileForm'
 import { SecuritySettings } from './settings/SecuritySettings'
 import { StationConfiguration } from './settings/StationConfiguration'
 import { UserSecurityStats } from './settings/UserSecurityStats'
+import BackupRestorePage from '../admin/BackupRestorePage'
+import { Database } from 'lucide-react'
 
-type TabKeys = 'profile' | 'security' | 'stations' | 'user-security'
+type TabKeys = 'profile' | 'security' | 'stations' | 'user-security' | 'backup-restore'
 
 export const SettingsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKeys>('profile')
@@ -19,6 +21,7 @@ export const SettingsPage: React.FC = () => {
     { key: 'security', label: 'Security', icon: <Shield className="w-4 h-4" /> },
     { key: 'stations', label: 'Station Configuration', icon: <Settings2 className="w-4 h-4" /> },
     { key: 'user-security', label: 'User Security', icon: <Users className="w-4 h-4" /> },
+    { key: 'backup-restore', label: 'Backup & Restore', icon: <Database className="w-4 h-4" /> },
   ]
 
   return (
@@ -63,6 +66,7 @@ export const SettingsPage: React.FC = () => {
           {activeTab === 'security' && <SecuritySettings />}
           {activeTab === 'stations' && <StationConfiguration />}
           {activeTab === 'user-security' && <UserSecurityStats />}
+          {activeTab === 'backup-restore' && <BackupRestorePage />}
         </div>
       </div>
     </PageContainer>

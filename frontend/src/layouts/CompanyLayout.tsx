@@ -10,7 +10,7 @@ import { setCompanyPrefs } from '../utils/dateFormatter'
 import {
   LayoutDashboard, Factory, Package, TrendingUp, Users, Truck,
   Settings, ChevronRight, Play, Plus, X, Layers, Workflow, CalendarClock,
-  Droplet, Boxes, Tag, ShoppingCart, PieChart, IdCard, Beaker
+  Droplet, Boxes, Tag, ShoppingCart, PieChart, IdCard, Beaker, Database
 } from 'lucide-react'
 import EnterpriseSidebar from '../components/ui/EnterpriseSidebar'
 import EnterpriseTopbar from '../components/ui/EnterpriseTopbar'
@@ -89,6 +89,7 @@ export const CompanyLayout: React.FC = () => {
     { label: 'Customers', path: '/company/customers', icon: <Users className="w-5 h-5" /> },
     { label: 'Employees', path: '/company/employees', icon: <IdCard className="w-5 h-5" /> },
     { label: 'Company Settings', path: '/company/settings', icon: <Settings className="w-5 h-5" /> },
+    { label: 'Backup & Restore', path: '/company/backups', icon: <Database className="w-5 h-5" /> },
   ]
 
   const getBreadcrumbs = () => {
