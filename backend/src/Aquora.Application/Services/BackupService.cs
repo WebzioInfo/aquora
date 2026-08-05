@@ -21,6 +21,7 @@ namespace Aquora.Application.Services
     public class BackupService : IBackupService
     {
         private readonly ITenantDbContext _context;
+        private readonly IPlatformDbContext _platformContext;
         private readonly ITenantProvider _tenantProvider;
         private readonly ICurrentUserContext _currentUserContext;
         private readonly IConfiguration _configuration;
@@ -29,6 +30,7 @@ namespace Aquora.Application.Services
 
         public BackupService(
             ITenantDbContext context,
+            IPlatformDbContext platformContext,
             ITenantProvider tenantProvider,
             ICurrentUserContext currentUserContext,
             IConfiguration configuration,
@@ -36,6 +38,7 @@ namespace Aquora.Application.Services
             Microsoft.Extensions.Logging.ILogger<BackupService> logger)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
+            _platformContext = platformContext ?? throw new ArgumentNullException(nameof(platformContext));
             _tenantProvider = tenantProvider ?? throw new ArgumentNullException(nameof(tenantProvider));
             _currentUserContext = currentUserContext ?? throw new ArgumentNullException(nameof(currentUserContext));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
@@ -95,7 +98,7 @@ namespace Aquora.Application.Services
         public async Task<List<BackupHistoryDto>> GetBackupHistoryAsync()
         {
             var tenantId = _tenantProvider.TenantId;
-            var list = await _context.BackupHistories
+            var list = await _platformContext.BackupHistories
                 .Where(h => h.TenantId == tenantId && !h.IsDeleted)
                 .OrderByDescending(h => h.CreatedAt)
                 .ToListAsync();
@@ -109,7 +112,7 @@ namespace Aquora.Application.Services
         public async Task<BackupHistoryDto?> GetBackupByIdAsync(Guid id)
         {
             var tenantId = _tenantProvider.TenantId;
-            var entity = await _context.BackupHistories
+            var entity = await _platformContext.BackupHistories
                 .FirstOrDefaultAsync(h => h.Id == id && h.TenantId == tenantId && !h.IsDeleted);
 
             if (entity == null) return null;
@@ -257,8 +260,8 @@ namespace Aquora.Application.Services
                 CreatedBy = currentUserId
             };
 
-            _context.BackupHistories.Add(backupEntity);
-            await _context.SaveChangesAsync();
+            _platformContext.BackupHistories.Add(backupEntity);
+            await _platformContext.SaveChangesAsync();
 
             // Log Audit Action
             await CreateAuditLogAsync("CREATE_BACKUP", $"Created backup '{backupEntity.BackupName}' ({FormatBytes(backupEntity.BackupSize)})");
@@ -270,7 +273,7 @@ namespace Aquora.Application.Services
         public async Task<(byte[] FileBytes, string ContentType, string FileName)> DownloadBackupAsync(Guid id)
         {
             var tenantId = _tenantProvider.TenantId;
-            var backup = await _context.BackupHistories
+            var backup = await _platformContext.BackupHistories
                 .FirstOrDefaultAsync(h => h.Id == id && h.TenantId == tenantId && !h.IsDeleted);
 
             if (backup == null || !File.Exists(backup.FilePath))
@@ -280,7 +283,7 @@ namespace Aquora.Application.Services
 
             backup.DownloadCount++;
             backup.LastDownloaded = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
+            await _platformContext.SaveChangesAsync();
 
             await CreateAuditLogAsync("DOWNLOAD_BACKUP", $"Downloaded backup '{backup.BackupName}'");
 
@@ -296,7 +299,7 @@ namespace Aquora.Application.Services
         {
             var tenantId = _tenantProvider.TenantId;
             var currentUserId = _currentUserContext.UserId ?? "System";
-            var backup = await _context.BackupHistories
+            var backup = await _platformContext.BackupHistories
                 .FirstOrDefaultAsync(h => h.Id == id && h.TenantId == tenantId && !h.IsDeleted);
 
             if (backup == null) return false;
@@ -310,7 +313,7 @@ namespace Aquora.Application.Services
                 try { File.Delete(backup.FilePath); } catch { }
             }
 
-            await _context.SaveChangesAsync();
+            await _platformContext.SaveChangesAsync();
             await CreateAuditLogAsync("DELETE_BACKUP", $"Deleted backup '{backup.BackupName}'");
             return true;
         }
@@ -327,7 +330,7 @@ namespace Aquora.Application.Services
             var currentUserId = _currentUserContext.UserId ?? "System";
             var startTime = DateTime.UtcNow;
 
-            var backup = await _context.BackupHistories
+            var backup = await _platformContext.BackupHistories
                 .FirstOrDefaultAsync(h => h.Id == backupId && h.TenantId == tenantId && !h.IsDeleted);
 
             if (backup == null || !File.Exists(backup.FilePath))
@@ -490,9 +493,9 @@ namespace Aquora.Application.Services
                     CreatedBy = currentUserId
                 };
 
-                _context.RestoreHistories.Add(restoreLog);
+                _platformContext.RestoreHistories.Add(restoreLog);
                 backup.Status = "RESTORED";
-                await _context.SaveChangesAsync();
+                await _platformContext.SaveChangesAsync();
 
                 await CreateAuditLogAsync("RESTORE_SUCCESS", $"Successfully restored snapshot '{backup.BackupName}' in {durationMs} ms");
 
@@ -553,8 +556,8 @@ namespace Aquora.Application.Services
                 CreatedBy = currentUserId
             };
 
-            _context.BackupHistories.Add(backupEntity);
-            await _context.SaveChangesAsync();
+            _platformContext.BackupHistories.Add(backupEntity);
+            await _platformContext.SaveChangesAsync();
 
             await CreateAuditLogAsync("UPLOAD_BACKUP", $"Uploaded backup file '{fileName}'");
 
@@ -565,7 +568,7 @@ namespace Aquora.Application.Services
         public async Task<BackupStorageStatsDto> GetStorageStatsAsync()
         {
             var tenantId = _tenantProvider.TenantId;
-            var histories = await _context.BackupHistories
+            var histories = await _platformContext.BackupHistories
                 .Where(h => h.TenantId == tenantId && !h.IsDeleted)
                 .ToListAsync();
 
@@ -592,7 +595,7 @@ namespace Aquora.Application.Services
         public async Task<BackupInspectionDto> InspectBackupAsync(Guid id)
         {
             var tenantId = _tenantProvider.TenantId;
-            var backup = await _context.BackupHistories
+            var backup = await _platformContext.BackupHistories
                 .FirstOrDefaultAsync(h => h.Id == id && h.TenantId == tenantId && !h.IsDeleted);
 
             if (backup == null || !File.Exists(backup.FilePath))
@@ -645,7 +648,7 @@ namespace Aquora.Application.Services
         public async Task<TableDataPreviewDto> GetBackupTablePreviewAsync(Guid id, string tableName)
         {
             var tenantId = _tenantProvider.TenantId;
-            var backup = await _context.BackupHistories
+            var backup = await _platformContext.BackupHistories
                 .FirstOrDefaultAsync(h => h.Id == id && h.TenantId == tenantId && !h.IsDeleted);
 
             if (backup == null || !File.Exists(backup.FilePath) || backup.Format != "AQB")
@@ -686,7 +689,7 @@ namespace Aquora.Application.Services
         public async Task<BackupVerificationDto> VerifyBackupIntegrityAsync(Guid id)
         {
             var tenantId = _tenantProvider.TenantId;
-            var backup = await _context.BackupHistories
+            var backup = await _platformContext.BackupHistories
                 .FirstOrDefaultAsync(h => h.Id == id && h.TenantId == tenantId && !h.IsDeleted);
 
             if (backup == null || !File.Exists(backup.FilePath))
@@ -730,7 +733,7 @@ namespace Aquora.Application.Services
         {
             var tenantId = _tenantProvider.TenantId;
             var schemaName = _tenantProvider.TenantSchemaName;
-            var backup = await _context.BackupHistories
+            var backup = await _platformContext.BackupHistories
                 .FirstOrDefaultAsync(h => h.Id == id && h.TenantId == tenantId && !h.IsDeleted);
 
             if (backup == null) throw new KeyNotFoundException("Backup not found");
@@ -783,13 +786,13 @@ namespace Aquora.Application.Services
         private async Task<List<RestoreHistoryDto>> GetRestoreHistoryAsync()
         {
             var tenantId = _tenantProvider.TenantId;
-            var list = await _context.RestoreHistories
+            var list = await _platformContext.RestoreHistories
                 .Where(r => r.TenantId == tenantId)
                 .OrderByDescending(r => r.StartedAt)
                 .ToListAsync();
 
             var backupIds = list.Select(r => r.BackupId).Distinct().ToList();
-            var backups = await _context.BackupHistories
+            var backups = await _platformContext.BackupHistories
                 .Where(b => backupIds.Contains(b.Id))
                 .ToDictionaryAsync(b => b.Id, b => b.BackupName);
 
@@ -962,8 +965,8 @@ namespace Aquora.Application.Services
                 CreatedBy = userId
             };
 
-            _context.RestoreHistories.Add(restoreLog);
-            await _context.SaveChangesAsync();
+            _platformContext.RestoreHistories.Add(restoreLog);
+            await _platformContext.SaveChangesAsync();
 
             await CreateAuditLogAsync("RESTORE_FAILED", $"Failed to restore snapshot '{backupId}': {details}");
         }

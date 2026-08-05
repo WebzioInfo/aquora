@@ -6,7 +6,7 @@ import { useNotificationStore } from '../store/useNotificationStore'
 import ToastContainer from '../components/ui/ToastContainer'
 import { 
   LayoutDashboard, Building2, Users, CreditCard, HeartPulse, Database, 
-  History, Settings, ChevronRight
+  History, Settings, ChevronRight, Archive
 } from 'lucide-react'
 import EnterpriseSidebar from '../components/ui/EnterpriseSidebar'
 import EnterpriseTopbar from '../components/ui/EnterpriseTopbar'
@@ -40,6 +40,7 @@ export const PlatformLayout: React.FC = () => {
     { label: 'Subscriptions', path: '/platform/subscriptions', icon: <CreditCard className="w-5 h-5" /> },
     { label: 'System Health', path: '/platform/system-health', icon: <HeartPulse className="w-5 h-5" /> },
     { label: 'Database Status', path: '/platform/database', icon: <Database className="w-5 h-5" /> },
+    { label: 'Disaster Recovery', path: '/platform/backups', icon: <Archive className="w-5 h-5" /> },
     { label: 'Audit Trails', path: '/platform/audit', icon: <History className="w-5 h-5" /> },
     { label: 'Settings', path: '/platform/settings', icon: <Settings className="w-5 h-5" /> },
   ]

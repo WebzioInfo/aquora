@@ -21,6 +21,8 @@ namespace Aquora.Application.Interfaces
         DbSet<SubscriptionPlanLimits> SubscriptionPlanLimits { get; }
         DbSet<TenantSubscription> TenantSubscriptions { get; }
         DbSet<SubscriptionAuditLog> SubscriptionAuditLogs { get; }
+        DbSet<Aquora.Domain.Entities.Administration.BackupHistory> BackupHistories { get; }
+        DbSet<Aquora.Domain.Entities.Administration.RestoreHistory> RestoreHistories { get; }
 
         DatabaseFacade Database { get; }
 

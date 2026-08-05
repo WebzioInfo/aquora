@@ -53,6 +53,7 @@ const CompliancePage = React.lazy(() => import('../pages/company/qc/CompliancePa
 const ParametersManagementPage = React.lazy(() => import('../pages/company/qc/ParametersManagementPage').then(m => ({ default: m.ParametersManagementPage })))
 const QCSettingsPage = React.lazy(() => import('../pages/company/qc/QCSettingsPage').then(m => ({ default: m.QCSettingsPage })))
 const BackupRestorePage = React.lazy(() => import('../pages/admin/BackupRestorePage'))
+const PlatformBackupCenterPage = React.lazy(() => import('../pages/platform/PlatformBackupCenterPage'))
 
 export const getDefaultRouteForUser = (user: any): string => {
   const getRoute = () => {
@@ -471,6 +472,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="subscriptions" element={<PlatformManagementPage />} />
         <Route path="system-health" element={<PlatformManagementPage />} />
         <Route path="database" element={<PlatformManagementPage />} />
+        <Route path="backups" element={<PlatformBackupCenterPage />} />
         <Route path="audit" element={<PlatformManagementPage />} />
         <Route path="settings" element={<PlatformManagementPage />} />
       </Route>

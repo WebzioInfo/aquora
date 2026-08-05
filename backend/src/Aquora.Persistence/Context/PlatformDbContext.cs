@@ -34,6 +34,8 @@ namespace Aquora.Persistence.Context
         public DbSet<SubscriptionPlanLimits> SubscriptionPlanLimits => Set<SubscriptionPlanLimits>();
         public DbSet<TenantSubscription> TenantSubscriptions => Set<TenantSubscription>();
         public DbSet<SubscriptionAuditLog> SubscriptionAuditLogs => Set<SubscriptionAuditLog>();
+        public DbSet<Aquora.Domain.Entities.Administration.BackupHistory> BackupHistories => Set<Aquora.Domain.Entities.Administration.BackupHistory>();
+        public DbSet<Aquora.Domain.Entities.Administration.RestoreHistory> RestoreHistories => Set<Aquora.Domain.Entities.Administration.RestoreHistory>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -91,6 +93,12 @@ namespace Aquora.Persistence.Context
                 .WithMany(sp => sp.Features)
                 .HasForeignKey(sf => sf.PlanId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Aquora.Domain.Entities.Administration.BackupHistory>()
+                .ToTable("BackupHistories", "public");
+
+            modelBuilder.Entity<Aquora.Domain.Entities.Administration.RestoreHistory>()
+                .ToTable("RestoreHistories", "public");
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

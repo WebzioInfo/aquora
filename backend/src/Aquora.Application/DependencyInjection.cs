@@ -38,6 +38,9 @@ namespace Aquora.Application
             services.AddScoped<IWaterTestService, WaterTestService>();
             services.AddScoped<IBackupService, BackupService>();
             services.AddScoped<IExportService, ExportService>();
+            services.AddSingleton<IPlatformBackupJobManager, PlatformBackupJobManager>();
+            services.AddScoped<IPlatformBackupEngine, PlatformBackupEngine>();
+            services.AddScoped<IPlatformBackupService, PlatformBackupService>();
 
             return services;
         }
