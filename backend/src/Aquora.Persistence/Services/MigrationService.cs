@@ -599,7 +599,73 @@ namespace Aquora.Persistence.Services
                                                 CONSTRAINT fk_parameter FOREIGN KEY (""ParameterId"") REFERENCES ""{schema}"".""WaterTestParameters"" (""Id"") ON DELETE RESTRICT
                                             );
 
-                                            CREATE UNIQUE INDEX IF NOT EXISTS uq_water_test_results ON ""{schema}"".""WaterTestResults"" (""ReportId"", ""ParameterId"");";
+                                            CREATE UNIQUE INDEX IF NOT EXISTS uq_water_test_results ON ""{schema}"".""WaterTestResults"" (""ReportId"", ""ParameterId"");
+
+                                            CREATE TABLE IF NOT EXISTS ""{schema}"".""OperationsIssues"" (
+                                                ""Id"" uuid NOT NULL PRIMARY KEY,
+                                                ""TenantId"" uuid NOT NULL,
+                                                ""CompanyId"" uuid NOT NULL,
+                                                ""IssueNumber"" text NOT NULL,
+                                                ""Title"" text NOT NULL,
+                                                ""Description"" text NOT NULL,
+                                                ""Department"" text NOT NULL DEFAULT 'Production',
+                                                ""Category"" text NOT NULL DEFAULT 'Machine Breakdown',
+                                                ""Priority"" text NOT NULL DEFAULT 'Medium',
+                                                ""Status"" text NOT NULL DEFAULT 'Open',
+                                                ""ReportedByUserId"" text NOT NULL,
+                                                ""ReportedByName"" text NOT NULL,
+                                                ""AssignedToUserId"" text NULL,
+                                                ""AssignedToName"" text NULL,
+                                                ""MachineId"" uuid NULL,
+                                                ""MachineName"" text NULL,
+                                                ""ProductionLineId"" uuid NULL,
+                                                ""ProductionLineName"" text NULL,
+                                                ""BatchNumber"" text NULL,
+                                                ""ShiftId"" uuid NULL,
+                                                ""ReportedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                                ""DueDate"" timestamp with time zone NULL,
+                                                ""ResolvedAt"" timestamp with time zone NULL,
+                                                ""ClosedAt"" timestamp with time zone NULL,
+                                                ""VerifiedAt"" timestamp with time zone NULL,
+                                                ""EstimatedCost"" numeric NULL,
+                                                ""ActualCost"" numeric NULL,
+                                                ""DowntimeMinutes"" integer NULL,
+                                                ""RequiresMaintenance"" boolean NOT NULL DEFAULT false,
+                                                ""MaintenanceWorkOrderId"" uuid NULL,
+                                                ""RootCause"" text NULL,
+                                                ""CorrectiveAction"" text NULL,
+                                                ""PreventiveAction"" text NULL,
+                                                ""Attachments"" text NULL,
+                                                ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                                ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                                ""CreatedBy"" text NOT NULL,
+                                                ""UpdatedAt"" timestamp with time zone NULL,
+                                                ""UpdatedBy"" text NULL,
+                                                ""DeletedAt"" timestamp with time zone NULL,
+                                                ""DeletedBy"" text NULL
+                                            );
+
+                                            CREATE TABLE IF NOT EXISTS ""{schema}"".""OperationsIssueComments"" (
+                                                ""Id"" uuid NOT NULL PRIMARY KEY,
+                                                ""IssueId"" uuid NOT NULL,
+                                                ""AuthorId"" text NOT NULL,
+                                                ""AuthorName"" text NOT NULL,
+                                                ""AuthorRole"" text NOT NULL,
+                                                ""Message"" text NOT NULL,
+                                                ""AttachmentUrl"" text NULL,
+                                                ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                                CONSTRAINT fk_issue_comments FOREIGN KEY (""IssueId"") REFERENCES ""{schema}"".""OperationsIssues"" (""Id"") ON DELETE CASCADE
+                                            );
+
+                                            CREATE TABLE IF NOT EXISTS ""{schema}"".""OperationsIssueHistories"" (
+                                                ""Id"" uuid NOT NULL PRIMARY KEY,
+                                                ""IssueId"" uuid NOT NULL,
+                                                ""PerformedBy"" text NOT NULL,
+                                                ""Action"" text NOT NULL,
+                                                ""Details"" text NULL,
+                                                ""Timestamp"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                                CONSTRAINT fk_issue_history FOREIGN KEY (""IssueId"") REFERENCES ""{schema}"".""OperationsIssues"" (""Id"") ON DELETE CASCADE
+                                            );";
                                         await cmd.ExecuteNonQueryAsync();
                                     }
                                     catch {}

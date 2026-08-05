@@ -55,6 +55,12 @@ const QCSettingsPage = React.lazy(() => import('../pages/company/qc/QCSettingsPa
 const BackupRestorePage = React.lazy(() => import('../pages/admin/BackupRestorePage'))
 const PlatformBackupCenterPage = React.lazy(() => import('../pages/platform/PlatformBackupCenterPage'))
 
+// Operations Issues Pages
+const OperationsIssuesListPage = React.lazy(() => import('../pages/company/operations/OperationsIssuesListPage'))
+const OperationsIssueDetailPage = React.lazy(() => import('../pages/company/operations/OperationsIssueDetailPage'))
+const OperatorQuickReportPage = React.lazy(() => import('../pages/company/operations/OperatorQuickReportPage'))
+const OperationsIssueFormPage = React.lazy(() => import('../pages/company/operations/OperationsIssueFormPage'))
+
 export const getDefaultRouteForUser = (user: any): string => {
   const getRoute = () => {
     if (!user) return '/login'
@@ -523,6 +529,17 @@ export const AppRoutes: React.FC = () => {
         <Route path="settings" element={<SettingsPage />} />
         <Route path="backups" element={<BackupRestorePage />} />
         <Route path="operations" element={<OperationsPage />} />
+        {/* Operations Issues Module */}
+        <Route path="operations-issues" element={<OperationsIssuesListPage />} />
+        <Route path="operations-issues/quick-report" element={<OperatorQuickReportPage />} />
+        <Route path="operations-issues/new" element={<OperationsIssueFormPage />} />
+        <Route path="operations-issues/:id" element={<OperationsIssueDetailPage />} />
+        <Route path="operations-issues/:id/edit" element={<OperationsIssueFormPage />} />
+        {/* Water Test Reports */}
+        <Route path="qc/water-test" element={<WaterTestReportsListPage />} />
+        <Route path="qc/water-test/new" element={<WaterTestReportFormPage />} />
+        <Route path="qc/water-test/:id" element={<WaterTestReportDetailPage />} />
+        <Route path="qc/water-test/:id/edit" element={<WaterTestReportFormPage />} />
       </Route>
 
       {/* QC Portal */}

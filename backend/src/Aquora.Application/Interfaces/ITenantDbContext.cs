@@ -83,6 +83,11 @@ namespace Aquora.Application.Interfaces
         DbSet<Aquora.Domain.Entities.Administration.BackupHistory> BackupHistories { get; }
         DbSet<Aquora.Domain.Entities.Administration.RestoreHistory> RestoreHistories { get; }
 
+        // Operations Issue Management System Module
+        DbSet<Aquora.Domain.Entities.Operations.OperationsIssue> OperationsIssues { get; }
+        DbSet<Aquora.Domain.Entities.Operations.OperationsIssueComment> OperationsIssueComments { get; }
+        DbSet<Aquora.Domain.Entities.Operations.OperationsIssueHistory> OperationsIssueHistories { get; }
+
         Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade Database { get; }
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }

@@ -204,6 +204,31 @@ namespace Aquora.Application.Services
             return MapToDto(report, userNames);
         }
 
+        private string NormalizeParameterKey(string rawKey)
+        {
+            if (string.IsNullOrWhiteSpace(rawKey)) return string.Empty;
+            var trimmed = rawKey.Trim();
+
+            if (trimmed.StartsWith("seed-micro-", StringComparison.OrdinalIgnoreCase))
+            {
+                var sub = trimmed.Substring("seed-micro-".Length).Trim();
+                if (sub.Contains("22")) return "Aerobic Microbial Count 22°C";
+                if (sub.Contains("37")) return "Aerobic Microbial Count 37°C";
+                if (sub.Equals("e.coli", StringComparison.OrdinalIgnoreCase)) return "E.coli";
+                if (sub.Equals("coliform", StringComparison.OrdinalIgnoreCase)) return "Coliform";
+                if (sub.Equals("pseudomonas", StringComparison.OrdinalIgnoreCase)) return "Pseudomonas";
+                if (sub.Equals("clostridia", StringComparison.OrdinalIgnoreCase)) return "Clostridia";
+                if (sub.Contains("yeast")) return "Yeast & Mold";
+                return sub;
+            }
+            if (trimmed.Equals("taste-parameter-id", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Taste";
+            }
+
+            return trimmed;
+        }
+
         public async Task<WaterTestReportDto> CreateWaterTestReportAsync(CreateWaterTestReportRequest request)
         {
             var tenantId = GetTenantId();
@@ -231,23 +256,25 @@ namespace Aquora.Application.Services
             };
 
             var parameters = await _context.WaterTestParameters.ToListAsync();
-            var parameterMap = parameters
-                .GroupBy(p => p.Name.Trim(), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            var parameterMap = new Dictionary<string, WaterTestParameter>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var p in parameters)
             {
                 parameterMap[p.Id.ToString()] = p;
+                if (!string.IsNullOrWhiteSpace(p.Name))
+                {
+                    parameterMap[p.Name.Trim()] = p;
+                }
             }
 
             foreach (var rReq in request.Results)
             {
                 if (string.IsNullOrWhiteSpace(rReq.ParameterId)) continue;
 
-                var paramKey = rReq.ParameterId.Trim();
-                if (!parameterMap.TryGetValue(paramKey, out var param))
+                var normalizedKey = NormalizeParameterKey(rReq.ParameterId);
+                if (!parameterMap.TryGetValue(normalizedKey, out var param))
                 {
-                    param = parameters.FirstOrDefault(p => p.Id.ToString() == paramKey);
+                    param = parameters.FirstOrDefault(p => p.Id.ToString().Equals(normalizedKey, StringComparison.OrdinalIgnoreCase) || p.Name.Equals(normalizedKey, StringComparison.OrdinalIgnoreCase));
                 }
 
                 if (param == null)
@@ -255,13 +282,13 @@ namespace Aquora.Application.Services
                     param = new WaterTestParameter
                     {
                         Id = Guid.NewGuid(),
-                        Name = paramKey,
-                        Category = paramKey.Equals("e.coli", StringComparison.OrdinalIgnoreCase) || 
-                                   paramKey.Equals("coliform", StringComparison.OrdinalIgnoreCase) || 
-                                   paramKey.Equals("pseudomonas", StringComparison.OrdinalIgnoreCase) || 
-                                   paramKey.Equals("clostridia", StringComparison.OrdinalIgnoreCase) || 
-                                   paramKey.Equals("yeast & mold", StringComparison.OrdinalIgnoreCase) ||
-                                   paramKey.Contains("aerobic") || paramKey.Contains("amc") ? "MICROBIOLOGY" : "PHYSICAL",
+                        Name = normalizedKey,
+                        Category = normalizedKey.Equals("e.coli", StringComparison.OrdinalIgnoreCase) || 
+                                   normalizedKey.Equals("coliform", StringComparison.OrdinalIgnoreCase) || 
+                                   normalizedKey.Equals("pseudomonas", StringComparison.OrdinalIgnoreCase) || 
+                                   normalizedKey.Equals("clostridia", StringComparison.OrdinalIgnoreCase) || 
+                                   normalizedKey.Equals("yeast & mold", StringComparison.OrdinalIgnoreCase) ||
+                                   normalizedKey.Contains("aerobic") || normalizedKey.Contains("amc") ? "MICROBIOLOGY" : "PHYSICAL",
                         Unit = "—",
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow,
@@ -341,10 +368,10 @@ namespace Aquora.Application.Services
             {
                 if (string.IsNullOrWhiteSpace(rReq.ParameterId)) continue;
 
-                var paramKey = rReq.ParameterId.Trim();
-                if (!parameterMap.TryGetValue(paramKey, out var param))
+                var normalizedKey = NormalizeParameterKey(rReq.ParameterId);
+                if (!parameterMap.TryGetValue(normalizedKey, out var param))
                 {
-                    param = parameters.FirstOrDefault(p => p.Id.ToString() == paramKey);
+                    param = parameters.FirstOrDefault(p => p.Id.ToString().Equals(normalizedKey, StringComparison.OrdinalIgnoreCase) || p.Name.Equals(normalizedKey, StringComparison.OrdinalIgnoreCase));
                 }
 
                 if (param == null)
@@ -352,13 +379,13 @@ namespace Aquora.Application.Services
                     param = new WaterTestParameter
                     {
                         Id = Guid.NewGuid(),
-                        Name = paramKey,
-                        Category = paramKey.Equals("e.coli", StringComparison.OrdinalIgnoreCase) || 
-                                   paramKey.Equals("coliform", StringComparison.OrdinalIgnoreCase) || 
-                                   paramKey.Equals("pseudomonas", StringComparison.OrdinalIgnoreCase) || 
-                                   paramKey.Equals("clostridia", StringComparison.OrdinalIgnoreCase) || 
-                                   paramKey.Equals("yeast & mold", StringComparison.OrdinalIgnoreCase) ||
-                                   paramKey.Contains("aerobic") || paramKey.Contains("amc") ? "MICROBIOLOGY" : "PHYSICAL",
+                        Name = normalizedKey,
+                        Category = normalizedKey.Equals("e.coli", StringComparison.OrdinalIgnoreCase) || 
+                                   normalizedKey.Equals("coliform", StringComparison.OrdinalIgnoreCase) || 
+                                   normalizedKey.Equals("pseudomonas", StringComparison.OrdinalIgnoreCase) || 
+                                   normalizedKey.Equals("clostridia", StringComparison.OrdinalIgnoreCase) || 
+                                   normalizedKey.Equals("yeast & mold", StringComparison.OrdinalIgnoreCase) ||
+                                   normalizedKey.Contains("aerobic") || normalizedKey.Contains("amc") ? "MICROBIOLOGY" : "PHYSICAL",
                         Unit = "—",
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow,
@@ -407,13 +434,13 @@ namespace Aquora.Application.Services
                 }
             }
 
+            // Remove obsolete results safely through EF Core ChangeTracker
             var toRemove = report.Results
                 .Where(r => !activeSubmittedParameterIds.Contains(r.ParameterId))
                 .ToList();
 
             foreach (var item in toRemove)
             {
-                report.Results.Remove(item);
                 _context.WaterTestResults.Remove(item);
             }
 

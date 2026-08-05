@@ -33,9 +33,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
   onLogout
 }) => {
   const location = useLocation()
-  const [openSubMenus, setOpenSubMenus] = React.useState<Record<string, boolean>>({
-    Accounts: true
-  })
+  const [openSubMenus, setOpenSubMenus] = React.useState<Record<string, boolean>>({})
 
   const toggleSubMenu = (label: string) => {
     setOpenSubMenus(prev => ({ ...prev, [label]: !prev[label] }))
@@ -59,7 +57,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
         {items.map((item) => {
           if (item.children && item.children.length > 0) {
             const isAnyChildActive = item.children.some(child => location.pathname === child.path)
-            const isOpen = openSubMenus[item.label] ?? isAnyChildActive
+            const isOpen = !!openSubMenus[item.label]
 
             return (
               <div key={item.label} className="flex flex-col gap-0.5">

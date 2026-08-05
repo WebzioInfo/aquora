@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { 
   Beaker, 
   FileText, 
   Save, 
   Send, 
-  ChevronRight,
   Upload,
   FlaskConical,
   Activity,
@@ -15,7 +14,8 @@ import {
 import { format } from 'date-fns';
 import { toast } from '../../../utils/toast';
 
-import { EnterpriseHeader } from '../../../components/ui/EnterpriseHeader';
+import PageContainer from '../../../components/ui/layout/PageContainer';
+import PageHeader from '../../../components/ui/layout/PageHeader';
 import { EnterpriseCard } from '../../../components/ui/EnterpriseCard';
 import { EnterpriseInput } from '../../../components/ui/EnterpriseInput';
 import { EnterpriseSelect } from '../../../components/ui/EnterpriseSelect';
@@ -145,10 +145,11 @@ export const WaterTestReportFormPage: React.FC = () => {
     let filtered = parameters.filter(p => p.category === 'PHYSICAL' || p.category === 'CHEMICAL');
     
     if (!filtered.some(p => p.name.toLowerCase() === 'taste')) {
+      const existingTaste = parameters.find(p => p.name.toLowerCase() === 'taste');
       filtered = [
         ...filtered,
         {
-          id: 'taste-parameter-id',
+          id: existingTaste ? existingTaste.id : 'Taste',
           name: 'Taste',
           category: 'PHYSICAL',
           unit: 'Descriptor',
@@ -186,10 +187,11 @@ export const WaterTestReportFormPage: React.FC = () => {
     MICROBIOLOGY_ORDER.forEach(name => {
       const key = name.toLowerCase().trim();
       if (!uniqueMap.has(key)) {
+        const existing = parameters.find(p => p.name.toLowerCase().trim() === key);
         const isAmc = name.toLowerCase().includes('aerobic') || name.toLowerCase().includes('amc');
         const is22 = name.toLowerCase().includes('22');
         uniqueMap.set(key, {
-          id: `seed-micro-${key}`,
+          id: existing ? existing.id : name,
           name,
           category: 'MICROBIOLOGY',
           unit: isAmc ? 'CFU/ml' : 'CFU/100ml',
@@ -260,8 +262,23 @@ export const WaterTestReportFormPage: React.FC = () => {
       const mappedResults = Object.keys(results).map(paramId => {
         const r = results[paramId];
         const valNum = r.value && r.value.trim() !== '' ? parseFloat(r.value) : null;
+
+        let cleanId = paramId;
+        if (paramId.startsWith('seed-micro-')) {
+          const sub = paramId.replace('seed-micro-', '');
+          if (sub.includes('22')) cleanId = 'Aerobic Microbial Count 22°C';
+          else if (sub.includes('37')) cleanId = 'Aerobic Microbial Count 37°C';
+          else if (sub === 'e.coli') cleanId = 'E.coli';
+          else if (sub === 'coliform') cleanId = 'Coliform';
+          else if (sub === 'pseudomonas') cleanId = 'Pseudomonas';
+          else if (sub === 'clostridia') cleanId = 'Clostridia';
+          else if (sub.includes('yeast')) cleanId = 'Yeast & Mold';
+        } else if (paramId === 'taste-parameter-id') {
+          cleanId = 'Taste';
+        }
+
         return {
-          parameterId: paramId,
+          parameterId: cleanId,
           value: valNum,
           stringValue: r.stringValue || null
         };
@@ -377,32 +394,21 @@ export const WaterTestReportFormPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="p-8">
-        <EnterpriseLoading label="Loading water test report form..." />
-      </div>
+      <PageContainer>
+        <div className="p-8 flex items-center justify-center">
+          <EnterpriseLoading label="Loading water test report form..." />
+        </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="p-8 space-y-6 pb-32 max-w-[1600px] mx-auto text-left">
-      
-      {/* Breadcrumbs & Title Header */}
-      <div className="space-y-2">
-        <nav className="flex items-center gap-2 text-xs font-medium text-slate-500 uppercase tracking-wider">
-          <Link to="/qc/dashboard" className="hover:text-slate-900 transition-colors">Quality Control</Link>
-          <ChevronRight className="w-3.5 h-3.5" />
-          <Link to="/qc/water-tests" className="hover:text-slate-900 transition-colors">Water Test Reports</Link>
-          <ChevronRight className="w-3.5 h-3.5" />
-          <span className="text-slate-900 font-semibold">{isEdit ? `Edit ${reportNumber}` : 'Create New Report'}</span>
-        </nav>
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
-          <EnterpriseHeader
-            title={isEdit ? `Edit Water Test Report (${reportNumber})` : 'New Water Test Report'}
-            description="Record physical, chemical, and microbiological water quality parameters."
-          />
-        </div>
-      </div>
+    <PageContainer>
+      {/* HEADER */}
+      <PageHeader
+        title={isEdit ? `Edit Water Test Report (${reportNumber})` : 'New Water Test Report'}
+        description="Record physical, chemical, and microbiological water quality parameters."
+      />
 
       {/* 1. Production & Sampling Information */}
       <EnterpriseCard className="p-6 space-y-6 bg-white border border-slate-200">
@@ -652,7 +658,7 @@ export const WaterTestReportFormPage: React.FC = () => {
         </div>
       </div>
 
-    </div>
+    </PageContainer>
   );
 };
 

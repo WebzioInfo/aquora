@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { 
   Beaker, 
   FileText, 
   Edit2, 
   Printer, 
   Download,
-  ChevronRight, 
   ArrowLeft,
   CheckCircle2,
   XCircle,
@@ -19,7 +18,8 @@ import {
 import { format } from 'date-fns';
 import { toast } from '../../../utils/toast';
 
-import { EnterpriseHeader } from '../../../components/ui/EnterpriseHeader';
+import PageContainer from '../../../components/ui/layout/PageContainer';
+import PageHeader from '../../../components/ui/layout/PageHeader';
 import { EnterpriseCard } from '../../../components/ui/EnterpriseCard';
 import { EnterpriseBadge } from '../../../components/ui/EnterpriseBadge';
 import { EnterpriseButton } from '../../../components/ui/EnterpriseButton';
@@ -28,9 +28,36 @@ import { EnterpriseLoading } from '../../../components/ui/EnterpriseLoading';
 import { waterTestApi } from '../../../services/api/waterTest';
 import type { WaterTestReport } from '../../../services/api/waterTest';
 
+const PHYSICAL_CHEMICAL_ORDER = [
+  'pH',
+  'TDS',
+  'Turbidity',
+  'Sulphate',
+  'Colour',
+  'Odour',
+  'Taste',
+  'Residual Free Chlorine',
+  'Alkalinity',
+  'Chloride'
+];
+
+const MICROBIOLOGY_ORDER = [
+  'E.coli',
+  'Coliform',
+  'Pseudomonas',
+  'Clostridia',
+  'Aerobic Microbial Count 22°C',
+  'Aerobic Microbial Count 37°C',
+  'Yeast & Mold'
+];
+
 export const WaterTestReportDetailPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams<{ id: string }>();
+
+  const isCompanyContext = location.pathname.startsWith('/company');
+  const basePath = isCompanyContext ? '/company/qc/water-test' : '/qc/water-tests';
 
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
@@ -38,46 +65,43 @@ export const WaterTestReportDetailPage: React.FC = () => {
 
   useEffect(() => {
     if (id) {
-      fetchReport();
+      fetchReportDetails(id);
     }
   }, [id]);
 
-  const fetchReport = async () => {
+  const fetchReportDetails = async (reportId: string) => {
     setIsLoading(true);
     try {
-      if (id) {
-        const { data } = await waterTestApi.getReportById(id);
-        setReport(data);
-      }
+      const res = await waterTestApi.getReportById(reportId);
+      setReport(res.data);
     } catch (error) {
-      toast.error('Failed to load report details');
+      toast.error('Failed to load water test report details');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDownloadPdf = async () => {
-    if (!report) return;
+    if (!id) return;
     setIsDownloadingPdf(true);
     try {
-      const res = await waterTestApi.downloadReportPdf(report.id);
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const res = await waterTestApi.downloadReportPdf(id);
+      const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `QC_Certificate_${report.reportNumber}.pdf`);
+      link.setAttribute('download', `Water_Test_Report_${report?.reportNumber || id}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
-      toast.success('Certificate PDF downloaded successfully.');
     } catch (error) {
-      toast.error('Failed to download Certificate PDF');
+      toast.error('Failed to download PDF report');
     } finally {
       setIsDownloadingPdf(false);
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
+  const getStatusBadge = (statusStr: string) => {
+    switch (statusStr) {
       case 'PASS':
       case 'APPROVED':
         return <EnterpriseBadge variant="success">Passed</EnterpriseBadge>;
@@ -90,75 +114,82 @@ export const WaterTestReportDetailPage: React.FC = () => {
       case 'SUBMITTED':
         return <EnterpriseBadge variant="info">Submitted</EnterpriseBadge>;
       default:
-        return <EnterpriseBadge variant="gray">{status}</EnterpriseBadge>;
+        return <EnterpriseBadge variant="gray">{statusStr}</EnterpriseBadge>;
     }
   };
 
   if (isLoading) {
     return (
-      <div className="p-8">
-        <EnterpriseLoading label="Loading water test report..." />
-      </div>
+      <PageContainer>
+        <div className="p-8 flex items-center justify-center">
+          <EnterpriseLoading label="Loading water test report..." />
+        </div>
+      </PageContainer>
     );
   }
 
   if (!report) {
     return (
-      <div className="p-8 text-center space-y-4">
-        <p className="text-slate-500">Report not found.</p>
-        <EnterpriseButton variant="secondary" onClick={() => navigate('/qc/water-tests')}>
-          Back to Reports
-        </EnterpriseButton>
-      </div>
+      <PageContainer>
+        <div className="p-8 text-center space-y-4">
+          <p className="text-slate-500">Report not found.</p>
+          <EnterpriseButton variant="secondary" onClick={() => navigate(basePath)}>
+            Back to Reports
+          </EnterpriseButton>
+        </div>
+      </PageContainer>
     );
   }
 
-  const physicalChemicalResults = report.results?.filter(r => r.parameterCategory === 'PHYSICAL' || r.parameterCategory === 'CHEMICAL') || [];
-  const microResults = report.results?.filter(r => r.parameterCategory === 'MICROBIOLOGY') || [];
+  const physicalChemicalResults = [...(report.results?.filter(r => r.parameterCategory === 'PHYSICAL' || r.parameterCategory === 'CHEMICAL') || [])].sort((a, b) => {
+    const idxA = PHYSICAL_CHEMICAL_ORDER.findIndex(o => o.toLowerCase() === (a.parameterName || '').toLowerCase());
+    const idxB = PHYSICAL_CHEMICAL_ORDER.findIndex(o => o.toLowerCase() === (b.parameterName || '').toLowerCase());
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return (a.parameterName || '').localeCompare(b.parameterName || '');
+  });
+
+  const microResults = [...(report.results?.filter(r => r.parameterCategory === 'MICROBIOLOGY') || [])].sort((a, b) => {
+    const idxA = MICROBIOLOGY_ORDER.findIndex(o => o.toLowerCase() === (a.parameterName || '').toLowerCase());
+    const idxB = MICROBIOLOGY_ORDER.findIndex(o => o.toLowerCase() === (b.parameterName || '').toLowerCase());
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return (a.parameterName || '').localeCompare(b.parameterName || '');
+  });
 
   return (
-    <div className="p-8 space-y-6 pb-32 max-w-[1400px] mx-auto print:p-0 print:space-y-4">
-      
-      {/* Breadcrumbs & Header */}
-      <div className="space-y-2 print:hidden">
-        <nav className="flex items-center gap-2 text-xs font-medium text-slate-500 uppercase tracking-wider">
-          <Link to="/qc/dashboard" className="hover:text-slate-900 transition-colors">Quality Control</Link>
-          <ChevronRight className="w-3.5 h-3.5" />
-          <Link to="/qc/water-tests" className="hover:text-slate-900 transition-colors">Water Test Reports</Link>
-          <ChevronRight className="w-3.5 h-3.5" />
-          <span className="text-slate-900 font-semibold">{report.reportNumber}</span>
-        </nav>
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
-          <EnterpriseHeader
-            title={`Water Test Report #${report.reportNumber}`}
-            description={`Batch Number: ${report.batchNumber} | Created: ${format(new Date(report.createdAt), 'dd MMM yyyy, hh:mm a')}`}
-          />
-
-          <div className="flex items-center gap-3">
-            <EnterpriseButton
-              variant="secondary"
-              loading={isDownloadingPdf}
-              onClick={handleDownloadPdf}
-            >
-              <Download className="w-4 h-4 mr-1.5" /> Export PDF
-            </EnterpriseButton>
-
-            <EnterpriseButton
-              variant="secondary"
-              onClick={() => window.print()}
-            >
-              <Printer className="w-4 h-4 mr-1.5" /> Print Certificate
-            </EnterpriseButton>
-
-            <EnterpriseButton
-              variant="primary"
-              onClick={() => navigate(`/qc/water-tests/${report.id}/edit`)}
-            >
-              <Edit2 className="w-4 h-4 mr-1.5" /> Edit Report
-            </EnterpriseButton>
-          </div>
-        </div>
+    <PageContainer>
+      {/* HEADER */}
+      <div className="print:hidden">
+        <PageHeader
+          title={`Water Test Report #${report.reportNumber}`}
+          description={`Batch Number: ${report.batchNumber} | Created: ${format(new Date(report.createdAt), 'dd MMM yyyy, hh:mm a')}`}
+          actions={
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDownloadPdf}
+                disabled={isDownloadingPdf}
+                className="h-[32px] px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+              >
+                <Download className="w-3.5 h-3.5" /> Export PDF
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="h-[32px] px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+              >
+                <Printer className="w-3.5 h-3.5" /> Print Certificate
+              </button>
+              <button
+                onClick={() => navigate(`${basePath}/${report.id}/edit`)}
+                className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+              >
+                <Edit2 className="w-3.5 h-3.5" /> Edit Report
+              </button>
+            </div>
+          }
+        />
       </div>
 
       {/* Main Report Details */}
@@ -290,7 +321,7 @@ export const WaterTestReportDetailPage: React.FC = () => {
 
       </EnterpriseCard>
 
-    </div>
+    </PageContainer>
   );
 };
 

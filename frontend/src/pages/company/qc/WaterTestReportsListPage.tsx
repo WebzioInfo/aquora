@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
-  Beaker, 
+  Droplets, 
   FileText, 
   Plus, 
   Search, 
   Filter, 
   Edit2, 
   Eye, 
-  ChevronRight,
   CheckCircle2,
   XCircle,
   AlertCircle
@@ -16,7 +15,8 @@ import {
 import { format } from 'date-fns';
 import { toast } from '../../../utils/toast';
 
-import { EnterpriseHeader } from '../../../components/ui/EnterpriseHeader';
+import PageContainer from '../../../components/ui/layout/PageContainer';
+import PageHeader from '../../../components/ui/layout/PageHeader';
 import { EnterpriseCard } from '../../../components/ui/EnterpriseCard';
 import { EnterpriseInput } from '../../../components/ui/EnterpriseInput';
 import { EnterpriseSelect } from '../../../components/ui/EnterpriseSelect';
@@ -30,6 +30,10 @@ import type { WaterTestReport } from '../../../services/api/waterTest';
 
 export const WaterTestReportsListPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isCompanyContext = location.pathname.startsWith('/company');
+  const basePath = isCompanyContext ? '/company/qc/water-test' : '/qc/water-tests';
 
   const [isLoading, setIsLoading] = useState(true);
   const [reports, setReports] = useState<WaterTestReport[]>([]);
@@ -90,7 +94,7 @@ export const WaterTestReportsListPage: React.FC = () => {
       accessorKey: 'reportNumber',
       cell: (row: WaterTestReport) => (
         <span 
-          onClick={() => navigate(`/qc/water-tests/${row.id}`)}
+          onClick={() => navigate(`${basePath}/${row.id}`)}
           className="font-bold text-blue-600 hover:text-blue-800 cursor-pointer"
         >
           {row.reportNumber}
@@ -134,14 +138,14 @@ export const WaterTestReportsListPage: React.FC = () => {
           <EnterpriseButton
             variant="ghost"
             size="sm"
-            onClick={() => navigate(`/qc/water-tests/${row.id}`)}
+            onClick={() => navigate(`${basePath}/${row.id}`)}
           >
             <Eye className="w-4 h-4 mr-1.5" /> View
           </EnterpriseButton>
           <EnterpriseButton
             variant="secondary"
             size="sm"
-            onClick={() => navigate(`/qc/water-tests/${row.id}/edit`)}
+            onClick={() => navigate(`${basePath}/${row.id}/edit`)}
           >
             <Edit2 className="w-4 h-4 mr-1.5" /> Edit
           </EnterpriseButton>
@@ -151,30 +155,21 @@ export const WaterTestReportsListPage: React.FC = () => {
   ];
 
   return (
-    <div className="p-8 space-y-6 pb-32 max-w-[1600px] mx-auto">
-      
-      {/* Breadcrumb & Header */}
-      <div className="space-y-2">
-        <nav className="flex items-center gap-2 text-xs font-medium text-slate-500 uppercase tracking-wider">
-          <Link to="/qc/dashboard" className="hover:text-slate-900 transition-colors">Quality Control</Link>
-          <ChevronRight className="w-3.5 h-3.5" />
-          <span className="text-slate-900 font-semibold">Water Test Reports</span>
-        </nav>
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
-          <EnterpriseHeader
-            title="Water Test Reports"
-            description="View, search, and manage all quality control laboratory test reports."
-          />
-
-          <EnterpriseButton
-            variant="primary"
-            onClick={() => navigate('/qc/water-tests/new')}
+    <PageContainer>
+      {/* HEADER */}
+      <PageHeader
+        title="Water Test Reports"
+        description="View, search, and manage all quality control laboratory test reports."
+        actions={
+          <button
+            onClick={() => navigate(`${basePath}/new`)}
+            className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
           >
-            <Plus className="w-4 h-4 mr-2" /> Create Water Test Report
-          </EnterpriseButton>
-        </div>
-      </div>
+            <Plus className="w-3.5 h-3.5" />
+            <span>Create Water Test Report</span>
+          </button>
+        }
+      />
 
       {/* Filter Bar */}
       <EnterpriseCard className="p-4 bg-white border border-slate-200 shadow-sm">
@@ -221,7 +216,7 @@ export const WaterTestReportsListPage: React.FC = () => {
         />
       </EnterpriseCard>
 
-    </div>
+    </PageContainer>
   );
 };
 

@@ -10,7 +10,7 @@ import { setCompanyPrefs } from '../utils/dateFormatter'
 import {
   LayoutDashboard, Factory, Package, TrendingUp, Users, Truck,
   Settings, ChevronRight, Play, Plus, X, Layers, Workflow, CalendarClock,
-  Droplet, Boxes, Tag, ShoppingCart, PieChart, IdCard, Beaker, Database
+  Droplet, Droplets, Boxes, Tag, ShoppingCart, PieChart, IdCard, Beaker, Database, AlertTriangle
 } from 'lucide-react'
 import EnterpriseSidebar from '../components/ui/EnterpriseSidebar'
 import EnterpriseTopbar from '../components/ui/EnterpriseTopbar'
@@ -78,16 +78,11 @@ export const CompanyLayout: React.FC = () => {
         { label: 'Assets', path: '/company/accounts/assets' },
       ]
     },
-    {
-      label: 'Quality Control',
-      icon: <Beaker className="w-5 h-5" />,
-      children: [
-        { label: 'Water Test Reports', path: '/company/qc/water-test' },
-      ]
-    },
+    { label: 'Water Test Reports', path: '/company/qc/water-test', icon: <Droplets className="w-5 h-5" /> },
     { label: 'Business Intelligence', path: '/company/business-finance', icon: <TrendingUp className="w-5 h-5" /> },
     { label: 'Customers', path: '/company/customers', icon: <Users className="w-5 h-5" /> },
     { label: 'Employees', path: '/company/employees', icon: <IdCard className="w-5 h-5" /> },
+    { label: 'Operations Issues', path: '/company/operations-issues', icon: <AlertTriangle className="w-5 h-5" /> },
     { label: 'Company Settings', path: '/company/settings', icon: <Settings className="w-5 h-5" /> },
     { label: 'Backup & Restore', path: '/company/backups', icon: <Database className="w-5 h-5" /> },
   ]
