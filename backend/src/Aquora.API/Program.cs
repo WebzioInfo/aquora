@@ -128,6 +128,7 @@ Log.Information("--------------------------------------------------");
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddPersistence(builder.Configuration);
+builder.Services.AddScoped<Aquora.Application.Interfaces.Services.IOperationsIssueNotificationService, Aquora.API.Services.OperationsIssueNotificationService>();
 
 // Configure Reverse Proxy Forwarded Headers (X-Forwarded-For & X-Forwarded-Proto)
 builder.Services.Configure<ForwardedHeadersOptions>(options =>

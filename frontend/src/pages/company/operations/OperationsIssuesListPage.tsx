@@ -58,6 +58,73 @@ export const OperationsIssuesListPage: React.FC = () => {
     fetchData();
   }, [pageNumber, search, selectedDept, selectedPriority, selectedStatus]);
 
+  // Real-time Event Listener for instant table updates without reload
+  useEffect(() => {
+    const handleIssueCreated = (event: Event) => {
+      const customEvt = event as CustomEvent<OperationsIssue>
+      const newIssue = customEvt.detail
+      if (!newIssue || !newIssue.id) return
+
+      // 1. Duplicate check & filter matching
+      setIssues(prev => {
+        if (prev.some(item => item.id === newIssue.id)) return prev
+
+        const matchesDept = selectedDept === 'All' || newIssue.department === selectedDept
+        const matchesPriority = selectedPriority === 'All' || newIssue.priority === selectedPriority
+        const matchesStatus = selectedStatus === 'All' || newIssue.status === selectedStatus
+
+        const searchTerm = search.trim().toLowerCase()
+        const matchesSearch = !searchTerm || (
+          (newIssue.issueNumber && newIssue.issueNumber.toLowerCase().includes(searchTerm)) ||
+          (newIssue.title && newIssue.title.toLowerCase().includes(searchTerm)) ||
+          (newIssue.description && newIssue.description.toLowerCase().includes(searchTerm)) ||
+          (newIssue.reportedByName && newIssue.reportedByName.toLowerCase().includes(searchTerm)) ||
+          (newIssue.machineName && newIssue.machineName.toLowerCase().includes(searchTerm)) ||
+          (newIssue.category && newIssue.category.toLowerCase().includes(searchTerm)) ||
+          (newIssue.batchNumber && newIssue.batchNumber.toLowerCase().includes(searchTerm))
+        )
+
+        if (matchesDept && matchesPriority && matchesStatus && matchesSearch) {
+          setTotalCount(c => c + 1)
+          return [{ ...newIssue, isRead: false }, ...prev]
+        }
+        return prev
+      })
+
+      // 2. Live Dashboard Counter Updates
+      setDashboard(prev => {
+        if (!prev) return prev
+        const isCritical = newIssue.priority === 'Critical' || newIssue.priority === 'Emergency'
+        return {
+          ...prev,
+          openIssues: prev.openIssues + 1,
+          unreadIssues: (prev.unreadIssues ?? 0) + 1,
+          criticalIssues: isCritical ? prev.criticalIssues + 1 : prev.criticalIssues,
+          totalDowntimeMinutes: prev.totalDowntimeMinutes + (newIssue.downtimeMinutes || 0)
+        }
+      })
+
+      // 3. User Toast Notification
+      toast.info(`New Issue Reported: #${newIssue.issueNumber} - ${newIssue.title}`)
+    }
+
+    const handleIssueUpdated = (event: Event) => {
+      const customEvt = event as CustomEvent<OperationsIssue>
+      const updatedIssue = customEvt.detail
+      if (!updatedIssue || !updatedIssue.id) return
+
+      setIssues(prev => prev.map(item => item.id === updatedIssue.id ? { ...item, ...updatedIssue } : item))
+    }
+
+    window.addEventListener('operations-issue-created', handleIssueCreated)
+    window.addEventListener('operations-issue-updated', handleIssueUpdated)
+
+    return () => {
+      window.removeEventListener('operations-issue-created', handleIssueCreated)
+      window.removeEventListener('operations-issue-updated', handleIssueUpdated)
+    }
+  }, [search, selectedDept, selectedPriority, selectedStatus])
+
   const fetchData = async () => {
     setIsLoading(true);
     try {

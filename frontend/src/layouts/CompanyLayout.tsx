@@ -5,7 +5,7 @@ import { useThemeStore } from '../store/useThemeStore'
 import { useNotificationStore } from '../store/useNotificationStore'
 import ToastContainer from '../components/ui/ToastContainer'
 import BRAND from '../config/brand'
-import { api } from '../services/api'
+import { api, API_BASE_URL } from '../services/api'
 import { setCompanyPrefs } from '../utils/dateFormatter'
 import {
   LayoutDashboard, Factory, Package, TrendingUp, Users, Truck,
@@ -19,7 +19,6 @@ import EnterpriseModal from '../components/ui/EnterpriseModal'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { HubConnectionBuilder, HttpTransportType } from '@microsoft/signalr'
 import { operationsIssueApi } from '../services/api/operationsIssue'
-import API_BASE_URL from '../config/api'
 
 export const CompanyLayout: React.FC = () => {
   const { user, clearAuth } = useAuthStore()
@@ -77,16 +76,32 @@ export const CompanyLayout: React.FC = () => {
           .withAutomaticReconnect([1000, 2000, 5000, 10000, 30000])
           .build()
 
-        hubConn.on('DashboardEvent', (evt: any) => {
+        const handleIncomingEvent = (evt: any) => {
           if (!isMounted) return
           const eventType = evt?.event_type || ''
-          if (eventType.includes('operations-issue') || eventType.includes('issue')) {
+          if (eventType === 'operations-issue-created' || eventType.includes('operations-issue')) {
             queryClient.invalidateQueries({ queryKey: ['operationsUnreadCount'] })
             queryClient.invalidateQueries({ queryKey: ['operationsLatestNotifications'] })
-            queryClient.invalidateQueries({ queryKey: ['operationsIssues'] })
             queryClient.invalidateQueries({ queryKey: ['operationsDashboard'] })
+
+            if (evt?.issue) {
+              window.dispatchEvent(new CustomEvent('operations-issue-created', { detail: evt.issue }))
+            }
           }
-        })
+          if (eventType.includes('updated') || eventType.includes('read') || eventType.includes('commented')) {
+            queryClient.invalidateQueries({ queryKey: ['operationsUnreadCount'] })
+            queryClient.invalidateQueries({ queryKey: ['operationsLatestNotifications'] })
+            queryClient.invalidateQueries({ queryKey: ['operationsDashboard'] })
+
+            if (evt?.issue) {
+              window.dispatchEvent(new CustomEvent('operations-issue-updated', { detail: evt.issue }))
+            }
+          }
+        }
+
+        hubConn.on('OperationsIssueCreated', handleIncomingEvent)
+        hubConn.on('OperationsIssueUpdated', handleIncomingEvent)
+        hubConn.on('DashboardEvent', handleIncomingEvent)
 
         await hubConn.start()
         if (user?.tenantId) {

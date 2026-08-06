@@ -24,6 +24,14 @@ namespace Aquora.API.Hubs
 
         public override async Task OnConnectedAsync()
         {
+            var tenantClaim = Context.User?.FindFirst("tenant_id")?.Value
+                ?? Context.User?.FindFirst("TenantId")?.Value;
+
+            if (!string.IsNullOrWhiteSpace(tenantClaim))
+            {
+                await Groups.AddToGroupAsync(Context.ConnectionId, $"tenant_{tenantClaim}");
+            }
+
             await base.OnConnectedAsync();
         }
 

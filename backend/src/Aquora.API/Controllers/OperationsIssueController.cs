@@ -5,9 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 using Aquora.Application.DTOs.Operations;
 using Aquora.Application.Interfaces.Services;
 
-using Microsoft.AspNetCore.SignalR;
-using Aquora.API.Hubs;
-
 namespace Aquora.API.Controllers
 {
     [ApiController]
@@ -16,27 +13,22 @@ namespace Aquora.API.Controllers
     public class OperationsIssueController : ControllerBase
     {
         private readonly IOperationsIssueService _issueService;
-        private readonly IHubContext<DashboardHub> _dashboardHub;
+        private readonly IOperationsIssueNotificationService _notificationService;
 
         public OperationsIssueController(
             IOperationsIssueService issueService,
-            IHubContext<DashboardHub> dashboardHub)
+            IOperationsIssueNotificationService notificationService)
         {
             _issueService = issueService;
-            _dashboardHub = dashboardHub;
+            _notificationService = notificationService;
         }
 
-        private async Task NotifyIssueUpdatedAsync(string eventName = "operations-issue-updated")
+        private Guid GetTenantId()
         {
-            try
-            {
-                await _dashboardHub.Clients.All.SendAsync("DashboardEvent", new
-                {
-                    event_type = eventName,
-                    timestamp = DateTime.UtcNow
-                });
-            }
-            catch { /* Ignore SignalR broadcast error */ }
+            var tenantClaim = User.FindFirst("tenant_id")?.Value
+                ?? User.FindFirst("TenantId")?.Value;
+
+            return Guid.TryParse(tenantClaim, out var tenantId) ? tenantId : Guid.Empty;
         }
 
         [HttpGet]
@@ -75,7 +67,7 @@ namespace Aquora.API.Controllers
         public async Task<IActionResult> CreateIssue([FromBody] CreateOperationsIssueRequest request)
         {
             var issue = await _issueService.CreateIssueAsync(request);
-            await NotifyIssueUpdatedAsync("operations-issue-created");
+            await _notificationService.PublishIssueCreatedAsync(GetTenantId(), issue);
             return CreatedAtAction(nameof(GetIssueById), new { id = issue.Id }, issue);
         }
 
@@ -83,7 +75,7 @@ namespace Aquora.API.Controllers
         public async Task<IActionResult> QuickOperatorReport([FromBody] QuickOperatorReportRequest request)
         {
             var issue = await _issueService.QuickOperatorReportAsync(request);
-            await NotifyIssueUpdatedAsync("operations-issue-created");
+            await _notificationService.PublishIssueCreatedAsync(GetTenantId(), issue);
             return CreatedAtAction(nameof(GetIssueById), new { id = issue.Id }, issue);
         }
 
@@ -91,7 +83,7 @@ namespace Aquora.API.Controllers
         public async Task<IActionResult> ReportOperatorBatchIssue([FromBody] OperatorBatchReportIssueRequest request)
         {
             var issue = await _issueService.ReportOperatorBatchIssueAsync(request);
-            await NotifyIssueUpdatedAsync("operations-issue-created");
+            await _notificationService.PublishIssueCreatedAsync(GetTenantId(), issue);
             return CreatedAtAction(nameof(GetIssueById), new { id = issue.Id }, issue);
         }
 
@@ -107,6 +99,7 @@ namespace Aquora.API.Controllers
         {
             var issue = await _issueService.UpdateIssueAsync(id, request);
             if (issue == null) return NotFound();
+            await _notificationService.PublishIssueUpdatedAsync(GetTenantId(), issue);
             return Ok(issue);
         }
 
@@ -115,6 +108,7 @@ namespace Aquora.API.Controllers
         {
             var issue = await _issueService.ChangeStatusAsync(id, request);
             if (issue == null) return NotFound();
+            await _notificationService.PublishIssueUpdatedAsync(GetTenantId(), issue);
             return Ok(issue);
         }
 
@@ -123,6 +117,7 @@ namespace Aquora.API.Controllers
         {
             var issue = await _issueService.AssignIssueAsync(id, request);
             if (issue == null) return NotFound();
+            await _notificationService.PublishIssueUpdatedAsync(GetTenantId(), issue);
             return Ok(issue);
         }
 
@@ -131,6 +126,26 @@ namespace Aquora.API.Controllers
         {
             var comment = await _issueService.AddCommentAsync(id, request);
             if (comment == null) return NotFound();
+            var issue = await _issueService.GetIssueByIdAsync(id);
+            if (issue != null)
+            {
+                var issueDto = new OperationsIssueDto
+                {
+                    Id = issue.Id,
+                    IssueNumber = issue.IssueNumber,
+                    Title = issue.Title,
+                    Description = issue.Description,
+                    Department = issue.Department,
+                    Category = issue.Category,
+                    Priority = issue.Priority,
+                    Status = issue.Status,
+                    ReportedByUserId = issue.ReportedByUserId,
+                    ReportedByName = issue.ReportedByName,
+                    ReportedAt = issue.ReportedAt,
+                    CreatedAt = issue.CreatedAt
+                };
+                await _notificationService.PublishIssueUpdatedAsync(GetTenantId(), issueDto, "operations-issue-commented");
+            }
             return Ok(comment);
         }
 
@@ -139,6 +154,7 @@ namespace Aquora.API.Controllers
         {
             var issue = await _issueService.ResolveIssueAsync(id, request);
             if (issue == null) return NotFound();
+            await _notificationService.PublishIssueUpdatedAsync(GetTenantId(), issue);
             return Ok(issue);
         }
 
@@ -147,6 +163,7 @@ namespace Aquora.API.Controllers
         {
             var issue = await _issueService.VerifyAndCloseIssueAsync(id, note);
             if (issue == null) return NotFound();
+            await _notificationService.PublishIssueUpdatedAsync(GetTenantId(), issue);
             return Ok(issue);
         }
 
@@ -155,6 +172,7 @@ namespace Aquora.API.Controllers
         {
             var issue = await _issueService.CreateMaintenanceWorkOrderAsync(id);
             if (issue == null) return NotFound();
+            await _notificationService.PublishIssueUpdatedAsync(GetTenantId(), issue);
             return Ok(issue);
         }
 
@@ -187,7 +205,27 @@ namespace Aquora.API.Controllers
             var userName = User.FindFirst("name")?.Value ?? User.Identity?.Name ?? "Admin User";
             var success = await _issueService.MarkIssueAsReadAsync(id, userId, userName);
             if (!success) return NotFound();
-            await NotifyIssueUpdatedAsync("operations-issue-read");
+            var issue = await _issueService.GetIssueByIdAsync(id);
+            if (issue != null)
+            {
+                var issueDto = new OperationsIssueDto
+                {
+                    Id = issue.Id,
+                    IssueNumber = issue.IssueNumber,
+                    Title = issue.Title,
+                    Description = issue.Description,
+                    Department = issue.Department,
+                    Category = issue.Category,
+                    Priority = issue.Priority,
+                    Status = issue.Status,
+                    ReportedByUserId = issue.ReportedByUserId,
+                    ReportedByName = issue.ReportedByName,
+                    IsRead = true,
+                    ReportedAt = issue.ReportedAt,
+                    CreatedAt = issue.CreatedAt
+                };
+                await _notificationService.PublishIssueUpdatedAsync(GetTenantId(), issueDto, "operations-issue-read");
+            }
             return Ok(new { message = "Issue marked as read." });
         }
 
@@ -197,7 +235,6 @@ namespace Aquora.API.Controllers
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "system";
             var userName = User.FindFirst("name")?.Value ?? User.Identity?.Name ?? "Admin User";
             var count = await _issueService.MarkAllIssuesAsReadAsync(userId, userName);
-            await NotifyIssueUpdatedAsync("operations-issue-read");
             return Ok(new { message = $"{count} issues marked as read.", count });
         }
     }
