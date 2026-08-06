@@ -195,10 +195,8 @@ export const OperationsIssuesListPage: React.FC = () => {
             <button
               onClick={async () => {
                 await operationsIssueApi.markAllIssuesAsRead()
-                refetch()
-                refetchDashboard()
-                queryClient.invalidateQueries({ queryKey: ['operationsUnreadCount'] })
-                showToast('All issues marked as read.', 'success')
+                fetchData()
+                toast.success('All issues marked as read.')
               }}
               className="h-[32px] px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
             >
