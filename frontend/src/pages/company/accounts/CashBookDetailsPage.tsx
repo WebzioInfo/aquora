@@ -21,6 +21,7 @@ import {
   RotateCcw
 } from 'lucide-react'
 import { simpleAccountsService } from '../../../services/simpleAccounts'
+import { getTransactionEventBadge } from '../../../utils/transactionBadge'
 import { AddMoneyModal } from './AddMoneyModal'
 import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
 import type { 
@@ -704,10 +705,15 @@ const CashBookDetailsPage: React.FC = () => {
                           <span className="text-[11px] text-slate-500 truncate" title={item.description}>
                             {item.description || 'No description provided'}
                           </span>
+                          {item.auditNotes && (
+                            <span className="text-[10px] text-amber-700 font-medium block truncate mt-0.5" title={item.auditNotes}>
+                              {item.auditNotes}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-2.5 whitespace-nowrap">
-                        {getTransactionTypeBadge(item)}
+                        {getTransactionEventBadge(item)}
                       </td>
                       <td className="px-4 py-2.5 whitespace-nowrap">
                         <span className="text-xs text-slate-700 font-medium">

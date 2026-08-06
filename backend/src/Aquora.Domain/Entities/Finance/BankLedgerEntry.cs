@@ -22,6 +22,11 @@ namespace Aquora.Domain.Entities.Finance
         
         // TransactionType: Expense, Sales Payment, Customer Payment, Supplier Refund, Owner Investment, Owner Withdrawal, Opening Balance, etc.
         public string TransactionType { get; set; } = string.Empty;
+
+        // Transaction Event Type: CREATED, UPDATED, DELETED, REVERSED, ADJUSTED
+        public string? EventType { get; set; } = "CREATED";
+        public string? EventLabel { get; set; }
+        public string? AuditNotes { get; set; }
         
         public string Description { get; set; } = string.Empty;
         

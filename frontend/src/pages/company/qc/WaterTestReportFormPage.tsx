@@ -58,6 +58,10 @@ export const WaterTestReportFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const isEdit = Boolean(id);
 
+  const location = useLocation();
+  const isCompanyContext = location.pathname.startsWith('/company');
+  const basePath = isCompanyContext ? '/company/qc/water-test' : '/qc/water-tests';
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -76,7 +80,7 @@ export const WaterTestReportFormPage: React.FC = () => {
   const [remarks, setRemarks] = useState('');
   const [attachments, setAttachments] = useState('');
 
-  // Parameter Results Map: parameterId -> { value, stringValue }
+  // Parameter Results Map: key -> { value, stringValue }
   const [results, setResults] = useState<Record<string, { value?: string; stringValue?: string }>>({});
 
   useEffect(() => {
@@ -113,7 +117,9 @@ export const WaterTestReportFormPage: React.FC = () => {
 
           if (res.parameterId) {
             mapped[res.parameterId] = resData;
-          } else if (res.parameterName) {
+          }
+          if (res.parameterName) {
+            mapped[res.parameterName] = resData;
             mapped[res.parameterName.toLowerCase().trim()] = resData;
           }
         });
@@ -127,14 +133,14 @@ export const WaterTestReportFormPage: React.FC = () => {
   };
 
   const getParamResult = (param: WaterTestParameter) => {
-    return results[param.id] || results[param.name.toLowerCase().trim()];
+    return results[param.id] || results[param.name] || results[param.name.toLowerCase().trim()];
   };
 
-  const handleResultChange = (parameterId: string, field: 'value' | 'stringValue', val: string) => {
+  const handleResultChange = (parameterKey: string, field: 'value' | 'stringValue', val: string) => {
     setResults(prev => ({
       ...prev,
-      [parameterId]: {
-        ...(prev[parameterId] || {}),
+      [parameterKey]: {
+        ...(prev[parameterKey] || {}),
         [field]: val
       }
     }));
@@ -259,30 +265,27 @@ export const WaterTestReportFormPage: React.FC = () => {
 
     setIsSaving(true);
     try {
-      const mappedResults = Object.keys(results).map(paramId => {
-        const r = results[paramId];
-        const valNum = r.value && r.value.trim() !== '' ? parseFloat(r.value) : null;
+      const allFormParameters = [...physicalChemicalParams, ...microParams];
+      const deduplicatedPayloadMap = new Map<string, { parameterId: string; value: number | null; stringValue: string | null }>();
 
-        let cleanId = paramId;
-        if (paramId.startsWith('seed-micro-')) {
-          const sub = paramId.replace('seed-micro-', '');
-          if (sub.includes('22')) cleanId = 'Aerobic Microbial Count 22°C';
-          else if (sub.includes('37')) cleanId = 'Aerobic Microbial Count 37°C';
-          else if (sub === 'e.coli') cleanId = 'E.coli';
-          else if (sub === 'coliform') cleanId = 'Coliform';
-          else if (sub === 'pseudomonas') cleanId = 'Pseudomonas';
-          else if (sub === 'clostridia') cleanId = 'Clostridia';
-          else if (sub.includes('yeast')) cleanId = 'Yeast & Mold';
-        } else if (paramId === 'taste-parameter-id') {
-          cleanId = 'Taste';
+      allFormParameters.forEach(param => {
+        const res = getParamResult(param);
+        if (!res) return;
+
+        const valNum = res.value && res.value.trim() !== '' ? parseFloat(res.value) : null;
+        const strVal = res.stringValue && res.stringValue.trim() !== '' ? res.stringValue.trim() : null;
+
+        if ((valNum !== null && !isNaN(valNum)) || strVal !== null) {
+          const key = param.id || param.name;
+          deduplicatedPayloadMap.set(param.name.toLowerCase().trim(), {
+            parameterId: key,
+            value: (valNum !== null && !isNaN(valNum)) ? valNum : null,
+            stringValue: strVal
+          });
         }
+      });
 
-        return {
-          parameterId: cleanId,
-          value: valNum,
-          stringValue: r.stringValue || null
-        };
-      }).filter(r => r.value !== null || r.stringValue !== null);
+      const mappedResults = Array.from(deduplicatedPayloadMap.values());
 
       const payload: CreateWaterTestReportRequest = {
         batchNumber: batchNumber.trim(),
@@ -302,11 +305,12 @@ export const WaterTestReportFormPage: React.FC = () => {
       if (id) {
         await waterTestApi.updateReport(id, payload);
         toast.success(`Water test report updated successfully (${submitStatus === 'SUBMITTED' ? 'Submitted' : 'Saved as Draft'})`);
+        navigate(`${basePath}/${id}`);
       } else {
         await waterTestApi.createReport(payload);
         toast.success(`Water test report created successfully (${submitStatus === 'SUBMITTED' ? 'Submitted' : 'Saved as Draft'})`);
+        navigate(basePath);
       }
-      navigate('/qc/water-tests');
     } catch (error) {
       toast.error('Failed to save water test report');
     } finally {

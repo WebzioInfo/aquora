@@ -326,6 +326,26 @@ namespace Aquora.Persistence.Services
 
                             _logger.LogInformation($"[SCHEMA SYNC] Applying EF Core migrations for {tenant.SchemaName}...");
 
+                            // Ensure EventType, EventLabel, AuditNotes exist and populate legacy nulls
+                            try
+                            {
+                                var conn = tenantContext.Database.GetDbConnection();
+                                if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
+                                using (var cmd = conn.CreateCommand())
+                                {
+                                    cmd.CommandText = $@"
+                                        ALTER TABLE ""{tenant.SchemaName}"".""BankLedgerEntries"" ADD COLUMN IF NOT EXISTS ""EventType"" text NULL DEFAULT 'CREATED';
+                                        ALTER TABLE ""{tenant.SchemaName}"".""BankLedgerEntries"" ADD COLUMN IF NOT EXISTS ""EventLabel"" text NULL;
+                                        ALTER TABLE ""{tenant.SchemaName}"".""BankLedgerEntries"" ADD COLUMN IF NOT EXISTS ""AuditNotes"" text NULL;
+                                        UPDATE ""{tenant.SchemaName}"".""BankLedgerEntries"" SET ""EventType"" = 'CREATED' WHERE ""EventType"" IS NULL OR ""EventType"" = '';";
+                                    await cmd.ExecuteNonQueryAsync();
+                                }
+                            }
+                            catch (Exception repairEx)
+                            {
+                                _logger.LogWarning($"[SCHEMA REPAIR WARN] EventType column repair failed for {tenant.SchemaName}: {repairEx.Message}");
+                            }
+
                             // Reconcile and migrate historical raw material stock to inventory movements
                             var rawMaterials = await tenantContext.RawMaterials.Where(rm => !rm.IsDeleted).ToListAsync();
                             bool reconciledAny = false;

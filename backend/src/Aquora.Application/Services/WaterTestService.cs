@@ -317,6 +317,8 @@ namespace Aquora.Application.Services
             }
 
             _context.WaterTestReports.Add(report);
+            await CheckAndGenerateCAPAsAsync(report);
+            await LogQCActionAsync(report.Id, report.Id.ToString().Substring(0, 8).ToUpper(), "REPORT_CREATE", $"Created Water Test Report #{report.Id.ToString().Substring(0, 8).ToUpper()} for Batch '{report.BatchNumber}'. Status: {report.Status}");
             await _context.SaveChangesAsync();
 
             var userNames = await ResolveUserNamesAsync(new[] { currentUserId });
@@ -334,6 +336,15 @@ namespace Aquora.Application.Services
                 .FirstOrDefaultAsync(r => r.Id == id && r.TenantId == tenantId && !r.IsDeleted);
 
             if (report == null) return null;
+
+            // Audit Delta Snapshot
+            var oldBatchNumber = report.BatchNumber;
+            var oldStatus = report.Status;
+            var oldRemarks = report.Remarks;
+            var oldResultsSnapshot = report.Results.ToDictionary(
+                r => r.Id,
+                r => new { Name = r.Parameter?.Name ?? "Unknown", Val = r.Value?.ToString() ?? r.StringValue ?? "N/A" }
+            );
 
             report.BatchNumber = request.BatchNumber;
             report.SampleNumber = request.SampleNumber;
@@ -405,10 +416,14 @@ namespace Aquora.Application.Services
             foreach (var (param, val, strVal) in deduplicatedResults.Values)
             {
                 var qualityStatus = _evaluationService.EvaluateParameter(param, val, strVal);
-                var existingResult = report.Results.FirstOrDefault(r => r.ParameterId == param.Id);
+                var existingResult = report.Results.FirstOrDefault(r => 
+                    r.ParameterId == param.Id || 
+                    (r.Parameter != null && r.Parameter.Name.Equals(param.Name, StringComparison.OrdinalIgnoreCase))
+                );
 
                 if (existingResult != null)
                 {
+                    existingResult.ParameterId = param.Id;
                     existingResult.Value = val;
                     existingResult.StringValue = strVal;
                     existingResult.IsPass = qualityStatus == "PASS";
@@ -444,43 +459,27 @@ namespace Aquora.Application.Services
                 _context.WaterTestResults.Remove(item);
             }
 
-            // Comprehensive Forensic ChangeTracker Audit
-            var dbContext = _context as DbContext;
-            if (dbContext != null)
-            {
-                var trackedEntries = dbContext.ChangeTracker.Entries().ToList();
-                Console.WriteLine("================================================================================");
-                Console.WriteLine($"[FORENSIC CHANGETRACKER AUDIT BEFORE SAVE] Total Tracked: {trackedEntries.Count}");
-                foreach (var entry in trackedEntries)
-                {
-                    var entityType = entry.Entity.GetType().Name;
-                    var pkProp = entry.Metadata.FindPrimaryKey()?.Properties.FirstOrDefault();
-                    var pkName = pkProp?.Name ?? "Id";
-                    var pkVal = pkProp != null ? entry.Property(pkName)?.CurrentValue : "Unknown";
-                    var dbPkVal = pkProp != null ? entry.Property(pkName)?.OriginalValue : "Unknown";
-                    var state = entry.State.ToString();
-                    var concurrencyProp = entry.Metadata.GetProperties().FirstOrDefault(p => p.IsConcurrencyToken);
-                    var concurrencyToken = concurrencyProp != null ? entry.Property(concurrencyProp.Name)?.CurrentValue?.ToString() ?? "None" : "None";
+            // Build Audit Trail Delta Log
+            var changes = new List<string>();
+            if (oldBatchNumber != request.BatchNumber) changes.Add($"BatchNumber: '{oldBatchNumber}' -> '{request.BatchNumber}'");
+            if (oldStatus != request.Status) changes.Add($"Status: '{oldStatus}' -> '{request.Status}'");
+            if ((oldRemarks ?? "") != (request.Remarks ?? "")) changes.Add($"Remarks: '{oldRemarks ?? ""}' -> '{request.Remarks ?? ""}'");
 
-                    Console.WriteLine("--------------------------------------------------------------------------------");
-                    Console.WriteLine($"Entity Type:          {entityType}");
-                    Console.WriteLine($"Primary Key Name:     {pkName}");
-                    Console.WriteLine($"Primary Key Value:    {pkVal}");
-                    Console.WriteLine($"Database PK Value:    {dbPkVal}");
-                    Console.WriteLine($"Entity State:         {state}");
-                    Console.WriteLine($"Concurrency Token:    {concurrencyToken}");
-                    Console.WriteLine("Original vs Current Values:");
-                    foreach (var prop in entry.Properties)
-                    {
-                        if (prop.IsModified || entry.State == EntityState.Added || entry.State == EntityState.Deleted)
-                        {
-                            Console.WriteLine($"   * {prop.Metadata.Name}: Original='{prop.OriginalValue}', Current='{prop.CurrentValue}', IsModified={prop.IsModified}");
-                        }
-                    }
+            foreach (var (param, val, strVal) in deduplicatedResults.Values)
+            {
+                var newValStr = val?.ToString() ?? strVal ?? "N/A";
+                var oldItem = oldResultsSnapshot.Values.FirstOrDefault(x => x.Name.Equals(param.Name, StringComparison.OrdinalIgnoreCase));
+                var oldValStr = oldItem != null ? oldItem.Val : "None";
+                if (oldValStr != newValStr)
+                {
+                    changes.Add($"{param.Name}: {oldValStr} -> {newValStr}");
                 }
-                Console.WriteLine("================================================================================");
             }
 
+            string changeDetails = changes.Any() ? string.Join("; ", changes) : "No field changes detected.";
+            await LogQCActionAsync(report.Id, report.Id.ToString().Substring(0, 8).ToUpper(), "REPORT_UPDATE", $"Water Test Report #{report.Id.ToString().Substring(0, 8).ToUpper()} updated. Changes: {changeDetails}");
+
+            await CheckAndGenerateCAPAsAsync(report);
             await _context.SaveChangesAsync();
 
             var userNames = await ResolveUserNamesAsync(new[] { report.CreatedBy });
@@ -812,6 +811,54 @@ namespace Aquora.Application.Services
             await _context.SaveChangesAsync();
 
             return await _pdfService.GenerateCertificatePdfAsync(report, companyName);
+        }
+
+        private async Task CheckAndGenerateCAPAsAsync(WaterTestReport report)
+        {
+            try
+            {
+                var tenantId = GetTenantId();
+                var companyId = await GetCompanyIdAsync();
+                var settings = await _context.QCSettings.FirstOrDefaultAsync(s => s.TenantId == tenantId);
+                
+                if (settings != null && settings.AutoGenerateCAPAOnFailure)
+                {
+                    var failedResults = report.Results.Where(r => r.QualityStatus == "FAIL").ToList();
+                    foreach (var fail in failedResults)
+                    {
+                        var paramName = fail.Parameter?.Name ?? "Unknown Parameter";
+                        bool exists = await _context.ComplianceRecords.AnyAsync(c => c.ReportId == report.Id && c.ParameterName == paramName && !c.IsDeleted);
+                        if (!exists)
+                        {
+                            var record = new ComplianceRecord
+                            {
+                                Id = Guid.NewGuid(),
+                                TenantId = tenantId,
+                                CompanyId = companyId,
+                                ReportId = report.Id,
+                                ReferenceNumber = $"NCR-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..4].ToUpper()}",
+                                Type = "NON_CONFORMANCE",
+                                Severity = "HIGH",
+                                Status = "OPEN",
+                                ParameterName = paramName,
+                                BatchNumber = report.BatchNumber,
+                                DefectDescription = $"Parameter '{paramName}' failed quality evaluation. Measured: {fail.Value?.ToString() ?? fail.StringValue ?? "Out of Range"}.",
+                                MeasuredValue = fail.Value?.ToString() ?? fail.StringValue ?? "N/A",
+                                ExpectedRange = fail.Parameter != null ? $"{fail.Parameter.MinAcceptable?.ToString() ?? "N/A"} - {fail.Parameter.MaxAcceptable?.ToString() ?? "N/A"} {fail.Parameter.Unit}" : "Standard Range",
+                                AssignedTo = "QC Manager",
+                                TargetResolutionDate = DateTime.UtcNow.AddDays(3),
+                                CreatedAt = DateTime.UtcNow,
+                                CreatedBy = _currentUserContext.Email ?? _currentUserContext.UserId ?? "System"
+                            };
+                            _context.ComplianceRecords.Add(record);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[CAPA AUTO GENERATION ERROR]: {ex.Message}");
+            }
         }
 
         private async Task LogQCActionAsync(Guid? reportId, string? reportNumber, string action, string details, string? oldValues = null, string? newValues = null)

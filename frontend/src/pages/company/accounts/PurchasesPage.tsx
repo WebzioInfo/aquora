@@ -22,6 +22,7 @@ import {
   RotateCcw
 } from 'lucide-react'
 import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
+import { RecordPurchasePaymentModal } from '../../../components/purchases/RecordPurchasePaymentModal'
 import { purchaseService, type Purchase, type PurchaseSummaryStats } from '../../../services/purchases'
 import { vendorService, type VendorDropdownItem } from '../../../services/vendors'
 import { useNotificationStore } from '../../../store/useNotificationStore'
@@ -669,69 +670,16 @@ export const PurchasesPage: React.FC = () => {
         )}
       </EnterpriseCard>
 
-      {/* Quick Record Payment Modal */}
+      {/* Shared Record Payment Modal */}
       {paymentModalPurchase && (
-        <EnterpriseModal
+        <RecordPurchasePaymentModal
           isOpen={!!paymentModalPurchase}
           onClose={() => setPaymentModalPurchase(null)}
-          title={`Record Payment for ${paymentModalPurchase.purchaseNo}`}
-        >
-          <form onSubmit={handleQuickPaymentSubmit} className="space-y-4">
-            <div className="p-3 bg-blue-50/70 rounded-[8px] border border-blue-100 text-xs">
-              <span className="text-slate-600 block">Vendor: <strong>{paymentModalPurchase.vendorName}</strong></span>
-              <span className="text-slate-600 block mt-0.5">Outstanding Balance: <strong className="text-red-600 font-mono">₹{paymentModalPurchase.balanceAmount.toFixed(2)}</strong></span>
-            </div>
-
-            <EnterpriseNumberInput
-              label="Payment Amount (₹)"
-              value={paymentAmount}
-              onValueChange={(val) => setPaymentAmount(val)}
-              placeholder="0.00"
-            />
-
-            <div>
-              <label className="block text-xs font-semibold text-[#344054] mb-1">Payment Method</label>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-bold text-slate-900"
-              >
-                <option value="BankAccount">Bank Transfer</option>
-                <option value="Cash">Cash</option>
-                <option value="UPI">UPI</option>
-                <option value="Cheque">Cheque</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-[#344054] mb-1">Reference Number / UTR</label>
-              <input
-                type="text"
-                placeholder="e.g. UTR-99812739"
-                value={paymentRef}
-                onChange={(e) => setPaymentRef(e.target.value)}
-                className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-mono"
-              />
-            </div>
-
-            <div className="pt-3 flex justify-end gap-2 border-t border-[#E5E9F2]">
-              <EnterpriseButton
-                type="button"
-                variant="secondary"
-                onClick={() => setPaymentModalPurchase(null)}
-              >
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton
-                type="submit"
-                variant="primary"
-                loading={paymentSubmitting}
-              >
-                Save Payment
-              </EnterpriseButton>
-            </div>
-          </form>
-        </EnterpriseModal>
+          purchase={paymentModalPurchase}
+          onSuccess={() => {
+            fetchPurchases()
+          }}
+        />
       )}
 
       {/* PRINT PREVIEW MODAL */}

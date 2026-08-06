@@ -28,7 +28,8 @@ import {
   Wallet
 } from 'lucide-react'
 import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
-import { purchaseService, type Purchase, type AddPurchasePaymentRequest } from '../../../services/purchases'
+import { RecordPurchasePaymentModal } from '../../../components/purchases/RecordPurchasePaymentModal'
+import { purchaseService, type Purchase } from '../../../services/purchases'
 import { vendorService, type Vendor } from '../../../services/vendors'
 import { simpleAccountsService } from '../../../services/simpleAccounts'
 import { useNotificationStore } from '../../../store/useNotificationStore'
@@ -63,23 +64,10 @@ export const PurchaseDetailsPage: React.FC = () => {
 
   // Payment Modal State
   const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false)
-  const [paymentSubmitting, setPaymentSubmitting] = useState<boolean>(false)
-  const [bankAccounts, setBankAccounts] = useState<BankAccountOption[]>([])
-  const [cashBooks, setCashBooks] = useState<CashBookOption[]>([])
 
   // Print Preview Modal States
   const [printModalOpen, setPrintModalOpen] = useState(false)
   const [printDocData, setPrintDocData] = useState<any>(null)
-
-  const [paymentRequest, setPaymentRequest] = useState<AddPurchasePaymentRequest>({
-    paymentDate: new Date().toISOString().slice(0, 10),
-    paymentMethod: 'BankAccount',
-    bankAccountId: '',
-    cashBookId: '',
-    amount: 0,
-    referenceNo: '',
-    notes: ''
-  })
 
   const handlePrintPurchase = (p: Purchase) => {
     setPrintDocData({
@@ -131,18 +119,12 @@ export const PurchaseDetailsPage: React.FC = () => {
     try {
       const data = await purchaseService.getPurchaseById(id)
       setPurchase(data)
-      if (data) {
-        setPaymentRequest((prev) => ({
-          ...prev,
-          amount: data.balanceAmount
-        }))
-        if (data.vendorId) {
-          try {
-            const v = await vendorService.getVendorById(data.vendorId)
-            setVendor(v)
-          } catch (vErr) {
-            console.error('Failed to prefetch vendor details:', vErr)
-          }
+      if (data && data.vendorId) {
+        try {
+          const v = await vendorService.getVendorById(data.vendorId)
+          setVendor(v)
+        } catch (vErr) {
+          console.error('Failed to prefetch vendor details:', vErr)
         }
       }
     } catch (err: any) {
@@ -154,27 +136,7 @@ export const PurchaseDetailsPage: React.FC = () => {
 
   useEffect(() => {
     fetchPurchaseDetails()
-    loadBankAccounts()
-    loadCashBooks()
   }, [id])
-
-  const loadBankAccounts = async () => {
-    try {
-      const res = await simpleAccountsService.getBankAccountDropdown()
-      setBankAccounts(Array.isArray(res) ? res : [])
-    } catch {
-      setBankAccounts([])
-    }
-  }
-
-  const loadCashBooks = async () => {
-    try {
-      const res = await simpleAccountsService.getCashBookDropdown()
-      setCashBooks(Array.isArray(res) ? res : [])
-    } catch {
-      setCashBooks([])
-    }
-  }
 
   const handleCancel = async () => {
     if (!purchase || !id) return
@@ -198,29 +160,6 @@ export const PurchaseDetailsPage: React.FC = () => {
       }
     } catch (err: any) {
       showToast(err?.message || 'Failed to duplicate purchase', 'error')
-    }
-  }
-
-  const handleAddPayment = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!id || !purchase) return
-
-    const amt = typeof paymentRequest.amount === 'number' ? paymentRequest.amount : (parseFloat(paymentRequest.amount) || 0)
-    if (amt <= 0) {
-      showToast('Payment amount must be greater than zero.', 'error')
-      return
-    }
-
-    setPaymentSubmitting(true)
-    try {
-      await purchaseService.addPayment(id, { ...paymentRequest, amount: amt })
-      showToast('Payment recorded successfully', 'success')
-      setShowPaymentModal(false)
-      fetchPurchaseDetails()
-    } catch (err: any) {
-      showToast(err?.message || 'Failed to add payment', 'error')
-    } finally {
-      setPaymentSubmitting(false)
     }
   }
 
@@ -834,97 +773,17 @@ export const PurchaseDetailsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Record Payment Modal */}
-      {showPaymentModal && (
-        <EnterpriseModal
+      {/* Shared Record Payment Modal */}
+      {showPaymentModal && purchase && (
+        <RecordPurchasePaymentModal
           isOpen={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}
-          title="Record Subsequent Payment"
-        >
-          <form onSubmit={handleAddPayment} className="space-y-4">
-            <EnterpriseNumberInput
-              label="Payment Amount (₹)"
-              value={paymentRequest.amount}
-              onValueChange={(val) => setPaymentRequest({ ...paymentRequest, amount: Number(val) || 0 })}
-              placeholder="0.00"
-            />
-            <span className="text-[11px] text-slate-400 block -mt-2">Max payable balance: ₹{purchase.balanceAmount.toFixed(2)}</span>
-
-            <div>
-              <label className="block text-xs font-semibold text-[#344054] mb-1">Payment Method</label>
-              <select
-                value={paymentRequest.paymentMethod}
-                onChange={(e) => setPaymentRequest({ ...paymentRequest, paymentMethod: e.target.value })}
-                className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-semibold text-slate-900"
-              >
-                <option value="BankAccount">Bank Transfer</option>
-                <option value="Cash">Cash</option>
-                <option value="UPI">UPI</option>
-                <option value="Cheque">Cheque</option>
-              </select>
-            </div>
-
-            {paymentRequest.paymentMethod === 'BankAccount' && (
-              <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Bank Account</label>
-                <select
-                  value={paymentRequest.bankAccountId || ''}
-                  onChange={(e) => setPaymentRequest({ ...paymentRequest, bankAccountId: e.target.value })}
-                  className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px]"
-                >
-                  <option value="">-- Choose Bank Account --</option>
-                  {bankAccounts.map((b) => (
-                    <option key={b.id} value={b.id}>{b.bankName} - {b.accountName}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {paymentRequest.paymentMethod === 'Cash' && (
-              <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Cash Book</label>
-                <select
-                  value={paymentRequest.cashBookId || ''}
-                  onChange={(e) => setPaymentRequest({ ...paymentRequest, cashBookId: e.target.value })}
-                  className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px]"
-                >
-                  <option value="">-- Choose Cash Book --</option>
-                  {cashBooks.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-xs font-semibold text-[#344054] mb-1">Reference Number / UTR</label>
-              <input
-                type="text"
-                placeholder="e.g. UTR-99812739"
-                value={paymentRequest.referenceNo || ''}
-                onChange={(e) => setPaymentRequest({ ...paymentRequest, referenceNo: e.target.value })}
-                className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-mono"
-              />
-            </div>
-
-            <div className="pt-3 flex justify-end gap-2 border-t border-[#E5E9F2]">
-              <EnterpriseButton
-                type="button"
-                variant="secondary"
-                onClick={() => setShowPaymentModal(false)}
-              >
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton
-                type="submit"
-                variant="primary"
-                loading={paymentSubmitting}
-              >
-                Confirm Payment
-              </EnterpriseButton>
-            </div>
-          </form>
-        </EnterpriseModal>
+          purchase={purchase}
+          onSuccess={(updatedPurchase) => {
+            setPurchase(updatedPurchase)
+            fetchPurchaseDetails()
+          }}
+        />
       )}
 
       {/* PRINT PREVIEW MODAL */}

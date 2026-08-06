@@ -83,6 +83,57 @@ namespace Aquora.Application.Services
             return map;
         }
 
+        private static string ComputeEventLabel(string transactionType, string? eventType, string? customLabel)
+        {
+            if (!string.IsNullOrWhiteSpace(customLabel)) return customLabel;
+
+            var eventUpper = (eventType ?? "CREATED").ToUpper();
+            var cat = transactionType ?? "Transaction";
+
+            if (eventUpper == "UPDATED")
+            {
+                if (cat.Equals("Salary Payment", StringComparison.OrdinalIgnoreCase)) return "Salary Updated";
+                if (cat.Equals("Expense", StringComparison.OrdinalIgnoreCase)) return "Expense Updated";
+                if (cat.Equals("Deposit", StringComparison.OrdinalIgnoreCase)) return "Bank Deposit Updated";
+                if (cat.Equals("Withdrawal", StringComparison.OrdinalIgnoreCase)) return "Bank Withdrawal Updated";
+                if (cat.Equals("Purchase Payment", StringComparison.OrdinalIgnoreCase) || cat.Equals("Supplier Payment", StringComparison.OrdinalIgnoreCase)) return "Purchase Payment Updated";
+                if (cat.Equals("Customer Receipt", StringComparison.OrdinalIgnoreCase) || cat.Equals("Sales Payment", StringComparison.OrdinalIgnoreCase)) return "Customer Receipt Updated";
+                if (cat.Equals("Transfer", StringComparison.OrdinalIgnoreCase)) return "Transfer Updated";
+                if (cat.Equals("Cash Adjustment", StringComparison.OrdinalIgnoreCase)) return "Cash Adjustment Updated";
+                if (cat.Equals("Opening Balance", StringComparison.OrdinalIgnoreCase)) return "Opening Balance Updated";
+                return $"{cat} Updated";
+            }
+            if (eventUpper == "DELETED" || eventUpper == "CANCELLED")
+            {
+                if (cat.Equals("Salary Payment", StringComparison.OrdinalIgnoreCase)) return "Salary Deleted";
+                if (cat.Equals("Expense", StringComparison.OrdinalIgnoreCase)) return "Expense Deleted";
+                if (cat.Equals("Deposit", StringComparison.OrdinalIgnoreCase)) return "Bank Deposit Deleted";
+                if (cat.Equals("Withdrawal", StringComparison.OrdinalIgnoreCase)) return "Bank Withdrawal Deleted";
+                if (cat.Equals("Purchase Payment", StringComparison.OrdinalIgnoreCase) || cat.Equals("Supplier Payment", StringComparison.OrdinalIgnoreCase)) return "Purchase Payment Deleted";
+                return $"{cat} Deleted";
+            }
+            if (eventUpper == "REVERSED")
+            {
+                return $"{cat} Reversed";
+            }
+            if (eventUpper == "ADJUSTED")
+            {
+                return $"{cat} Adjusted";
+            }
+
+            // CREATED / DEFAULT
+            if (cat.Equals("Salary Payment", StringComparison.OrdinalIgnoreCase)) return "Salary Paid";
+            if (cat.Equals("Expense", StringComparison.OrdinalIgnoreCase)) return "Expense Added";
+            if (cat.Equals("Deposit", StringComparison.OrdinalIgnoreCase)) return "Bank Deposit";
+            if (cat.Equals("Withdrawal", StringComparison.OrdinalIgnoreCase)) return "Bank Withdrawal";
+            if (cat.Equals("Purchase Payment", StringComparison.OrdinalIgnoreCase) || cat.Equals("Supplier Payment", StringComparison.OrdinalIgnoreCase)) return "Purchase Payment";
+            if (cat.Equals("Customer Receipt", StringComparison.OrdinalIgnoreCase) || cat.Equals("Sales Payment", StringComparison.OrdinalIgnoreCase)) return "Customer Receipt";
+            if (cat.Equals("Transfer", StringComparison.OrdinalIgnoreCase)) return "Transfer Between Accounts";
+            if (cat.Equals("Opening Balance", StringComparison.OrdinalIgnoreCase)) return "Opening Balance Added";
+
+            return cat;
+        }
+
         public async Task RecalculateBankLedgerBalancesAsync(Guid bankAccountId)
         {
             var tenantId = GetTenantId();
@@ -504,6 +555,9 @@ namespace Aquora.Application.Services
                     TransactionDate = x.TransactionDate,
                     ReferenceNumber = x.ReferenceNumber,
                     TransactionType = x.TransactionType,
+                    EventType = x.EventType ?? "CREATED",
+                    EventLabel = x.EventLabel,
+                    AuditNotes = x.AuditNotes,
                     Description = x.Description,
                     Debit = x.Debit,
                     Credit = x.Credit,
@@ -518,6 +572,10 @@ namespace Aquora.Application.Services
 
             if (entries.Any())
             {
+                foreach (var entry in entries)
+                {
+                    entry.EventLabel = ComputeEventLabel(entry.TransactionType, entry.EventType, entry.EventLabel);
+                }
                 var createdBys = entries.Select(x => x.CreatedBy).Distinct().ToList();
                 var userNamesMap = await ResolveUserNamesBatchAsync(createdBys);
 
@@ -673,6 +731,8 @@ namespace Aquora.Application.Services
                     TransactionDate = utcTransactionDate,
                     ReferenceNumber = referenceNumber,
                     TransactionType = transactionType,
+                    EventType = "CREATED",
+                    EventLabel = ComputeEventLabel(transactionType, "CREATED", null),
                     Description = description,
                     Debit = debit,
                     Credit = credit,
@@ -832,7 +892,9 @@ namespace Aquora.Application.Services
                 {
                     Id = Guid.NewGuid(), TenantId = tenantId, CompanyId = companyId, BankAccountId = null,
                     CashBookId = cashBookId, LedgerAccountType = "CashBook", TransactionDate = EnsureUtc(transactionDate),
-                    ReferenceNumber = referenceNumber, TransactionType = transactionType, Description = description,
+                    ReferenceNumber = referenceNumber, TransactionType = transactionType,
+                    EventType = "CREATED", EventLabel = ComputeEventLabel(transactionType, "CREATED", null),
+                    Description = description,
                     Debit = debit, Credit = credit, RunningBalance = 0m, RelatedEntityId = relatedEntityId,
                     RelatedEntityType = relatedEntityType, CreatedAt = DateTime.UtcNow, CreatedBy = _currentUserContext.UserId ?? "System"
                 };
@@ -896,12 +958,15 @@ namespace Aquora.Application.Services
                     existingEntry.TransactionDate = EnsureUtc(expenseDate);
                     existingEntry.ReferenceNumber = expenseNumber;
                     existingEntry.TransactionType = transactionType;
+                    existingEntry.EventType = "UPDATED";
+                    existingEntry.EventLabel = "Expense Updated";
+                    existingEntry.AuditNotes = $"Expense updated. Amount changed from ₹{oldAmount:N2} to ₹{amount:N2}";
                     existingEntry.Description = formattedDescription;
                     existingEntry.Debit = amount;
                     existingEntry.Credit = 0m;
                     existingEntry.UpdatedAt = DateTime.UtcNow;
                     existingEntry.UpdatedBy = _currentUserContext.UserId;
-                    _context.BankLedgerAuditEntries.Add(new BankLedgerAuditEntry { Id = Guid.NewGuid(), TenantId = tenantId, CompanyId = companyId, BankLedgerEntryId = existingEntry.Id, Action = "Edited", OldAmount = oldAmount, NewAmount = amount, Remarks = "Cash book expense updated.", CreatedAt = DateTime.UtcNow, CreatedBy = _currentUserContext.UserId ?? "System" });
+                    _context.BankLedgerAuditEntries.Add(new BankLedgerAuditEntry { Id = Guid.NewGuid(), TenantId = tenantId, CompanyId = companyId, BankLedgerEntryId = existingEntry.Id, Action = "Edited", OldAmount = oldAmount, NewAmount = amount, Remarks = $"Expense updated. Amount changed from ₹{oldAmount:N2} to ₹{amount:N2}", CreatedAt = DateTime.UtcNow, CreatedBy = _currentUserContext.UserId ?? "System" });
                     await _context.SaveChangesAsync();
                     if (oldCashBookId.HasValue && oldCashBookId.Value != cashBookId) await RecalculateCashBookLedgerBalancesAsync(oldCashBookId.Value);
                     if (oldBankId.HasValue && oldBankId.Value != Guid.Empty) await RecalculateBankLedgerBalancesAsync(oldBankId.Value);
@@ -980,6 +1045,9 @@ namespace Aquora.Application.Services
                     TransactionDate = x.TransactionDate,
                     ReferenceNumber = x.ReferenceNumber,
                     TransactionType = x.TransactionType,
+                    EventType = x.EventType ?? "CREATED",
+                    EventLabel = x.EventLabel,
+                    AuditNotes = x.AuditNotes,
                     Description = x.Description,
                     Debit = x.Debit,
                     Credit = x.Credit,
@@ -997,6 +1065,7 @@ namespace Aquora.Application.Services
                 var userNamesMap = await ResolveUserNamesBatchAsync(entries.Select(x => x.CreatedBy));
                 foreach (var entry in entries)
                 {
+                    entry.EventLabel = ComputeEventLabel(entry.TransactionType, entry.EventType, entry.EventLabel);
                     entry.CreatedBy = userNamesMap.TryGetValue(entry.CreatedBy, out var name) ? name : entry.CreatedBy;
                 }
             }
@@ -1137,6 +1206,9 @@ namespace Aquora.Application.Services
                 entry.TransactionDate = EnsureUtc(request.Date);
                 entry.ReferenceNumber = request.ReferenceNo ?? "";
                 entry.Description = desc;
+                entry.EventType = "UPDATED";
+                entry.EventLabel = "Bank Deposit Updated";
+                entry.AuditNotes = $"Deposit updated. Amount changed from ₹{oldAmount:N2} to ₹{request.Amount:N2}";
                 entry.UpdatedAt = DateTime.UtcNow;
                 entry.UpdatedBy = _currentUserContext.UserId ?? "System";
 
@@ -1307,6 +1379,9 @@ namespace Aquora.Application.Services
                     existingEntry.TransactionDate = utcPaymentDate;
                     existingEntry.ReferenceNumber = salaryNo;
                     existingEntry.TransactionType = "Salary Payment";
+                    existingEntry.EventType = "UPDATED";
+                    existingEntry.EventLabel = "Salary Updated";
+                    existingEntry.AuditNotes = $"Salary payment updated. Amount changed from ₹{oldNetSalary:N2} to ₹{newNetSalary:N2}. {auditRemarks}".Trim();
                     existingEntry.Description = description;
                     existingEntry.Debit = newNetSalary;
                     existingEntry.Credit = 0m;

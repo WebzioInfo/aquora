@@ -54,6 +54,9 @@ export interface BankLedgerEntry {
   transactionDate: string
   referenceNumber: string
   transactionType: string
+  eventType?: string
+  eventLabel?: string
+  auditNotes?: string
   description: string
   debit: number
   credit: number

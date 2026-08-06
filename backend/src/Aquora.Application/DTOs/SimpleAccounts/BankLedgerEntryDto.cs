@@ -9,6 +9,9 @@ namespace Aquora.Application.DTOs.SimpleAccounts
         public DateTime TransactionDate { get; set; }
         public string ReferenceNumber { get; set; } = string.Empty;
         public string TransactionType { get; set; } = string.Empty;
+        public string? EventType { get; set; } = "CREATED";
+        public string? EventLabel { get; set; }
+        public string? AuditNotes { get; set; }
         public string Description { get; set; } = string.Empty;
         public decimal Debit { get; set; }
         public decimal Credit { get; set; }
