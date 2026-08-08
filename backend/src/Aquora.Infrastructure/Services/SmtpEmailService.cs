@@ -97,5 +97,34 @@ namespace Aquora.Infrastructure.Services
 
             await SendEmailAsync(toEmail, subject, body, true);
         }
+
+        public async Task<(bool Success, string ErrorMessage)> VerifySmtpConfigurationAsync()
+        {
+            var host = _options.Host;
+            var port = _options.Port;
+            var user = _options.User;
+            var password = _options.Password;
+
+            if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(password))
+            {
+                return (false, "SMTP configuration is incomplete. Host, User, or Password is missing.");
+            }
+
+            try
+            {
+                using var client = new SmtpClient();
+                client.ServerCertificateValidationCallback = (s, c, h, e) => true;
+                await client.ConnectAsync(host, port, SecureSocketOptions.StartTls);
+                await client.AuthenticateAsync(user, password);
+                await client.DisconnectAsync(true);
+                return (true, "SMTP connection and authentication successful.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "SMTP Verification Failed for Host: {Host}, User: {User}", host, user);
+                return (false, $"SMTP connection failed: {ex.Message}");
+            }
+        }
     }
 }
+

@@ -18,6 +18,7 @@ namespace Aquora.Application.DTOs.QC
         public string? VerifiedBy { get; set; }
         public string? Remarks { get; set; }
         public string? Attachments { get; set; }
+        public string? ConcurrencyToken { get; set; }
         public DateTime CreatedAt { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
         public string CreatedByName { get; set; } = string.Empty;
@@ -61,6 +62,7 @@ namespace Aquora.Application.DTOs.QC
         public string? VerifiedBy { get; set; }
         public string? Remarks { get; set; }
         public string? Attachments { get; set; }
+        public string? ConcurrencyToken { get; set; }
 
         public List<CreateWaterTestResultRequest> Results { get; set; } = new List<CreateWaterTestResultRequest>();
     }

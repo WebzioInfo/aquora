@@ -90,6 +90,7 @@ namespace Aquora.Application.Interfaces
         DbSet<Aquora.Domain.Entities.Operations.OperationsIssueHistory> OperationsIssueHistories { get; }
 
         Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade Database { get; }
+        Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class;
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }

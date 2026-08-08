@@ -37,6 +37,7 @@ export function mapErrorToUserFriendly(error: any): UserFriendlyError {
     rawMsg = error.message || 'Network error'
   } else if (typeof error === 'string') {
     rawMsg = error
+    statusCode = 400
   } else if (error?.message) {
     rawMsg = error.message
     code = error.code || ''
@@ -60,6 +61,21 @@ export function mapErrorToUserFriendly(error: any): UserFriendlyError {
     msgLower.includes('an error occurred while saving the entity changes')
 
   // 3. Category & Message Mapping
+
+  // 409 Conflict Handling
+  if (statusCode === 409 || code === 'CONCURRENCY_CONFLICT' || code === 'DUPLICATE_RECORD') {
+    let msg = rawMsg && !isTechnicalLeak ? rawMsg : 'This record conflicts with existing data or was modified by another session. Please reload before saving.'
+    if (code === 'CONCURRENCY_CONFLICT' || msgLower.includes('concurrency') || msgLower.includes('someone else')) {
+      msg = 'This report was updated by someone else. Please reload the latest version before saving.'
+    }
+    return {
+      title: 'Data Conflict',
+      message: msg,
+      category: 'duplicate',
+      canUserFix: true,
+      code: code || 'CONFLICT',
+    }
+  }
 
   // A. Duplicate Records / Email Already Registered
   if (

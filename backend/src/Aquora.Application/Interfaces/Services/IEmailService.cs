@@ -6,5 +6,7 @@ namespace Aquora.Application.Interfaces.Services
     {
         Task SendEmailAsync(string toEmail, string subject, string body, bool isHtml = true);
         Task SendOtpEmailAsync(string toEmail, string otpCode, int expiryMinutes);
+        Task<(bool Success, string ErrorMessage)> VerifySmtpConfigurationAsync();
     }
 }
+

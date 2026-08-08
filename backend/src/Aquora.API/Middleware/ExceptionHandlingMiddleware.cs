@@ -65,8 +65,16 @@ namespace Aquora.API.Middleware
 
             if (isUniqueViolation)
             {
-                errorMessage = "An account with this email already exists.";
-                errorCode = "EMAIL_EXISTS";
+                if (IsUserEmailConstraintViolation(exception))
+                {
+                    errorMessage = "An account with this email already exists.";
+                    errorCode = "EMAIL_EXISTS";
+                }
+                else
+                {
+                    errorMessage = "A record with this information already exists. Please check for duplicate entries.";
+                    errorCode = "DUPLICATE_RECORD";
+                }
                 errorDetails.Add(errorMessage);
             }
             else if (statusCode == HttpStatusCode.InternalServerError)
@@ -105,6 +113,21 @@ namespace Aquora.API.Middleware
             var result = JsonSerializer.Serialize(apiResponse, options);
 
             return context.Response.WriteAsync(result);
+        }
+
+        private static bool IsUserEmailConstraintViolation(Exception ex)
+        {
+            var current = ex;
+            while (current != null)
+            {
+                if (current.Message.Contains("IX_Users_Email", StringComparison.OrdinalIgnoreCase) ||
+                    current.Message.Contains("users_email", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+                current = current.InnerException;
+            }
+            return false;
         }
 
         private static bool IsTechnicalErrorString(string? msg)

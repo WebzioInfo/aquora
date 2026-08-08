@@ -35,6 +35,7 @@ export interface WaterTestReport {
     verifiedBy?: string | null;
     remarks?: string | null;
     attachments?: string | null;
+    concurrencyToken?: string | null;
     createdAt: string;
     createdBy: string;
     createdByName: string;
@@ -53,6 +54,7 @@ export interface CreateWaterTestReportRequest {
     verifiedBy?: string | null;
     remarks?: string | null;
     attachments?: string | null;
+    concurrencyToken?: string | null;
     results: {
         parameterId: string;
         value?: number | null;

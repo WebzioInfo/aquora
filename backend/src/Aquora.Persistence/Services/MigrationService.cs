@@ -334,10 +334,14 @@ namespace Aquora.Persistence.Services
                                 using (var cmd = conn.CreateCommand())
                                 {
                                     cmd.CommandText = $@"
-                                        ALTER TABLE ""{tenant.SchemaName}"".""BankLedgerEntries"" ADD COLUMN IF NOT EXISTS ""EventType"" text NULL DEFAULT 'CREATED';
-                                        ALTER TABLE ""{tenant.SchemaName}"".""BankLedgerEntries"" ADD COLUMN IF NOT EXISTS ""EventLabel"" text NULL;
-                                        ALTER TABLE ""{tenant.SchemaName}"".""BankLedgerEntries"" ADD COLUMN IF NOT EXISTS ""AuditNotes"" text NULL;
-                                        UPDATE ""{tenant.SchemaName}"".""BankLedgerEntries"" SET ""EventType"" = 'CREATED' WHERE ""EventType"" IS NULL OR ""EventType"" = '';";
+                                         ALTER TABLE ""{tenant.SchemaName}"".""BankLedgerEntries"" ADD COLUMN IF NOT EXISTS ""EventType"" text NULL DEFAULT 'CREATED';
+                                         ALTER TABLE ""{tenant.SchemaName}"".""BankLedgerEntries"" ADD COLUMN IF NOT EXISTS ""EventLabel"" text NULL;
+                                         ALTER TABLE ""{tenant.SchemaName}"".""BankLedgerEntries"" ADD COLUMN IF NOT EXISTS ""AuditNotes"" text NULL;
+                                         ALTER TABLE ""{tenant.SchemaName}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""ConcurrencyToken"" text NULL;
+                                         UPDATE ""{tenant.SchemaName}"".""WaterTestReports"" SET ""ConcurrencyToken"" = md5(random()::text || clock_timestamp()::text) WHERE ""ConcurrencyToken"" IS NULL OR ""ConcurrencyToken"" = '';
+                                         ALTER TABLE ""{tenant.SchemaName}"".""WaterTestReports"" ALTER COLUMN ""ConcurrencyToken"" SET NOT NULL;
+                                         ALTER TABLE ""{tenant.SchemaName}"".""WaterTestReports"" ALTER COLUMN ""ConcurrencyToken"" SET DEFAULT md5(random()::text || clock_timestamp()::text);
+                                         UPDATE ""{tenant.SchemaName}"".""BankLedgerEntries"" SET ""EventType"" = 'CREATED' WHERE ""EventType"" IS NULL OR ""EventType"" = '';";
                                     await cmd.ExecuteNonQueryAsync();
                                 }
                             }
@@ -593,6 +597,7 @@ namespace Aquora.Persistence.Services
                                                 ""VerifiedBy"" text NULL,
                                                 ""Remarks"" text NULL,
                                                 ""Attachments"" text NULL,
+                                                ""ConcurrencyToken"" text NOT NULL DEFAULT md5(random()::text || clock_timestamp()::text),
                                                 ""IsActive"" boolean NOT NULL DEFAULT true,
                                                 ""IsDeleted"" boolean NOT NULL DEFAULT false,
                                                 ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,

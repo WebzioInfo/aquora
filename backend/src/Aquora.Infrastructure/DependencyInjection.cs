@@ -32,11 +32,24 @@ namespace Aquora.Infrastructure
             services.AddOptions<SmtpOptions>()
                 .Configure(options =>
                 {
-                    options.Host = configuration["SMTP_HOST"] ?? string.Empty;
-                    options.Port = int.TryParse(configuration["SMTP_PORT"], out var port) ? port : 587;
-                    options.User = configuration["SMTP_USER"] ?? string.Empty;
-                    options.Password = configuration["SMTP_PASSWORD"] ?? configuration["SMTP_PASS"] ?? string.Empty;
-                    options.FromName = configuration["SMTP_FROM_NAME"] ?? "Aquora ERP";
+                    string GetValue(params string?[] keys)
+                    {
+                        foreach (var key in keys)
+                        {
+                            if (string.IsNullOrEmpty(key)) continue;
+                            var val = configuration[key];
+                            if (!string.IsNullOrWhiteSpace(val)) return val.Trim();
+                            var envVal = Environment.GetEnvironmentVariable(key);
+                            if (!string.IsNullOrWhiteSpace(envVal)) return envVal.Trim();
+                        }
+                        return string.Empty;
+                    }
+
+                    options.Host = GetValue("SMTP_HOST", "Smtp:Host", "MAIL_HOST");
+                    options.Port = int.TryParse(GetValue("SMTP_PORT", "Smtp:Port", "MAIL_PORT"), out var port) ? port : 587;
+                    options.User = GetValue("SMTP_USER", "SMTP_USERNAME", "Smtp:User", "MAIL_USER");
+                    options.Password = GetValue("SMTP_PASSWORD", "SMTP_PASS", "Smtp:Password", "MAIL_PASSWORD");
+                    options.FromName = GetValue("SMTP_FROM_NAME", "Smtp:FromName", "SMTP_FROM", "MAIL_FROM") is var fromName && !string.IsNullOrWhiteSpace(fromName) ? fromName : "Aquora ERP";
                 })
                 .Validate(options => 
                 {
@@ -46,6 +59,7 @@ namespace Aquora.Infrastructure
                            !string.IsNullOrWhiteSpace(options.Password);
                 }, "SMTP configuration is incomplete. Host, Port, User, and Password must be provided.")
                 .ValidateOnStart();
+
 
             // Background tenant provisioning pipeline
             services.AddSingleton<ITenantProvisioningQueue, TenantProvisioningQueue>();

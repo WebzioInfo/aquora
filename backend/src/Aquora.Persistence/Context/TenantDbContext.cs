@@ -142,6 +142,12 @@ namespace Aquora.Persistence.Context
                 .Property(b => b.Encryption).IsRequired(false);
 
             // Quality Control Module Configuration
+            modelBuilder.Entity<Aquora.Domain.Entities.QC.WaterTestReport>()
+                .Property(r => r.ConcurrencyToken)
+                .IsRequired()
+                .HasDefaultValueSql("md5(random()::text || clock_timestamp()::text)")
+                .IsConcurrencyToken();
+
             modelBuilder.Entity<Aquora.Domain.Entities.QC.WaterTestResult>()
                 .HasIndex(r => new { r.ReportId, r.ParameterId })
                 .IsUnique();

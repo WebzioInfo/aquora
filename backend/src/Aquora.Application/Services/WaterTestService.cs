@@ -251,6 +251,7 @@ namespace Aquora.Application.Services
                 VerifiedBy = request.VerifiedBy,
                 Remarks = request.Remarks,
                 Attachments = request.Attachments,
+                ConcurrencyToken = Guid.NewGuid().ToString(),
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = currentUserId
             };
@@ -337,6 +338,20 @@ namespace Aquora.Application.Services
 
             if (report == null) return null;
 
+            // Optimistic Concurrency Protection Verification
+            if (!string.IsNullOrWhiteSpace(request.ConcurrencyToken) && 
+                !string.IsNullOrWhiteSpace(report.ConcurrencyToken) && 
+                !string.Equals(request.ConcurrencyToken, report.ConcurrencyToken, StringComparison.Ordinal))
+            {
+                throw new Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException("This report was updated by someone else. Reload the latest version before saving.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.ConcurrencyToken))
+            {
+                _context.Entry(report).Property(r => r.ConcurrencyToken).OriginalValue = request.ConcurrencyToken;
+            }
+            report.ConcurrencyToken = Guid.NewGuid().ToString();
+
             // Audit Delta Snapshot
             var oldBatchNumber = report.BatchNumber;
             var oldStatus = report.Status;
@@ -411,15 +426,29 @@ namespace Aquora.Application.Services
                 deduplicatedResults[param.Id] = (param, rReq.Value, rReq.StringValue);
             }
 
-            var activeSubmittedParameterIds = deduplicatedResults.Keys.ToHashSet();
+            var existingResultsByParamId = report.Results
+                .GroupBy(r => r.ParameterId)
+                .ToDictionary(g => g.Key, g => g.First());
+            var existingResultsByParamName = report.Results
+                .Where(r => r.Parameter != null && !string.IsNullOrWhiteSpace(r.Parameter.Name))
+                .GroupBy(r => r.Parameter.Name.Trim().ToLower())
+                .ToDictionary(g => g.Key, g => g.First());
+
+            var updatedResultIds = new HashSet<Guid>();
 
             foreach (var (param, val, strVal) in deduplicatedResults.Values)
             {
                 var qualityStatus = _evaluationService.EvaluateParameter(param, val, strVal);
-                var existingResult = report.Results.FirstOrDefault(r => 
-                    r.ParameterId == param.Id || 
-                    (r.Parameter != null && r.Parameter.Name.Equals(param.Name, StringComparison.OrdinalIgnoreCase))
-                );
+                WaterTestResult? existingResult = null;
+
+                if (existingResultsByParamId.TryGetValue(param.Id, out var resById))
+                {
+                    existingResult = resById;
+                }
+                else if (!string.IsNullOrWhiteSpace(param.Name) && existingResultsByParamName.TryGetValue(param.Name.Trim().ToLower(), out var resByName))
+                {
+                    existingResult = resByName;
+                }
 
                 if (existingResult != null)
                 {
@@ -430,6 +459,7 @@ namespace Aquora.Application.Services
                     existingResult.QualityStatus = qualityStatus;
                     existingResult.UpdatedAt = DateTime.UtcNow;
                     existingResult.UpdatedBy = currentUserId;
+                    updatedResultIds.Add(existingResult.Id);
                 }
                 else
                 {
@@ -446,12 +476,13 @@ namespace Aquora.Application.Services
                         CreatedBy = currentUserId
                     };
                     report.Results.Add(newResult);
+                    updatedResultIds.Add(newResult.Id);
                 }
             }
 
-            // Remove obsolete results safely through EF Core ChangeTracker
+            // Remove obsolete / orphaned results safely through EF Core ChangeTracker
             var toRemove = report.Results
-                .Where(r => !activeSubmittedParameterIds.Contains(r.ParameterId))
+                .Where(r => !updatedResultIds.Contains(r.Id))
                 .ToList();
 
             foreach (var item in toRemove)
@@ -577,6 +608,7 @@ namespace Aquora.Application.Services
                 VerifiedBy = r.VerifiedBy,
                 Remarks = r.Remarks,
                 Attachments = r.Attachments,
+                ConcurrencyToken = string.IsNullOrWhiteSpace(r.ConcurrencyToken) ? r.Id.ToString() : r.ConcurrencyToken,
                 CreatedAt = r.CreatedAt,
                 CreatedBy = r.CreatedBy,
                 CreatedByName = userNames.TryGetValue(r.CreatedBy, out var name) ? name : "System",

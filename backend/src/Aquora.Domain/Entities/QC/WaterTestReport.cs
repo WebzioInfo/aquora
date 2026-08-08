@@ -22,6 +22,8 @@ namespace Aquora.Domain.Entities.QC
         public string? Remarks { get; set; }
         public string? Attachments { get; set; } // JSON list of urls/names
 
+        public string ConcurrencyToken { get; set; } = Guid.NewGuid().ToString();
+
         public bool IsActive { get; set; } = true;
 
         public virtual ICollection<WaterTestResult> Results { get; set; } = new List<WaterTestResult>();

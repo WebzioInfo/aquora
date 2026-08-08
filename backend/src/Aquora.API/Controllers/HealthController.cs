@@ -87,5 +87,31 @@ namespace Aquora.API.Controllers
                 timestamp = DateTime.UtcNow
             });
         }
+
+        /// <summary>
+        /// Safe configuration diagnostic endpoint reporting boolean status of critical configuration without exposing secrets.
+        /// </summary>
+        [HttpGet("config-status")]
+        public async Task<IActionResult> GetConfigStatus([FromServices] IConfiguration config, [FromServices] IEmailService emailService)
+        {
+            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+            var dbConn = config.GetConnectionString("DefaultConnection") ?? config["ConnectionStrings:DefaultConnection"];
+            var jwtSecret = config["JwtSettings:Secret"] ?? config["JWT_SECRET"];
+            var frontendUrl = config["FRONTEND_URL"] ?? config["ALLOWED_ORIGINS"];
+            var (smtpSuccess, smtpMsg) = await emailService.VerifySmtpConfigurationAsync();
+
+            return Ok(new
+            {
+                environment = env,
+                apiConfigured = true,
+                databaseConfigured = !string.IsNullOrWhiteSpace(dbConn),
+                jwtConfigured = !string.IsNullOrWhiteSpace(jwtSecret),
+                smtpConfigured = smtpSuccess,
+                smtpDiagnostic = smtpMsg,
+                frontendUrlConfigured = !string.IsNullOrWhiteSpace(frontendUrl),
+                timestamp = DateTime.UtcNow
+            });
+        }
     }
 }
+
