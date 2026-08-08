@@ -15,6 +15,7 @@ using Aquora.Application.Interfaces.Services;
 using Aquora.Domain.Entities;
 using Aquora.Domain.Entities.Administration;
 using Microsoft.Extensions.Configuration;
+using System.Data;
 
 namespace Aquora.Application.Services
 {
@@ -405,6 +406,33 @@ namespace Aquora.Application.Services
             using var transaction = connection.BeginTransaction();
             try
             {
+                // 0. Fetch schema info
+                var schemaCols = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+                using (var schemaCmd = connection.CreateCommand())
+                {
+                    schemaCmd.Transaction = transaction;
+                    schemaCmd.CommandText = @"
+                        SELECT table_name, column_name, data_type 
+                        FROM information_schema.columns 
+                        WHERE table_schema = @schema";
+                    var schemaParam = schemaCmd.CreateParameter();
+                    schemaParam.ParameterName = "@schema";
+                    schemaParam.Value = schemaName;
+                    schemaCmd.Parameters.Add(schemaParam);
+
+                    using var reader = await schemaCmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        var tName = reader.GetString(0);
+                        var cName = reader.GetString(1);
+                        var dType = reader.GetString(2);
+
+                        if (!schemaCols.ContainsKey(tName))
+                            schemaCols[tName] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        schemaCols[tName][cName] = dType;
+                    }
+                }
+
                 // A. Disable Foreign Key Constraints & Truncate Tenant Tables
                 var tenantTables = await GetTenantTablesAsync(schemaName);
 
@@ -436,23 +464,52 @@ namespace Aquora.Application.Services
 
                     foreach (var row in rows)
                     {
-                        var cols = string.Join(", ", row.Keys.Select(k => $"\"{k}\""));
-                        var paramNames = string.Join(", ", row.Keys.Select((k, i) => $"@p{i}"));
-
+                        var colNames = new List<string>();
+                        var paramNames = new List<string>();
+                        
                         using var insertCmd = connection.CreateCommand();
                         insertCmd.Transaction = transaction;
-                        insertCmd.CommandText = $"INSERT INTO \"{schemaName}\".\"{tableName}\" ({cols}) VALUES ({paramNames});";
 
                         int paramIdx = 0;
-                        foreach (var val in row.Values)
+                        foreach (var kvpCol in row)
                         {
+                            var colName = kvpCol.Key;
+                            var rawVal = kvpCol.Value;
+
+                            string dbTypeStr = "text";
+                            if (schemaCols.TryGetValue(tableName, out var tblCols) && tblCols.TryGetValue(colName, out var typeStr))
+                            {
+                                dbTypeStr = typeStr.ToLowerInvariant();
+                            }
+
+                            (object finalVal, DbType dbTypeEnum) = ConvertToPgType(rawVal, dbTypeStr);
+
+                            colNames.Add($"\"{colName}\"");
+                            var pName = $"@p{paramIdx}";
+                            paramNames.Add(pName);
+
                             var param = insertCmd.CreateParameter();
-                            param.ParameterName = $"@p{paramIdx++}";
-                            param.Value = val ?? DBNull.Value;
+                            param.ParameterName = pName;
+                            param.Value = finalVal ?? DBNull.Value;
+                            param.DbType = dbTypeEnum;
                             insertCmd.Parameters.Add(param);
+
+                            paramIdx++;
                         }
 
-                        await insertCmd.ExecuteNonQueryAsync();
+                        var cols = string.Join(", ", colNames);
+                        var pNames = string.Join(", ", paramNames);
+                        insertCmd.CommandText = $"INSERT INTO \"{schemaName}\".\"{tableName}\" ({cols}) VALUES ({pNames});";
+
+                        try
+                        {
+                            await insertCmd.ExecuteNonQueryAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            var failedRowParams = string.Join(", ", insertCmd.Parameters.Cast<IDataParameter>().Select(p => $"{p.ParameterName}={p.Value} ({p.DbType})"));
+                            throw new InvalidOperationException($"Insert failed for table {tableName}. Params: {failedRowParams}. Error: {ex.Message}", ex);
+                        }
                     }
                 }
 
@@ -943,6 +1000,71 @@ namespace Aquora.Application.Services
                 JsonValueKind.Null => null,
                 _ => elem.ToString()
             };
+        }
+
+        private static (object, DbType) ConvertToPgType(object rawVal, string dbType)
+        {
+            if (rawVal == null) return (null, DbType.Object);
+
+            string strVal = rawVal.ToString() ?? "";
+
+            if (dbType.Contains("uuid"))
+            {
+                if (Guid.TryParse(strVal, out Guid g)) return (g, DbType.Guid);
+                return (null, DbType.Guid);
+            }
+            if (dbType.Contains("int8") || dbType.Contains("bigint"))
+            {
+                if (long.TryParse(strVal, out long l)) return (l, DbType.Int64);
+                return (null, DbType.Int64);
+            }
+            if (dbType.Contains("int4") || dbType.Contains("integer"))
+            {
+                if (int.TryParse(strVal, out int i)) return (i, DbType.Int32);
+                return (null, DbType.Int32);
+            }
+            if (dbType.Contains("numeric") || dbType.Contains("decimal"))
+            {
+                if (decimal.TryParse(strVal, out decimal d)) return (d, DbType.Decimal);
+                return (null, DbType.Decimal);
+            }
+            if (dbType.Contains("float") || dbType.Contains("double precision"))
+            {
+                if (double.TryParse(strVal, out double d)) return (d, DbType.Double);
+                return (null, DbType.Double);
+            }
+            if (dbType.Contains("bool") || dbType.Contains("boolean"))
+            {
+                if (bool.TryParse(strVal, out bool b)) return (b, DbType.Boolean);
+                if (strVal == "1" || strVal.Equals("true", StringComparison.OrdinalIgnoreCase)) return (true, DbType.Boolean);
+                if (strVal == "0" || strVal.Equals("false", StringComparison.OrdinalIgnoreCase)) return (false, DbType.Boolean);
+                return (null, DbType.Boolean);
+            }
+            if (dbType.Contains("timestamp"))
+            {
+                if (DateTime.TryParse(strVal, out DateTime dt)) return (dt, DbType.DateTimeOffset);
+                return (null, DbType.DateTime);
+            }
+            if (dbType.Contains("date"))
+            {
+                if (DateOnly.TryParse(strVal, out DateOnly d)) return (d, DbType.Date);
+                return (null, DbType.Date);
+            }
+            if (dbType.Contains("time"))
+            {
+                if (TimeOnly.TryParse(strVal, out TimeOnly t)) return (t, DbType.Time);
+                return (null, DbType.Time);
+            }
+            if (dbType.Contains("json"))
+            {
+                return (strVal, DbType.String);
+            }
+            if (dbType.Contains("bytea"))
+            {
+                try { return (Convert.FromBase64String(strVal), DbType.Binary); } catch { return (null, DbType.Binary); }
+            }
+
+            return (strVal, DbType.String);
         }
 
         private async Task LogFailedRestoreAsync(Guid backupId, string schemaName, string userId, DateTime startTime, string details)
