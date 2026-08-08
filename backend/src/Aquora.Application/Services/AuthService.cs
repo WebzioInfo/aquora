@@ -45,7 +45,7 @@ namespace Aquora.Application.Services
 
         public async Task<bool> RegisterAsync(RegisterRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.Email) || !Regex.IsMatch(request.Email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+            if (string.IsNullOrWhiteSpace(request.Email) || !Regex.IsMatch(request.Email.Trim(), @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
                 throw new InvalidOperationException("A valid email address is required.");
 
             if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8 ||
@@ -58,9 +58,29 @@ namespace Aquora.Application.Services
                 throw new InvalidOperationException("Passwords do not match.");
 
             var email = request.Email.Trim().ToLowerInvariant();
-            var existingUser = await _platformContext.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email && !u.IsDeleted);
+            
+            // Comprehensive pre-check (including soft-deleted and unverified accounts)
+            var existingUser = await _platformContext.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email);
             if (existingUser != null)
-                throw new InvalidOperationException("Email is already registered.");
+            {
+                if (existingUser.EmailVerified || existingUser.IsDeleted)
+                {
+                    Console.WriteLine($"[USER REGISTRATION REJECTED]: Email '{GetSafeEmailIdentifier(email)}' already registered (Verified: {existingUser.EmailVerified}, Deleted: {existingUser.IsDeleted}).");
+                    throw new InvalidOperationException("An account with this email already exists.");
+                }
+
+                // Unverified active user re-registering: update password/details and send fresh OTP without duplicate INSERT
+                Console.WriteLine($"[USER REGISTRATION RE-VERIFY]: Re-triggering verification for unverified email '{GetSafeEmailIdentifier(email)}'.");
+                var nameParts = (request.FullName ?? string.Empty).Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                existingUser.FirstName = nameParts.Length > 0 ? nameParts[0] : string.Empty;
+                existingUser.LastName = nameParts.Length > 1 ? nameParts[1] : string.Empty;
+                existingUser.PasswordHash = _passwordHasher.HashPassword(request.Password);
+                existingUser.IsActive = true;
+
+                await _platformContext.SaveChangesAsync();
+                await SendOtpAsync(new SendOtpRequest { Email = email, Purpose = "Registration" });
+                return true;
+            }
 
             var parts = (request.FullName ?? string.Empty).Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
 
@@ -84,15 +104,53 @@ namespace Aquora.Application.Services
                 await SendOtpAsync(new SendOtpRequest { Email = email, Purpose = "Registration" });
 
                 await transaction.CommitAsync();
-                Console.WriteLine($"[USER REGISTRATION]: User '{user.Email}' registered successfully with ID '{user.Id}'.");
+                Console.WriteLine($"[USER REGISTRATION SUCCESS]: User '{GetSafeEmailIdentifier(email)}' registered successfully.");
                 
                 return true;
             }
-            catch (Exception)
+            catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
             {
                 await transaction.RollbackAsync();
+                Console.WriteLine($"[USER REGISTRATION RACE CONDITION]: Prevented duplicate INSERT for '{GetSafeEmailIdentifier(email)}'.");
+                throw new InvalidOperationException("An account with this email already exists.");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Console.WriteLine($"[USER REGISTRATION ERROR]: Failed to register user '{GetSafeEmailIdentifier(email)}': {ex.Message}");
                 throw;
             }
+        }
+
+        private static string GetSafeEmailIdentifier(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return "***";
+            var parts = email.Split('@');
+            if (parts.Length != 2) return "***";
+            var prefix = parts[0];
+            var domain = parts[1];
+            if (prefix.Length <= 2) return $"{prefix}***@{domain}";
+            return $"{prefix[0]}***{prefix[^1]}@{domain}";
+        }
+
+        private static bool IsUniqueConstraintViolation(DbUpdateException ex)
+        {
+            var current = ex.InnerException;
+            while (current != null)
+            {
+                if (current.GetType().Name.Equals("PostgresException", StringComparison.OrdinalIgnoreCase))
+                {
+                    var sqlStateProp = current.GetType().GetProperty("SqlState");
+                    var sqlState = sqlStateProp?.GetValue(current)?.ToString();
+                    if (sqlState == "23505") return true;
+                }
+                if (current.Message.Contains("23505") || current.Message.Contains("IX_Users_Email") || current.Message.Contains("duplicate key"))
+                {
+                    return true;
+                }
+                current = current.InnerException;
+            }
+            return ex.Message.Contains("23505") || ex.Message.Contains("IX_Users_Email");
         }
 
         public async Task<bool> SendOtpAsync(SendOtpRequest request)
@@ -382,7 +440,9 @@ namespace Aquora.Application.Services
 
         public async Task<bool> ResetPasswordAsync(PasswordResetRequest request)
         {
-            var user = await _platformContext.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == request.Email.ToLower() && !u.IsDeleted);
+            if (string.IsNullOrWhiteSpace(request.Email)) return false;
+            var email = request.Email.Trim().ToLowerInvariant();
+            var user = await _platformContext.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email && !u.IsDeleted);
             if (user == null)
             {
                 return false;

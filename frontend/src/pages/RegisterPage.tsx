@@ -78,17 +78,19 @@ export const RegisterPage: React.FC = () => {
   const onSubmit = async (data: RegisterFormInputs) => {
     if (loading) return
     setLoading(true)
+    const trimmedEmail = data.email.trim()
+    const trimmedFullName = data.fullName.trim()
     try {
       const response = await authService.register({
-        fullName: data.fullName,
-        email: data.email,
+        fullName: trimmedFullName,
+        email: trimmedEmail,
         password: data.password,
         confirmPassword: data.confirmPassword,
       })
 
       if (response.success) {
         showToast('Registration completed. Enter the verification code sent to your email.', 'success')
-        navigate('/verify-otp', { state: { email: data.email, fromRegistration: true } })
+        navigate('/verify-otp', { state: { email: trimmedEmail, fromRegistration: true } })
       } else {
         showToast(response.message || 'Registration failed.', 'error')
       }

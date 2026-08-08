@@ -37,13 +37,20 @@ namespace Aquora.API.Middleware
         {
             context.Response.ContentType = "application/json";
             
+            bool isUniqueViolation = exception is Microsoft.EntityFrameworkCore.DbUpdateException dbEx && IsUniqueConstraintViolation(dbEx);
+            bool isDuplicateEmailMsg = exception is InvalidOperationException invEx && 
+                (invEx.Message.Contains("already exists", StringComparison.OrdinalIgnoreCase) || 
+                 invEx.Message.Contains("already registered", StringComparison.OrdinalIgnoreCase) ||
+                 invEx.Message == "ALREADY_VERIFIED");
+
             var statusCode = exception switch
             {
+                _ when isUniqueViolation || isDuplicateEmailMsg => HttpStatusCode.Conflict,
                 UnauthorizedAccessException => HttpStatusCode.Unauthorized,
                 KeyNotFoundException => HttpStatusCode.NotFound,
                 ArgumentException => HttpStatusCode.BadRequest,
                 Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException => HttpStatusCode.Conflict,
-                InvalidOperationException => exception.Message == "ALREADY_VERIFIED" ? HttpStatusCode.Conflict : HttpStatusCode.BadRequest,
+                InvalidOperationException => HttpStatusCode.BadRequest,
                 _ => HttpStatusCode.InternalServerError
             };
 
@@ -56,7 +63,13 @@ namespace Aquora.API.Middleware
             string errorCode;
             var errorDetails = new List<object>();
 
-            if (statusCode == HttpStatusCode.InternalServerError)
+            if (isUniqueViolation)
+            {
+                errorMessage = "An account with this email already exists.";
+                errorCode = "EMAIL_EXISTS";
+                errorDetails.Add(errorMessage);
+            }
+            else if (statusCode == HttpStatusCode.InternalServerError)
             {
                 // Never expose details of internal server errors/crashes
                 errorMessage = "Unable to complete your request. Please try again later.";
@@ -65,17 +78,23 @@ namespace Aquora.API.Middleware
             }
             else
             {
-                // Safe mapped client exception messages
                 errorMessage = exception.Message;
                 errorCode = exception switch
                 {
+                    _ when isDuplicateEmailMsg => "EMAIL_EXISTS",
                     UnauthorizedAccessException => "UNAUTHORIZED",
                     KeyNotFoundException => "NOT_FOUND",
                     Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException => "CONCURRENCY_CONFLICT",
-                    InvalidOperationException => exception.Message == "ALREADY_VERIFIED" ? "ALREADY_VERIFIED" : "INVALID_OPERATION",
+                    InvalidOperationException => "INVALID_OPERATION",
                     _ => "BAD_REQUEST"
                 };
-                errorDetails.Add(exception.Message);
+
+                if (IsTechnicalErrorString(errorMessage))
+                {
+                    errorMessage = "We couldn't complete your request right now. Please try again in a few moments.";
+                    errorCode = "SERVER_ERROR";
+                }
+                errorDetails.Add(errorMessage);
             }
 
             // Build standardized error response
@@ -86,6 +105,36 @@ namespace Aquora.API.Middleware
             var result = JsonSerializer.Serialize(apiResponse, options);
 
             return context.Response.WriteAsync(result);
+        }
+
+        private static bool IsTechnicalErrorString(string? msg)
+        {
+            if (string.IsNullOrWhiteSpace(msg)) return false;
+            var lower = msg.ToLowerInvariant();
+            return lower.Contains("23505") || lower.Contains("ix_users_") || lower.Contains("npgsql") ||
+                   lower.Contains("postgres") || lower.Contains("dbupdate") || lower.Contains("nullreference") ||
+                   lower.Contains("object reference") || lower.Contains("connection refused") || lower.Contains("econnrefused") ||
+                   lower.Contains("an error occurred while saving the entity changes");
+        }
+
+        private static bool IsUniqueConstraintViolation(Microsoft.EntityFrameworkCore.DbUpdateException ex)
+        {
+            var current = ex.InnerException;
+            while (current != null)
+            {
+                if (current.GetType().Name.Equals("PostgresException", StringComparison.OrdinalIgnoreCase))
+                {
+                    var sqlStateProp = current.GetType().GetProperty("SqlState");
+                    var sqlState = sqlStateProp?.GetValue(current)?.ToString();
+                    if (sqlState == "23505") return true;
+                }
+                if (current.Message.Contains("23505") || current.Message.Contains("IX_Users_Email") || current.Message.Contains("duplicate key"))
+                {
+                    return true;
+                }
+                current = current.InnerException;
+            }
+            return ex.Message.Contains("23505") || ex.Message.Contains("IX_Users_Email");
         }
     }
 }

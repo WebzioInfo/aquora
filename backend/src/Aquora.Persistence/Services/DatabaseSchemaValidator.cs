@@ -22,17 +22,15 @@ namespace Aquora.Persistence.Services
 
         public async Task ValidateSchemaAsync(DbContext dbContext, string schemaName = "public")
         {
-            var connection = dbContext.Database.GetDbConnection() as NpgsqlConnection;
-            if (connection == null)
+            var connStr = dbContext.Database.GetConnectionString();
+            if (string.IsNullOrWhiteSpace(connStr))
             {
-                _logger.LogWarning("Schema validation is only supported for PostgreSQL.");
+                _logger.LogWarning("Schema validation requires a valid PostgreSQL connection string.");
                 return;
             }
 
-            if (connection.State != System.Data.ConnectionState.Open)
-            {
-                await connection.OpenAsync();
-            }
+            using var connection = new NpgsqlConnection(connStr);
+            await connection.OpenAsync();
 
             var model = dbContext.Model;
             var entityTypes = model.GetEntityTypes().Where(e => !e.IsOwned()).ToList();

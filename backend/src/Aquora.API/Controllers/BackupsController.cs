@@ -125,14 +125,40 @@ namespace Aquora.API.Controllers
             }
             catch (InvalidOperationException ex)
             {
+                Console.WriteLine("================================================");
+                Console.WriteLine("[BACKUPS CONTROLLER INVALID OPERATION EXCEPTION]");
+                Console.WriteLine(ex.ToString());
+                var inner = ex.InnerException;
+                while (inner != null)
+                {
+                    Console.WriteLine("------------------------------------------------");
+                    Console.WriteLine("[INNER EXCEPTION]: " + inner.ToString());
+                    inner = inner.InnerException;
+                }
+                Console.WriteLine("================================================");
                 return BadRequest(ApiResponse<object>.CreateFailure(ex.Message));
             }
             catch (KeyNotFoundException ex)
             {
+                Console.WriteLine("================================================");
+                Console.WriteLine("[BACKUPS CONTROLLER KEY NOT FOUND EXCEPTION]");
+                Console.WriteLine(ex.ToString());
+                Console.WriteLine("================================================");
                 return NotFound(ApiResponse<object>.CreateFailure(ex.Message));
             }
             catch (Exception ex)
             {
+                Console.WriteLine("================================================");
+                Console.WriteLine("[BACKUPS CONTROLLER UNHANDLED EXCEPTION]");
+                Console.WriteLine(ex.ToString());
+                var inner = ex.InnerException;
+                while (inner != null)
+                {
+                    Console.WriteLine("------------------------------------------------");
+                    Console.WriteLine("[INNER EXCEPTION]: " + inner.ToString());
+                    inner = inner.InnerException;
+                }
+                Console.WriteLine("================================================");
                 return StatusCode(500, ApiResponse<object>.CreateFailure(ex.Message));
             }
         }

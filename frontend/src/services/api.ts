@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/useAuthStore'
+import { mapErrorToUserFriendly } from '../utils/errorMapper'
 
 const getSanitizedApiBaseUrl = (): string => {
   let url = import.meta.env.VITE_API_URL || 'http://localhost:5000'
@@ -154,63 +155,26 @@ api.interceptors.response.use(
       }
     }
 
-    // Catch other errors and provide a safe message
-    let errorMessage = "Unable to complete your request. Please try again later."
-    let errorDetails: string[] = []
-    let errorCode = "UNKNOWN_ERROR"
+    // Map any raw error, status code, or DB exception into clean user-friendly feedback
+    const userFriendly = mapErrorToUserFriendly(error)
+    const errorMessage = userFriendly.message
+    const errorCode = userFriendly.code
+    let errorDetails: string[] = [errorMessage]
 
     if (error.response) {
-      const { status, data } = error.response
-      
-      if (data?.code) {
-        errorCode = data.code
-      } else if (status === 401) {
-        errorCode = "SESSION_EXPIRED"
-      } else if (status === 403) {
-        errorCode = "PERMISSION_DENIED"
-      } else if (status === 404) {
-        errorCode = "NOT_FOUND"
-      } else if (status >= 500) {
-        errorCode = "SERVER_ERROR"
+      if (Array.isArray(error.response.data?.errors) && error.response.data.errors.length > 0) {
+        errorDetails = error.response.data.errors.map((e: any) => typeof e === 'string' ? e : JSON.stringify(e))
       }
 
-      // Priority 1: errors[] if available
-      if (data?.errors && Array.isArray(data.errors) && data.errors.length > 0) {
-        errorDetails = data.errors.map((e: any) => typeof e === 'string' ? e : JSON.stringify(e))
-        errorMessage = errorDetails[0]
-      }
-      // Priority 2: message if available
-      else if (data?.message) {
-        errorMessage = data.message
-      }
-      // Priority 3: Friendly fallbacks
-      else {
-        if (status === 401) {
-          errorMessage = "Your session has expired. Please login again."
-        } else if (status === 403) {
-          errorMessage = "You don't have permission to perform this action."
-        } else if (status === 404) {
-          errorMessage = "Requested resource not found."
-        } else if (status >= 500) {
-          errorMessage = "Unable to complete your request. Please try again later."
-        }
-      }
-
-      // Mutate the response data so that component-level checks are transparently updated
       if (!error.response.data) {
         error.response.data = {}
       }
       error.response.data.success = false
       error.response.data.message = errorMessage
-      error.response.data.errors = errorDetails.length > 0 ? errorDetails : [errorMessage]
+      error.response.data.errors = errorDetails
       error.response.data.code = errorCode
-
+      error.response.data.title = userFriendly.title
     } else if (error.request) {
-      errorMessage = "Unable to connect to the server. Check your internet connection."
-      errorCode = "NETWORK_ERROR"
-      errorDetails = [errorMessage]
-
-      // Populate error.response with virtual data for network failures
       error.response = {
         status: 0,
         statusText: "Network Error",
@@ -220,7 +184,8 @@ api.interceptors.response.use(
           success: false,
           message: errorMessage,
           errors: errorDetails,
-          code: errorCode
+          code: errorCode,
+          title: userFriendly.title
         }
       }
     } else {
@@ -232,16 +197,19 @@ api.interceptors.response.use(
         data: {
           success: false,
           message: errorMessage,
-          errors: [errorMessage],
-          code: errorCode
+          errors: errorDetails,
+          code: errorCode,
+          title: userFriendly.title
         }
       }
     }
 
-    // Mutate the error object to contain the safe message
+    // Mutate the error object to contain the safe user-friendly message & title
     error.message = errorMessage
     error.details = errorDetails
     error.code = errorCode
+    error.title = userFriendly.title
+    error.userFriendly = userFriendly
 
     return Promise.reject(error)
   }

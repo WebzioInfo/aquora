@@ -27,9 +27,10 @@ namespace Aquora.Shared.Models
             if (msgLower.Contains("pin") || msgLower.Contains("password") || msgLower.Contains("credentials")) return "INVALID_CREDENTIALS";
             if (msgLower.Contains("permission") || msgLower.Contains("forbidden") || msgLower.Contains("authorized")) return "PERMISSION_DENIED";
             if (msgLower.Contains("not found")) return "NOT_FOUND";
-            if (msgLower.Contains("already exists") || msgLower.Contains("duplicate")) return "DUPLICATE_RECORD";
+            if (msgLower.Contains("stock") || msgLower.Contains("inventory")) return "INSUFFICIENT_STOCK";
+            if (msgLower.Contains("already exists") || msgLower.Contains("duplicate") || msgLower.Contains("already taken")) return "DUPLICATE_RECORD";
             if (msgLower.Contains("delete") && (msgLower.Contains("referenced") || msgLower.Contains("used by other") || msgLower.Contains("cannot delete"))) return "DELETE_RESTRICTION";
-            if (msgLower.Contains("validation")) return "VALIDATION_ERROR";
+            if (msgLower.Contains("validation") || msgLower.Contains("required") || msgLower.Contains("invalid")) return "VALIDATION_ERROR";
             return "ERROR";
         }
 

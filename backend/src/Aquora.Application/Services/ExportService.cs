@@ -54,9 +54,10 @@ namespace Aquora.Application.Services
             sb.AppendLine("BEGIN;");
             sb.AppendLine();
 
-            var connection = _context.Database.GetDbConnection();
-            bool wasClosed = connection.State == ConnectionState.Closed;
-            if (wasClosed) await connection.OpenAsync();
+            var connStr = _context.Database.GetConnectionString();
+            var connType = _context.Database.GetDbConnection().GetType();
+            using var connection = (System.Data.Common.DbConnection)Activator.CreateInstance(connType, connStr)!;
+            await connection.OpenAsync();
 
             try
             {
@@ -252,10 +253,7 @@ namespace Aquora.Application.Services
                 sb.AppendLine("COMMIT;");
                 return sb.ToString();
             }
-            finally
-            {
-                if (wasClosed) await connection.CloseAsync();
-            }
+            finally { }
         }
 
         private async Task<List<string>> GetTenantTablesOrderedByDependenciesAsync(string schemaName)

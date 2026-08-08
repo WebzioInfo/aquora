@@ -599,6 +599,27 @@ namespace Aquora.Persistence.Context
         {
             foreach (var entry in ChangeTracker.Entries())
             {
+                if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
+                {
+                    foreach (var property in entry.Properties)
+                    {
+                        if (property.Metadata.ClrType == typeof(DateTime) || property.Metadata.ClrType == typeof(DateTime?))
+                        {
+                            if (property.CurrentValue is DateTime dt)
+                            {
+                                if (dt.Kind == DateTimeKind.Unspecified)
+                                {
+                                    property.CurrentValue = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                                }
+                                else if (dt.Kind == DateTimeKind.Local)
+                                {
+                                    property.CurrentValue = dt.ToUniversalTime();
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if (entry.State == EntityState.Added && entry.Entity is IMultiTenant multiTenantEntity)
                 {
                     if (multiTenantEntity.TenantId == Guid.Empty)
@@ -606,7 +627,6 @@ namespace Aquora.Persistence.Context
                         multiTenantEntity.TenantId = currentTenantId;
                     }
                 }
-
                 if (entry.State == EntityState.Deleted && entry.Entity is ISoftDelete softDeleteEntity)
                 {
                     entry.State = EntityState.Modified;

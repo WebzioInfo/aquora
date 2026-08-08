@@ -174,7 +174,7 @@ export const PlatformBackupCenterPage: React.FC = () => {
   };
 
   const executeRestore = async () => {
-    if (!restorePreviewData || confirmationText !== 'RESTORE') return;
+    if (!restorePreviewData || confirmationText.trim().toUpperCase() !== 'RESTORE') return;
     try {
       setActionLoading(true);
       await platformBackupsApi.restoreBackup(restorePreviewData.backupId, 'RESTORE', restorePreviewData.mode, restorePreviewData.targetSchemas);
@@ -795,8 +795,9 @@ export const PlatformBackupCenterPage: React.FC = () => {
                   type="text" 
                   value={confirmationText}
                   onChange={e => setConfirmationText(e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-slate-300 rounded-xl focus:outline-none focus:border-red-500 font-mono text-center tracking-[0.2em] uppercase text-base transition-all"
-                  placeholder="RESTORE"
+                  className="w-full px-4 py-2 border-2 border-slate-300 rounded-xl focus:outline-none focus:border-red-500 font-mono text-center tracking-[0.2em] uppercase text-base transition-all placeholder:tracking-normal placeholder:font-sans placeholder:text-slate-400 placeholder:text-xs"
+                  placeholder="Type RESTORE to confirm"
+                  autoFocus
                 />
               </div>
             </div>
@@ -805,8 +806,8 @@ export const PlatformBackupCenterPage: React.FC = () => {
               <button onClick={() => setRestorePreviewData(null)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 bg-slate-200/50 rounded-xl font-semibold text-xs transition-colors">Cancel</button>
               <button 
                 onClick={executeRestore} 
-                disabled={confirmationText !== 'RESTORE' || actionLoading}
-                className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold text-xs hover:bg-red-700 disabled:opacity-50 flex items-center gap-2 transition-all shadow-sm active:scale-95"
+                disabled={confirmationText.trim().toUpperCase() !== 'RESTORE' || actionLoading}
+                className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold text-xs hover:bg-red-700 disabled:opacity-50 flex items-center gap-2 transition-all shadow-sm active:scale-95 cursor-pointer disabled:cursor-not-allowed"
               >
                 {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
                 EXECUTE PLATFORM RESTORE

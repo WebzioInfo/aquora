@@ -88,16 +88,20 @@ namespace Aquora.Application.Services
 
         public async Task<LoginResponse> VerifyOtpAndCreateUserAsync(OTPRegisterRequest request)
         {
-            // 1. Verify unique email
+            if (string.IsNullOrWhiteSpace(request.Email))
+                throw new ArgumentException("Email is required.");
+
+            var email = request.Email.Trim().ToLowerInvariant();
+
+            // 1. Verify unique email (including soft-deleted)
             var emailExists = await _platformContext.Users
-                .AnyAsync(u => u.Email.ToLower() == request.Email.ToLower() && !u.IsDeleted);
+                .AnyAsync(u => u.Email.ToLower() == email);
             if (emailExists)
             {
-                throw new InvalidOperationException("Email is already registered.");
+                throw new InvalidOperationException("An account with this email already exists.");
             }
 
             // 2. Retrieve OTP verification record
-            var email = request.Email.Trim().ToLower();
             Console.WriteLine($"[TENANT OTP VERIFY INITIATED]: Email '{email}'.");
 
             var otp = await _platformContext.OTPVerifications
@@ -133,41 +137,68 @@ namespace Aquora.Application.Services
             await _platformContext.SaveChangesAsync();
             Console.WriteLine($"[TENANT OTP VERIFY SUCCESS]: OTP verified for Email '{email}'.");
 
-             // 3. Create User record globally
-             var user = new User
-             {
-                 Email = request.Email.ToLower(),
-                 FirstName = request.FirstName,
-                 LastName = request.LastName,
-                 PasswordHash = _passwordHasher.HashPassword(request.Password),
-                 IsActive = true,
-                 EmailVerified = true,
-                 EmailVerifiedAt = DateTime.UtcNow
-             };
-             _platformContext.Users.Add(user);
-             await _platformContext.SaveChangesAsync();
-
-            // Generate autologin details
-            var accessToken = _tokenService.GenerateAccessToken(user, new List<string>(), new List<string>());
-            var refreshToken = _tokenService.GenerateRefreshToken();
-
-            user.RefreshToken = refreshToken;
-            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
-            await _platformContext.SaveChangesAsync();
-
-            return new LoginResponse
+            // 3. Create User record globally
+            try
             {
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
-                ExpiresIn = 3600,
-                UserId = user.Id,
-                Email = user.Email,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                TenantId = null,
-                Roles = new List<string>(),
-                Permissions = new List<string>()
-            };
+                var user = new User
+                {
+                    Email = email,
+                    FirstName = request.FirstName?.Trim() ?? string.Empty,
+                    LastName = request.LastName?.Trim() ?? string.Empty,
+                    PasswordHash = _passwordHasher.HashPassword(request.Password),
+                    IsActive = true,
+                    EmailVerified = true,
+                    EmailVerifiedAt = DateTime.UtcNow
+                };
+                _platformContext.Users.Add(user);
+                await _platformContext.SaveChangesAsync();
+
+                // Generate autologin details
+                var accessToken = _tokenService.GenerateAccessToken(user, new List<string>(), new List<string>());
+                var refreshToken = _tokenService.GenerateRefreshToken();
+
+                user.RefreshToken = refreshToken;
+                user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                await _platformContext.SaveChangesAsync();
+
+                return new LoginResponse
+                {
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken,
+                    ExpiresIn = 3600,
+                    UserId = user.Id,
+                    Email = user.Email,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    TenantId = null,
+                    Roles = new List<string>(),
+                    Permissions = new List<string>()
+                };
+            }
+            catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+            {
+                throw new InvalidOperationException("An account with this email already exists.");
+            }
+        }
+
+        private static bool IsUniqueConstraintViolation(DbUpdateException ex)
+        {
+            var current = ex.InnerException;
+            while (current != null)
+            {
+                if (current.GetType().Name.Equals("PostgresException", StringComparison.OrdinalIgnoreCase))
+                {
+                    var sqlStateProp = current.GetType().GetProperty("SqlState");
+                    var sqlState = sqlStateProp?.GetValue(current)?.ToString();
+                    if (sqlState == "23505") return true;
+                }
+                if (current.Message.Contains("23505") || current.Message.Contains("IX_Users_Email") || current.Message.Contains("duplicate key"))
+                {
+                    return true;
+                }
+                current = current.InnerException;
+            }
+            return ex.Message.Contains("23505") || ex.Message.Contains("IX_Users_Email");
         }
 
         public async Task<Guid> OnboardTenantAsync(Guid userId, OnboardingRequest request)
