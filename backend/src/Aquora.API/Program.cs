@@ -420,14 +420,21 @@ static void LoadEnvironmentVariables(WebApplicationBuilder builder)
 
     for (int i = 0; i < 5; i++)
     {
-        if (!string.IsNullOrEmpty(currentDir) && !searchDirs.Contains(currentDir)) searchDirs.Add(currentDir);
-        var p1 = System.IO.Directory.GetParent(currentDir);
-        currentDir = p1?.FullName;
+        if (!string.IsNullOrEmpty(currentDir))
+        {
+            if (!searchDirs.Contains(currentDir)) searchDirs.Add(currentDir);
+            var p1 = System.IO.Directory.GetParent(currentDir);
+            currentDir = p1?.FullName;
+        }
 
-        if (!string.IsNullOrEmpty(baseDir) && !searchDirs.Contains(baseDir)) searchDirs.Add(baseDir);
-        var p2 = System.IO.Directory.GetParent(baseDir);
-        baseDir = p2?.FullName;
+        if (!string.IsNullOrEmpty(baseDir))
+        {
+            if (!searchDirs.Contains(baseDir)) searchDirs.Add(baseDir);
+            var p2 = System.IO.Directory.GetParent(baseDir);
+            baseDir = p2?.FullName;
+        }
     }
+
 
     var envName = builder.Environment.EnvironmentName;
     var candidates = new[] { $".env.{envName}.local", $".env.{envName}", ".env.local", ".env" };
