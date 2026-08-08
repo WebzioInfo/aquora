@@ -30,6 +30,7 @@ namespace Aquora.Application
             services.AddScoped<ISimpleAccountsService, SimpleAccountsService>();
             services.AddScoped<IVendorService, VendorService>();
             services.AddScoped<IPurchaseService, PurchaseService>();
+            services.AddScoped<IAssetManagementService, AssetManagementService>();
             services.AddScoped<ILedgerService, BankLedgerService>();
             services.AddScoped<IBankLedgerService>(sp => sp.GetRequiredService<ILedgerService>());
             services.AddScoped<IHealthService, HealthService>();

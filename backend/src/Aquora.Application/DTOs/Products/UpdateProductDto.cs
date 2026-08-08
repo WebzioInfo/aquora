@@ -17,9 +17,19 @@ namespace Aquora.Application.DTOs.Products
 
         public bool IsActive { get; set; }
         public decimal? CurrentStock { get; set; }
+        public decimal? SellingPrice { get; set; }
+        public decimal? CostPrice { get; set; }
         public string Category { get; set; } = "Bottle";
         public int DisplayOrder { get; set; } = 0;
         public string? BottleSize { get; set; }
         public string? ImageUrl { get; set; }
+    }
+
+    public class UpdateProductPriceDto
+    {
+        [Required(ErrorMessage = "Enter a valid unit price.")]
+        [Range(0, 100000000, ErrorMessage = "Enter a valid unit price.")]
+        public decimal SellingPrice { get; set; }
+        public decimal? CostPrice { get; set; }
     }
 }

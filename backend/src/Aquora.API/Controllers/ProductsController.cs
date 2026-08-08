@@ -80,6 +80,8 @@ namespace Aquora.API.Controllers
                         SKU = p.SKU,
                         IsActive = p.IsActive,
                         CurrentStock = p.CurrentStock,
+                        SellingPrice = p.SellingPrice,
+                        CostPrice = p.CostPrice,
                         Category = p.Category,
                         DisplayOrder = p.DisplayOrder,
                         BottleSize = p.BottleSize,
@@ -122,6 +124,8 @@ namespace Aquora.API.Controllers
                     SKU = product.SKU,
                     IsActive = product.IsActive,
                     CurrentStock = product.CurrentStock,
+                    SellingPrice = product.SellingPrice,
+                    CostPrice = product.CostPrice,
                     Category = product.Category,
                     DisplayOrder = product.DisplayOrder,
                     BottleSize = product.BottleSize,
@@ -340,6 +344,8 @@ namespace Aquora.API.Controllers
                     product.DisplayOrder = request.DisplayOrder;
                     product.BottleSize = request.BottleSize;
                     product.ImageUrl = request.ImageUrl;
+                    if (request.SellingPrice.HasValue) product.SellingPrice = request.SellingPrice.Value;
+                    if (request.CostPrice.HasValue) product.CostPrice = request.CostPrice.Value;
 
                     if (request.CurrentStock.HasValue && request.CurrentStock.Value != product.CurrentStock)
                     {
@@ -393,6 +399,8 @@ namespace Aquora.API.Controllers
                     SKU = product.SKU,
                     IsActive = product.IsActive,
                     CurrentStock = product.CurrentStock,
+                    SellingPrice = product.SellingPrice,
+                    CostPrice = product.CostPrice,
                     Category = product.Category,
                     DisplayOrder = product.DisplayOrder,
                     BottleSize = product.BottleSize,
@@ -408,6 +416,83 @@ namespace Aquora.API.Controllers
                 var innerMessage = ex.InnerException?.Message ?? ex.Message;
                 _logger.LogError(ex, "An unexpected error occurred in ProductsController UpdateProduct. TenantId: {TenantId}, ProductId: {ProductId}", _currentUserContext.TenantId, id);
                 return BadRequest(ApiResponse<ProductDto>.CreateFailure($"An unexpected error occurred: {innerMessage}", "System Error", HttpContext.TraceIdentifier));
+            }
+        }
+
+        [HttpPut("{id:guid}/price")]
+        public async Task<IActionResult> UpdateProductPrice(Guid id, [FromBody] UpdateProductPriceDto request)
+        {
+            if (!IsAuthorizedToWrite())
+            {
+                return StatusCode(403, ApiResponse<object>.CreateFailure("You don't have permission to change the unit price.", "Forbidden", HttpContext.TraceIdentifier));
+            }
+
+            if (request == null || request.SellingPrice < 0)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure("Enter a valid unit price.", "Validation Error", HttpContext.TraceIdentifier));
+            }
+
+            try
+            {
+                var product = await _tenantContext.Products.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+                if (product == null)
+                {
+                    return NotFound(ApiResponse<object>.CreateFailure("Product not found.", "Not Found", HttpContext.TraceIdentifier));
+                }
+
+                var oldPrice = product.SellingPrice;
+                product.SellingPrice = request.SellingPrice;
+                if (request.CostPrice.HasValue && request.CostPrice.Value >= 0)
+                {
+                    product.CostPrice = request.CostPrice.Value;
+                }
+                product.UpdatedAt = DateTime.UtcNow;
+                product.UpdatedBy = _currentUserContext.UserId?.ToString() ?? "System";
+
+                _tenantContext.AuditLogs.Add(new AuditLog
+                {
+                    TenantId = _currentUserContext.TenantId,
+                    UserId = _currentUserContext.UserId?.ToString(),
+                    UserEmail = _currentUserContext.Email,
+                    Action = "UpdateUnitPrice",
+                    TableName = "Products",
+                    PrimaryKey = product.Id.ToString(),
+                    OldValues = $"{oldPrice:F2}",
+                    NewValues = $"{product.SellingPrice:F2}",
+                    Reason = $"Product '{product.Name}' unit price changed from ₹{oldPrice:N2} to ₹{product.SellingPrice:N2}",
+                    Module = "InventoryValuation",
+                    Timestamp = DateTime.UtcNow
+                });
+
+                await _tenantContext.SaveChangesAsync();
+
+                var brandName = (await _tenantContext.Brands.FirstOrDefaultAsync(b => b.Id == product.BrandId))?.Name ?? string.Empty;
+
+                var dto = new ProductDto
+                {
+                    Id = product.Id,
+                    Name = product.Name,
+                    BrandId = product.BrandId,
+                    BrandName = brandName,
+                    SKU = product.SKU,
+                    IsActive = product.IsActive,
+                    CurrentStock = product.CurrentStock,
+                    SellingPrice = product.SellingPrice,
+                    CostPrice = product.CostPrice,
+                    Category = product.Category,
+                    DisplayOrder = product.DisplayOrder,
+                    BottleSize = product.BottleSize,
+                    ImageUrl = product.ImageUrl,
+                    CreatedAt = product.CreatedAt,
+                    UpdatedAt = product.UpdatedAt
+                };
+
+                return Ok(ApiResponse<ProductDto>.CreateSuccess(dto, "Unit price updated successfully."));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating product unit price. ProductId: {ProductId}", id);
+                return BadRequest(ApiResponse<object>.CreateFailure("We couldn't update the unit price right now. Please try again.", "Error", HttpContext.TraceIdentifier));
             }
         }
 

@@ -10,6 +10,7 @@ namespace Aquora.Application.DTOs.RawMaterials
         public string Unit { get; set; } = string.Empty;
         public bool IsActive { get; set; }
         public decimal CurrentStock { get; set; }
+        public decimal CostPerUnit { get; set; } = 5.0m;
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }

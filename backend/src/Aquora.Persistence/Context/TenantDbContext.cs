@@ -72,6 +72,7 @@ namespace Aquora.Persistence.Context
         public DbSet<Aquora.Domain.Entities.Finance.JournalEntry> JournalEntries => Set<Aquora.Domain.Entities.Finance.JournalEntry>();
         public DbSet<Aquora.Domain.Entities.Finance.JournalEntryLine> JournalEntryLines => Set<Aquora.Domain.Entities.Finance.JournalEntryLine>();
         public DbSet<Aquora.Domain.Entities.Finance.Asset> Assets => Set<Aquora.Domain.Entities.Finance.Asset>();
+        public DbSet<Aquora.Domain.Entities.Finance.AssetMaintenanceRecord> AssetMaintenanceRecords => Set<Aquora.Domain.Entities.Finance.AssetMaintenanceRecord>();
         public DbSet<Aquora.Domain.Entities.Finance.ExpenseRecord> ExpenseRecords => Set<Aquora.Domain.Entities.Finance.ExpenseRecord>();
         public DbSet<Aquora.Domain.Entities.Finance.BankLedgerEntry> BankLedgerEntries => Set<Aquora.Domain.Entities.Finance.BankLedgerEntry>();
         public DbSet<Aquora.Domain.Entities.Finance.BankAccount> BankAccounts => Set<Aquora.Domain.Entities.Finance.BankAccount>();

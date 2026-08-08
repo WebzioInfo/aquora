@@ -16,6 +16,7 @@ import { Plus, Search, Eye, Edit2, Trash2, Printer, Landmark, Wallet, Receipt, F
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
 import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
+import DocumentHeader from '../../../components/ui/DocumentHeader'
 
 export const PayrollPage: React.FC = () => {
   const queryClient = useQueryClient()
@@ -89,6 +90,16 @@ export const PayrollPage: React.FC = () => {
   const { data: cashBooks = [] } = useQuery<CashBookDropdown[]>({
     queryKey: ['cashBookDropdownList'],
     queryFn: () => simpleAccountsService.getCashBookDropdown()
+  })
+
+  // Company settings profile query
+  const { data: companyProfile } = useQuery({
+    queryKey: ['companySettings'],
+    queryFn: async () => {
+      const res = await api.get('/api/v1/company/settings')
+      return res.data?.data
+    },
+    staleTime: 5 * 60 * 1000
   })
 
   // Paginated list query
@@ -439,24 +450,18 @@ export const PayrollPage: React.FC = () => {
     }
   }
 
-  const handlePrintOnlySlip = async () => {
-    if (!selectedPayment) return
+  const handlePrintOnlySlip = () => {
+    if (!selectedPayment || isPrinting) return
     setIsPrinting(true)
     try {
       const element = document.getElementById('print-section')
-      if (!element) return
+      if (!element) {
+        showToast('Please wait for the payslip to finish loading, then try printing again.', 'warning')
+        setIsPrinting(false)
+        return
+      }
 
-      // Capture element as canvas
-      const canvas = await html2canvas(element, {
-        scale: 3, // High DPI
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false
-      })
-
-      const imgData = canvas.toDataURL('image/png')
-
-      // Create a hidden iframe for print formatting
+      // Create a hidden print iframe
       const iframe = document.createElement('iframe')
       iframe.style.position = 'fixed'
       iframe.style.right = '0'
@@ -464,50 +469,91 @@ export const PayrollPage: React.FC = () => {
       iframe.style.width = '0'
       iframe.style.height = '0'
       iframe.style.border = '0'
+      iframe.style.visibility = 'hidden'
       document.body.appendChild(iframe)
 
       const doc = iframe.contentDocument || iframe.contentWindow?.document
       if (doc) {
+        // Collect existing style blocks & link tags from main document to preserve Tailwind styles
+        const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+          .map((s) => s.outerHTML)
+          .join('\n')
+
         doc.open()
         doc.write(`
+          <!DOCTYPE html>
           <html>
             <head>
               <title>Payslip - ${selectedPayment.salaryNo}</title>
+              ${styles}
               <style>
                 body {
                   margin: 0;
+                  padding: 24px;
+                  background-color: #ffffff !important;
+                  color: #0f172a !important;
+                  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
                   display: flex;
                   justify-content: center;
-                  align-items: center;
-                  height: 100vh;
-                  background-color: #ffffff;
                 }
-                img {
-                  max-width: 100%;
-                  max-height: 100%;
-                  object-fit: contain;
+                #print-wrapper {
+                  width: 100%;
+                  max-width: 680px;
+                  background: #ffffff !important;
                 }
-                @page {
-                  size: A4;
-                  margin: 0;
+                @media print {
+                  @page {
+                    size: A4 portrait;
+                    margin: 10mm;
+                  }
+                  body {
+                    padding: 0;
+                    background: #ffffff !important;
+                  }
+                  #print-wrapper {
+                    width: 100% !important;
+                    max-width: none !important;
+                    box-shadow: none !important;
+                    border: none !important;
+                  }
                 }
               </style>
             </head>
             <body>
-              <img src="${imgData}" onload="window.print();" />
+              <div id="print-wrapper">
+                ${element.innerHTML}
+              </div>
             </body>
           </html>
         `)
         doc.close()
 
-        // Wait for printing to trigger, then clean up
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-        document.body.removeChild(iframe)
+        setTimeout(() => {
+          try {
+            iframe.contentWindow?.focus()
+            iframe.contentWindow?.print()
+          } catch (printErr) {
+            console.error('Print iframe error:', printErr)
+            showToast('Printing was blocked by your browser. Please allow pop-ups and try again.', 'warning')
+          } finally {
+            setTimeout(() => {
+              if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe)
+              }
+              setIsPrinting(false)
+            }, 1000)
+          }
+        }, 300)
+      } else {
+        showToast("We couldn't prepare the payslip for printing. Please try again.", 'error')
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe)
+        }
+        setIsPrinting(false)
       }
     } catch (error) {
       console.error('Error printing payslip:', error)
-      showToast('Failed to print payslip', 'error')
-    } finally {
+      showToast("We couldn't print the payslip right now. Please try again.", 'error')
       setIsPrinting(false)
     }
   }
@@ -1288,36 +1334,14 @@ export const PayrollPage: React.FC = () => {
                   borderWidth: '1px'
                 }}
               >
-                {/* Premium Header */}
-                <div className="flex justify-between items-start pb-5 mb-5" style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1.5">
-                      {/* Visual Brand Mark */}
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-lg shadow-sm" style={{ background: 'linear-gradient(135deg, #2563eb, #4f46e5)', color: '#ffffff' }}>
-                        A
-                      </div>
-                      <div>
-                        <h2 className="text-lg font-bold tracking-tight leading-none" style={{ color: '#0f172a' }}>Aquora ERP</h2>
-                        <span className="text-[10px] font-bold uppercase tracking-widest leading-none block mt-1" style={{ color: '#94a3b8' }}>Aquora Technologies Pvt. Ltd.</span>
-                      </div>
-                    </div>
-                    <p className="text-[10px] mt-2 font-medium" style={{ color: '#94a3b8' }}>
-                      Corporate Office: Tech Park, Phase II, Bangalore, KA, India<br/>
-                      Email: hr@aquora.io | Web: www.aquora.io
-                    </p>
-                  </div>
-                  
-                  <div className="text-right flex flex-col items-end gap-1.5">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold" style={{ backgroundColor: '#ecfdf5', color: '#047857', border: '1px solid #d1fae5' }}>
-                      <span className="w-1.5 h-1.5 rounded-full mr-1.5" style={{ backgroundColor: '#10b981' }}></span>
-                      PAID / DISBURSED
-                    </span>
-                    <div className="mt-2">
-                      <span className="text-[9px] font-bold block uppercase tracking-wider" style={{ color: '#94a3b8' }}>Salary Statement</span>
-                      <span className="font-mono font-bold text-xs" style={{ color: '#1e293b' }}>Ref: {selectedPayment.salaryNo}</span>
-                    </div>
-                  </div>
-                </div>
+                {/* Dynamic Tenant Document Header */}
+                <DocumentHeader
+                  title="Salary Statement"
+                  docNumber={selectedPayment.salaryNo}
+                  badgeText="PAID / DISBURSED"
+                  companyName={companyProfile?.name}
+                  address={companyProfile?.address}
+                />
 
                 {/* Employee & Payment Grid Info */}
                 <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs mb-5 pb-5 p-4 rounded-xl" style={{ backgroundColor: 'rgba(248, 250, 252, 0.7)', border: '1px solid #f1f5f9' }}>
@@ -1445,7 +1469,7 @@ export const PayrollPage: React.FC = () => {
                   </div>
                   <div className="text-center w-36">
                     <div className="flex justify-center mb-1.5">
-                      <span className="text-[8px] font-serif italic font-bold" style={{ color: '#6366f1' }}>Aquora ERP Official</span>
+                      <span className="text-[8px] font-serif italic font-bold text-slate-700" style={{ color: '#334155' }}>Official Stamp</span>
                     </div>
                     <div className="h-[1px] w-full mb-1.5" style={{ backgroundColor: '#0f172a' }}></div>
                     <span className="text-[8px] font-bold uppercase tracking-wider block" style={{ color: '#0f172a' }}>Authorized Signatory</span>

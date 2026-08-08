@@ -198,7 +198,7 @@ export const WaterTestReportDetailPage: React.FC = () => {
         {/* Meta Header */}
         <div className="flex flex-wrap justify-between items-start border-b border-slate-200 pb-6 gap-6">
           <div>
-            <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">Aquora Enterprise Quality Certificate</span>
+            <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">Enterprise Quality Compliance Certificate</span>
             <h1 className="text-2xl font-extrabold text-slate-900 mt-1">Water Quality Test Analysis Report</h1>
             <p className="text-sm text-slate-500 mt-1">Laboratory compliance certificate for 20L Bottled Water Production.</p>
           </div>

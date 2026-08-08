@@ -48,9 +48,19 @@ namespace Aquora.API.Controllers
 
             var tenant = await _platformContext.Tenants.FirstOrDefaultAsync(t => t.Id == _userContext.TenantId);
 
+            var resolvedName = !string.IsNullOrWhiteSpace(company?.Name) && company.Name != "Company"
+                ? company.Name
+                : (tenant?.Name ?? "Company");
+
             return Success<object>(new
             {
-                company.Name,
+                Name = resolvedName,
+                DisplayName = resolvedName,
+                Email = tenant?.OwnerEmail,
+                Phone = tenant?.OwnerPhone,
+                GstNumber = tenant?.GstNumber,
+                Address = tenant?.Address,
+                LogoUrl = tenant?.LogoUrl,
                 TenantId = tenant?.Id.ToString() ?? _userContext.TenantId.ToString(),
                 TenantCode = tenant?.Code ?? company.Code,
                 SchemaName = tenant?.SchemaName ?? "public",

@@ -66,6 +66,11 @@ export const rawMaterialsService = {
     return response.data
   },
 
+  updateUnitPrice: async (id: string, costPerUnit: number): Promise<ApiResponse<RawMaterial>> => {
+    const response = await api.put<ApiResponse<RawMaterial>>(`/api/v1/rawmaterials/${id}/price`, { costPerUnit })
+    return response.data
+  },
+
   addStock: async (id: string, data: { quantity: number; notes?: string }): Promise<ApiResponse<RawMaterial>> => {
     const response = await api.post<ApiResponse<RawMaterial>>(`/api/v1/rawmaterials/${id}/add-stock`, data)
     return response.data

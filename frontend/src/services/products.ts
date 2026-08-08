@@ -80,6 +80,11 @@ export const productsService = {
     return response.data
   },
 
+  updateUnitPrice: async (id: string, sellingPrice: number): Promise<ApiResponse<Product>> => {
+    const response = await api.put<ApiResponse<Product>>(`/api/v1/products/${id}/price`, { sellingPrice })
+    return response.data
+  },
+
   deleteProduct: async (id: string): Promise<ApiResponse<boolean>> => {
     const response = await api.delete<ApiResponse<boolean>>(`/api/v1/products/${id}`)
     return response.data

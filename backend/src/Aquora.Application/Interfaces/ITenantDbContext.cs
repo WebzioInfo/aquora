@@ -49,6 +49,7 @@ namespace Aquora.Application.Interfaces
         DbSet<Aquora.Domain.Entities.Finance.JournalEntry> JournalEntries { get; }
         DbSet<Aquora.Domain.Entities.Finance.JournalEntryLine> JournalEntryLines { get; }
         DbSet<Aquora.Domain.Entities.Finance.Asset> Assets { get; }
+        DbSet<Aquora.Domain.Entities.Finance.AssetMaintenanceRecord> AssetMaintenanceRecords { get; }
         DbSet<Aquora.Domain.Entities.Finance.ExpenseRecord> ExpenseRecords { get; }
         DbSet<Aquora.Domain.Entities.Finance.BankLedgerEntry> BankLedgerEntries { get; }
         DbSet<Aquora.Domain.Entities.Finance.BankAccount> BankAccounts { get; }

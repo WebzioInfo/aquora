@@ -79,6 +79,7 @@ namespace Aquora.API.Controllers
                         Unit = rm.Unit,
                         IsActive = rm.IsActive,
                         CurrentStock = rm.CurrentStock,
+                        CostPerUnit = rm.CostPerUnit,
                         CreatedAt = rm.CreatedAt,
                         UpdatedAt = rm.UpdatedAt
                     })
@@ -114,6 +115,7 @@ namespace Aquora.API.Controllers
                     Unit = material.Unit,
                     IsActive = material.IsActive,
                     CurrentStock = material.CurrentStock,
+                    CostPerUnit = material.CostPerUnit,
                     CreatedAt = material.CreatedAt,
                     UpdatedAt = material.UpdatedAt
                 };
@@ -357,6 +359,7 @@ namespace Aquora.API.Controllers
                     rawMaterial.Unit = unitEnum.ToString();
                     rawMaterial.IsActive = request.IsActive;
                     rawMaterial.CompanyId = company.Id;
+                    if (request.CostPerUnit.HasValue) rawMaterial.CostPerUnit = request.CostPerUnit.Value;
 
                     if (request.CurrentStock.HasValue && request.CurrentStock.Value != rawMaterial.CurrentStock)
                     {
@@ -390,6 +393,7 @@ namespace Aquora.API.Controllers
                     Unit = rawMaterial.Unit,
                     IsActive = rawMaterial.IsActive,
                     CurrentStock = rawMaterial.CurrentStock,
+                    CostPerUnit = rawMaterial.CostPerUnit,
                     CreatedAt = rawMaterial.CreatedAt,
                     UpdatedAt = rawMaterial.UpdatedAt
                 };
@@ -416,6 +420,71 @@ namespace Aquora.API.Controllers
                     ex.Message, 
                     "Unexpected Error", 
                     HttpContext.TraceIdentifier));
+            }
+        }
+
+        [HttpPut("{id:guid}/price")]
+        public async Task<IActionResult> UpdateRawMaterialPrice(Guid id, [FromBody] UpdateRawMaterialPriceDto request)
+        {
+            if (!IsAuthorizedToWrite())
+            {
+                return StatusCode(403, ApiResponse<object>.CreateFailure("You don't have permission to change the unit price.", "Forbidden", HttpContext.TraceIdentifier));
+            }
+
+            if (request == null || request.CostPerUnit < 0)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure("Enter a valid unit price.", "Validation Error", HttpContext.TraceIdentifier));
+            }
+
+            try
+            {
+                var rawMaterial = await _tenantContext.RawMaterials.FirstOrDefaultAsync(rm => rm.Id == id && !rm.IsDeleted);
+                if (rawMaterial == null)
+                {
+                    return NotFound(ApiResponse<object>.CreateFailure("Raw material not found.", "Not Found", HttpContext.TraceIdentifier));
+                }
+
+                var oldPrice = rawMaterial.CostPerUnit;
+                rawMaterial.CostPerUnit = request.CostPerUnit;
+                rawMaterial.UpdatedAt = DateTime.UtcNow;
+                rawMaterial.UpdatedBy = _currentUserContext.UserId?.ToString() ?? "System";
+
+                _tenantContext.AuditLogs.Add(new AuditLog
+                {
+                    TenantId = _currentUserContext.TenantId,
+                    UserId = _currentUserContext.UserId?.ToString(),
+                    UserEmail = _currentUserContext.Email,
+                    Action = "UpdateUnitPrice",
+                    TableName = "RawMaterials",
+                    PrimaryKey = rawMaterial.Id.ToString(),
+                    OldValues = $"{oldPrice:F2}",
+                    NewValues = $"{rawMaterial.CostPerUnit:F2}",
+                    Reason = $"Raw Material '{rawMaterial.Name}' unit price changed from ₹{oldPrice:N2} to ₹{rawMaterial.CostPerUnit:N2}",
+                    Module = "InventoryValuation",
+                    Timestamp = DateTime.UtcNow
+                });
+
+                await _tenantContext.SaveChangesAsync();
+
+                var dto = new RawMaterialDto
+                {
+                    Id = rawMaterial.Id,
+                    Name = rawMaterial.Name,
+                    Category = rawMaterial.Category,
+                    Unit = rawMaterial.Unit,
+                    IsActive = rawMaterial.IsActive,
+                    CurrentStock = rawMaterial.CurrentStock,
+                    CostPerUnit = rawMaterial.CostPerUnit,
+                    CreatedAt = rawMaterial.CreatedAt,
+                    UpdatedAt = rawMaterial.UpdatedAt
+                };
+
+                return Ok(ApiResponse<RawMaterialDto>.CreateSuccess(dto, "Unit price updated successfully."));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating raw material cost per unit. RawMaterialId: {RawMaterialId}", id);
+                return BadRequest(ApiResponse<object>.CreateFailure("We couldn't update the unit price right now. Please try again.", "Error", HttpContext.TraceIdentifier));
             }
         }
 

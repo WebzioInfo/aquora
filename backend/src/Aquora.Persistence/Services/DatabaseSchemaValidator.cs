@@ -539,6 +539,106 @@ namespace Aquora.Persistence.Services
                         );";
                     await cmd.ExecuteNonQueryAsync();
                 }
+                else if (table.Equals("AssetMaintenanceRecords", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""AssetMaintenanceRecords"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""AssetId"" uuid NOT NULL,
+                            ""MaintenanceType"" text NOT NULL,
+                            ""MaintenanceDate"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""ServiceProvider"" text NOT NULL,
+                            ""Description"" text NOT NULL,
+                            ""PartsCost"" numeric(18,2) NOT NULL DEFAULT 0,
+                            ""LabourCost"" numeric(18,2) NOT NULL DEFAULT 0,
+                            ""OtherCost"" numeric(18,2) NOT NULL DEFAULT 0,
+                            ""TotalCost"" numeric(18,2) NOT NULL DEFAULT 0,
+                            ""NextMaintenanceDate"" timestamp with time zone NULL,
+                            ""IsWarrantyClaim"" boolean NOT NULL DEFAULT false,
+                            ""TechnicianName"" text NULL,
+                            ""Notes"" text NULL,
+                            ""AttachmentUrl"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL
+                        );";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("Assets", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""Assets"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""AssetCode"" text NOT NULL,
+                            ""AssetTag"" text NOT NULL,
+                            ""AssetName"" text NOT NULL,
+                            ""AssetCategory"" text NOT NULL,
+                            ""AssetType"" text NULL,
+                            ""SerialNumber"" text NULL,
+                            ""ModelNumber"" text NULL,
+                            ""Manufacturer"" text NULL,
+                            ""Description"" text NULL,
+                            ""PurchaseDate"" timestamp with time zone NOT NULL,
+                            ""PurchasePrice"" numeric NOT NULL DEFAULT 0.0,
+                            ""SupplierId"" uuid NULL,
+                            ""SupplierName"" text NULL,
+                            ""PurchaseInvoiceNumber"" text NULL,
+                            ""PurchaseOrderNumber"" text NULL,
+                            ""TaxAmount"" numeric NOT NULL DEFAULT 0.0,
+                            ""FreightCost"" numeric NOT NULL DEFAULT 0.0,
+                            ""InstallationCost"" numeric NOT NULL DEFAULT 0.0,
+                            ""OtherCapitalizedCost"" numeric NOT NULL DEFAULT 0.0,
+                            ""TotalCapitalizedCost"" numeric NOT NULL DEFAULT 0.0,
+                            ""DepreciationMethod"" text NOT NULL DEFAULT 'StraightLine',
+                            ""UsefulLifeYears"" numeric NOT NULL DEFAULT 5,
+                            ""ResidualValue"" numeric NOT NULL DEFAULT 0,
+                            ""DepreciationStartDate"" timestamp with time zone NULL,
+                            ""DepreciationFrequency"" text NOT NULL DEFAULT 'Yearly',
+                            ""DepreciationRate"" numeric NOT NULL DEFAULT 0.0,
+                            ""AccumulatedDepreciation"" numeric NOT NULL DEFAULT 0.0,
+                            ""CurrentValue"" numeric NOT NULL DEFAULT 0.0,
+                            ""Location"" text NULL,
+                            ""Department"" text NULL,
+                            ""AssignedEmployeeId"" uuid NULL,
+                            ""AssignedEmployeeName"" text NULL,
+                            ""AssignedDate"" timestamp with time zone NULL,
+                            ""CurrentStatus"" text NOT NULL DEFAULT 'Active',
+                            ""Condition"" text NOT NULL DEFAULT 'Good',
+                            ""WarrantyDetails"" text NULL,
+                            ""WarrantyStartDate"" timestamp with time zone NULL,
+                            ""WarrantyEndDate"" timestamp with time zone NULL,
+                            ""WarrantyProvider"" text NULL,
+                            ""WarrantyNumber"" text NULL,
+                            ""WarrantyNotes"" text NULL,
+                            ""LastMaintenanceDate"" timestamp with time zone NULL,
+                            ""NextMaintenanceDate"" timestamp with time zone NULL,
+                            ""TotalMaintenanceCost"" numeric NOT NULL DEFAULT 0.0,
+                            ""DisposalDate"" timestamp with time zone NULL,
+                            ""DisposalMethod"" text NULL,
+                            ""DisposalReason"" text NULL,
+                            ""SaleValue"" numeric NOT NULL DEFAULT 0.0,
+                            ""DisposalCost"" numeric NOT NULL DEFAULT 0.0,
+                            ""BuyerParty"" text NULL,
+                            ""DisposalRefNo"" text NULL,
+                            ""DisposedBy"" text NULL,
+                            ""Notes"" text NULL,
+                            ""PhotoUrl"" text NULL,
+                            ""DocumentUrl"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );";
+                    await cmd.ExecuteNonQueryAsync();
+                }
             }
             catch (Exception ex)
             {

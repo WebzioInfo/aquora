@@ -77,61 +77,58 @@ export const generateERPDocumentPDF = (options: PDFDocumentOptions): jsPDF => {
   };
 
   const drawHeader = (pageNum: number) => {
-    // 1. Company Logo/Initials Box
-    const logoSize = 14;
-    pdf.setFillColor(26, 86, 219); // Brand Accent Blue
-    pdf.rect(margin, margin, logoSize, logoSize, 'F');
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(10);
-    const initials = getInitials(options.companyInfo.displayName || options.companyInfo.name);
-    pdf.text(initials, margin + (logoSize / 2), margin + (logoSize / 2) + 3.5, { align: 'center' });
+    // 1. Company Name on Left (Strongest text in header, No Logo)
+    const companyName = (
+      options.companyInfo.displayName ||
+      options.companyInfo.name ||
+      'COMPANY'
+    ).toUpperCase();
 
-    // 2. Company Details on Left
     pdf.setTextColor(15, 23, 42); // slate-900
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(11);
-    pdf.text(options.companyInfo.displayName || options.companyInfo.name, margin + logoSize + 4, margin + 4);
+    pdf.setFontSize(13);
+    pdf.text(companyName, margin, margin + 4);
 
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8);
-    pdf.setTextColor(71, 85, 105); // slate-600
-    
-    let leftOffset = margin + logoSize + 4;
-    let textY = margin + 8;
-    if (options.companyInfo.address) {
-      pdf.text(options.companyInfo.address, leftOffset, textY);
-      textY += 4;
-    }
-    const contactInfo = [
-      options.companyInfo.phone && `Phone: ${options.companyInfo.phone}`,
-      options.companyInfo.email && `Email: ${options.companyInfo.email}`
-    ].filter(Boolean).join(' | ');
-    if (contactInfo) {
-      pdf.text(contactInfo, leftOffset, textY);
-      textY += 4;
-    }
-    if (options.companyInfo.gstNumber) {
-      pdf.text(`GSTIN: ${options.companyInfo.gstNumber}`, leftOffset, textY);
+    // 2. Company Address / Location on Left (Secondary text)
+    const rawAddress = options.companyInfo.address;
+    const cleanAddress =
+      rawAddress &&
+      rawAddress.trim() !== '' &&
+      rawAddress.toLowerCase() !== 'null' &&
+      rawAddress.toLowerCase() !== 'undefined'
+        ? rawAddress.trim()
+        : null;
+
+    let nextY = margin + 9;
+
+    if (cleanAddress) {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(71, 85, 105); // slate-600
+      
+      const splitAddress = pdf.splitTextToSize(cleanAddress, 110);
+      pdf.text(splitAddress, margin, nextY);
+      nextY += (splitAddress.length * 4);
     }
 
     // 3. Document Title on Right
     pdf.setTextColor(26, 86, 219); // Accent Blue
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(13);
+    pdf.setFontSize(12);
     textRight(options.title.toUpperCase(), rightMarginX, margin + 4);
 
-    // 4. Document Metdata details on Right
+    // 4. Document Metadata details on Right
     pdf.setTextColor(71, 85, 105);
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8);
     textRight(`Doc No: ${options.docNumber}`, rightMarginX, margin + 9);
     textRight(`Date: ${options.date}`, rightMarginX, margin + 13);
 
-    // 5. Divider Line
+    // 5. Horizontal Divider Line
+    const lineY = Math.max(nextY + 3, margin + 18);
     pdf.setDrawColor(226, 232, 240); // slate-200
     pdf.setLineWidth(0.4);
-    pdf.line(margin, margin + 20, rightMarginX, margin + 20);
+    pdf.line(margin, lineY, rightMarginX, lineY);
   };
 
   // Main Page 1 Initial Setup

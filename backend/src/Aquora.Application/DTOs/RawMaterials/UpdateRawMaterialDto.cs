@@ -17,5 +17,14 @@ namespace Aquora.Application.DTOs.RawMaterials
         public bool IsActive { get; set; }
 
         public decimal? CurrentStock { get; set; }
+
+        public decimal? CostPerUnit { get; set; }
+    }
+
+    public class UpdateRawMaterialPriceDto
+    {
+        [Required(ErrorMessage = "Enter a valid unit price.")]
+        [Range(0, 100000000, ErrorMessage = "Enter a valid unit price.")]
+        public decimal CostPerUnit { get; set; }
     }
 }

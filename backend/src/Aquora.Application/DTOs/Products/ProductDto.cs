@@ -11,6 +11,8 @@ namespace Aquora.Application.DTOs.Products
         public string? SKU { get; set; }
         public bool IsActive { get; set; }
         public decimal CurrentStock { get; set; }
+        public decimal SellingPrice { get; set; } = 15.0m;
+        public decimal CostPrice { get; set; } = 10.0m;
         public string Category { get; set; } = "Bottle";
         public int DisplayOrder { get; set; }
         public string? BottleSize { get; set; }
