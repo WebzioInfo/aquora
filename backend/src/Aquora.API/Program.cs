@@ -126,6 +126,14 @@ builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler
                 }));
     });
 
+    // Configure Forwarded Headers for Reverse Proxy (Nginx / Cloudflare / Docker)
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+
     // Controllers, SignalR and CORS
     builder.Services.AddControllers()
         .ConfigureApiBehaviorOptions(options =>
@@ -180,7 +188,22 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", policy =>
     {
-        var origins = new List<string>();
+        var origins = new List<string>
+        {
+            // Production Frontend Origins
+            "https://aquora-webzio.vercel.app",
+            "https://aquora-backend.webziointernational.in",
+            "https://aquora.webziointernational.in",
+            "https://app.aquora.com",
+            
+            // Local Development Origins
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:3000",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:5174",
+            "http://127.0.0.1:3000"
+        };
 
         // 1. Read from Env / AppSettings direct keys
         var frontendUrl = builder.Configuration["FRONTEND_URL"];
@@ -202,15 +225,7 @@ builder.Services.AddCors(options =>
             }
         }
 
-        // 3. Always include local development origins
-        origins.Add("http://localhost:5173");
-        origins.Add("http://localhost:5174");
-        origins.Add("http://localhost:3000");
-        origins.Add("http://127.0.0.1:5173");
-        origins.Add("http://127.0.0.1:5174");
-        origins.Add("http://127.0.0.1:3000");
-
-        // Clean and deduplicate origins
+        // Clean and deduplicate origins (remove trailing slashes to match exact browser origin strings)
         var uniqueOrigins = origins
             .Where(o => !string.IsNullOrWhiteSpace(o))
             .Select(o => o.Trim().TrimEnd('/'))
@@ -218,8 +233,8 @@ builder.Services.AddCors(options =>
             .ToArray();
 
         policy.WithOrigins(uniqueOrigins)
-              .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-              .WithHeaders("Content-Type", "Authorization", "X-Tenant-Id", "Accept", "X-Requested-With", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers")
+              .AllowAnyMethod()
+              .AllowAnyHeader()
               .AllowCredentials()
               .SetPreflightMaxAge(TimeSpan.FromHours(1));
     });
@@ -227,47 +242,42 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Task 1 & 2: Microsoft Recommended Pipeline Order
-// 1. Forwarded Headers (MUST be first to process reverse proxy headers!)
+// Microsoft Recommended Middleware Pipeline Order for SaaS APIs behind Reverse Proxies
+// 1. Process Reverse Proxy Forwarded Headers (Host, Scheme, Proto)
 app.UseForwardedHeaders();
 
-// 2. Global Exception Middleware
+// 2. Routing (MUST be executed before UseCors to evaluate endpoint policies)
+app.UseRouting();
+
+// 3. CORS Policy (MUST be placed immediately after UseRouting & before ExceptionHandling/Auth!)
+app.UseCors("CorsPolicy");
+
+// 4. Global Exception Middleware (Wrapped inside CORS so error responses retain CORS headers)
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-// 3. Swagger Documentation
+// 5. Swagger Documentation
 if (app.Environment.IsDevelopment() || true)
 {
     app.UseSwagger();
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Aquora API SaaS Foundation v1"));
 }
 
-// 4. HTTPS Redirection (Production only, AFTER ForwardedHeaders and BEFORE UseRouting/UseCors!)
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
-
-// 5. UseRouting (MUST be before UseCors!)
-app.UseRouting();
-
-// 6. UseCors (MUST be after UseRouting and UseHttpsRedirection!)
-app.UseCors("CorsPolicy");
-
-// 7. Rate Limiting
+// 6. Rate Limiting
 app.UseRateLimiter();
 
-// 8. Authentication
+// 7. Authentication
 app.UseAuthentication();
 
-// 9. Tenant Resolution Middleware (after Authentication to read JWT claims)
+// 8. Tenant Resolution Middleware (after Authentication to read JWT claims)
 app.UseMiddleware<TenantResolutionMiddleware>();
 
-// 10. Authorization
+// 9. Authorization
 app.UseAuthorization();
 
-// 11. Endpoint Mapping
+// 10. Endpoint Mapping
 app.MapControllers();
 app.MapHealthChecks("/health");
+app.MapHealthChecks("/api/v1/health");
 app.MapHub<NotificationHub>("/hub/notifications");
 app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHub<ProvisioningHub>("/hub/provisioning");
