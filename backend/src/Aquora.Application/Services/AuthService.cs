@@ -177,8 +177,8 @@ namespace Aquora.Application.Services
             }
             if (purpose == "PasswordReset" && user == null)
             {
-                Console.WriteLine($"[OTP SEND REJECTED]: PasswordReset requested for non-existent email '{email}'.");
-                throw new InvalidOperationException("No active account found with this email address.");
+                Console.WriteLine($"[OTP SEND SAFE IGNORE]: PasswordReset requested for non-registered email '{email}'. Suppressing error response to prevent account enumeration.");
+                return true;
             }
 
             var existing = await _platformContext.OTPVerifications
