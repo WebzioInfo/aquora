@@ -210,9 +210,18 @@ namespace Aquora.Application.Services
             
             Console.WriteLine($"[OTP GENERATED & PERSISTED]: OTP generated for email '{email}', Purpose '{purpose}', Expiry '{existing.ExpiryTime}', RequestId '{existing.RequestId}'.");
 
-            // Queue the OTP email in background worker
-            _taskQueue.QueueOtpJob(email, code, 10);
-            
+            // Deliver OTP email via SMTP and verify provider acceptance before returning success
+            try
+            {
+                await _emailService.SendOtpEmailAsync(email, code, 10);
+                Console.WriteLine($"[OTP EMAIL SENT SUCCESS]: Email successfully delivered to SMTP server for recipient '{GetSafeEmailIdentifier(email)}'.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[OTP EMAIL SEND FAILED]: SMTP delivery failed for recipient '{GetSafeEmailIdentifier(email)}': {ex.Message}");
+                throw new InvalidOperationException($"Unable to send OTP email via SMTP. Please verify email configuration or try again later. Details: {ex.Message}");
+            }
+
             return true;
         }
 

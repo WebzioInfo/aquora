@@ -45,11 +45,26 @@ namespace Aquora.Infrastructure
                         return string.Empty;
                     }
 
-                    options.Host = GetValue("SMTP_HOST", "Smtp:Host", "MAIL_HOST");
+                    options.Host = GetValue("SMTP_HOST", "Smtp:Host", "MAIL_HOST", "MAIL_SERVER");
                     options.Port = int.TryParse(GetValue("SMTP_PORT", "Smtp:Port", "MAIL_PORT"), out var port) ? port : 587;
-                    options.User = GetValue("SMTP_USER", "SMTP_USERNAME", "Smtp:User", "MAIL_USER");
-                    options.Password = GetValue("SMTP_PASSWORD", "SMTP_PASS", "Smtp:Password", "MAIL_PASSWORD");
-                    options.FromName = GetValue("SMTP_FROM_NAME", "Smtp:FromName", "SMTP_FROM", "MAIL_FROM") is var fromName && !string.IsNullOrWhiteSpace(fromName) ? fromName : "Aquora ERP";
+                    options.User = GetValue("SMTP_USER", "SMTP_USERNAME", "Smtp:User", "MAIL_USER", "MAIL_USERNAME");
+                    options.Password = GetValue("SMTP_PASSWORD", "SMTP_PASS", "Smtp:Password", "MAIL_PASSWORD", "MAIL_PASS");
+                    options.FromName = GetValue("SMTP_FROM_NAME", "Smtp:FromName", "MAIL_FROM_NAME") is var fromName && !string.IsNullOrWhiteSpace(fromName) ? fromName : "Aquora ERP";
+                    options.FromEmail = GetValue("SMTP_FROM", "SMTP_FROM_EMAIL", "Smtp:FromEmail", "MAIL_FROM") is var fromEmail && !string.IsNullOrWhiteSpace(fromEmail) ? fromEmail : options.User;
+
+                    var secureVal = GetValue("SMTP_SECURE", "SMTP_SSL", "SMTP_USE_SSL", "Smtp:UseSsl", "MAIL_ENCRYPTION");
+                    if (bool.TryParse(secureVal, out var useSslBool))
+                    {
+                        options.UseSsl = useSslBool;
+                    }
+                    else if (secureVal.Equals("ssl", StringComparison.OrdinalIgnoreCase) || secureVal.Equals("true", StringComparison.OrdinalIgnoreCase) || options.Port == 465)
+                    {
+                        options.UseSsl = true;
+                    }
+                    else
+                    {
+                        options.UseSsl = false;
+                    }
                 })
                 .Validate(options => 
                 {

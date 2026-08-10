@@ -21,27 +21,42 @@ namespace Aquora.Infrastructure.Services
             _logger = logger;
         }
 
+        private SecureSocketOptions DetermineSocketOptions(int port, bool useSsl)
+        {
+            if (useSsl || port == 465)
+            {
+                return SecureSocketOptions.SslOnConnect;
+            }
+            if (port == 587)
+            {
+                return SecureSocketOptions.StartTls;
+            }
+            return SecureSocketOptions.Auto;
+        }
+
         public async Task SendEmailAsync(string toEmail, string subject, string body, bool isHtml = true)
         {
             var host = _options.Host;
             var port = _options.Port;
             var user = _options.User;
             var password = _options.Password;
-            var fromName = _options.FromName ?? "Aquora ERP";
+            var fromName = string.IsNullOrWhiteSpace(_options.FromName) ? "Aquora ERP" : _options.FromName;
+            var fromEmail = string.IsNullOrWhiteSpace(_options.FromEmail) ? user : _options.FromEmail;
 
             var isPasswordPresent = !string.IsNullOrEmpty(password);
 
-            // Log configuration details safely
-            _logger.LogInformation("Attempting to send email via SMTP. Host: {Host}, Port: {Port}, User: {User}, Password Present: {PasswordPresent}",
-                host, port, user, isPasswordPresent);
+            _logger.LogInformation("[SMTP INIT] Preparing email for {Recipient}. Host: {Host}, Port: {Port}, User: {User}, From: {FromEmail}, Password Present: {PasswordPresent}",
+                toEmail, host, port, user, fromEmail, isPasswordPresent);
 
-            if (string.IsNullOrEmpty(host) || string.IsNullOrEmpty(user) || string.IsNullOrEmpty(password))
+            if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(password))
             {
-                throw new InvalidOperationException("SMTP configuration is invalid or missing required properties.");
+                _logger.LogError("[SMTP ERROR] Missing required SMTP configuration properties. Host: '{Host}', User: '{User}', Password Present: {PasswordPresent}",
+                    host, user, isPasswordPresent);
+                throw new InvalidOperationException("SMTP configuration is invalid or missing required credentials.");
             }
 
             var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(fromName, user));
+            message.From.Add(new MailboxAddress(fromName, fromEmail));
             message.To.Add(new MailboxAddress(toEmail, toEmail));
             message.Subject = subject;
 
@@ -56,26 +71,42 @@ namespace Aquora.Infrastructure.Services
             try
             {
                 using var client = new SmtpClient();
-                // For demo/dev environments, we may accept all certs
                 client.ServerCertificateValidationCallback = (s, c, h, e) => true;
 
-                await client.ConnectAsync(host, port, SecureSocketOptions.StartTls);
+                var socketOption = DetermineSocketOptions(port, _options.UseSsl);
+                _logger.LogInformation("[SMTP CONNECTING] Connecting to {Host}:{Port} with {SocketOption}...", host, port, socketOption);
+
+                try
+                {
+                    await client.ConnectAsync(host, port, socketOption);
+                }
+                catch (Exception connEx) when (socketOption != SecureSocketOptions.Auto)
+                {
+                    _logger.LogWarning(connEx, "[SMTP CONNECT FALLBACK] Connection using {SocketOption} failed. Retrying with SecureSocketOptions.Auto...", socketOption);
+                    client.ServerCertificateValidationCallback = (s, c, h, e) => true;
+                    await client.ConnectAsync(host, port, SecureSocketOptions.Auto);
+                }
+
+                _logger.LogInformation("[SMTP AUTHENTICATING] Authenticating with user: {User}...", user);
                 await client.AuthenticateAsync(user, password);
-                await client.SendAsync(message);
+
+                _logger.LogInformation("[SMTP SENDING] Delivering message to SMTP server for recipient: {Recipient}...", toEmail);
+                var response = await client.SendAsync(message);
+
                 await client.DisconnectAsync(true);
-                
-                _logger.LogInformation("Email sent successfully to {Email}", toEmail);
+
+                _logger.LogInformation("[SMTP SUCCESS] Message accepted by SMTP server for {Recipient}. Provider Response: {Response}", toEmail, response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to send email to {Email} via SMTP.", toEmail);
+                _logger.LogError(ex, "[SMTP FAILURE] Failed to deliver email to {Recipient} via SMTP ({Host}:{Port}). Error: {Message}", toEmail, host, port, ex.Message);
                 throw;
             }
         }
 
         public async Task SendOtpEmailAsync(string toEmail, string otpCode, int expiryMinutes)
         {
-            var subject = "Aquora ERP - Email Verification";
+            var subject = "Aquora ERP - Email Verification Code";
             
             var body = $@"
             <!DOCTYPE html>
@@ -114,14 +145,25 @@ namespace Aquora.Infrastructure.Services
             {
                 using var client = new SmtpClient();
                 client.ServerCertificateValidationCallback = (s, c, h, e) => true;
-                await client.ConnectAsync(host, port, SecureSocketOptions.StartTls);
+
+                var socketOption = DetermineSocketOptions(port, _options.UseSsl);
+                try
+                {
+                    await client.ConnectAsync(host, port, socketOption);
+                }
+                catch (Exception) when (socketOption != SecureSocketOptions.Auto)
+                {
+                    client.ServerCertificateValidationCallback = (s, c, h, e) => true;
+                    await client.ConnectAsync(host, port, SecureSocketOptions.Auto);
+                }
+
                 await client.AuthenticateAsync(user, password);
                 await client.DisconnectAsync(true);
                 return (true, "SMTP connection and authentication successful.");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "SMTP Verification Failed for Host: {Host}, User: {User}", host, user);
+                _logger.LogError(ex, "[SMTP DIAGNOSTIC FAILED] Host: {Host}, Port: {Port}, User: {User}", host, port, user);
                 return (false, $"SMTP connection failed: {ex.Message}");
             }
         }
