@@ -84,42 +84,51 @@ namespace Aquora.Application.Services
 
             var parts = (request.FullName ?? string.Empty).Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
 
-            using var transaction = await _platformContext.Database.BeginTransactionAsync();
+            using (var transaction = await _platformContext.Database.BeginTransactionAsync())
+            {
+                try
+                {
+                    var user = new User
+                    {
+                        Email = email,
+                        FirstName = parts.Length > 0 ? parts[0] : string.Empty,
+                        LastName = parts.Length > 1 ? parts[1] : string.Empty,
+                        PasswordHash = _passwordHasher.HashPassword(request.Password),
+                        IsActive = true,
+                        EmailVerified = false,
+                        TokenVersion = 0
+                    };
+
+                    _platformContext.Users.Add(user);
+                    await _platformContext.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    Console.WriteLine($"[USER REGISTRATION SUCCESS]: User '{GetSafeEmailIdentifier(email)}' saved and committed to database.");
+                }
+                catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+                {
+                    await transaction.RollbackAsync();
+                    Console.WriteLine($"[USER REGISTRATION RACE CONDITION]: Prevented duplicate INSERT for '{GetSafeEmailIdentifier(email)}'.");
+                    throw new InvalidOperationException("An account with this email already exists.");
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    Console.WriteLine($"[USER REGISTRATION ERROR]: Failed to register user '{GetSafeEmailIdentifier(email)}': {ex.Message}");
+                    throw;
+                }
+            }
+
+            // Deliver OTP email outside the database transaction
             try
             {
-                var user = new User
-                {
-                    Email = email,
-                    FirstName = parts.Length > 0 ? parts[0] : string.Empty,
-                    LastName = parts.Length > 1 ? parts[1] : string.Empty,
-                    PasswordHash = _passwordHasher.HashPassword(request.Password),
-                    IsActive = true,
-                    EmailVerified = false,
-                    TokenVersion = 0
-                };
-
-                _platformContext.Users.Add(user);
-                await _platformContext.SaveChangesAsync();
-                
                 await SendOtpAsync(new SendOtpRequest { Email = email, Purpose = "Registration" });
-
-                await transaction.CommitAsync();
-                Console.WriteLine($"[USER REGISTRATION SUCCESS]: User '{GetSafeEmailIdentifier(email)}' registered successfully.");
-                
-                return true;
-            }
-            catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
-            {
-                await transaction.RollbackAsync();
-                Console.WriteLine($"[USER REGISTRATION RACE CONDITION]: Prevented duplicate INSERT for '{GetSafeEmailIdentifier(email)}'.");
-                throw new InvalidOperationException("An account with this email already exists.");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                Console.WriteLine($"[USER REGISTRATION ERROR]: Failed to register user '{GetSafeEmailIdentifier(email)}': {ex.Message}");
-                throw;
+                Console.WriteLine($"[USER REGISTRATION SMTP WARN]: User registered successfully, but OTP email delivery encountered issue: {ex.Message}");
             }
+
+            return true;
         }
 
         private static string GetSafeEmailIdentifier(string email)
@@ -165,6 +174,11 @@ namespace Aquora.Application.Services
             {
                 Console.WriteLine($"[OTP SEND REJECTED]: User '{email}' is already verified.");
                 throw new InvalidOperationException("ALREADY_VERIFIED");
+            }
+            if (purpose == "PasswordReset" && user == null)
+            {
+                Console.WriteLine($"[OTP SEND REJECTED]: PasswordReset requested for non-existent email '{email}'.");
+                throw new InvalidOperationException("No active account found with this email address.");
             }
 
             var existing = await _platformContext.OTPVerifications

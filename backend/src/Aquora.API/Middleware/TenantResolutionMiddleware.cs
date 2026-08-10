@@ -33,11 +33,13 @@ namespace Aquora.API.Middleware
             var host = context.Request.Host.Host;
             var parts = host.Split('.');
             
-            // Exclude common base domains
+            var systemSubdomains = new[] { "www", "aquora", "aquora-backend", "aquora-webzio", "webziointernational", "vercel", "api", "app", "admin", "platform", "localhost", "127.0.0.1" };
+
+            // Exclude system base domains
             if (parts.Length > 1 && !host.Equals("localhost", StringComparison.OrdinalIgnoreCase))
             {
                 var subdomain = parts[0];
-                if (!subdomain.Equals("www", StringComparison.OrdinalIgnoreCase) && !subdomain.Equals("aquora", StringComparison.OrdinalIgnoreCase))
+                if (!systemSubdomains.Contains(subdomain.ToLowerInvariant()))
                 {
                     // Look up by subdomain
                     var tenant = await platformContext.Tenants

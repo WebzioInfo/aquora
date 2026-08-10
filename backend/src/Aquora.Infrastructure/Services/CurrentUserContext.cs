@@ -28,8 +28,24 @@ namespace Aquora.Infrastructure.Services
         {
             get
             {
-                var claim = HttpContext?.User?.FindFirst("tenant_id")?.Value;
-                return Guid.TryParse(claim, out var tenantId) ? tenantId : Guid.Empty;
+                var claim = HttpContext?.User?.FindFirst("tenant_id")?.Value
+                    ?? HttpContext?.User?.FindFirst("TenantId")?.Value
+                    ?? HttpContext?.User?.FindFirst("tenantId")?.Value
+                    ?? HttpContext?.User?.FindFirst(ClaimTypes.GroupSid)?.Value
+                    ?? HttpContext?.User?.FindFirst(ClaimTypes.PrimarySid)?.Value;
+
+                if (Guid.TryParse(claim, out var tenantId) && tenantId != Guid.Empty)
+                {
+                    return tenantId;
+                }
+
+                var provider = HttpContext?.RequestServices?.GetService(typeof(ITenantProvider)) as ITenantProvider;
+                if (provider != null && provider.TenantId != Guid.Empty)
+                {
+                    return provider.TenantId;
+                }
+
+                return Guid.Empty;
             }
         }
 
