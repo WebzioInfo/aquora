@@ -17,10 +17,15 @@ using Aquora.Domain.Entities.Administration;
 using Microsoft.Extensions.Configuration;
 using System.Data;
 
+using System.Collections.Concurrent;
+using System.Threading;
+
 namespace Aquora.Application.Services
 {
     public class BackupService : IBackupService
     {
+        private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> _tenantLocks = new();
+
         private readonly ITenantDbContext _context;
         private readonly IPlatformDbContext _platformContext;
         private readonly ITenantProvider _tenantProvider;
@@ -642,362 +647,377 @@ namespace Aquora.Application.Services
                 throw new InvalidOperationException($"Pre-validation failed with {validationErrors.Count} errors:\n{errorSummary}");
             }
 
-            // 4. TRANSACTIONAL REPLACEMENT RESTORE ENGINE
+            // 4. TRANSACTIONAL REPLACEMENT RESTORE ENGINE WITH CONCURRENCY LOCK
             Console.WriteLine("[RESTORE START]");
-            using var connection = CreateDedicatedConnection();
-            await OpenDedicatedConnectionAsync(connection, "RestoreBackupAsync", "BackupService.cs", 599, schemaName);
 
-            var dbContext = _context as DbContext;
-            string rawConnectionString = dbContext?.Database.GetConnectionString() 
-                ?? _configuration.GetConnectionString("DefaultConnection") 
-                ?? _configuration["ConnectionStrings:DefaultConnection"] 
-                ?? connection.ConnectionString;
-
-            string maskedConnStrForLogging = System.Text.RegularExpressions.Regex.Replace(
-                rawConnectionString, 
-                @"(Password|Pwd)=[^;]*", 
-                "$1=***", 
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-            Console.WriteLine("==========================================================================");
-            Console.WriteLine("[RESTORE ENGINE RUNTIME INSTRUMENTATION]");
-            Console.WriteLine($"  Database Name:       {connection.Database}");
-            Console.WriteLine($"  Host/DataSource:     {connection.DataSource}");
-            Console.WriteLine($"  Schema Name:         {schemaName}");
-            Console.WriteLine($"  TenantId:            {tenantId}");
-            Console.WriteLine($"  Connection String:   {maskedConnStrForLogging}");
-            Console.WriteLine($"  DbContext Hash:      {_context.GetHashCode()}");
-            Console.WriteLine($"  Connection State:    {connection.State}");
-            
-            var processId = connection.GetType().GetProperty("ProcessID")?.GetValue(connection);
-            if (processId != null)
-            {
-                Console.WriteLine($"  Npgsql Process ID:   {processId}");
-            }
-            Console.WriteLine("==========================================================================");
-
-            using var transaction = connection.BeginTransaction();
-            Console.WriteLine($"  Transaction Hash:    {transaction.GetHashCode()}");
+            var tenantLock = _tenantLocks.GetOrAdd(tenantId, _ => new SemaphoreSlim(1, 1));
+            await tenantLock.WaitAsync();
 
             try
             {
-                // 0. Fetch schema info
-                var schemaCols = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
-                using (var schemaCmd = connection.CreateCommand())
+                using var connection = CreateDedicatedConnection();
+                await OpenDedicatedConnectionAsync(connection, "RestoreBackupAsync", "BackupService.cs", 650, schemaName);
+
+                var dbContext = _context as DbContext;
+                string rawConnectionString = dbContext?.Database.GetConnectionString() 
+                    ?? _configuration.GetConnectionString("DefaultConnection") 
+                    ?? _configuration["ConnectionStrings:DefaultConnection"] 
+                    ?? connection.ConnectionString;
+
+                string maskedConnStrForLogging = System.Text.RegularExpressions.Regex.Replace(
+                    rawConnectionString, 
+                    @"(Password|Pwd)=[^;]*", 
+                    "$1=***", 
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                Console.WriteLine("==========================================================================");
+                Console.WriteLine("[RESTORE ENGINE RUNTIME INSTRUMENTATION]");
+                Console.WriteLine($"  Database Name:       {connection.Database}");
+                Console.WriteLine($"  Host/DataSource:     {connection.DataSource}");
+                Console.WriteLine($"  Schema Name:         {schemaName}");
+                Console.WriteLine($"  TenantId:            {tenantId}");
+                Console.WriteLine($"  Connection String:   {maskedConnStrForLogging}");
+                Console.WriteLine("==========================================================================");
+
+                using var transaction = connection.BeginTransaction();
+                Console.WriteLine($"  Transaction Hash:    {transaction.GetHashCode()}");
+
+                try
                 {
-                    schemaCmd.Transaction = transaction;
-                    schemaCmd.CommandText = @"
-                        SELECT table_name, column_name, data_type 
-                        FROM information_schema.columns 
-                        WHERE table_schema = @schema";
-                    var schemaParam = schemaCmd.CreateParameter();
-                    schemaParam.ParameterName = "@schema";
-                    schemaParam.Value = schemaName;
-                    schemaCmd.Parameters.Add(schemaParam);
-
-                    using var reader = await schemaCmd.ExecuteReaderAsync();
-                    while (await reader.ReadAsync())
+                    // A. PostgreSQL Advisory Lock for Exclusive Tenant Restore
+                    using (var lockCmd = connection.CreateCommand())
                     {
-                        var tName = reader.GetString(0);
-                        var cName = reader.GetString(1);
-                        var dType = reader.GetString(2);
-
-                        if (!schemaCols.ContainsKey(tName))
-                            schemaCols[tName] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                        schemaCols[tName][cName] = dType;
+                        lockCmd.Transaction = transaction;
+                        lockCmd.CommandText = "SELECT pg_advisory_xact_lock(hashtext(@lockKey));";
+                        var p = lockCmd.CreateParameter();
+                        p.ParameterName = "@lockKey";
+                        p.Value = $"tenant_restore_{schemaName}";
+                        lockCmd.Parameters.Add(p);
+                        await lockCmd.ExecuteNonQueryAsync();
                     }
-                }
 
-                // A. Truncate Tenant Tables & Instrument Delete Phase
-                var tenantTables = await GetTenantTablesAsync(schemaName, transaction);
-                var truncatedTables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-                using (var cmd = connection.CreateCommand())
-                {
-                    cmd.Transaction = transaction;
-                    cmd.CommandText = $"SET search_path TO \"{schemaName}\";";
-                    await cmd.ExecuteNonQueryAsync();
-
-                    Console.WriteLine("--------------------------------------------------------------------------");
-                    Console.WriteLine("[RESTORE ENGINE: TRUNCATE PHASE]");
-                    foreach (var tbl in tenantTables)
+                    // B. Fetch schema info
+                    var schemaCols = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+                    using (var schemaCmd = connection.CreateCommand())
                     {
-                        var policy = GetTableRestorePolicy(tbl);
-                        if (policy == RestorePolicy.Skip)
+                        schemaCmd.Transaction = transaction;
+                        schemaCmd.CommandText = @"
+                            SELECT table_name, column_name, data_type 
+                            FROM information_schema.columns 
+                            WHERE table_schema = @schema";
+                        var schemaParam = schemaCmd.CreateParameter();
+                        schemaParam.ParameterName = "@schema";
+                        schemaParam.Value = schemaName;
+                        schemaCmd.Parameters.Add(schemaParam);
+
+                        using var reader = await schemaCmd.ExecuteReaderAsync();
+                        while (await reader.ReadAsync())
                         {
-                            Console.WriteLine($"  Table: {tbl,-25} | Policy: SKIP | Truncate Bypassed");
-                            continue;
+                            var tName = reader.GetString(0);
+                            var cName = reader.GetString(1);
+                            var dType = reader.GetString(2);
+
+                            if (!schemaCols.ContainsKey(tName))
+                                schemaCols[tName] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                            schemaCols[tName][cName] = dType;
                         }
+                    }
 
-                        // Query Rows Before Delete
-                        cmd.CommandText = $"SELECT COUNT(*) FROM \"{schemaName}\".\"{tbl}\";";
-                        var rowsBeforeDelete = Convert.ToInt64(await cmd.ExecuteScalarAsync());
+                    // C. Truncate Tenant Tables
+                    var tenantTables = await GetTenantTablesAsync(schemaName, transaction);
+                    var truncatedTables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-                        // Execute TRUNCATE
-                        cmd.CommandText = $"TRUNCATE TABLE \"{schemaName}\".\"{tbl}\" CASCADE;";
+                    using (var cmd = connection.CreateCommand())
+                    {
+                        cmd.Transaction = transaction;
+                        cmd.CommandText = $"SET search_path TO \"{schemaName}\";";
                         await cmd.ExecuteNonQueryAsync();
-                        truncatedTables.Add(tbl);
 
-                        // Query Rows After Delete
-                        cmd.CommandText = $"SELECT COUNT(*) FROM \"{schemaName}\".\"{tbl}\";";
-                        var rowsAfterDelete = Convert.ToInt64(await cmd.ExecuteScalarAsync());
-
-                        Console.WriteLine("=========================================================");
-                        Console.WriteLine("[DELETE TABLE]");
-                        Console.WriteLine($"Table Name: {tbl}");
-                        Console.WriteLine($"Rows Before: {rowsBeforeDelete}");
-                        Console.WriteLine($"Rows After: {rowsAfterDelete}");
-                        Console.WriteLine("=========================================================");
-
-                        if (rowsAfterDelete != 0)
+                        Console.WriteLine("--------------------------------------------------------------------------");
+                        Console.WriteLine("[RESTORE ENGINE: TRUNCATE PHASE]");
+                        foreach (var tbl in tenantTables)
                         {
-                            Console.WriteLine($"[CRITICAL ERROR]: Table '{tbl}' count after TRUNCATE is {rowsAfterDelete} (Expected 0)!");
-                            throw new InvalidOperationException($"CRITICAL INTEGRITY FAILURE: Table '{tbl}' has {rowsAfterDelete} rows after TRUNCATE! Must be 0. Restore stopped immediately.");
-                        }
-
-                        if (tbl.Equals("WaterTestReports", StringComparison.OrdinalIgnoreCase))
-                        {
-                            await LogWaterTestReportsSnapshotAsync(connection, transaction, "AFTER TRUNCATE", schemaName);
-                        }
-                    }
-                }
-
-                // B. Restore Table Data & Instrument Insert Phase
-                Console.WriteLine("[RESTORE ENGINE: INSERT PHASE]");
-                foreach (var tableName in sortedTables)
-                {
-                    var policy = GetTableRestorePolicy(tableName);
-                    if (policy == RestorePolicy.Skip) continue;
-
-                    if (!tableContents.TryGetValue(tableName, out var rows)) continue;
-                    var expectedRows = rows.Count;
-                    if (expectedRows == 0) continue;
-
-                    if (!truncatedTables.Contains(tableName))
-                    {
-                        throw new InvalidOperationException($"CRITICAL INTEGRITY ERROR: Attempted to insert data into {tableName}, but the table was never successfully truncated. Restore aborted.");
-                    }
-
-                    int insertedCount = 0;
-                    foreach (var row in rows)
-                    {
-                        var colNames = new List<string>();
-                        var paramNames = new List<string>();
-                        
-                        using var insertCmd = connection.CreateCommand();
-                        insertCmd.Transaction = transaction;
-
-                        int paramIdx = 0;
-                        foreach (var kvpCol in row)
-                        {
-                            var colName = kvpCol.Key;
-                            var rawVal = kvpCol.Value;
-
-                            string dbTypeStr = "text";
-                            if (schemaCols.TryGetValue(tableName, out var tblCols) && tblCols.TryGetValue(colName, out var typeStr))
+                            var policy = GetTableRestorePolicy(tbl);
+                            if (policy == RestorePolicy.Skip)
                             {
-                                dbTypeStr = typeStr.ToLowerInvariant();
+                                Console.WriteLine($"  Table: {tbl,-25} | Policy: SKIP | Truncate Bypassed");
+                                continue;
                             }
 
-                            (object finalVal, DbType dbTypeEnum) = ConvertToPgType(rawVal, dbTypeStr);
+                            // Query Rows Before Delete
+                            cmd.CommandText = $"SELECT COUNT(*) FROM \"{schemaName}\".\"{tbl}\";";
+                            var rowsBeforeDelete = Convert.ToInt64(await cmd.ExecuteScalarAsync());
 
-                            colNames.Add($"\"{colName}\"");
-                            var pName = $"@p{paramIdx}";
-                            paramNames.Add(pName);
+                            // Execute TRUNCATE
+                            cmd.CommandText = $"TRUNCATE TABLE \"{schemaName}\".\"{tbl}\" CASCADE;";
+                            await cmd.ExecuteNonQueryAsync();
+                            truncatedTables.Add(tbl);
 
-                            var param = insertCmd.CreateParameter();
-                            param.ParameterName = pName;
-                            param.Value = finalVal ?? DBNull.Value;
-                            param.DbType = dbTypeEnum;
-                            insertCmd.Parameters.Add(param);
+                            // Query Rows After Delete
+                            cmd.CommandText = $"SELECT COUNT(*) FROM \"{schemaName}\".\"{tbl}\";";
+                            var rowsAfterDelete = Convert.ToInt64(await cmd.ExecuteScalarAsync());
 
-                            paramIdx++;
+                            Console.WriteLine($"[DELETE TABLE] {tbl}: Before={rowsBeforeDelete}, After={rowsAfterDelete}");
+
+                            if (rowsAfterDelete != 0)
+                            {
+                                throw new InvalidOperationException($"CRITICAL INTEGRITY FAILURE: Table '{tbl}' has {rowsAfterDelete} rows after TRUNCATE! Must be 0. Restore stopped immediately.");
+                            }
                         }
+                    }
 
-                        var cols = string.Join(", ", colNames);
-                        var pNames = string.Join(", ", paramNames);
-                        insertCmd.CommandText = $"INSERT INTO \"{schemaName}\".\"{tableName}\" ({cols}) VALUES ({pNames});";
+                    // D. Restore Table Data
+                    Console.WriteLine("[RESTORE ENGINE: INSERT PHASE]");
+                    foreach (var tableName in sortedTables)
+                    {
+                        var policy = GetTableRestorePolicy(tableName);
+                        if (policy == RestorePolicy.Skip) continue;
 
-                        try
+                        if (!tableContents.TryGetValue(tableName, out var rows)) continue;
+                        var expectedRows = rows.Count;
+                        if (expectedRows == 0) continue;
+
+                        if (!truncatedTables.Contains(tableName))
                         {
-                            await insertCmd.ExecuteNonQueryAsync();
-                            insertedCount++;
+                            throw new InvalidOperationException($"CRITICAL INTEGRITY ERROR: Attempted to insert data into {tableName}, but the table was never successfully truncated. Restore aborted.");
                         }
-                        catch (Exception ex)
+
+                        int insertedCount = 0;
+                        foreach (var row in rows)
                         {
-                            var failedRowParams = string.Join(", ", insertCmd.Parameters.Cast<IDataParameter>().Select(p => $"{p.ParameterName}={p.Value} ({p.DbType})"));
-                            throw new InvalidOperationException($"Insert failed for table {tableName}. Params: {failedRowParams}. Error: {ex.Message}", ex);
+                            var colNames = new List<string>();
+                            var paramNames = new List<string>();
+                            
+                            using var insertCmd = connection.CreateCommand();
+                            insertCmd.Transaction = transaction;
+
+                            int paramIdx = 0;
+                            foreach (var kvpCol in row)
+                            {
+                                var colName = kvpCol.Key;
+                                var rawVal = kvpCol.Value;
+
+                                string dbTypeStr = "text";
+                                if (schemaCols.TryGetValue(tableName, out var tblCols) && tblCols.TryGetValue(colName, out var typeStr))
+                                {
+                                    dbTypeStr = typeStr.ToLowerInvariant();
+                                }
+
+                                (object finalVal, DbType dbTypeEnum) = ConvertToPgType(rawVal, dbTypeStr);
+
+                                colNames.Add($"\"{colName}\"");
+                                var pName = $"@p{paramIdx}";
+                                paramNames.Add(pName);
+
+                                var param = insertCmd.CreateParameter();
+                                param.ParameterName = pName;
+                                param.Value = finalVal ?? DBNull.Value;
+                                param.DbType = dbTypeEnum;
+                                insertCmd.Parameters.Add(param);
+
+                                paramIdx++;
+                            }
+
+                            var cols = string.Join(", ", colNames);
+                            var pNames = string.Join(", ", paramNames);
+                            insertCmd.CommandText = $"INSERT INTO \"{schemaName}\".\"{tableName}\" ({cols}) VALUES ({pNames});";
+
+                            try
+                            {
+                                await insertCmd.ExecuteNonQueryAsync();
+                                insertedCount++;
+                            }
+                            catch (Exception ex)
+                            {
+                                var failedRowParams = string.Join(", ", insertCmd.Parameters.Cast<IDataParameter>().Select(p => $"{p.ParameterName}={p.Value} ({p.DbType})"));
+                                throw new InvalidOperationException($"Insert failed for table {tableName}. Params: {failedRowParams}. Error: {ex.Message}", ex);
+                            }
+                        }
+
+                        // Query DB count inside transaction immediately after inserting table rows
+                        using var checkCmd = connection.CreateCommand();
+                        checkCmd.Transaction = transaction;
+                        checkCmd.CommandText = $"SELECT COUNT(*) FROM \"{schemaName}\".\"{tableName}\";";
+                        var countAfterInsert = Convert.ToInt64(await checkCmd.ExecuteScalarAsync());
+
+                        Console.WriteLine($"[INSERT TABLE] {tableName}: Expected={expectedRows}, Inserted={insertedCount}, DB={countAfterInsert}");
+
+                        if (countAfterInsert != expectedRows)
+                        {
+                            throw new InvalidOperationException($"CRITICAL INTEGRITY FAILURE: Table '{tableName}' row count after insert ({countAfterInsert}) does not match expected snapshot count ({expectedRows}).");
                         }
                     }
 
-                    // Query DB count immediately after inserting this table's rows
-                    using var checkCmd = connection.CreateCommand();
-                    checkCmd.Transaction = transaction;
-                    checkCmd.CommandText = $"SELECT COUNT(*) FROM \"{schemaName}\".\"{tableName}\";";
-                    var countAfterInsert = Convert.ToInt64(await checkCmd.ExecuteScalarAsync());
-
-                    Console.WriteLine("=========================================================");
-                    Console.WriteLine("[INSERT TABLE]");
-                    Console.WriteLine($"Table: {tableName}");
-                    Console.WriteLine($"Expected Rows: {expectedRows}");
-                    Console.WriteLine($"Inserted Rows: {insertedCount}");
-                    Console.WriteLine($"Database Rows: {countAfterInsert}");
-                    Console.WriteLine("=========================================================");
-
-                    if (countAfterInsert != expectedRows)
+                    // E. Reset Identity Sequences Safely
+                    using (var seqCmd = connection.CreateCommand())
                     {
-                        Console.WriteLine($"[CRITICAL ERROR]: Table '{tableName}' DB Count is {countAfterInsert}, expected {expectedRows}!");
-                        throw new InvalidOperationException($"CRITICAL INTEGRITY FAILURE: Table '{tableName}' row count after insert ({countAfterInsert}) does not match expected snapshot count ({expectedRows}). Restore aborted.");
+                        seqCmd.Transaction = transaction;
+                        seqCmd.CommandText = $@"
+                            DO $$
+                            DECLARE r RECORD;
+                            BEGIN
+                                FOR r IN (
+                                    SELECT s.sequence_name, t.table_name, c.column_name
+                                    FROM information_schema.sequences s
+                                    JOIN information_schema.columns c 
+                                      ON c.column_default LIKE '%' || s.sequence_name || '%' 
+                                      OR c.identity_generation IS NOT NULL
+                                    JOIN information_schema.tables t 
+                                      ON c.table_name = t.table_name AND c.table_schema = t.table_schema
+                                    WHERE s.sequence_schema = '{schemaName}' AND t.table_schema = '{schemaName}'
+                                ) LOOP
+                                    BEGIN
+                                        EXECUTE format(
+                                            'SELECT setval(%L, COALESCE((SELECT MAX(%I) FROM %I.%I), 1), true)',
+                                            r.sequence_name, r.column_name, '{schemaName}', r.table_name
+                                        );
+                                    EXCEPTION WHEN OTHERS THEN
+                                        NULL;
+                                    END;
+                                END LOOP;
+                            END $$;";
+                        await seqCmd.ExecuteNonQueryAsync();
                     }
 
-                    if (tableName.Equals("WaterTestReports", StringComparison.OrdinalIgnoreCase))
-                    {
-                        await LogWaterTestReportsSnapshotAsync(connection, transaction, "AFTER INSERT", schemaName);
-                    }
-                }
-
-                // C. Log Final Rows Before Commit
-                Console.WriteLine("[RESTORE ENGINE: FINAL CHECK BEFORE COMMIT]");
-                foreach (var tableName in sortedTables)
-                {
-                    var policy = GetTableRestorePolicy(tableName);
-                    if (policy == RestorePolicy.Skip) continue;
-                    if (!tableContents.TryGetValue(tableName, out var rows)) continue;
-
-                    using var countCmd = connection.CreateCommand();
-                    countCmd.Transaction = transaction;
-                    countCmd.CommandText = $"SELECT COUNT(*) FROM \"{schemaName}\".\"{tableName}\";";
-                    var dbCount = Convert.ToInt64(await countCmd.ExecuteScalarAsync());
-                    Console.WriteLine($"  Table: {tableName,-25} | Final Count Before Commit: {dbCount,5} | Expected: {rows.Count,5}");
-                    
-                    if (dbCount != rows.Count)
-                    {
-                        throw new InvalidOperationException($"CRITICAL INTEGRITY ERROR: Pre-commit verification failed for '{tableName}'. Backup payload contained {rows.Count} rows, but DB contains {dbCount} rows. Restore aborted.");
-                    }
-                }
-
-                // D. Reset Identity Sequences
-                using (var seqCmd = connection.CreateCommand())
-                {
-                    seqCmd.Transaction = transaction;
-                    seqCmd.CommandText = $@"
-                        DO $$
-                        DECLARE r RECORD;
-                        BEGIN
-                            FOR r IN (SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = '{schemaName}') LOOP
-                                EXECUTE 'SELECT setval(''' || r.sequence_name || ''', COALESCE((SELECT MAX(id) FROM ' || quote_ident(r.sequence_name) || '), 1), true)';
-                            END LOOP;
-                        END $$;";
-                    try { await seqCmd.ExecuteNonQueryAsync(); } catch { }
-                }
-
-                await LogUserRolesSnapshotAsync(connection, transaction, "BEFORE COMMIT", schemaName);
-                await LogWaterTestReportsSnapshotAsync(connection, transaction, "BEFORE COMMIT", schemaName);
-
-                // COMMIT TRANSACTION
-                transaction.Commit();
-                Console.WriteLine("=========================================================");
-                Console.WriteLine("[COMMIT]");
-                Console.WriteLine("Transaction.Commit() executed successfully.");
-                Console.WriteLine("=========================================================");
-
-                using (var afterConn = CreateDedicatedConnection())
-                {
-                    await OpenDedicatedConnectionAsync(afterConn, "RestoreBackupAsync (After Commit Snapshot)", "BackupService.cs", 886, schemaName);
-                    await LogUserRolesSnapshotAsync(afterConn, null, "IMMEDIATELY AFTER COMMIT", schemaName);
-                    await LogWaterTestReportsSnapshotAsync(afterConn, null, "IMMEDIATELY AFTER COMMIT", schemaName);
-                }
-
-                await Task.Delay(2000);
-
-                using (var delayConn = CreateDedicatedConnection())
-                {
-                    await OpenDedicatedConnectionAsync(delayConn, "RestoreBackupAsync (2s Delay Snapshot)", "BackupService.cs", 894, schemaName);
-                    await LogUserRolesSnapshotAsync(delayConn, null, "2 SECONDS AFTER COMMIT", schemaName);
-                    await LogWaterTestReportsSnapshotAsync(delayConn, null, "2 SECONDS AFTER COMMIT", schemaName);
-                }
-
-                // E. POST-COMMIT ISOLATED FRESH CONNECTION VERIFICATION
-                using (var freshConn = CreateDedicatedConnection())
-                {
-                    await OpenDedicatedConnectionAsync(freshConn, "RestoreBackupAsync (Fresh Verification Connection)", "BackupService.cs", 840, schemaName);
-                    var freshProcId = freshConn.GetType().GetProperty("ProcessID")?.GetValue(freshConn);
-
-                    using var freshCmd = freshConn.CreateCommand();
-                    freshCmd.CommandText = $"SET search_path TO \"{schemaName}\";";
-                    await freshCmd.ExecuteNonQueryAsync();
+                    // F. STRICT ATOMIC PRE-COMMIT ROW COUNT & DATA FINGERPRINT VERIFICATION
+                    Console.WriteLine("[RESTORE ENGINE: STRICT ATOMIC PRE-COMMIT VERIFICATION]");
+                    var backupFingerprints = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    var snapshotColumnMap = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
 
                     foreach (var tableName in sortedTables)
                     {
                         var policy = GetTableRestorePolicy(tableName);
                         if (policy == RestorePolicy.Skip) continue;
-                        if (!tableContents.TryGetValue(tableName, out var rows)) continue;
+                        if (!tableContents.TryGetValue(tableName, out var backupRows)) continue;
 
-                        freshCmd.CommandText = $"SELECT COUNT(*) FROM \"{schemaName}\".\"{tableName}\";";
-                        var freshCount = Convert.ToInt64(await freshCmd.ExecuteScalarAsync());
-                        var expected = rows.Count;
+                        var snapshotColumns = backupRows.Count > 0 ? backupRows[0].Keys.ToList() : new List<string>();
+                        snapshotColumnMap[tableName] = snapshotColumns;
 
-                        bool pass = freshCount == expected;
-                        Console.WriteLine("=========================================================");
-                        Console.WriteLine("[FRESH VERIFICATION]");
-                        Console.WriteLine($"Table: {tableName}");
-                        Console.WriteLine($"Expected: {expected}");
-                        Console.WriteLine($"Actual: {freshCount}");
-                        Console.WriteLine($"Result: {(pass ? "PASS" : "FAIL")}");
-                        Console.WriteLine("=========================================================");
-
-                        if (!pass)
+                        // Check Schema Compatibility: Ensure no column in backup is missing from current database schema
+                        if (schemaCols.TryGetValue(tableName, out var currentTblCols))
                         {
-                            Console.WriteLine($"[CRITICAL FAILURE]: Post-commit fresh DB query for '{tableName}' returned {freshCount} rows, but Backup Preview expected {expected} rows!");
-                            throw new InvalidOperationException($"CRITICAL POST-COMMIT RESTORE FAILURE: Table '{tableName}' contains {freshCount} rows in database after commit, but backup preview contains {expected} rows. Restore failed!");
+                            var missingInDb = snapshotColumns.Where(sc => !currentTblCols.ContainsKey(sc)).ToList();
+                            if (missingInDb.Any())
+                            {
+                                throw new InvalidOperationException($"INCOMPATIBLE_SCHEMA: Table '{tableName}' in backup contains column(s) [{string.Join(", ", missingInDb)}] which do not exist in the database schema.");
+                            }
+                        }
+
+                        string backupFingerprint = ComputeTableFingerprint(backupRows, snapshotColumns);
+                        backupFingerprints[tableName] = backupFingerprint;
+
+                        // 1. Verify row count inside transaction
+                        using var countCmd = connection.CreateCommand();
+                        countCmd.Transaction = transaction;
+                        countCmd.CommandText = $"SELECT COUNT(*) FROM \"{schemaName}\".\"{tableName}\";";
+                        var dbCount = Convert.ToInt64(await countCmd.ExecuteScalarAsync());
+
+                        if (dbCount != backupRows.Count)
+                        {
+                            throw new InvalidOperationException($"ATOMIC PRE-COMMIT VERIFICATION FAILED: Table '{tableName}' expected {backupRows.Count} rows, but database contains {dbCount} rows. Rolling back transaction.");
+                        }
+
+                        // 2. Verify data content fingerprint inside transaction using snapshot column set
+                        var dbRows = await QueryTableRowsForFingerprintAsync(connection, transaction, schemaName, tableName);
+                        string dbFingerprint = ComputeTableFingerprint(dbRows, snapshotColumns);
+
+                        if (!string.Equals(backupFingerprint, dbFingerprint, StringComparison.Ordinal))
+                        {
+                            Console.WriteLine($"[FINGERPRINT MISMATCH BEFORE COMMIT] Table: {tableName} | Backup FP: {backupFingerprint} | DB FP: {dbFingerprint}");
+                            LogFieldByFieldDiff(tableName, backupRows, dbRows, snapshotColumns);
+                            throw new InvalidOperationException($"ATOMIC PRE-COMMIT DATA FINGERPRINT MISMATCH: Table '{tableName}' content fingerprint does not match backup payload fingerprint. Rolling back transaction.");
+                        }
+
+                        Console.WriteLine($"  Table: {tableName,-25} | Row Count: {dbCount,5} | Pre-Commit FP: {dbFingerprint.Substring(0, 8)}... [PASS]");
+                    }
+
+                    // G. COMMIT TRANSACTION ONLY AFTER ALL VERIFICATIONS AND FINGERPRINTS PASS
+                    await transaction.CommitAsync();
+                    Console.WriteLine("=========================================================");
+                    Console.WriteLine("[COMMIT SUCCESS]");
+                    Console.WriteLine("Transaction.CommitAsync() executed successfully. All table row counts & data fingerprints verified.");
+                    Console.WriteLine("=========================================================");
+
+                    // H. MANDATORY POST-COMMIT ISOLATED FRESH CONNECTION VERIFICATION
+                    using (var freshConn = CreateDedicatedConnection())
+                    {
+                        await OpenDedicatedConnectionAsync(freshConn, "PostCommitVerification", "BackupService.cs", 920, schemaName);
+
+                        foreach (var kvp in backupFingerprints)
+                        {
+                            var tableName = kvp.Key;
+                            var backupFingerprint = kvp.Value;
+
+                            if (!tableContents.TryGetValue(tableName, out var backupRows)) continue;
+                            var snapshotColumns = snapshotColumnMap.TryGetValue(tableName, out var cols) ? cols : null;
+
+                            var freshDbRows = await QueryTableRowsForFingerprintAsync(freshConn, null, schemaName, tableName);
+                            string freshFingerprint = ComputeTableFingerprint(freshDbRows, snapshotColumns);
+
+                            if (!string.Equals(backupFingerprint, freshFingerprint, StringComparison.Ordinal))
+                            {
+                                Console.WriteLine($"[CRITICAL POST-COMMIT FINGERPRINT MISMATCH] Table: {tableName} | Backup FP: {backupFingerprint} | Fresh DB FP: {freshFingerprint}");
+                                LogFieldByFieldDiff(tableName, backupRows, freshDbRows, snapshotColumns);
+                                throw new InvalidOperationException($"DATA_VERIFICATION_FAILED: Restore transaction committed, but post-commit data verification detected a fingerprint mismatch on table '{tableName}'. Expected FP: {backupFingerprint}, Actual FP: {freshFingerprint}");
+                            }
                         }
                     }
+                    Console.WriteLine("[POST-COMMIT VERIFICATION SUCCESS] All post-commit table fingerprints match backup payload 100%.");
+                    Console.WriteLine("[POST-COMMIT VERIFICATION SUCCESS] All post-commit table fingerprints match backup payload 100%.");
 
-                    await LogWaterTestReportsSnapshotAsync(freshConn, null, "FRESH VERIFICATION CONNECTION", schemaName);
+                    var endTime = DateTime.UtcNow;
+                    var durationMs = (long)(endTime - startTime).TotalMilliseconds;
 
-                    if (tableContents.TryGetValue("WaterTestReports", out var backupWaterReports))
+                    var restoreLog = new RestoreHistory
                     {
-                        await PerformWaterTestReportsIdentityComparisonAsync(backupWaterReports, freshConn, null, "FRESH VERIFICATION", schemaName);
-                    }
+                        Id = Guid.NewGuid(),
+                        BackupId = backupId,
+                        TenantId = tenantId,
+                        SchemaName = schemaName,
+                        StartedBy = currentUserId,
+                        StartedAt = startTime,
+                        CompletedAt = endTime,
+                        DurationMs = durationMs,
+                        Status = "SUCCESS",
+                        IPAddress = _currentUserContext.IpAddress ?? "127.0.0.1",
+                        Details = $"Successfully restored {tableContents.Count} tables snapshot cleanly.",
+                        CreatedAt = endTime,
+                        CreatedBy = currentUserId
+                    };
+
+                    _platformContext.RestoreHistories.Add(restoreLog);
+                    backup.Status = "RESTORED";
+                    await _platformContext.SaveChangesAsync();
+
+                    await CreateAuditLogAsync("RESTORE_SUCCESS", $"Successfully restored snapshot '{backup.BackupName}' in {durationMs} ms");
+
+                    var userNames = await ResolveUserNamesAsync(new[] { currentUserId });
+                    return MapToRestoreDto(restoreLog, backup.BackupName, userNames);
                 }
-
-                Console.WriteLine("Fresh verification executed successfully. No authentication failures.");
-
-                var endTime = DateTime.UtcNow;
-                var durationMs = (long)(endTime - startTime).TotalMilliseconds;
-
-                var restoreLog = new RestoreHistory
+                catch (Exception ex)
                 {
-                    Id = Guid.NewGuid(),
-                    BackupId = backupId,
-                    TenantId = tenantId,
-                    SchemaName = schemaName,
-                    StartedBy = currentUserId,
-                    StartedAt = startTime,
-                    CompletedAt = endTime,
-                    DurationMs = durationMs,
-                    Status = "SUCCESS",
-                    IPAddress = _currentUserContext.IpAddress ?? "127.0.0.1",
-                    Details = $"Successfully restored {tableContents.Count} tables snapshot.",
-                    CreatedAt = endTime,
-                    CreatedBy = currentUserId
-                };
+                    try { await transaction.RollbackAsync(); } catch { }
+                    
+                    string rootCauseMsg = ex.Message;
+                    var dbEx = (ex as System.Data.Common.DbException) ?? (ex.InnerException as System.Data.Common.DbException);
+                    if (dbEx != null)
+                    {
+                        var sqlState = dbEx.GetType().GetProperty("SqlState")?.GetValue(dbEx)?.ToString();
+                        var msgText = dbEx.GetType().GetProperty("MessageText")?.GetValue(dbEx)?.ToString() ?? dbEx.Message;
+                        var tblName = dbEx.GetType().GetProperty("TableName")?.GetValue(dbEx)?.ToString();
+                        var constraint = dbEx.GetType().GetProperty("ConstraintName")?.GetValue(dbEx)?.ToString();
+                        rootCauseMsg = $"Postgres Error [{sqlState}]: {msgText} (Table: {tblName}, Constraint: {constraint})";
+                        Console.WriteLine($"[ROOT CAUSE POSTGRES EXCEPTION]: {rootCauseMsg}");
+                    }
 
-                _platformContext.RestoreHistories.Add(restoreLog);
-                backup.Status = "RESTORED";
-                await _platformContext.SaveChangesAsync();
-
-                await CreateAuditLogAsync("RESTORE_SUCCESS", $"Successfully restored snapshot '{backup.BackupName}' in {durationMs} ms");
-
-                var userNames = await ResolveUserNamesAsync(new[] { currentUserId });
-                return MapToRestoreDto(restoreLog, backup.BackupName, userNames);
+                    await LogFailedRestoreAsync(backupId, schemaName, currentUserId, startTime, rootCauseMsg);
+                    Console.WriteLine($"[RESTORE ENGINE ROLLED BACK SAFELY]: {rootCauseMsg}");
+                    throw new InvalidOperationException($"Restore transaction failed during verification and was rolled back safely: {rootCauseMsg}", ex);
+                }
             }
-            catch (Exception ex)
+            finally
             {
-                try { transaction.Rollback(); } catch { }
-                await LogFailedRestoreAsync(backupId, schemaName, currentUserId, startTime, ex.Message);
-                Console.WriteLine($"[RESTORE ENGINE FAILURE]: {ex.Message}");
-                throw new InvalidOperationException($"Restore transaction failed and was rolled back safely: {ex.Message}", ex);
+                tenantLock.Release();
             }
         }
 
@@ -1696,28 +1716,50 @@ namespace Aquora.Application.Services
 
         private async Task LogFailedRestoreAsync(Guid backupId, string schemaName, string userId, DateTime startTime, string details)
         {
-            var endTime = DateTime.UtcNow;
-            var restoreLog = new RestoreHistory
+            try
             {
-                Id = Guid.NewGuid(),
-                BackupId = backupId,
-                TenantId = _tenantProvider.TenantId,
-                SchemaName = schemaName,
-                StartedBy = userId,
-                StartedAt = startTime,
-                CompletedAt = endTime,
-                DurationMs = (long)(endTime - startTime).TotalMilliseconds,
-                Status = "FAILED",
-                IPAddress = _currentUserContext.IpAddress ?? "127.0.0.1",
-                Details = details,
-                CreatedAt = endTime,
-                CreatedBy = userId
-            };
+                var endTime = DateTime.UtcNow;
+                var durationMs = (long)(endTime - startTime).TotalMilliseconds;
+                var id = Guid.NewGuid();
+                var tenantId = _tenantProvider.TenantId;
+                var ip = _currentUserContext.IpAddress ?? "127.0.0.1";
 
-            _platformContext.RestoreHistories.Add(restoreLog);
-            await _platformContext.SaveChangesAsync();
+                using var connection = CreateDedicatedConnection();
+                await OpenDedicatedConnectionAsync(connection, "LogFailedRestoreAsync", "BackupService.cs", 1660);
 
-            await CreateAuditLogAsync("RESTORE_FAILED", $"Failed to restore snapshot '{backupId}': {details}");
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
+                    INSERT INTO public.""RestoreHistories"" 
+                    (""Id"", ""BackupId"", ""TenantId"", ""SchemaName"", ""StartedBy"", ""StartedAt"", ""CompletedAt"", ""DurationMs"", ""Status"", ""IPAddress"", ""Details"", ""CreatedAt"", ""CreatedBy"") 
+                    VALUES (@Id, @BackupId, @TenantId, @SchemaName, @StartedBy, @StartedAt, @CompletedAt, @DurationMs, 'ROLLED_BACK', @IPAddress, @Details, @CreatedAt, @CreatedBy);";
+
+                var addParam = (string name, object val) =>
+                {
+                    var p = cmd.CreateParameter();
+                    p.ParameterName = name;
+                    p.Value = val ?? DBNull.Value;
+                    cmd.Parameters.Add(p);
+                };
+
+                addParam("@Id", id);
+                addParam("@BackupId", backupId);
+                addParam("@TenantId", tenantId);
+                addParam("@SchemaName", schemaName);
+                addParam("@StartedBy", userId);
+                addParam("@StartedAt", startTime);
+                addParam("@CompletedAt", endTime);
+                addParam("@DurationMs", durationMs);
+                addParam("@IPAddress", ip);
+                addParam("@Details", details);
+                addParam("@CreatedAt", endTime);
+                addParam("@CreatedBy", userId);
+
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[LOG FAILED RESTORE ERROR]: Failed to record restore failure in RestoreHistories: {ex.Message}");
+            }
         }
 
         private async Task CreateAuditLogAsync(string action, string details)
@@ -1944,6 +1986,92 @@ namespace Aquora.Application.Services
                 Console.WriteLine($"[CRITICAL IDENTITY MISMATCH DETAILS]: {extraSummary}");
                 throw new InvalidOperationException($"CRITICAL WATERTESTREPORTS IDENTITY MISMATCH: Backup payload has {backupIds.Count} rows, but database contains {dbIds.Count} rows! Extra rows in DB: {extraSummary}");
             }
+        }
+
+        private static string ComputeTableFingerprint(List<Dictionary<string, object>> rows, IEnumerable<string>? targetColumns = null)
+        {
+            return DataFingerprintService.ComputeTableFingerprint(rows, targetColumns);
+        }
+
+        private static void LogFieldByFieldDiff(string tableName, List<Dictionary<string, object>> backupRows, List<Dictionary<string, object>> dbRows, IEnumerable<string>? targetColumns = null)
+        {
+            Console.WriteLine("==========================================================================");
+            Console.WriteLine($"[CANONICAL FINGERPRINT DEBUG FOR TABLE '{tableName}']");
+            Console.WriteLine($"Backup Row Count: {backupRows?.Count ?? 0} | DB Row Count: {dbRows?.Count ?? 0}");
+
+            string backupCanonical = DataFingerprintService.ComputeTableCanonicalPayload(backupRows ?? new(), targetColumns);
+            string dbCanonical = DataFingerprintService.ComputeTableCanonicalPayload(dbRows ?? new(), targetColumns);
+
+            Console.WriteLine("--- BACKUP CANONICAL PAYLOAD ---");
+            Console.WriteLine(backupCanonical);
+            Console.WriteLine($"  [Length: {backupCanonical.Length} bytes, SHA256: {DataFingerprintService.ComputeSha256(backupCanonical)}]");
+
+            Console.WriteLine("--- DB CANONICAL PAYLOAD ---");
+            Console.WriteLine(dbCanonical);
+            Console.WriteLine($"  [Length: {dbCanonical.Length} bytes, SHA256: {DataFingerprintService.ComputeSha256(dbCanonical)}]");
+
+            int firstDiffIdx = -1;
+            int minLen = Math.Min(backupCanonical.Length, dbCanonical.Length);
+            for (int i = 0; i < minLen; i++)
+            {
+                if (backupCanonical[i] != dbCanonical[i])
+                {
+                    firstDiffIdx = i;
+                    break;
+                }
+            }
+            if (firstDiffIdx == -1 && backupCanonical.Length != dbCanonical.Length)
+            {
+                firstDiffIdx = minLen;
+            }
+
+            if (firstDiffIdx != -1)
+            {
+                Console.WriteLine("--------------------------------------------------------------------------");
+                Console.WriteLine($"FIRST DIFFERENCE DETECTED AT INDEX {firstDiffIdx}:");
+                char bChar = firstDiffIdx < backupCanonical.Length ? backupCanonical[firstDiffIdx] : '\0';
+                char dChar = firstDiffIdx < dbCanonical.Length ? dbCanonical[firstDiffIdx] : '\0';
+                Console.WriteLine($"  Backup char: '{(bChar == '\n' ? "\\n" : bChar.ToString())}' (ASCII: {(int)bChar})");
+                Console.WriteLine($"  DB char:     '{(dChar == '\n' ? "\\n" : dChar.ToString())}' (ASCII: {(int)dChar})");
+
+                int start = Math.Max(0, firstDiffIdx - 40);
+                int endB = Math.Min(backupCanonical.Length, firstDiffIdx + 40);
+                int endD = Math.Min(dbCanonical.Length, firstDiffIdx + 40);
+
+                Console.WriteLine($"  Backup snippet around index {firstDiffIdx}: \"{backupCanonical.Substring(start, endB - start)}\"");
+                Console.WriteLine($"  DB snippet around index {firstDiffIdx}:     \"{dbCanonical.Substring(start, endD - start)}\"");
+                Console.WriteLine("--------------------------------------------------------------------------");
+            }
+            Console.WriteLine("==========================================================================");
+        }
+
+        private async Task<List<Dictionary<string, object>>> QueryTableRowsForFingerprintAsync(
+            System.Data.Common.DbConnection connection,
+            System.Data.Common.DbTransaction? transaction,
+            string schemaName,
+            string tableName)
+        {
+            var rows = new List<Dictionary<string, object>>();
+
+            using var cmd = connection.CreateCommand();
+            if (transaction != null) cmd.Transaction = transaction;
+
+            cmd.CommandText = $"SELECT * FROM \"{schemaName}\".\"{tableName}\";";
+            using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                var row = new Dictionary<string, object>();
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    var colName = reader.GetName(i);
+                    var val = reader.GetValue(i);
+                    row[colName] = val;
+                }
+                rows.Add(row);
+            }
+
+            return rows;
         }
 
         private static BackupHistoryDto MapToDto(BackupHistory h, Dictionary<string, string> userNames)

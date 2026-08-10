@@ -91,30 +91,6 @@ namespace Aquora.Application.Services
         {
             var activeParams = await _context.WaterTestParameters.Where(p => p.IsActive).ToListAsync();
 
-            // Self-healing seeding if missing
-            var missing = SeedParameters.Where(s => !activeParams.Any(ap => ap.Name.Equals(s.Name, StringComparison.OrdinalIgnoreCase))).ToList();
-            if (missing.Any())
-            {
-                foreach (var m in missing)
-                {
-                    var newParam = new WaterTestParameter
-                    {
-                        Id = Guid.NewGuid(),
-                        Name = m.Name,
-                        Category = m.Category,
-                        Unit = m.Unit,
-                        MinAcceptable = m.MinAccept,
-                        MaxAcceptable = m.MaxAccept,
-                        IsActive = true,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = _currentUserContext.UserId ?? "System"
-                    };
-                    _context.WaterTestParameters.Add(newParam);
-                }
-                await _context.SaveChangesAsync();
-                activeParams = await _context.WaterTestParameters.Where(p => p.IsActive).ToListAsync();
-            }
-
             return activeParams
                 .GroupBy(p => p.Name.Trim(), StringComparer.OrdinalIgnoreCase)
                 .Select(g => g.First())

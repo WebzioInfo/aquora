@@ -98,37 +98,6 @@ namespace Aquora.API.Controllers
                     query = query.Where(l => l.IsActive);
                 }
                 var lines = await query.OrderBy(l => l.Code).ToListAsync();
-                if (lines.Count == 0)
-                {
-                    var company = await _tenantContext.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
-                    var companyId = company != null ? company.Id : (tenantId != Guid.Empty ? tenantId : Guid.NewGuid());
-                    
-                    var line1 = new ProductionLine
-                    {
-                        Id = Guid.NewGuid(),
-                        Name = "Line 1",
-                        Code = "L001",
-                        IsActive = true,
-                        TenantId = tenantId,
-                        CompanyId = companyId,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = "System"
-                    };
-                    var line2 = new ProductionLine
-                    {
-                        Id = Guid.NewGuid(),
-                        Name = "Line 2",
-                        Code = "L002",
-                        IsActive = true,
-                        TenantId = tenantId,
-                        CompanyId = companyId,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = "System"
-                    };
-                    _tenantContext.ProductionLines.AddRange(line1, line2);
-                    await _tenantContext.SaveChangesAsync();
-                    lines = new List<ProductionLine> { line1, line2 };
-                }
 
                 var activeBatches = await _tenantContext.ProductionBatches
                     .Where(b => b.Status == "Active" && !b.IsDeleted)
