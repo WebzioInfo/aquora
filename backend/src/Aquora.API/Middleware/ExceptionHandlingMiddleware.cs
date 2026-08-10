@@ -43,8 +43,11 @@ namespace Aquora.API.Middleware
                  invEx.Message.Contains("already registered", StringComparison.OrdinalIgnoreCase) ||
                  invEx.Message == "ALREADY_VERIFIED");
 
+            var rateLimitEx = exception as Aquora.Application.Common.Exceptions.OtpRateLimitException;
+
             var statusCode = exception switch
             {
+                _ when rateLimitEx != null => HttpStatusCode.TooManyRequests,
                 _ when isUniqueViolation || isDuplicateEmailMsg => HttpStatusCode.Conflict,
                 UnauthorizedAccessException => HttpStatusCode.Unauthorized,
                 KeyNotFoundException => HttpStatusCode.NotFound,
@@ -53,6 +56,11 @@ namespace Aquora.API.Middleware
                 InvalidOperationException => HttpStatusCode.BadRequest,
                 _ => HttpStatusCode.InternalServerError
             };
+
+            if (rateLimitEx != null)
+            {
+                context.Response.Headers["Retry-After"] = rateLimitEx.RetryAfterSeconds.ToString();
+            }
 
             context.Response.StatusCode = (int)statusCode;
             var traceId = context.TraceIdentifier;
@@ -63,7 +71,13 @@ namespace Aquora.API.Middleware
             string errorCode;
             var errorDetails = new List<object>();
 
-            if (isUniqueViolation)
+            if (rateLimitEx != null)
+            {
+                errorMessage = rateLimitEx.Message;
+                errorCode = "OTP_RATE_LIMITED";
+                errorDetails.Add(errorMessage);
+            }
+            else if (isUniqueViolation)
             {
                 if (IsUserEmailConstraintViolation(exception))
                 {
@@ -108,6 +122,11 @@ namespace Aquora.API.Middleware
             // Build standardized error response
             var apiResponse = ApiResponse<object>.CreateFailure(errorDetails, errorMessage, traceId);
             apiResponse.Code = errorCode;
+
+            if (rateLimitEx != null)
+            {
+                apiResponse.RetryAfterSeconds = rateLimitEx.RetryAfterSeconds;
+            }
 
             var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
             var result = JsonSerializer.Serialize(apiResponse, options);

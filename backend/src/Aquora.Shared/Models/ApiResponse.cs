@@ -9,6 +9,7 @@ namespace Aquora.Shared.Models
         public string Message { get; set; }
         public List<object> Errors { get; set; } = new List<object>();
         public string TraceId { get; set; }
+        public int? RetryAfterSeconds { get; set; }
         
         private string _code;
         public string Code

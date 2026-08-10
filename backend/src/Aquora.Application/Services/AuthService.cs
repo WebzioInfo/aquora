@@ -6,6 +6,7 @@ using System.Security.Claims;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Aquora.Application.Common.Exceptions;
 using Aquora.Application.DTOs.Auth;
 using Aquora.Application.Interfaces;
 using Aquora.Application.Interfaces.Services;
@@ -188,14 +189,17 @@ namespace Aquora.Application.Services
 
             if (existing != null && existing.LastSentAt.HasValue && existing.LastSentAt.Value.AddMinutes(1) > now)
             {
-                Console.WriteLine($"[OTP RATE LIMIT]: Cooldown active for '{email}'.");
-                throw new InvalidOperationException("Please wait before requesting another OTP.");
+                var elapsedSeconds = (int)(now - existing.LastSentAt.Value).TotalSeconds;
+                var remainingSeconds = Math.Max(1, 60 - elapsedSeconds);
+                Console.WriteLine($"[OTP RATE LIMIT]: Cooldown active for '{email}'. {remainingSeconds} seconds remaining.");
+                throw new OtpRateLimitException($"Please wait {remainingSeconds} seconds before requesting another OTP.", remainingSeconds);
             }
 
             if (existing != null && existing.CreatedAt.AddHours(1) > now && existing.SendCount >= 5)
             {
+                var remainingMinutes = Math.Max(1, 60 - (int)(now - existing.CreatedAt).TotalMinutes);
                 Console.WriteLine($"[OTP RATE LIMIT]: Maximum hourly send count reached for '{email}'.");
-                throw new InvalidOperationException("OTP rate limit exceeded. Try again later.");
+                throw new OtpRateLimitException("OTP rate limit exceeded. Please try again later.", remainingMinutes * 60);
             }
 
             // Generate cryptographically secure OTP

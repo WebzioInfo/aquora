@@ -143,7 +143,15 @@ export const LoginPage: React.FC = () => {
         showToast(response.message || 'Failed to send recovery code.', 'error')
       }
     } catch (error: any) {
-      showToast(error.response?.data?.message || 'Failed to send recovery code.', 'error')
+      if (error.response?.status === 429 || error.response?.data?.code === 'OTP_RATE_LIMITED') {
+        const retryAfter = error.response?.data?.retryAfterSeconds || error.response?.headers?.['retry-after']
+        const msg = retryAfter 
+          ? `Please wait ${retryAfter} seconds before requesting another code.` 
+          : (error.response?.data?.message || 'Please wait before requesting another code.')
+        showToast(msg, 'error')
+      } else {
+        showToast(error.response?.data?.message || 'Failed to send recovery code.', 'error')
+      }
     } finally {
       setForgotLoading(false)
     }
