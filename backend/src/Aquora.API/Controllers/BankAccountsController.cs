@@ -153,7 +153,7 @@ namespace Aquora.API.Controllers
             [FromQuery] string? createdBy = null,
             [FromQuery] decimal? minAmount = null,
             [FromQuery] decimal? maxAmount = null,
-            [FromQuery] string? sortBy = "TransactionDate",
+            [FromQuery] string? sortBy = "CreatedAt",
             [FromQuery] string? sortOrder = "desc")
         {
             try

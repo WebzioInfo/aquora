@@ -372,8 +372,8 @@ const CashBookDetailsPage: React.FC = () => {
     const dateToParse = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : `${dateStr}Z`;
     const date = new Date(dateToParse)
     if (isNaN(date.getTime())) return { dayStr: '—', timeStr: '' }
-    const dayStr = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    const dayStr = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' })
+    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })
     return { dayStr, timeStr }
   }
 
@@ -384,7 +384,7 @@ const CashBookDetailsPage: React.FC = () => {
     setPrintDocData({
       title: isOutflow ? 'Cash Payment Voucher' : 'Cash Deposit Receipt',
       docNumber: item.referenceNumber || 'VOUCHER-TEMP',
-      date: new Date(item.transactionDate || item.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      date: new Date(item.createdAt || item.transactionDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }),
       partyLabel: isOutflow ? 'Paid To' : 'Received From',
       partyInfo: {
         name: item.description?.split('Paid to')?.[1]?.trim() || item.description?.split('Received from')?.[1]?.trim() || 'Internal Allocation',
@@ -678,7 +678,7 @@ const CashBookDetailsPage: React.FC = () => {
                 </tr>
               ) : (
                 ledgerItems.map((item) => {
-                  const { dayStr, timeStr } = formatDateTime(item.transactionDate || item.createdAt)
+                  const { dayStr, timeStr } = formatDateTime(item.createdAt || item.transactionDate)
                   const relType = (item.relatedEntityType || '').toLowerCase()
                   const type = (item.transactionType || '').toLowerCase()
 

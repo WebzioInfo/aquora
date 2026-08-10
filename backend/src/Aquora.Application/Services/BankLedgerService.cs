@@ -531,18 +531,22 @@ namespace Aquora.Application.Services
             var totalCount = await query.CountAsync();
 
             var isAsc = filter?.SortOrder?.Equals("asc", StringComparison.OrdinalIgnoreCase) ?? false;
-            var sortBy = filter?.SortBy?.ToLower() ?? "transactiondate";
+            var sortBy = filter?.SortBy?.ToLower() ?? "createdat";
 
             query = (sortBy, isAsc) switch
             {
-                ("debit", true) => query.OrderBy(x => x.Debit).ThenBy(x => x.TransactionDate).ThenBy(x => x.CreatedAt).ThenBy(x => x.LedgerSequence),
-                ("debit", false) => query.OrderByDescending(x => x.Debit).ThenByDescending(x => x.TransactionDate).ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.LedgerSequence),
-                ("credit", true) => query.OrderBy(x => x.Credit).ThenBy(x => x.TransactionDate).ThenBy(x => x.CreatedAt).ThenBy(x => x.LedgerSequence),
-                ("credit", false) => query.OrderByDescending(x => x.Credit).ThenByDescending(x => x.TransactionDate).ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.LedgerSequence),
-                ("transactiontype", true) => query.OrderBy(x => x.TransactionType).ThenBy(x => x.TransactionDate).ThenBy(x => x.CreatedAt).ThenBy(x => x.LedgerSequence),
-                ("transactiontype", false) => query.OrderByDescending(x => x.TransactionType).ThenByDescending(x => x.TransactionDate).ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.LedgerSequence),
-                (_, true) => query.OrderBy(x => x.TransactionDate).ThenBy(x => x.CreatedAt).ThenBy(x => x.LedgerSequence),
-                _ => query.OrderByDescending(x => x.TransactionDate).ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.LedgerSequence)
+                ("debit", true) => query.OrderBy(x => x.Debit).ThenBy(x => x.CreatedAt).ThenBy(x => x.Id),
+                ("debit", false) => query.OrderByDescending(x => x.Debit).ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id),
+                ("credit", true) => query.OrderBy(x => x.Credit).ThenBy(x => x.CreatedAt).ThenBy(x => x.Id),
+                ("credit", false) => query.OrderByDescending(x => x.Credit).ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id),
+                ("transactiontype", true) => query.OrderBy(x => x.TransactionType).ThenBy(x => x.CreatedAt).ThenBy(x => x.Id),
+                ("transactiontype", false) => query.OrderByDescending(x => x.TransactionType).ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id),
+                ("transactiondate", true) => query.OrderBy(x => x.TransactionDate).ThenBy(x => x.CreatedAt).ThenBy(x => x.Id),
+                ("transactiondate", false) => query.OrderByDescending(x => x.TransactionDate).ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id),
+                ("createdat", true) => query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id),
+                ("createdat", false) => query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id),
+                (_, true) => query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id),
+                _ => query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
             };
 
             var entries = await query
@@ -1030,12 +1034,66 @@ namespace Aquora.Application.Services
             if (!await _context.BankLedgerEntries.AnyAsync(x => x.TenantId == tenantId && x.CashBookId == cashBookId && x.LedgerAccountType == "CashBook")) await ReconcileMissingCashBookLedgerEntriesAsync(cashBookId);
             await RecalculateCashBookLedgerBalancesAsync(cashBookId);
             var query = _context.BankLedgerEntries.AsNoTracking().Where(x => x.TenantId == tenantId && x.CashBookId == cashBookId && x.LedgerAccountType == "CashBook");
-            if (!string.IsNullOrWhiteSpace(search)) { var term = search.ToLower(); query = query.Where(x => x.ReferenceNumber.ToLower().Contains(term) || x.Description.ToLower().Contains(term) || x.TransactionType.ToLower().Contains(term)); }
+
+            if (filter != null)
+            {
+                if (filter.DateFrom.HasValue)
+                {
+                    var dateFromUtc = EnsureUtc(filter.DateFrom.Value);
+                    query = query.Where(x => x.CreatedAt >= dateFromUtc || x.TransactionDate >= dateFromUtc);
+                }
+
+                if (filter.DateTo.HasValue)
+                {
+                    var dateToUtc = EnsureUtc(filter.DateTo.Value);
+                    query = query.Where(x => x.CreatedAt <= dateToUtc || x.TransactionDate <= dateToUtc);
+                }
+
+                if (!string.IsNullOrWhiteSpace(filter.TransactionType))
+                    query = query.Where(x => x.TransactionType.ToLower() == filter.TransactionType.ToLower());
+
+                if (!string.IsNullOrWhiteSpace(filter.CreatedBy))
+                    query = query.Where(x => x.CreatedBy.ToLower().Contains(filter.CreatedBy.ToLower()));
+
+                if (filter.MinimumAmount.HasValue)
+                    query = query.Where(x => x.Debit >= filter.MinimumAmount.Value || x.Credit >= filter.MinimumAmount.Value);
+
+                if (filter.MaximumAmount.HasValue)
+                    query = query.Where(x => x.Debit <= filter.MaximumAmount.Value || x.Credit <= filter.MaximumAmount.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.ToLower();
+                query = query.Where(x => 
+                    x.ReferenceNumber.ToLower().Contains(term) || 
+                    x.Description.ToLower().Contains(term) ||
+                    x.TransactionType.ToLower().Contains(term) ||
+                    x.CreatedBy.ToLower().Contains(term));
+            }
+
             var totalCount = await query.CountAsync();
+
+            var isAsc = filter?.SortOrder?.Equals("asc", StringComparison.OrdinalIgnoreCase) ?? false;
+            var sortBy = filter?.SortBy?.ToLower() ?? "createdat";
+
+            query = (sortBy, isAsc) switch
+            {
+                ("debit", true) => query.OrderBy(x => x.Debit).ThenBy(x => x.CreatedAt).ThenBy(x => x.Id),
+                ("debit", false) => query.OrderByDescending(x => x.Debit).ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id),
+                ("credit", true) => query.OrderBy(x => x.Credit).ThenBy(x => x.CreatedAt).ThenBy(x => x.Id),
+                ("credit", false) => query.OrderByDescending(x => x.Credit).ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id),
+                ("transactiontype", true) => query.OrderBy(x => x.TransactionType).ThenBy(x => x.CreatedAt).ThenBy(x => x.Id),
+                ("transactiontype", false) => query.OrderByDescending(x => x.TransactionType).ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id),
+                ("transactiondate", true) => query.OrderBy(x => x.TransactionDate).ThenBy(x => x.CreatedAt).ThenBy(x => x.Id),
+                ("transactiondate", false) => query.OrderByDescending(x => x.TransactionDate).ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id),
+                ("createdat", true) => query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id),
+                ("createdat", false) => query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id),
+                (_, true) => query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id),
+                _ => query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
+            };
+
             var entries = await query
-                .OrderByDescending(x => x.TransactionDate)
-                .ThenByDescending(x => x.CreatedAt)
-                .ThenByDescending(x => x.LedgerSequence)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .Select(x => new BankLedgerEntryDto
@@ -1062,11 +1120,17 @@ namespace Aquora.Application.Services
 
             if (entries.Any())
             {
-                var userNamesMap = await ResolveUserNamesBatchAsync(entries.Select(x => x.CreatedBy));
                 foreach (var entry in entries)
                 {
                     entry.EventLabel = ComputeEventLabel(entry.TransactionType, entry.EventType, entry.EventLabel);
-                    entry.CreatedBy = userNamesMap.TryGetValue(entry.CreatedBy, out var name) ? name : entry.CreatedBy;
+                }
+                var userNamesMap = await ResolveUserNamesBatchAsync(entries.Select(x => x.CreatedBy));
+                foreach (var entry in entries)
+                {
+                    if (!string.IsNullOrWhiteSpace(entry.CreatedBy) && userNamesMap.TryGetValue(entry.CreatedBy, out var name))
+                    {
+                        entry.CreatedBy = name;
+                    }
                 }
             }
 

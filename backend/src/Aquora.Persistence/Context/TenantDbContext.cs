@@ -655,6 +655,7 @@ namespace Aquora.Persistence.Context
                     }
                     else if (entry.State == EntityState.Modified)
                     {
+                        entry.Property("CreatedAt").IsModified = false;
                         auditableEntity.UpdatedAt = _dateTimeProvider.UtcNow;
                         auditableEntity.UpdatedBy = currentUserId;
                         auditableEntity.UpdatedByIP = _currentUserContext.IpAddress ?? "127.0.0.1";
