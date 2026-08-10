@@ -117,16 +117,16 @@ namespace Aquora.Application.Services
 
             var totalCount = await query.CountAsync();
 
-            var allActive = await _context.Purchases.Where(p => !p.IsDeleted).AsNoTracking().ToListAsync();
             var today = DateTime.UtcNow.Date;
+            var baseStatsQuery = _context.Purchases.Where(p => !p.IsDeleted).AsNoTracking();
 
             var stats = new PurchaseSummaryStatsDto
             {
-                TotalPurchasesCount = allActive.Count,
-                TodayPurchasesCount = allActive.Count(p => p.PurchaseDate.Date == today),
-                TotalPurchaseValue = allActive.Sum(p => p.GrandTotal),
-                OutstandingBalance = allActive.Sum(p => p.BalanceAmount),
-                PendingPaymentsCount = allActive.Count(p => p.BalanceAmount > 0),
+                TotalPurchasesCount = await baseStatsQuery.CountAsync(),
+                TodayPurchasesCount = await baseStatsQuery.CountAsync(p => p.PurchaseDate >= today),
+                TotalPurchaseValue = await baseStatsQuery.SumAsync(p => (decimal?)p.GrandTotal) ?? 0m,
+                OutstandingBalance = await baseStatsQuery.SumAsync(p => (decimal?)p.BalanceAmount) ?? 0m,
+                PendingPaymentsCount = await baseStatsQuery.CountAsync(p => p.BalanceAmount > 0),
                 ActiveVendorsCount = await _context.Vendors.CountAsync(v => !v.IsDeleted && v.IsActive)
             };
 

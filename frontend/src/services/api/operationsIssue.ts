@@ -1,5 +1,11 @@
 import { api } from '../api';
 
+export interface AffectedMachineItem {
+  machineId: string;
+  machineName: string;
+  machineCode?: string;
+}
+
 export interface OperationsIssue {
   id: string;
   issueNumber: string;
@@ -15,6 +21,8 @@ export interface OperationsIssue {
   assignedToName?: string;
   machineId?: string;
   machineName?: string;
+  affectedMachineIds?: string[];
+  affectedMachines?: AffectedMachineItem[];
   productionLineId?: string;
   productionLineName?: string;
   batchNumber?: string;
@@ -87,6 +95,8 @@ export interface CreateOperationsIssueRequest {
   priority: string;
   machineId?: string;
   machineName?: string;
+  affectedMachineIds?: string[];
+  affectedMachineNames?: string[];
   productionLineId?: string;
   productionLineName?: string;
   batchNumber?: string;
@@ -105,6 +115,8 @@ export interface QuickOperatorReportRequest {
   description: string;
   machineId?: string;
   machineName?: string;
+  affectedMachineIds?: string[];
+  affectedMachineNames?: string[];
   downtimeMinutes?: number;
   attachments?: string;
 }
@@ -150,6 +162,8 @@ export const operationsIssueApi = {
   }) => api.get<PagedResult<OperationsIssue>>('/api/v1/company/operations-issues', { params }),
 
   getDashboard: () => api.get<OperationsIssueDashboard>('/api/v1/company/operations-issues/dashboard'),
+
+  getAvailableMachines: () => api.get<AffectedMachineItem[]>('/api/v1/company/operations-issues/machines'),
 
   getIssueById: (id: string) => api.get<OperationsIssueDetail>(`/api/v1/company/operations-issues/${id}`),
 

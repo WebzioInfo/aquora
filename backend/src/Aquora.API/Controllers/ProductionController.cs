@@ -1361,17 +1361,14 @@ namespace Aquora.API.Controllers
                 _tenantContext.ProductionLines.Add(line);
                 await _tenantContext.SaveChangesAsync();
 
-                var dto = new
+                var dto = new ProductionLineDto
                 {
                     LineId = line.Id,
-                    Id = line.Id,
-                    id = line.Id,
                     Name = line.Name,
-                    name = line.Name,
                     Code = line.Code,
-                    code = line.Code,
                     IsActive = line.IsActive,
-                    isActive = line.IsActive
+                    HasActiveBatch = false,
+                    ActiveBatch = null
                 };
 
                 return Success<object>(dto, "Production line created successfully.");
@@ -1423,17 +1420,26 @@ namespace Aquora.API.Controllers
 
                 await _tenantContext.SaveChangesAsync();
 
-                var dto = new
+                var activeBatch = await _tenantContext.ProductionBatches
+                    .FirstOrDefaultAsync(b => b.ProductionLineId == line.Id && b.Status == "Active" && !b.IsDeleted);
+
+                var dto = new ProductionLineDto
                 {
                     LineId = line.Id,
-                    Id = line.Id,
-                    id = line.Id,
                     Name = line.Name,
-                    name = line.Name,
                     Code = line.Code,
-                    code = line.Code,
                     IsActive = line.IsActive,
-                    isActive = line.IsActive
+                    HasActiveBatch = activeBatch != null,
+                    ActiveBatch = activeBatch == null ? null : new ActiveBatchSummaryDto
+                    {
+                        BatchId = activeBatch.Id,
+                        BatchNumber = activeBatch.BatchNumber,
+                        Product = activeBatch.Product,
+                        Shift = activeBatch.Shift,
+                        StartedAt = activeBatch.StartedAt,
+                        TargetQuantity = activeBatch.TargetQuantity,
+                        ProducedQuantity = activeBatch.ProducedQuantity
+                    }
                 };
 
                 return Success<object>(dto, "Production line updated successfully.");

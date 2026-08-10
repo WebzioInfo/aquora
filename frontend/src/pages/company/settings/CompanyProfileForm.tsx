@@ -19,6 +19,7 @@ export const CompanyProfileForm: React.FC = () => {
   const [address, setAddress] = useState('')
   const [timezone, setTimezone] = useState('Asia/Kolkata')
   const [language, setLanguage] = useState('en')
+  const [currency, setCurrency] = useState('INR')
   const [dateFormat, setDateFormat] = useState('dd MMM yyyy')
   const [timeFormat, setTimeFormat] = useState('12h')
   const [logoUrl, setLogoUrl] = useState('')
@@ -38,10 +39,11 @@ export const CompanyProfileForm: React.FC = () => {
         setAddress(data.address || '')
         setTimezone(data.timeZone || 'Asia/Kolkata')
         setLanguage(data.language || 'en')
+        setCurrency(data.currency || 'INR')
         setDateFormat(data.dateFormat || 'dd MMM yyyy')
         setTimeFormat(data.timeFormat || '12h')
         setLogoUrl(data.logoUrl || '')
-        
+
         // Cache globally for UI formatting
         setCompanyPrefs({
           timeZone: data.timeZone || 'Asia/Kolkata',
@@ -73,6 +75,7 @@ export const CompanyProfileForm: React.FC = () => {
         address,
         timezone,
         language,
+        currency,
         dateFormat,
         timeFormat,
         logoUrl
@@ -109,10 +112,10 @@ export const CompanyProfileForm: React.FC = () => {
                 <Building2 className="w-12 h-12 text-slate-400" />
               )}
             </div>
-            <h3 className="text-base font-bold text-slate-800">{displayName || name || 'Aquora Company'}</h3>
+            <h3 className="text-base font-bold text-slate-800">{displayName || name || 'Aquzio Company'}</h3>
             <p className="text-xs text-slate-500 font-mono mt-1">Code: {profile?.tenantCode || 'N/A'}</p>
           </div>
-          
+
           <div className="p-4 space-y-3.5 text-xs text-slate-600">
             <div className="flex items-center gap-3">
               <Mail className="w-4 h-4 text-slate-400 shrink-0" />
@@ -186,7 +189,7 @@ export const CompanyProfileForm: React.FC = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full text-sm border-slate-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg p-2.5 border"
-                  placeholder="e.g. Aquora Industries Ltd"
+                  placeholder="e.g. Aquzio Industries Ltd"
                 />
               </div>
               <div>
@@ -196,7 +199,7 @@ export const CompanyProfileForm: React.FC = () => {
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   className="w-full text-sm border-slate-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg p-2.5 border"
-                  placeholder="e.g. Aquora"
+                  placeholder="e.g. Aquzio"
                 />
               </div>
               <div>
@@ -226,7 +229,7 @@ export const CompanyProfileForm: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full text-sm border-slate-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg p-2.5 border"
-                  placeholder="e.g. info@aquora.com"
+                  placeholder="e.g. info@aquzio.com"
                 />
               </div>
               <div>
@@ -307,13 +310,17 @@ export const CompanyProfileForm: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Currency (Read-only)</label>
-                <input
-                  type="text"
-                  disabled
-                  value={profile?.currency || 'USD'}
-                  className="w-full text-sm bg-slate-50 border-slate-200 text-slate-400 rounded-lg p-2.5 border cursor-not-allowed"
-                />
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Currency</label>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="w-full text-sm border-slate-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg p-2.5 border bg-white"
+                >
+                  <option value="INR">INR — Indian Rupee (₹)</option>
+                  <option value="USD">USD — US Dollar ($)</option>
+                  <option value="EUR">EUR — Euro (€)</option>
+                  <option value="GBP">GBP — Pound Sterling (£)</option>
+                </select>
               </div>
             </div>
           </div>

@@ -285,7 +285,7 @@ export const JarDashboardPage: React.FC = () => {
     setMoveToFillingWarning('showing');
     if (moveToFillingWarningTimerRef.current) clearTimeout(moveToFillingWarningTimerRef.current);
     if (moveToFillingWarningHideTimerRef.current) clearTimeout(moveToFillingWarningHideTimerRef.current);
-    
+
     moveToFillingWarningTimerRef.current = setTimeout(() => {
       setMoveToFillingWarning('hiding');
       moveToFillingWarningHideTimerRef.current = setTimeout(() => {
@@ -1094,8 +1094,8 @@ export const JarDashboardPage: React.FC = () => {
                         type="button"
                         onClick={() => setReservationFilter(type as any)}
                         className={`px-3 py-1.5 rounded-[6px] text-[11px] font-medium transition-colors cursor-pointer ${reservationFilter === type
-                            ? 'bg-amber-600 text-white'
-                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                          ? 'bg-amber-600 text-white'
+                          : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                           }`}
                       >
                         {type}
@@ -1261,8 +1261,8 @@ export const JarDashboardPage: React.FC = () => {
                         type="button"
                         onClick={() => setHistoryFilter(filter as any)}
                         className={`px-3 py-1.5 rounded-[6px] text-[11px] font-medium transition-colors cursor-pointer ${historyFilter === filter
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                           }`}
                       >
                         {filter}
@@ -1326,7 +1326,7 @@ export const JarDashboardPage: React.FC = () => {
                           <div className="font-semibold text-slate-900">{distribContext?.distributorName || 'Test Distributor'}</div>
                           <div className="text-[10px] text-slate-500">KL-07-AB-1234</div>
                         </td>
-                        <td className="py-3 px-3 font-semibold text-slate-700">Aquora Premium 20L</td>
+                        <td className="py-3 px-3 font-semibold text-slate-700">Aquzio Premium 20L</td>
                         <td className="py-3 px-3 text-center font-semibold text-slate-400">0</td>
                         <td className="py-3 px-3 text-center font-semibold text-slate-400">0</td>
                         <td className="py-3 px-3 text-center font-semibold text-slate-400">0</td>
@@ -1349,7 +1349,7 @@ export const JarDashboardPage: React.FC = () => {
                           <div className="font-semibold text-slate-900">{distribContext?.distributorName || 'Test Distributor'}</div>
                           <div className="text-[10px] text-slate-500">Hold Request</div>
                         </td>
-                        <td className="py-3 px-3 font-semibold text-slate-700">Aquora Premium 20L</td>
+                        <td className="py-3 px-3 font-semibold text-slate-700">Aquzio Premium 20L</td>
                         <td className="py-3 px-3 text-center font-semibold text-slate-400">0</td>
                         <td className="py-3 px-3 text-center font-bold text-amber-800 text-[13px]">15</td>
                         <td className="py-3 px-3 text-center font-semibold text-slate-400">0</td>
@@ -1393,13 +1393,13 @@ export const JarDashboardPage: React.FC = () => {
                     (!takeFromReservedEnabled || (takeFromReserved >= 0 && takeFromReserved <= (distribContext?.reservedEmptyJars || 0)))
                   )}
                   className={`h-[38px] px-4 rounded-[10px] text-[13px] font-medium transition-all shadow-sm cursor-pointer flex items-center gap-1.5 ${(
-                      moveToFilling <= (returnedEmptyCount - contaminatedCount - damagedCount - reservedEmptyCount) &&
-                      moveToFilling >= 0 &&
-                      (returnedEmptyCount - contaminatedCount - damagedCount - reservedEmptyCount) >= 0 &&
-                      (!takeFromReservedEnabled || (takeFromReserved >= 0 && takeFromReserved <= (distribContext?.reservedEmptyJars || 0)))
-                    )
-                      ? 'bg-[#2563EB] hover:bg-blue-700 text-white'
-                      : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                    moveToFilling <= (returnedEmptyCount - contaminatedCount - damagedCount - reservedEmptyCount) &&
+                    moveToFilling >= 0 &&
+                    (returnedEmptyCount - contaminatedCount - damagedCount - reservedEmptyCount) >= 0 &&
+                    (!takeFromReservedEnabled || (takeFromReserved >= 0 && takeFromReserved <= (distribContext?.reservedEmptyJars || 0)))
+                  )
+                    ? 'bg-[#2563EB] hover:bg-blue-700 text-white'
+                    : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
                     }`}
                 >
                   <Check className="w-4 h-4" />
@@ -1754,11 +1754,11 @@ export const JarDashboardPage: React.FC = () => {
                     <div className="text-slate-400 font-medium text-xs">=</div>
 
                     <div className={`flex-1 bg-white border border-t-2 p-2.5 rounded-[10px] min-w-[100px] ${moveToFilling <= (returnedEmptyCount - contaminatedCount - damagedCount - reservedEmptyCount) &&
-                        moveToFilling >= 0 &&
-                        (returnedEmptyCount - contaminatedCount - damagedCount - reservedEmptyCount) >= 0 &&
-                        (!takeFromReservedEnabled || (takeFromReserved >= 0 && takeFromReserved <= (distribContext?.reservedEmptyJars || 0)))
-                        ? 'border-slate-200 border-t-emerald-600 bg-emerald-50/20'
-                        : 'border-rose-300 border-t-rose-500 bg-rose-50/30'
+                      moveToFilling >= 0 &&
+                      (returnedEmptyCount - contaminatedCount - damagedCount - reservedEmptyCount) >= 0 &&
+                      (!takeFromReservedEnabled || (takeFromReserved >= 0 && takeFromReserved <= (distribContext?.reservedEmptyJars || 0)))
+                      ? 'border-slate-200 border-t-emerald-600 bg-emerald-50/20'
+                      : 'border-rose-300 border-t-rose-500 bg-rose-50/30'
                       }`}>
                       <div className="text-[10px] font-bold text-emerald-800">Total To Filling</div>
                       <div className="text-[16px] font-bold text-emerald-900 mt-0.5">

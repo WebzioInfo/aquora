@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
 import { toast } from '../../../utils/toast';
 
 import PageContainer from '../../../components/ui/layout/PageContainer';
@@ -10,9 +10,10 @@ import { EnterpriseInput } from '../../../components/ui/EnterpriseInput';
 import { EnterpriseSelect } from '../../../components/ui/EnterpriseSelect';
 import { EnterpriseButton } from '../../../components/ui/EnterpriseButton';
 import { EnterpriseLoading } from '../../../components/ui/EnterpriseLoading';
+import { AquoraMultiMachineSelect } from '../../../components/ui/AquoraMultiMachineSelect';
 
 import { operationsIssueApi } from '../../../services/api/operationsIssue';
-import type { CreateOperationsIssueRequest } from '../../../services/api/operationsIssue';
+import type { CreateOperationsIssueRequest, AffectedMachineItem } from '../../../services/api/operationsIssue';
 
 const DEPARTMENTS = ['Production', 'Warehouse', 'Dispatch', 'QC', 'HR', 'Maintenance', 'General'];
 const CATEGORIES = [
@@ -50,7 +51,12 @@ export const OperationsIssueFormPage: React.FC = () => {
   const [category, setCategory] = useState('Machine Breakdown');
   const [priority, setPriority] = useState('Medium');
 
-  const [machineName, setMachineName] = useState('');
+  // Machines state
+  const [availableMachines, setAvailableMachines] = useState<AffectedMachineItem[]>([]);
+  const [isMachinesLoading, setIsMachinesLoading] = useState(false);
+  const [selectedMachineIds, setSelectedMachineIds] = useState<string[]>([]);
+  const [selectedMachineItems, setSelectedMachineItems] = useState<AffectedMachineItem[]>([]);
+
   const [productionLineName, setProductionLineName] = useState('');
   const [batchNumber, setBatchNumber] = useState('');
   const [estimatedCost, setEstimatedCost] = useState('');
@@ -58,8 +64,23 @@ export const OperationsIssueFormPage: React.FC = () => {
   const [requiresMaintenance, setRequiresMaintenance] = useState(true);
 
   useEffect(() => {
+    fetchAvailableMachines();
     if (id) fetchIssueData(id);
   }, [id]);
+
+  const fetchAvailableMachines = async () => {
+    setIsMachinesLoading(true);
+    try {
+      const res = await operationsIssueApi.getAvailableMachines();
+      if (res.data) {
+        setAvailableMachines(res.data);
+      }
+    } catch {
+      toast.error('Failed to load available machines');
+    } finally {
+      setIsMachinesLoading(false);
+    }
+  };
 
   const fetchIssueData = async (issueId: string) => {
     setIsLoading(true);
@@ -72,14 +93,26 @@ export const OperationsIssueFormPage: React.FC = () => {
         setDepartment(data.department);
         setCategory(data.category);
         setPriority(data.priority);
-        setMachineName(data.machineName || '');
         setProductionLineName(data.productionLineName || '');
         setBatchNumber(data.batchNumber || '');
         setEstimatedCost(data.estimatedCost ? data.estimatedCost.toString() : '');
         setDowntimeMinutes(data.downtimeMinutes ? data.downtimeMinutes.toString() : '');
         setRequiresMaintenance(data.requiresMaintenance);
+
+        // Populate multi-machine selections
+        if (data.affectedMachineIds && data.affectedMachineIds.length > 0) {
+          setSelectedMachineIds(data.affectedMachineIds);
+          if (data.affectedMachines && data.affectedMachines.length > 0) {
+            setSelectedMachineItems(data.affectedMachines);
+          }
+        } else if (data.machineId) {
+          setSelectedMachineIds([data.machineId]);
+          if (data.machineName) {
+            setSelectedMachineItems([{ machineId: data.machineId, machineName: data.machineName }]);
+          }
+        }
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to load issue data');
     } finally {
       setIsLoading(false);
@@ -95,13 +128,17 @@ export const OperationsIssueFormPage: React.FC = () => {
 
     setIsSaving(true);
     try {
+      const primaryMachine = selectedMachineItems[0];
       const payload: CreateOperationsIssueRequest = {
         title: title.trim() || `${category} in ${department}`,
         description: description.trim(),
         department,
         category,
         priority,
-        machineName: machineName.trim() || undefined,
+        machineId: primaryMachine?.machineId,
+        machineName: primaryMachine?.machineName,
+        affectedMachineIds: selectedMachineIds,
+        affectedMachineNames: selectedMachineItems.map(m => m.machineName),
         productionLineName: productionLineName.trim() || undefined,
         batchNumber: batchNumber.trim() || undefined,
         estimatedCost: estimatedCost ? parseFloat(estimatedCost) : undefined,
@@ -111,14 +148,14 @@ export const OperationsIssueFormPage: React.FC = () => {
 
       if (id) {
         await operationsIssueApi.updateIssue(id, payload);
-        toast.success('Operations issue updated');
+        toast.success('Operations issue updated successfully');
       } else {
         await operationsIssueApi.createIssue(payload);
-        toast.success('New operations issue logged');
+        toast.success('New operations issue logged successfully');
       }
 
       navigate('/company/operations-issues');
-    } catch (error) {
+    } catch {
       toast.error('Failed to save operations issue');
     } finally {
       setIsSaving(false);
@@ -161,28 +198,28 @@ export const OperationsIssueFormPage: React.FC = () => {
               label="Department *"
               value={department}
               onChange={(e) => setDepartment(e.target.value)}
-              options={DEPARTMENTS.map(d => ({ label: d, value: d }))}
+              options={DEPARTMENTS.map((d) => ({ label: d, value: d }))}
             />
 
             <EnterpriseSelect
               label="Category *"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              options={CATEGORIES.map(c => ({ label: c, value: c }))}
+              options={CATEGORIES.map((c) => ({ label: c, value: c }))}
             />
 
             <EnterpriseSelect
               label="Priority Level *"
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
-              options={PRIORITIES.map(p => ({ label: p, value: p }))}
+              options={PRIORITIES.map((p) => ({ label: p, value: p }))}
             />
           </div>
 
           <div className="space-y-4">
             <EnterpriseInput
               label="Issue Title"
-              placeholder="Short title (e.g. Compressor #2 Overheating)"
+              placeholder="Short title (e.g. Electrical failure stopping 20L Bottling Line)"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
@@ -204,17 +241,22 @@ export const OperationsIssueFormPage: React.FC = () => {
         {/* Equipment & Linked Context */}
         <EnterpriseCard className="p-6 space-y-6 bg-white border border-slate-200">
           <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-3">
-            2. Machine & Production Context
+            2. Affected Machines & Production Context
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <EnterpriseInput
-              label="Affected Machine / Equipment"
-              placeholder="e.g. Filling Unit #1"
-              value={machineName}
-              onChange={(e) => setMachineName(e.target.value)}
-            />
+          {/* Multi-Machine Selection Component */}
+          <AquoraMultiMachineSelect
+            label="Affected Machines / Equipment (Select All That Apply)"
+            machines={availableMachines}
+            selectedMachineIds={selectedMachineIds}
+            onChange={(ids, items) => {
+              setSelectedMachineIds(ids);
+              setSelectedMachineItems(items);
+            }}
+            isLoading={isMachinesLoading}
+          />
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
             <EnterpriseInput
               label="Production Line Name"
               placeholder="e.g. 20L Bottling Line A"
@@ -240,9 +282,9 @@ export const OperationsIssueFormPage: React.FC = () => {
             />
 
             <EnterpriseInput
-              label="Estimated Repair Cost ($)"
+              label="Estimated Repair Cost (₹)"
               type="number"
-              placeholder="e.g. 150.00"
+              placeholder="e.g. 1500.00"
               value={estimatedCost}
               onChange={(e) => setEstimatedCost(e.target.value)}
             />
@@ -253,7 +295,7 @@ export const OperationsIssueFormPage: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate('/company/operations-issues')}
-            className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg"
+            className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
           >
             Cancel
           </button>

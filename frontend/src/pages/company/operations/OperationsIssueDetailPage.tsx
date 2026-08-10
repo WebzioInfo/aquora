@@ -32,12 +32,27 @@ import { EnterpriseLoading } from '../../../components/ui/EnterpriseLoading';
 import { operationsIssueApi } from '../../../services/api/operationsIssue';
 import type { OperationsIssueDetail } from '../../../services/api/operationsIssue';
 
+export type NormalizedStatus = 'Open' | 'InProgress' | 'Resolved' | 'Closed';
+
+export const normalizeIssueStatus = (status: string | undefined | null): NormalizedStatus => {
+  if (!status) return 'Open';
+  const s = status.trim().toLowerCase().replace(/\s+/g, '');
+  if (s === 'open') return 'Open';
+  if (s === 'inprogress' || s === 'in_progress' || s === 'acknowledged' || s === 'assigned' || s === 'waitingforparts' || s === 'onhold') {
+    return 'InProgress';
+  }
+  if (s === 'resolved') return 'Resolved';
+  if (s === 'closed' || s === 'verified') return 'Closed';
+  return 'Open';
+};
+
 export const OperationsIssueDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
   const [isLoading, setIsLoading] = useState(true);
   const [issue, setIssue] = useState<OperationsIssueDetail | null>(null);
+  const [isActionSubmitting, setIsActionSubmitting] = useState(false);
 
   // Form Modals / Action States
   const [newComment, setNewComment] = useState('');
@@ -80,14 +95,14 @@ export const OperationsIssueDetailPage: React.FC = () => {
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !newComment.trim()) return;
+    if (!id || !newComment.trim() || isSubmittingComment) return;
 
     setIsSubmittingComment(true);
     try {
       await operationsIssueApi.addComment(id, newComment.trim());
       toast.success('Comment added');
       setNewComment('');
-      fetchIssueDetails(id);
+      await fetchIssueDetails(id);
     } catch (error) {
       toast.error('Failed to post comment');
     } finally {
@@ -95,37 +110,47 @@ export const OperationsIssueDetailPage: React.FC = () => {
     }
   };
 
-  const handleStatusChange = async (status: string) => {
-    if (!id) return;
+  const handleStatusChange = async (targetStatus: string) => {
+    if (!id || isActionSubmitting) return;
+    setIsActionSubmitting(true);
     try {
-      await operationsIssueApi.changeStatus(id, status);
-      toast.success(`Status changed to ${status}`);
-      fetchIssueDetails(id);
+      const res = await operationsIssueApi.changeStatus(id, targetStatus);
+      toast.success(`Status changed to ${targetStatus === 'InProgress' ? 'In Progress' : targetStatus}`);
+      if (res.data) {
+        setIssue(prev => prev ? { ...prev, ...res.data, status: res.data.status || targetStatus } : prev);
+      }
+      await fetchIssueDetails(id);
     } catch (error) {
       toast.error('Failed to update status');
+    } finally {
+      setIsActionSubmitting(false);
     }
   };
 
   const handleCreateWorkOrder = async () => {
-    if (!id) return;
+    if (!id || isActionSubmitting) return;
+    setIsActionSubmitting(true);
     try {
       await operationsIssueApi.createWorkOrder(id);
       toast.success('Maintenance Work Order created & linked!');
-      fetchIssueDetails(id);
+      await fetchIssueDetails(id);
     } catch (error) {
       toast.error('Failed to create work order');
+    } finally {
+      setIsActionSubmitting(false);
     }
   };
 
   const handleResolveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !rootCause.trim() || !correctiveAction.trim()) {
+    if (!id || isActionSubmitting || !rootCause.trim() || !correctiveAction.trim()) {
       toast.error('Root Cause and Corrective Action are required');
       return;
     }
 
+    setIsActionSubmitting(true);
     try {
-      await operationsIssueApi.resolveIssue(id, {
+      const res = await operationsIssueApi.resolveIssue(id, {
         rootCause: rootCause.trim(),
         correctiveAction: correctiveAction.trim(),
         preventiveAction: preventiveAction.trim() || undefined,
@@ -134,20 +159,31 @@ export const OperationsIssueDetailPage: React.FC = () => {
       });
       toast.success('Issue marked as Resolved!');
       setShowResolveModal(false);
-      fetchIssueDetails(id);
+      if (res.data) {
+        setIssue(prev => prev ? { ...prev, ...res.data, status: 'Resolved' } : prev);
+      }
+      await fetchIssueDetails(id);
     } catch (error) {
       toast.error('Failed to resolve issue');
+    } finally {
+      setIsActionSubmitting(false);
     }
   };
 
   const handleVerifyAndClose = async () => {
-    if (!id) return;
+    if (!id || isActionSubmitting) return;
+    setIsActionSubmitting(true);
     try {
-      await operationsIssueApi.verifyAndCloseIssue(id, 'Verified by Supervisor/Admin');
+      const res = await operationsIssueApi.verifyAndCloseIssue(id, 'Verified by Supervisor/Admin');
       toast.success('Issue verified and closed');
-      fetchIssueDetails(id);
+      if (res.data) {
+        setIssue(prev => prev ? { ...prev, ...res.data, status: 'Closed' } : prev);
+      }
+      await fetchIssueDetails(id);
     } catch (error) {
       toast.error('Failed to close issue');
+    } finally {
+      setIsActionSubmitting(false);
     }
   };
 
@@ -174,6 +210,24 @@ export const OperationsIssueDetailPage: React.FC = () => {
     );
   }
 
+  const normalizedStatus = normalizeIssueStatus(issue.status);
+
+  const getStatusBadgeVariant = (normStatus: NormalizedStatus) => {
+    switch (normStatus) {
+      case 'Closed': return 'gray';
+      case 'Resolved': return 'success';
+      case 'InProgress': return 'info';
+      case 'Open': default: return 'danger';
+    }
+  };
+
+  const getStatusDisplayLabel = (status: string) => {
+    if (status === 'InProgress') return 'In Progress';
+    if (status === 'WaitingForParts') return 'Waiting For Parts';
+    if (status === 'OnHold') return 'On Hold';
+    return status;
+  };
+
   return (
     <PageContainer>
       {/* Header */}
@@ -189,36 +243,41 @@ export const OperationsIssueDetailPage: React.FC = () => {
               <ArrowLeft className="w-3.5 h-3.5" /> Back
             </button>
 
-            {issue.status !== 'Closed' && issue.status !== 'Resolved' && (
-              <>
-                <button
-                  onClick={() => handleStatusChange('InProgress')}
-                  className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <Activity className="w-3.5 h-3.5" /> Start Repair / In Progress
-                </button>
-                <button
-                  onClick={() => setShowResolveModal(true)}
-                  className="h-[32px] px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Resolve Issue
-                </button>
-              </>
+            {normalizedStatus === 'Open' && (
+              <button
+                disabled={isActionSubmitting}
+                onClick={() => handleStatusChange('InProgress')}
+                className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <Activity className="w-3.5 h-3.5" /> Start Repair / In Progress
+              </button>
             )}
 
-            {issue.status === 'Resolved' && (
+            {(normalizedStatus === 'Open' || normalizedStatus === 'InProgress') && (
               <button
+                disabled={isActionSubmitting}
+                onClick={() => setShowResolveModal(true)}
+                className="h-[32px] px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" /> Resolve Issue
+              </button>
+            )}
+
+            {normalizedStatus === 'Resolved' && (
+              <button
+                disabled={isActionSubmitting}
                 onClick={handleVerifyAndClose}
-                className="h-[32px] px-3 bg-emerald-700 hover:bg-emerald-800 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
+                className="h-[32px] px-3 bg-emerald-700 hover:bg-emerald-800 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
               >
                 <ShieldCheck className="w-3.5 h-3.5" /> Verify & Close Issue
               </button>
             )}
 
-            {!issue.maintenanceWorkOrderId && (
+            {!issue.maintenanceWorkOrderId && normalizedStatus !== 'Closed' && (
               <button
+                disabled={isActionSubmitting}
                 onClick={handleCreateWorkOrder}
-                className="h-[32px] px-3 bg-amber-500 hover:bg-amber-600 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
+                className="h-[32px] px-3 bg-amber-500 hover:bg-amber-600 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
               >
                 <Wrench className="w-3.5 h-3.5" /> Create Maintenance Work Order
               </button>
@@ -238,8 +297,8 @@ export const OperationsIssueDetailPage: React.FC = () => {
                 <EnterpriseBadge variant={issue.priority === 'Critical' || issue.priority === 'Emergency' ? 'danger' : 'info'}>
                   {issue.priority} Priority
                 </EnterpriseBadge>
-                <EnterpriseBadge variant={issue.status === 'Closed' ? 'gray' : issue.status === 'Resolved' ? 'success' : 'danger'}>
-                  {issue.status}
+                <EnterpriseBadge variant={getStatusBadgeVariant(normalizedStatus)}>
+                  {getStatusDisplayLabel(issue.status)}
                 </EnterpriseBadge>
               </div>
             </div>
@@ -248,13 +307,34 @@ export const OperationsIssueDetailPage: React.FC = () => {
               {issue.description || 'No description provided.'}
             </p>
 
-            {issue.machineName && (
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-3">
-                <Cpu className="w-5 h-5 text-blue-600" />
-                <div>
-                  <p className="text-xs font-bold text-slate-900">Linked Equipment: {issue.machineName}</p>
-                  <p className="text-[11px] text-slate-500">Downtime: {issue.downtimeMinutes || 0} minutes</p>
+            {((issue.affectedMachines && issue.affectedMachines.length > 0) || issue.machineName) && (
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                  <Cpu className="w-4 h-4 text-blue-600" />
+                  <span>
+                    Affected Machines ({issue.affectedMachines?.length || (issue.machineName ? 1 : 0)}):
+                  </span>
                 </div>
+                <div className="flex flex-wrap gap-1.5 pl-6">
+                  {issue.affectedMachines && issue.affectedMachines.length > 0 ? (
+                    issue.affectedMachines.map((m) => (
+                      <span
+                        key={m.machineId}
+                        className="inline-flex items-center gap-1 text-xs font-semibold bg-white text-slate-800 border border-slate-200 px-2.5 py-1 rounded-md shadow-xs"
+                      >
+                        <span>{m.machineName}</span>
+                        {m.machineCode && <span className="text-slate-400 font-mono text-[10px]">({m.machineCode})</span>}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold bg-white text-slate-800 border border-slate-200 px-2.5 py-1 rounded-md">
+                      {issue.machineName}
+                    </span>
+                  )}
+                </div>
+                {issue.downtimeMinutes ? (
+                  <p className="text-[11px] text-slate-500 pl-6 pt-1">Estimated Downtime: {issue.downtimeMinutes} minutes</p>
+                ) : null}
               </div>
             )}
           </EnterpriseCard>

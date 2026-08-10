@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { 
-  ArrowLeft, 
-  Wallet, 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  Activity, 
-  Search, 
+import {
+  ArrowLeft,
+  Wallet,
+  ArrowUpRight,
+  ArrowDownRight,
+  Activity,
+  Search,
   Filter,
   Eye,
   PenSquare,
@@ -24,12 +24,12 @@ import { simpleAccountsService } from '../../../services/simpleAccounts'
 import { getTransactionEventBadge } from '../../../utils/transactionBadge'
 import { AddMoneyModal } from './AddMoneyModal'
 import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
-import type { 
-  CashBook, 
-  BankSummary, 
-  BankLedgerEntry, 
-  BankLedgerFilter, 
-  SimpleExpense, 
+import type {
+  CashBook,
+  BankSummary,
+  BankLedgerEntry,
+  BankLedgerFilter,
+  SimpleExpense,
   UpdateSimpleExpenseRequest,
   BankLedgerAuditEntry
 } from '../../../services/simpleAccounts'
@@ -145,21 +145,25 @@ const CashBookDetailsPage: React.FC = () => {
     setFetchError(null)
 
     try {
-      // 1. Fetch Cash Book Details
-      const accountRes = await simpleAccountsService.getCashBookById(id)
+      // Fetch Cash Book Details and Summary in parallel
+      const [accountRes, summaryRes] = await Promise.all([
+        simpleAccountsService.getCashBookById(id),
+        simpleAccountsService.getCashBookSummary(id).catch((sumErr) => {
+          console.error('Failed to load cash summary:', sumErr)
+          return null
+        })
+      ])
+
       if (!accountRes) {
         setIsNotFound(true)
         setLoading(false)
         return
       }
-      setCashBook(accountRes)
 
-      // 2. Fetch Cash Summary safely
-      try {
-        const summaryRes = await simpleAccountsService.getCashBookSummary(id)
+      setCashBook(accountRes)
+      if (summaryRes) {
         setSummary(summaryRes)
-      } catch (sumErr: any) {
-        console.error('Failed to load cash summary:', sumErr)
+      } else {
         setSummary({
           currentBalance: accountRes.currentBalance,
           totalTransactions: 0,
@@ -380,7 +384,7 @@ const CashBookDetailsPage: React.FC = () => {
   const handlePrintLedgerEntry = (item: BankLedgerEntry) => {
     const isOutflow = item.debit > 0;
     const amount = isOutflow ? item.debit : item.credit;
-    
+
     setPrintDocData({
       title: isOutflow ? 'Cash Payment Voucher' : 'Cash Deposit Receipt',
       docNumber: item.referenceNumber || 'VOUCHER-TEMP',
@@ -410,7 +414,7 @@ const CashBookDetailsPage: React.FC = () => {
         amountPaid: amount,
         balance: 0
       },
-      notes: 'This is a system-generated cash transaction record from Aquora ledger accounts.'
+      notes: 'This is a system-generated cash transaction record from Aquzio ledger accounts.'
     });
     setPrintModalOpen(true);
   };
@@ -419,7 +423,7 @@ const CashBookDetailsPage: React.FC = () => {
     const type = item.transactionType || ''
     const relType = item.relatedEntityType || ''
     const desc = (item.description || '').toLowerCase()
-    
+
     if (relType.toLowerCase() === 'reversal' || type.toLowerCase().includes('reversal') || desc.includes('reversal')) {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
@@ -555,16 +559,15 @@ const CashBookDetailsPage: React.FC = () => {
   return (
     <PageContainer>
       {/* HEADER */}
-      <PageHeader 
+      <PageHeader
         title={cashBook.name}
         description={cashBook.description || 'Cash ledger running balance statement'}
         icon={Wallet}
         badge={
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-            cashBook.status === 'Active' 
-              ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' 
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${cashBook.status === 'Active'
+              ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
               : 'bg-slate-100 text-slate-700 border border-slate-200'
-          }`}>
+            }`}>
             {cashBook.status}
           </span>
         }
@@ -576,9 +579,9 @@ const CashBookDetailsPage: React.FC = () => {
                 {formatCurrency(cashBook.currentBalance)}
               </p>
             </div>
-            <EnterpriseButton 
-              variant="primary" 
-              onClick={() => setIsAddMoneyOpen(true)} 
+            <EnterpriseButton
+              variant="primary"
+              onClick={() => setIsAddMoneyOpen(true)}
               className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 hover:border-emerald-700 text-white shrink-0"
             >
               <PlusCircle className="w-4 h-4" /> Add Money
@@ -593,31 +596,31 @@ const CashBookDetailsPage: React.FC = () => {
       {/* KPI CARDS */}
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard 
-            label="Total Received" 
-            value={formatCurrency(summary.totalMoneyReceived)} 
+          <KPICard
+            label="Total Received"
+            value={formatCurrency(summary.totalMoneyReceived)}
             icon={ArrowDownRight}
             colorClass="text-emerald-600"
             iconColorClass="text-emerald-600"
             iconBgClass="bg-emerald-50"
           />
-          <KPICard 
-            label="Total Paid" 
-            value={formatCurrency(summary.totalMoneyPaid)} 
+          <KPICard
+            label="Total Paid"
+            value={formatCurrency(summary.totalMoneyPaid)}
             icon={ArrowUpRight}
             colorClass="text-rose-600"
             iconColorClass="text-rose-600"
             iconBgClass="bg-rose-50"
           />
-          <KPICard 
-            label="Avg Monthly Flow" 
-            value={formatCurrency(summary.averageMonthlyFlow || 0)} 
+          <KPICard
+            label="Avg Monthly Flow"
+            value={formatCurrency(summary.averageMonthlyFlow || 0)}
             subtitle={`Largest Credit: ${formatCurrency(summary.largestDeposit || 0)}`}
             icon={Activity}
           />
-          <KPICard 
-            label="Last Transaction" 
-            value={summary.lastTransactionAmount ? formatCurrency(summary.lastTransactionAmount) : '—'} 
+          <KPICard
+            label="Last Transaction"
+            value={summary.lastTransactionAmount ? formatCurrency(summary.lastTransactionAmount) : '—'}
             subtitle={summary.lastTransactionDate ? `${new Date(summary.lastTransactionDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} • ${summary.lastTransactionDescription || ''}` : 'No transactions'}
             icon={Wallet}
             colorClass="text-slate-900"
@@ -628,7 +631,7 @@ const CashBookDetailsPage: React.FC = () => {
       {/* COMPACT CASH LEDGER TABLE */}
       <SectionCard title="Cash Ledger" description="Complete transaction history and running balance statement.">
         <div className="px-4 py-3 bg-slate-50/50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          
+
           <div className="flex items-center gap-2">
             <form onSubmit={handleSearch} className="relative">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -640,7 +643,7 @@ const CashBookDetailsPage: React.FC = () => {
                 className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#1A56DB]/20 focus:border-[#1A56DB] w-full sm:w-56 transition-all shadow-2xs"
               />
             </form>
-            <EnterpriseButton variant="secondary" onClick={() => {}} className="gap-1.5 py-1.5 text-xs shrink-0">
+            <EnterpriseButton variant="secondary" onClick={() => { }} className="gap-1.5 py-1.5 text-xs shrink-0">
               <Filter className="w-3.5 h-3.5" />
               Filter
             </EnterpriseButton>
@@ -683,8 +686,8 @@ const CashBookDetailsPage: React.FC = () => {
                   const type = (item.transactionType || '').toLowerCase()
 
                   return (
-                    <tr 
-                      key={item.id} 
+                    <tr
+                      key={item.id}
                       className="group hover:bg-slate-50/80 transition-colors"
                     >
                       <td className="px-4 py-2.5 whitespace-nowrap">
@@ -1031,9 +1034,9 @@ const CashBookDetailsPage: React.FC = () => {
               <EnterpriseButton variant="secondary" onClick={() => setIsDeleteModalOpen(false)} disabled={submittingDelete}>
                 Cancel
               </EnterpriseButton>
-              <EnterpriseButton 
-                variant="primary" 
-                onClick={handleConfirmDeleteExpense} 
+              <EnterpriseButton
+                variant="primary"
+                onClick={handleConfirmDeleteExpense}
                 loading={submittingDelete}
                 className="bg-rose-600 hover:bg-rose-700 text-white"
               >
@@ -1124,17 +1127,15 @@ const CashBookDetailsPage: React.FC = () => {
                   return (
                     <div key={item.id} className="relative">
                       <span
-                        className={`absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border border-white ${
-                          isCreated ? 'bg-emerald-500' : 'bg-blue-500'
-                        }`}
+                        className={`absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border border-white ${isCreated ? 'bg-emerald-500' : 'bg-blue-500'
+                          }`}
                       ></span>
                       <div className="flex items-center justify-between font-bold text-slate-900 mb-0.5">
                         <span
-                          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] uppercase font-semibold ${
-                            isCreated
+                          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] uppercase font-semibold ${isCreated
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
                               : 'bg-blue-50 text-blue-700 border border-blue-100'
-                          }`}
+                            }`}
                         >
                           {item.action}
                         </span>

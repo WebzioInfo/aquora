@@ -221,7 +221,7 @@ export const AuthLayout: React.FC = () => {
 
             <div className="space-y-2">
               <span className="text-xs font-bold uppercase tracking-widest text-[#2563EB]">
-                Aquora ERP
+                Aquzio ERP
               </span>
               <h1 className="text-2xl lg:text-3xl font-extrabold text-[#111827] tracking-tight leading-tight">
                 Enterprise Manufacturing Platform
@@ -279,7 +279,7 @@ export const AuthLayout: React.FC = () => {
 
       {/* SINGLE LINE FOOTER */}
       <footer className="px-6 lg:px-12 py-3 shrink-0 border-t border-[#E5E7EB] text-[11px] text-[#6B7280] flex items-center justify-between bg-[#FAFBFC]">
-        <span>© {new Date().getFullYear()} Aquora ERP Platform</span>
+        <span>© {new Date().getFullYear()} Aquzio ERP Platform</span>
         <div className="flex gap-5 font-medium">
           <a href="#" className="hover:text-[#2563EB] transition-colors">Privacy</a>
           <a href="#" className="hover:text-[#2563EB] transition-colors">Terms</a>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   Database, Download, RotateCcw, Trash2, Plus, Shield, AlertCircle,
   HardDrive, Clock, CheckCircle2, XCircle, Loader2, Search,
   Eye, RefreshCw, ChevronDown, AlertTriangle, TableProperties, Activity,
@@ -9,12 +9,12 @@ import { format } from 'date-fns';
 import PageContainer from '../../components/ui/layout/PageContainer';
 import PageHeader from '../../components/ui/layout/PageHeader';
 import { ActionDropdown } from '../../components/ui/ActionDropdown';
-import { 
-  backupsApi, 
-  type BackupDashboardDto, 
-  type BackupInspectionDto, 
-  type TableDataPreviewDto, 
-  type RestorePreviewDto 
+import {
+  backupsApi,
+  type BackupDashboardDto,
+  type BackupInspectionDto,
+  type TableDataPreviewDto,
+  type RestorePreviewDto
 } from '../../services/api/backups';
 
 const formatBytes = (bytes: number, decimals = 2) => {
@@ -29,12 +29,20 @@ const formatBytes = (bytes: number, decimals = 2) => {
 export const BackupRestorePage: React.FC = () => {
   const [dashboard, setDashboard] = useState<BackupDashboardDto | null>(null);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Granular Action Loading States
+  const [isCreatingBackup, setIsCreatingBackup] = useState(false);
+  const [creatingFormat, setCreatingFormat] = useState<'AQB' | 'SQL' | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [deletingBackupId, setDeletingBackupId] = useState<string | null>(null);
+  const [downloadingBackupId, setDownloadingBackupId] = useState<string | null>(null);
+  const [inspectingBackupId, setInspectingBackupId] = useState<string | null>(null);
+  const [previewingRestoreBackupId, setPreviewingRestoreBackupId] = useState<string | null>(null);
 
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [activeActionMenu, setActiveActionMenu] = useState<string | null>(null);
-  
+
   // Modals
   const [inspectionData, setInspectionData] = useState<BackupInspectionDto | null>(null);
   const [previewData, setPreviewData] = useState<TableDataPreviewDto | null>(null);
@@ -50,11 +58,11 @@ export const BackupRestorePage: React.FC = () => {
       setDashboard({
         ...data,
         recentBackups: (data.recentBackups || []).map((b: any) => ({
-           ...b,
-           backupName: b.backupName || b.fileName || 'Snapshot',
-           description: b.description || 'Manual Backup',
-           createdByName: b.createdByName || 'System',
-           encryption: b.encryption || (b.isEncrypted ? 'AES-256' : 'None')
+          ...b,
+          backupName: b.backupName || b.fileName || 'Snapshot',
+          description: b.description || 'Manual Backup',
+          createdByName: b.createdByName || 'System',
+          encryption: b.encryption || (b.isEncrypted ? 'AES-256' : 'None')
         }))
       });
     } catch (err: any) {
@@ -69,9 +77,11 @@ export const BackupRestorePage: React.FC = () => {
   }, []);
 
   const handleCreateBackup = async (backupFormat: 'AQB' | 'SQL') => {
+    if (isCreatingBackup) return;
     setCreateMenuOpen(false);
     try {
-      setActionLoading(true);
+      setIsCreatingBackup(true);
+      setCreatingFormat(backupFormat);
       setError(null);
       await backupsApi.createBackup({
         notes: `Manual ${backupFormat} Backup`,
@@ -81,50 +91,54 @@ export const BackupRestorePage: React.FC = () => {
     } catch (err: any) {
       setError(err.message || 'Failed to create backup');
     } finally {
-      setActionLoading(false);
+      setIsCreatingBackup(false);
+      setCreatingFormat(null);
     }
   };
 
   const handleDownloadBackup = async (id: string, backupName: string, backupFormat: string) => {
+    if (downloadingBackupId === id || isCreatingBackup || isRestoring) return;
     setActiveActionMenu(null);
     try {
-      setActionLoading(true);
+      setDownloadingBackupId(id);
       setError(null);
       await backupsApi.downloadBackup(id, backupName, backupFormat);
     } catch (err: any) {
       setError(err.message || 'Failed to download backup file');
     } finally {
-      setActionLoading(false);
+      setDownloadingBackupId(null);
     }
   };
 
   const handleDeleteBackup = async (id: string) => {
+    if (deletingBackupId === id || isCreatingBackup || isRestoring) return;
     setActiveActionMenu(null);
     if (!window.confirm('Are you sure you want to delete this backup? This action cannot be undone.')) return;
-    
+
     try {
-      setActionLoading(true);
+      setDeletingBackupId(id);
       setError(null);
       await backupsApi.deleteBackup(id);
       await fetchDashboard();
     } catch (err: any) {
       setError(err.message || 'Failed to delete backup');
     } finally {
-      setActionLoading(false);
+      setDeletingBackupId(null);
     }
   };
 
   const handleInspect = async (id: string) => {
+    if (inspectingBackupId === id || isCreatingBackup || isRestoring) return;
     setActiveActionMenu(null);
     try {
-      setActionLoading(true);
+      setInspectingBackupId(id);
       setError(null);
       const data = await backupsApi.inspectBackup(id);
       setInspectionData(data);
     } catch (err: any) {
       setError(err.message || 'Failed to inspect backup');
     } finally {
-      setActionLoading(false);
+      setInspectingBackupId(null);
     }
   };
 
@@ -138,9 +152,10 @@ export const BackupRestorePage: React.FC = () => {
   };
 
   const handlePreviewRestore = async (id: string) => {
+    if (previewingRestoreBackupId === id || isCreatingBackup || isRestoring) return;
     setActiveActionMenu(null);
     try {
-      setActionLoading(true);
+      setPreviewingRestoreBackupId(id);
       setError(null);
       const data = await backupsApi.restorePreview(id);
       setRestorePreviewData(data);
@@ -148,30 +163,31 @@ export const BackupRestorePage: React.FC = () => {
     } catch (err: any) {
       setError(err.message || 'Failed to preview restore. Note: Only AQB format can be restored via UI.');
     } finally {
-      setActionLoading(false);
+      setPreviewingRestoreBackupId(null);
     }
   };
 
   const executeRestore = async () => {
-    if (!restorePreviewData || confirmationText.trim().toUpperCase() !== 'RESTORE') return;
-    
+    if (!restorePreviewData || confirmationText.trim().toUpperCase() !== 'RESTORE' || isRestoring) return;
+
     try {
-      setActionLoading(true);
+      setIsRestoring(true);
       setError(null);
       await backupsApi.restoreBackup(restorePreviewData.backupId, 'RESTORE');
       alert('Restore completed successfully.');
       setRestorePreviewData(null);
+      setConfirmationText('');
       await fetchDashboard();
     } catch (err: any) {
       alert(`RESTORE FAILED: ${err.message}`);
       setError(err.message || 'Failed to restore backup');
     } finally {
-      setActionLoading(false);
+      setIsRestoring(false);
     }
   };
 
-  const filteredBackups = dashboard?.recentBackups.filter(b => 
-    b.backupName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredBackups = dashboard?.recentBackups.filter(b =>
+    b.backupName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     b.format.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (b.description && b.description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
@@ -189,36 +205,55 @@ export const BackupRestorePage: React.FC = () => {
   return (
     <PageContainer>
       {/* HEADER */}
-      <PageHeader 
+      <PageHeader
         title="Backup & Restore Center"
         description="Create, inspect, export and restore isolated company backups."
         icon={Database}
         actions={
           <div className="relative">
             <button
-              onClick={() => setCreateMenuOpen(!createMenuOpen)}
-              disabled={actionLoading || dashboard?.isBackupInProgress}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm active:scale-95"
+              onClick={() => !isCreatingBackup && setCreateMenuOpen(!createMenuOpen)}
+              disabled={isCreatingBackup || isRestoring || dashboard?.isBackupInProgress}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm active:scale-95 cursor-pointer disabled:cursor-not-allowed min-w-[150px] justify-center"
             >
-              {dashboard?.isBackupInProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              Create Backup <ChevronDown className="w-4 h-4 ml-0.5" />
+              {isCreatingBackup ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>{creatingFormat === 'SQL' ? 'Creating SQL...' : 'Creating Backup...'}</span>
+                </>
+              ) : dashboard?.isBackupInProgress ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Creating Backup...</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4" />
+                  <span>Create Backup</span>
+                  <ChevronDown className="w-4 h-4 ml-0.5" />
+                </>
+              )}
             </button>
-            
+
             {createMenuOpen && (
               <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-20">
                 <div className="p-2 space-y-1">
-                  <button onClick={() => handleCreateBackup('AQB')} className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg flex items-center gap-3 transition-colors">
+                  <button onClick={() => handleCreateBackup('AQB')} disabled={isCreatingBackup} className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg flex items-center gap-3 transition-colors disabled:opacity-50">
                     <Shield className="w-5 h-5 text-blue-500 shrink-0" />
                     <div>
-                      <div className="font-semibold text-slate-900">Aquora Backup (.aqb)</div>
+                      <div className="font-semibold text-slate-900">
+                        {isCreatingBackup && creatingFormat === 'AQB' ? 'Creating Aquzio Backup (.aqb)...' : 'Aquzio Backup (.aqb)'}
+                      </div>
                       <div className="text-xs text-slate-500">Recommended for Restore</div>
                     </div>
                   </button>
                   <div className="h-px bg-slate-100 my-1"></div>
-                  <button onClick={() => handleCreateBackup('SQL')} className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg flex items-center gap-3 transition-colors">
+                  <button onClick={() => handleCreateBackup('SQL')} disabled={isCreatingBackup} className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg flex items-center gap-3 transition-colors disabled:opacity-50">
                     <Database className="w-5 h-5 text-purple-500 shrink-0" />
                     <div>
-                      <div className="font-semibold text-slate-900">SQL Backup (.sql)</div>
+                      <div className="font-semibold text-slate-900">
+                        {isCreatingBackup && creatingFormat === 'SQL' ? 'Creating SQL Backup (.sql)...' : 'SQL Backup (.sql)'}
+                      </div>
                       <div className="text-xs text-slate-500">Open in PostgreSQL tools</div>
                     </div>
                   </button>
@@ -268,7 +303,7 @@ export const BackupRestorePage: React.FC = () => {
             <h3 className="font-semibold text-slate-500 text-xs">Last Backup</h3>
           </div>
           <p className="text-sm font-bold text-slate-900 truncate">
-            {dashboard?.lastBackup 
+            {dashboard?.lastBackup
               ? format(new Date(dashboard.lastBackup.createdAt), 'MMM d, HH:mm')
               : 'Never'}
           </p>
@@ -293,16 +328,16 @@ export const BackupRestorePage: React.FC = () => {
           </h3>
           <div className="relative">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input 
-              type="text" 
-              placeholder="Search backups..." 
+            <input
+              type="text"
+              placeholder="Search backups..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors w-full sm:w-64"
             />
           </div>
         </div>
-        
+
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-600">
             <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 whitespace-nowrap">
@@ -336,52 +371,69 @@ export const BackupRestorePage: React.FC = () => {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-slate-900 font-medium">{formatBytes(backup.sizeBytes || backup.backupSize || 0)}</div>
-                      <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold tracking-wider border mt-0.5 inline-block ${
-                        backup.format === 'AQB' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-purple-50 text-purple-700 border-purple-200'
-                      }`}>
+                      <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold tracking-wider border mt-0.5 inline-block ${backup.format === 'AQB' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-purple-50 text-purple-700 border-purple-200'
+                        }`}>
                         {backup.format}
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                        backup.status === 'COMPLETED' || backup.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${backup.status === 'COMPLETED' || backup.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
                         backup.status === 'RESTORED' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                        'bg-amber-50 text-amber-700 border border-amber-200'
-                      }`}>
+                          'bg-amber-50 text-amber-700 border border-amber-200'
+                        }`}>
                         {backup.status}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <ActionDropdown
-                        items={[
-                          {
-                            label: `Download ${backup.format}`,
-                            icon: ArrowDownToLine,
-                            onClick: () => handleDownloadBackup(backup.id, backup.backupName, backup.format),
-                            variant: 'info'
-                          },
-                          ...(backup.format === 'AQB' ? [
-                            {
-                              label: 'Inspect Backup',
-                              icon: Eye,
-                              onClick: () => handleInspect(backup.id)
-                            },
-                            {
-                              label: 'Restore Backup',
-                              icon: RotateCcw,
-                              onClick: () => handlePreviewRestore(backup.id),
-                              variant: 'warning' as const
-                            }
-                          ] : []),
-                          {
-                            label: 'Delete Backup',
-                            icon: Trash2,
-                            onClick: () => handleDeleteBackup(backup.id),
-                            variant: 'danger',
-                            dividerBefore: true
-                          }
-                        ]}
-                      />
+                      {(() => {
+                        const isRowLoading =
+                          deletingBackupId === backup.id ||
+                          downloadingBackupId === backup.id ||
+                          inspectingBackupId === backup.id ||
+                          previewingRestoreBackupId === backup.id;
+
+                        let rowLoadingText = 'Actions';
+                        if (deletingBackupId === backup.id) rowLoadingText = 'Deleting...';
+                        else if (downloadingBackupId === backup.id) rowLoadingText = 'Preparing...';
+                        else if (inspectingBackupId === backup.id) rowLoadingText = 'Inspecting...';
+                        else if (previewingRestoreBackupId === backup.id) rowLoadingText = 'Preparing...';
+
+                        return (
+                          <ActionDropdown
+                            disabled={isRowLoading || isCreatingBackup || isRestoring}
+                            triggerLabel={isRowLoading ? rowLoadingText : 'Actions'}
+                            triggerIcon={isRowLoading ? <Loader2 className="w-3 h-3 text-blue-600 animate-spin" /> : <ChevronDown className="w-3 h-3 text-slate-400" />}
+                            items={[
+                              {
+                                label: downloadingBackupId === backup.id ? `Downloading ${backup.format}...` : `Download ${backup.format}`,
+                                icon: ArrowDownToLine,
+                                onClick: () => handleDownloadBackup(backup.id, backup.backupName, backup.format),
+                                variant: 'info'
+                              },
+                              ...(backup.format === 'AQB' ? [
+                                {
+                                  label: inspectingBackupId === backup.id ? 'Inspecting...' : 'Inspect Backup',
+                                  icon: Eye,
+                                  onClick: () => handleInspect(backup.id)
+                                },
+                                {
+                                  label: previewingRestoreBackupId === backup.id ? 'Preparing...' : 'Restore Backup',
+                                  icon: RotateCcw,
+                                  onClick: () => handlePreviewRestore(backup.id),
+                                  variant: 'warning' as const
+                                }
+                              ] : []),
+                              {
+                                label: deletingBackupId === backup.id ? 'Deleting...' : 'Delete Backup',
+                                icon: Trash2,
+                                onClick: () => handleDeleteBackup(backup.id),
+                                variant: 'danger',
+                                dividerBefore: true
+                              }
+                            ]}
+                          />
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))
@@ -416,7 +468,7 @@ export const BackupRestorePage: React.FC = () => {
               </div>
               <button onClick={() => setInspectionData(null)} className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full transition-colors"><XCircle className="w-5 h-5" /></button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-5 bg-slate-50/50">
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
                 <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
@@ -448,12 +500,12 @@ export const BackupRestorePage: React.FC = () => {
               </div>
 
               <h4 className="font-bold text-slate-900 text-sm mb-3 flex items-center gap-2">
-                <Database className="w-4 h-4 text-slate-400" /> Tables Included 
+                <Database className="w-4 h-4 text-slate-400" /> Tables Included
                 <span className="bg-slate-200 text-slate-700 py-0.5 px-2 rounded-full text-[10px] font-semibold">
                   {inspectionData.tables?.length || 0}
                 </span>
               </h4>
-              
+
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
@@ -473,7 +525,7 @@ export const BackupRestorePage: React.FC = () => {
                         <td className="px-4 py-2.5 text-right font-mono text-slate-600">{t.rows?.toLocaleString()}</td>
                         <td className="px-4 py-2.5 text-right text-slate-500">{t.formattedSize || 'N/A'}</td>
                         <td className="px-4 py-2.5 text-center">
-                          <button 
+                          <button
                             onClick={() => handlePreviewTable(inspectionData.backupId, t.tableName)}
                             className="text-[11px] bg-white border border-slate-200 text-slate-600 px-2.5 py-1 rounded-md hover:bg-slate-50 hover:text-blue-600 font-medium transition-colors inline-flex items-center gap-1 shadow-sm"
                           >
@@ -497,7 +549,7 @@ export const BackupRestorePage: React.FC = () => {
             <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-900 text-white">
               <h3 className="font-bold flex items-center gap-2 text-sm">
                 <TableProperties className="w-4 h-4 text-blue-400" />
-                Preview: <span className="text-blue-200 font-mono">{previewData.tableName}</span> 
+                Preview: <span className="text-blue-200 font-mono">{previewData.tableName}</span>
                 <span className="bg-blue-500/20 text-blue-200 px-2 py-0.5 rounded text-[10px] font-semibold ml-2 tracking-wider uppercase">100 Rows Max</span>
               </h3>
               <button onClick={() => setPreviewData(null)} className="text-slate-400 hover:text-white transition-colors"><XCircle className="w-5 h-5" /></button>
@@ -514,9 +566,9 @@ export const BackupRestorePage: React.FC = () => {
                     <tr key={i} className="hover:bg-blue-50/50">
                       {previewData.columns.map(c => (
                         <td key={c} className="px-4 py-2 border-r border-slate-100 text-slate-700 font-mono text-[11px] truncate max-w-[200px]" title={String(row[c])}>
-                          {row[c] === null ? <span className="text-slate-300 italic">NULL</span> : 
-                           typeof row[c] === 'boolean' ? <span className={row[c] ? 'text-emerald-600' : 'text-rose-600'}>{String(row[c])}</span> :
-                           String(row[c])}
+                          {row[c] === null ? <span className="text-slate-300 italic">NULL</span> :
+                            typeof row[c] === 'boolean' ? <span className={row[c] ? 'text-emerald-600' : 'text-rose-600'}>{String(row[c])}</span> :
+                              String(row[c])}
                         </td>
                       ))}
                     </tr>
@@ -537,9 +589,15 @@ export const BackupRestorePage: React.FC = () => {
                 <AlertTriangle className="w-6 h-6" />
                 <h3 className="font-bold text-lg">Restore Backup Snapshot</h3>
               </div>
-              <button onClick={() => setRestorePreviewData(null)} className="text-red-400 hover:text-red-700 p-1.5 rounded-full transition-colors"><XCircle className="w-5 h-5" /></button>
+              <button
+                onClick={() => !isRestoring && setRestorePreviewData(null)}
+                disabled={isRestoring}
+                className="text-red-400 hover:text-red-700 p-1.5 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
             </div>
-            
+
             <div className="p-6 bg-white space-y-6">
               <div className="p-3.5 bg-rose-50 text-rose-800 rounded-xl flex gap-3 border border-rose-200 text-xs items-start">
                 <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-rose-600" />
@@ -567,7 +625,7 @@ export const BackupRestorePage: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-200">
                   <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3 border-b border-blue-200 pb-2 flex items-center justify-between">
                     Backup Snapshot <Shield className="w-3.5 h-3.5 text-blue-400" />
@@ -589,26 +647,42 @@ export const BackupRestorePage: React.FC = () => {
                 <label className="block text-xs font-bold text-slate-700 mb-2">
                   To confirm restore, type <span className="text-red-700 bg-red-100 px-1.5 py-0.5 rounded font-mono">RESTORE</span>:
                 </label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={confirmationText}
+                  disabled={isRestoring}
                   onChange={e => setConfirmationText(e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-slate-300 rounded-xl focus:outline-none focus:border-red-500 font-mono text-center tracking-[0.2em] uppercase text-base transition-all placeholder:tracking-normal placeholder:font-sans placeholder:text-slate-400 placeholder:text-xs"
+                  className="w-full px-4 py-2 border-2 border-slate-300 rounded-xl focus:outline-none focus:border-red-500 font-mono text-center tracking-[0.2em] uppercase text-base transition-all placeholder:tracking-normal placeholder:font-sans placeholder:text-slate-400 placeholder:text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="Type RESTORE to confirm"
                   autoFocus
                 />
               </div>
             </div>
-            
+
             <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
-              <button onClick={() => setRestorePreviewData(null)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 bg-slate-200/50 rounded-xl font-semibold text-xs transition-colors">Cancel</button>
-              <button 
-                onClick={executeRestore} 
-                disabled={confirmationText.trim().toUpperCase() !== 'RESTORE' || actionLoading}
-                className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold text-xs hover:bg-red-700 disabled:opacity-50 flex items-center gap-2 transition-all shadow-sm active:scale-95 cursor-pointer disabled:cursor-not-allowed"
+              <button
+                onClick={() => setRestorePreviewData(null)}
+                disabled={isRestoring}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-200 bg-slate-200/50 rounded-xl font-semibold text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                EXECUTE RESTORE
+                Cancel
+              </button>
+              <button
+                onClick={executeRestore}
+                disabled={confirmationText.trim().toUpperCase() !== 'RESTORE' || isRestoring}
+                className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold text-xs hover:bg-red-700 disabled:opacity-50 flex items-center gap-2 transition-all shadow-sm active:scale-95 cursor-pointer disabled:cursor-not-allowed min-w-[140px] justify-center"
+              >
+                {isRestoring ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Restoring...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4" />
+                    <span>EXECUTE RESTORE</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

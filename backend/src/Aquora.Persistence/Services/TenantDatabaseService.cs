@@ -263,6 +263,31 @@ namespace Aquora.Persistence.Services
                             ALTER TABLE ""{schemaName}"".""Products"" ADD COLUMN IF NOT EXISTS ""CostPrice"" numeric NOT NULL DEFAULT 10.0;
 
                             ALTER TABLE ""{schemaName}"".""RawMaterials"" ADD COLUMN IF NOT EXISTS ""CostPerUnit"" numeric NOT NULL DEFAULT 5.0;
+
+                            CREATE TABLE IF NOT EXISTS ""{schemaName}"".""Companies"" (
+                                ""Id"" uuid NOT NULL PRIMARY KEY,
+                                ""Name"" text NOT NULL,
+                                ""Code"" text NOT NULL,
+                                ""IsActive"" boolean NOT NULL DEFAULT true,
+                                ""TimeZone"" text NULL DEFAULT 'Asia/Kolkata',
+                                ""DateFormat"" text NULL DEFAULT 'dd MMM yyyy',
+                                ""TimeFormat"" text NULL DEFAULT '12h',
+                                ""AdminPinHash"" text NULL,
+                                ""ApiKey"" text NULL,
+                                ""TenantId"" uuid NOT NULL,
+                                ""CreatedAt"" timestamp with time zone NOT NULL,
+                                ""CreatedBy"" text NOT NULL,
+                                ""UpdatedAt"" timestamp with time zone NULL,
+                                ""UpdatedBy"" text NULL,
+                                ""CreatedByIP"" text NULL,
+                                ""UpdatedByIP"" text NULL,
+                                ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                ""DeletedAt"" timestamp with time zone NULL,
+                                ""DeletedBy"" text NULL
+                            );
+
+                            ALTER TABLE ""{schemaName}"".""Companies"" ADD COLUMN IF NOT EXISTS ""AdminPinHash"" text NULL;
+                            ALTER TABLE ""{schemaName}"".""Companies"" ADD COLUMN IF NOT EXISTS ""ApiKey"" text NULL;
                         ";
 #pragma warning disable EF1003
                         await tenantContext.Database.ExecuteSqlRawAsync(repairSql);

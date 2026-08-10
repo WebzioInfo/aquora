@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { 
-  Plus, Search, RefreshCw, Eye, Edit3, Trash2, MoreVertical, 
-  Download, ChevronLeft, ChevronRight, Building, Users 
+import {
+  Plus, Search, RefreshCw, Eye, Edit3, Trash2, MoreVertical,
+  Download, ChevronLeft, ChevronRight, Building, Users
 } from 'lucide-react'
 import { api } from '../../services/api'
 import EnterpriseHeader from '../../components/ui/EnterpriseHeader'
@@ -81,13 +81,13 @@ export const PlatformManagementPage: React.FC = () => {
           pageSize: tenantPageSize
         }
       })
-      
+
       const d = res.data
       if (d?.data?.items) return d.data
       if (d?.items) return d
       if (Array.isArray(d?.data)) return { items: d.data, totalCount: d.data.length, totalPages: 1 }
       if (Array.isArray(d)) return { items: d, totalCount: d.length, totalPages: 1 }
-      
+
       return d?.data || { items: [], totalCount: 0, totalPages: 0 }
     },
     enabled: isTenants
@@ -107,13 +107,13 @@ export const PlatformManagementPage: React.FC = () => {
           pageSize: userPageSize
         }
       })
-      
+
       const d = res.data
       if (d?.data?.items) return d.data
       if (d?.items) return d
       if (Array.isArray(d?.data)) return { items: d.data, totalCount: d.data.length, totalPages: 1 }
       if (Array.isArray(d)) return { items: d, totalCount: d.length, totalPages: 1 }
-      
+
       return d?.data || { items: [], totalCount: 0, totalPages: 0 }
     },
     enabled: isUsers
@@ -202,7 +202,7 @@ export const PlatformManagementPage: React.FC = () => {
     const text = await file.text()
     const lines = text.split('\n').filter(l => l.trim())
     if (lines.length <= 1) return { previewItems: [], successCount: 0, errorCount: 0 }
-    
+
     const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
     const records = lines.slice(1).map(line => {
       const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''))
@@ -232,9 +232,9 @@ export const PlatformManagementPage: React.FC = () => {
       <div className="flex flex-col gap-6 select-none bg-[#F8FAFC] min-h-screen -m-6 p-6">
         {/* Light Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <EnterpriseHeader 
-            title="Tenant Registry Console" 
-            description="Enterprise CRUD control, Postgres schema provisioner, and security clearance isolation." 
+          <EnterpriseHeader
+            title="Tenant Registry Console"
+            description="Enterprise CRUD control, Postgres schema provisioner, and security clearance isolation."
           />
           <div className="flex items-center gap-3">
             <button
@@ -445,7 +445,7 @@ export const PlatformManagementPage: React.FC = () => {
         </EnterpriseCard>
 
         {/* DRAWERS & MODALS */}
-        <TenantDetailsDrawer 
+        <TenantDetailsDrawer
           isOpen={!!activeTenantDetails}
           onClose={() => setActiveTenantDetails(null)}
           tenant={activeTenantDetails}
@@ -495,7 +495,7 @@ export const PlatformManagementPage: React.FC = () => {
     }
 
     const handleToggleSelectUser = (id: string) => {
-      setSelectedUserIds(prev => 
+      setSelectedUserIds(prev =>
         prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
       )
     }
@@ -504,9 +504,9 @@ export const PlatformManagementPage: React.FC = () => {
       <div className="flex flex-col gap-6 select-none bg-[#F8FAFC] min-h-screen -m-6 p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <EnterpriseHeader 
-            title="Platform Administration User Directory" 
-            description="Full CRUD user management, role assignments, department authorization, and session control." 
+          <EnterpriseHeader
+            title="Platform Administration User Directory"
+            description="Full CRUD user management, role assignments, department authorization, and session control."
           />
           <div className="flex items-center gap-3">
             <button

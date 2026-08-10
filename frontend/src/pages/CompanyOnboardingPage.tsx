@@ -9,9 +9,9 @@ import { useAuthStore } from '../store/useAuthStore'
 import { useNotificationStore } from '../store/useNotificationStore'
 import BRAND from '../config/brand'
 import AuthWatermark from '../components/ui/AuthWatermark'
-import { 
+import {
   Building2, Globe, Phone, MapPin, Users, HelpCircle,
-  ArrowRight, ArrowLeft, Loader2, Plus, Trash2, CheckCircle2 
+  ArrowRight, ArrowLeft, Loader2, Plus, Trash2, CheckCircle2
 } from 'lucide-react'
 
 const onboardingSchema = z.object({
@@ -65,7 +65,7 @@ export const CompanyOnboardingPage: React.FC = () => {
 
       if (response.success && response.data) {
         showToast('Company workspace created successfully!', 'success')
-        
+
         if (user) {
           setAuth(response.data.accessToken, response.data.refreshToken, {
             userId: user.userId,
@@ -81,7 +81,7 @@ export const CompanyOnboardingPage: React.FC = () => {
             emailVerified: user.emailVerified
           })
         }
-        
+
         navigate('/account-setup')
       } else {
         showToast(response.message || 'Onboarding failed.', 'error')
@@ -102,12 +102,12 @@ export const CompanyOnboardingPage: React.FC = () => {
     <div className="w-full flex justify-center items-center font-sans">
 
       {/* FRESH WHITE AUTHENTICATION SURFACE CARD */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl shadow-xs p-8 sm:p-9 space-y-5 relative z-10"
       >
-        
+
         {/* Header */}
         <div className="flex flex-col items-center text-center space-y-1.5 select-none">
           <img src={BRAND.logo} alt={BRAND.name} className="h-12 w-auto object-contain mb-1" />
@@ -129,10 +129,10 @@ export const CompanyOnboardingPage: React.FC = () => {
 
         {/* Form Controls */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          
+
           <AnimatePresence mode="wait">
             {step === 1 ? (
-              <motion.div 
+              <motion.div
                 key="step1"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -153,11 +153,10 @@ export const CompanyOnboardingPage: React.FC = () => {
                       id="companyName"
                       type="text"
                       disabled={loading}
-                      placeholder="Aquora Industrial Ltd."
+                      placeholder="Aquzio Industrial Ltd."
                       {...register('companyName')}
-                      className={`w-full pl-10 pr-3.5 h-[54px] bg-white border ${
-                        errors.companyName ? 'border-rose-400 focus:ring-rose-500/20' : 'border-[#E5E7EB] focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]'
-                      } rounded-xl text-xs font-medium text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none transition-all`}
+                      className={`w-full pl-10 pr-3.5 h-[54px] bg-white border ${errors.companyName ? 'border-rose-400 focus:ring-rose-500/20' : 'border-[#E5E7EB] focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]'
+                        } rounded-xl text-xs font-medium text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none transition-all`}
                       autoFocus
                     />
                   </div>
@@ -182,9 +181,8 @@ export const CompanyOnboardingPage: React.FC = () => {
                       disabled={loading}
                       placeholder="50"
                       {...register('employeeCount', { valueAsNumber: true })}
-                      className={`w-full pl-10 pr-3.5 h-[54px] bg-white border ${
-                        errors.employeeCount ? 'border-rose-400 focus:ring-rose-500/20' : 'border-[#E5E7EB] focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]'
-                      } rounded-xl text-xs font-medium text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none transition-all`}
+                      className={`w-full pl-10 pr-3.5 h-[54px] bg-white border ${errors.employeeCount ? 'border-rose-400 focus:ring-rose-500/20' : 'border-[#E5E7EB] focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]'
+                        } rounded-xl text-xs font-medium text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none transition-all`}
                     />
                   </div>
                   {errors.employeeCount?.message && (
@@ -195,7 +193,7 @@ export const CompanyOnboardingPage: React.FC = () => {
                 {/* Referral Source (54px Height) */}
                 <div className="space-y-1">
                   <label className="block text-xs font-semibold text-[#111827] select-none">
-                    How did you hear about Aquora? <span className="text-rose-500">*</span>
+                    How did you hear about Aquzio? <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#9CA3AF]">
@@ -207,9 +205,8 @@ export const CompanyOnboardingPage: React.FC = () => {
                       disabled={loading}
                       placeholder="Search engine, colleague, trade show"
                       {...register('howDidYouHearAboutUs')}
-                      className={`w-full pl-10 pr-3.5 h-[54px] bg-white border ${
-                        errors.howDidYouHearAboutUs ? 'border-rose-400 focus:ring-rose-500/20' : 'border-[#E5E7EB] focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]'
-                      } rounded-xl text-xs font-medium text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none transition-all`}
+                      className={`w-full pl-10 pr-3.5 h-[54px] bg-white border ${errors.howDidYouHearAboutUs ? 'border-rose-400 focus:ring-rose-500/20' : 'border-[#E5E7EB] focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]'
+                        } rounded-xl text-xs font-medium text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none transition-all`}
                     />
                   </div>
                   {errors.howDidYouHearAboutUs?.message && (
@@ -218,7 +215,7 @@ export const CompanyOnboardingPage: React.FC = () => {
                 </div>
               </motion.div>
             ) : (
-              <motion.div 
+              <motion.div
                 key="step2"
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -236,11 +233,10 @@ export const CompanyOnboardingPage: React.FC = () => {
                     const station = stationName as keyof typeof enabledStations
                     const isChecked = enabledStations[station]
                     return (
-                      <div 
-                        key={station} 
-                        className={`p-3.5 bg-[#FAFBFC] hover:bg-white border ${
-                          isChecked ? 'border-[#2563EB]/30 shadow-2xs' : 'border-[#E5E7EB]'
-                        } rounded-xl flex items-center justify-between transition-all select-none`}
+                      <div
+                        key={station}
+                        className={`p-3.5 bg-[#FAFBFC] hover:bg-white border ${isChecked ? 'border-[#2563EB]/30 shadow-2xs' : 'border-[#E5E7EB]'
+                          } rounded-xl flex items-center justify-between transition-all select-none`}
                       >
                         <div className="text-left space-y-0.5">
                           <span className="text-xs font-bold text-[#111827] block">

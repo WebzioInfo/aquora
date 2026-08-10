@@ -4,18 +4,21 @@ namespace Aquora.Application.DTOs.Employees
 {
     public class SecuritySettingsRequest
     {
-        [Required(ErrorMessage = "PIN is required.")]
-        [MinLength(4, ErrorMessage = "PIN must be at least 4 digits.")]
-        public string Pin { get; set; }
+        public string? AdminPin { get; set; }
+        public string? Pin { get; set; }
+        public string? ConfirmAdminPin { get; set; }
+        public string? ConfirmPin { get; set; }
 
-        [Required(ErrorMessage = "Confirm PIN is required.")]
-        public string ConfirmPin { get; set; }
+        public string ResolvedAdminPin => !string.IsNullOrWhiteSpace(AdminPin) ? AdminPin.Trim() : (Pin?.Trim() ?? string.Empty);
+        public string ResolvedConfirmPin => !string.IsNullOrWhiteSpace(ConfirmAdminPin) ? ConfirmAdminPin.Trim() : (ConfirmPin?.Trim() ?? string.Empty);
     }
 
     public class VerifyPinRequest
     {
-        [Required(ErrorMessage = "PIN is required.")]
-        public string Pin { get; set; }
+        public string? AdminPin { get; set; }
+        public string? Pin { get; set; }
+
+        public string ResolvedAdminPin => !string.IsNullOrWhiteSpace(AdminPin) ? AdminPin.Trim() : (Pin?.Trim() ?? string.Empty);
     }
 
     public class RevealPasswordRequest
@@ -23,7 +26,9 @@ namespace Aquora.Application.DTOs.Employees
         [Required(ErrorMessage = "Employee ID is required.")]
         public System.Guid EmployeeId { get; set; }
 
-        [Required(ErrorMessage = "PIN is required.")]
-        public string Pin { get; set; }
+        public string? AdminPin { get; set; }
+        public string? Pin { get; set; }
+
+        public string ResolvedAdminPin => !string.IsNullOrWhiteSpace(AdminPin) ? AdminPin.Trim() : (Pin?.Trim() ?? string.Empty);
     }
 }

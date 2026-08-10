@@ -23,7 +23,7 @@ namespace Aquora.Domain.Entities
         public string? LicenseNumber { get; set; }
         public string SubscriptionPlan { get; set; } = "Starter"; // Starter, Professional, Enterprise
         public string Timezone { get; set; } = "UTC";
-        public string Currency { get; set; } = "USD";
+        public string Currency { get; set; } = "INR";
         public string Language { get; set; } = "en";
         public string? LogoUrl { get; set; }
         public string Theme { get; set; } = "light";

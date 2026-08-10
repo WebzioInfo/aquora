@@ -627,16 +627,25 @@ namespace Aquora.Application.Services
             var startOfDay = DateTime.SpecifyKind(nowUtc.Date, DateTimeKind.Utc);
             var startOfMonth = new DateTime(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
-            var hasAnyTransactions = await query.AnyAsync();
-            var hasAnyDeposits = hasAnyTransactions && await query.AnyAsync(x => x.Credit > 0);
-            var hasAnyExpenses = hasAnyTransactions && await query.AnyAsync(x => x.Debit > 0);
+            var aggregates = await query.GroupBy(x => 1).Select(g => new
+            {
+                TotalTransactions = g.Count(),
+                TotalMoneyReceived = g.Sum(x => x.Credit),
+                TotalMoneyPaid = g.Sum(x => x.Debit),
+                LargestDeposit = g.Max(x => (decimal?)x.Credit) ?? 0m,
+                LargestExpense = g.Max(x => (decimal?)x.Debit) ?? 0m,
+                TodaysTransactions = g.Count(x => x.TransactionDate >= startOfDay),
+                ThisMonthTransactions = g.Count(x => x.TransactionDate >= startOfMonth)
+            }).FirstOrDefaultAsync();
 
-            var lastTx = hasAnyTransactions
-                ? await query.OrderByDescending(x => x.TransactionDate).ThenByDescending(x => x.CreatedAt).FirstOrDefaultAsync()
+            var lastTx = aggregates != null && aggregates.TotalTransactions > 0
+                ? await query.OrderByDescending(x => x.TransactionDate).ThenByDescending(x => x.CreatedAt)
+                    .Select(x => new { x.TransactionDate, x.Description, x.Debit, x.Credit })
+                    .FirstOrDefaultAsync()
                 : null;
 
-            var monthlyFlows = hasAnyTransactions
-                ? await query.GroupBy(x => new { Year = x.TransactionDate.Year, Month = x.TransactionDate.Month })
+            var monthlyFlows = aggregates != null && aggregates.TotalTransactions > 0
+                ? await query.GroupBy(x => new { x.TransactionDate.Year, x.TransactionDate.Month })
                              .Select(g => g.Sum(x => x.Debit + x.Credit))
                              .ToListAsync()
                 : new List<decimal>();
@@ -644,13 +653,13 @@ namespace Aquora.Application.Services
             var summary = new BankSummaryDto
             {
                 CurrentBalance = bankAccount.CurrentBalance,
-                TotalTransactions = hasAnyTransactions ? await query.CountAsync() : 0,
-                TotalMoneyReceived = hasAnyTransactions ? await query.SumAsync(x => x.Credit) : 0m,
-                TotalMoneyPaid = hasAnyTransactions ? await query.SumAsync(x => x.Debit) : 0m,
-                LargestDeposit = hasAnyDeposits ? await query.MaxAsync(x => x.Credit) : 0m,
-                LargestExpense = hasAnyExpenses ? await query.MaxAsync(x => x.Debit) : 0m,
-                TodaysTransactions = hasAnyTransactions ? await query.CountAsync(x => x.TransactionDate >= startOfDay) : 0,
-                ThisMonthTransactions = hasAnyTransactions ? await query.CountAsync(x => x.TransactionDate >= startOfMonth) : 0,
+                TotalTransactions = aggregates?.TotalTransactions ?? 0,
+                TotalMoneyReceived = aggregates?.TotalMoneyReceived ?? 0m,
+                TotalMoneyPaid = aggregates?.TotalMoneyPaid ?? 0m,
+                LargestDeposit = aggregates?.LargestDeposit ?? 0m,
+                LargestExpense = aggregates?.LargestExpense ?? 0m,
+                TodaysTransactions = aggregates?.TodaysTransactions ?? 0,
+                ThisMonthTransactions = aggregates?.ThisMonthTransactions ?? 0,
                 AverageMonthlyFlow = monthlyFlows.Any() ? monthlyFlows.Average() : 0m,
                 LastTransactionDate = lastTx?.TransactionDate,
                 LastTransactionDescription = lastTx?.Description,
@@ -1147,7 +1156,6 @@ namespace Aquora.Application.Services
             {
                 await ReconcileMissingCashBookLedgerEntriesAsync(cashBookId);
             }
-            await RecalculateCashBookLedgerBalancesAsync(cashBookId);
 
             var cashBook = await _context.CashBooks
                 .AsNoTracking()
@@ -1158,20 +1166,29 @@ namespace Aquora.Application.Services
                 .AsNoTracking()
                 .Where(x => x.TenantId == tenantId && x.CashBookId == cashBookId && x.LedgerAccountType == "CashBook");
 
-            var any = await query.AnyAsync();
-            var hasAnyDeposits = any && await query.AnyAsync(x => x.Credit > 0);
-            var hasAnyExpenses = any && await query.AnyAsync(x => x.Debit > 0);
-
             var nowUtc = DateTime.UtcNow;
             var startOfDay = DateTime.SpecifyKind(nowUtc.Date, DateTimeKind.Utc);
             var startOfMonth = new DateTime(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
-            var lastTx = any
-                ? await query.OrderByDescending(x => x.TransactionDate).ThenByDescending(x => x.CreatedAt).FirstOrDefaultAsync()
+            var aggregates = await query.GroupBy(x => 1).Select(g => new
+            {
+                TotalTransactions = g.Count(),
+                TotalMoneyReceived = g.Sum(x => x.Credit),
+                TotalMoneyPaid = g.Sum(x => x.Debit),
+                LargestDeposit = g.Max(x => (decimal?)x.Credit) ?? 0m,
+                LargestExpense = g.Max(x => (decimal?)x.Debit) ?? 0m,
+                TodaysTransactions = g.Count(x => x.TransactionDate >= startOfDay),
+                ThisMonthTransactions = g.Count(x => x.TransactionDate >= startOfMonth)
+            }).FirstOrDefaultAsync();
+
+            var lastTx = aggregates != null && aggregates.TotalTransactions > 0
+                ? await query.OrderByDescending(x => x.TransactionDate).ThenByDescending(x => x.CreatedAt)
+                    .Select(x => new { x.TransactionDate, x.Description, x.Debit, x.Credit })
+                    .FirstOrDefaultAsync()
                 : null;
 
-            var monthlyFlows = any
-                ? await query.GroupBy(x => new { Year = x.TransactionDate.Year, Month = x.TransactionDate.Month })
+            var monthlyFlows = aggregates != null && aggregates.TotalTransactions > 0
+                ? await query.GroupBy(x => new { x.TransactionDate.Year, x.TransactionDate.Month })
                              .Select(g => g.Sum(x => x.Debit + x.Credit))
                              .ToListAsync()
                 : new List<decimal>();
@@ -1179,13 +1196,13 @@ namespace Aquora.Application.Services
             return new BankSummaryDto 
             { 
                 CurrentBalance = cashBook.CurrentBalance, 
-                TotalTransactions = any ? await query.CountAsync() : 0, 
-                TotalMoneyReceived = any ? await query.SumAsync(x => x.Credit) : 0m, 
-                TotalMoneyPaid = any ? await query.SumAsync(x => x.Debit) : 0m, 
-                LargestDeposit = hasAnyDeposits ? await query.MaxAsync(x => x.Credit) : 0m, 
-                LargestExpense = hasAnyExpenses ? await query.MaxAsync(x => x.Debit) : 0m, 
-                TodaysTransactions = any ? await query.CountAsync(x => x.TransactionDate >= startOfDay) : 0, 
-                ThisMonthTransactions = any ? await query.CountAsync(x => x.TransactionDate >= startOfMonth) : 0,
+                TotalTransactions = aggregates?.TotalTransactions ?? 0, 
+                TotalMoneyReceived = aggregates?.TotalMoneyReceived ?? 0m, 
+                TotalMoneyPaid = aggregates?.TotalMoneyPaid ?? 0m, 
+                LargestDeposit = aggregates?.LargestDeposit ?? 0m, 
+                LargestExpense = aggregates?.LargestExpense ?? 0m, 
+                TodaysTransactions = aggregates?.TodaysTransactions ?? 0, 
+                ThisMonthTransactions = aggregates?.ThisMonthTransactions ?? 0,
                 AverageMonthlyFlow = monthlyFlows.Any() ? monthlyFlows.Average() : 0m,
                 LastTransactionDate = lastTx?.TransactionDate,
                 LastTransactionDescription = lastTx?.Description,

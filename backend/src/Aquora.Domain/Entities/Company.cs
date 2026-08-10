@@ -13,6 +13,10 @@ namespace Aquora.Domain.Entities
         public string? DateFormat { get; set; } = "dd MMM yyyy";
         public string? TimeFormat { get; set; } = "12h";
 
+        // Admin Security PIN & API Key
+        public string? AdminPinHash { get; set; }
+        public string? ApiKey { get; set; }
+
         // Profile Details
         // (Removed due to schema mismatch)
 

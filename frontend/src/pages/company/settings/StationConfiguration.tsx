@@ -72,21 +72,20 @@ export const StationConfiguration: React.FC = () => {
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div className="p-4 border-b border-slate-100 bg-slate-50/50">
         <h3 className="text-sm font-semibold text-slate-800">Station Configuration</h3>
-        <p className="text-xs text-slate-500 mt-1">Enable or disable manufacturing stations to customize Aquora workflow availability.</p>
+        <p className="text-xs text-slate-500 mt-1">Enable or disable manufacturing stations to customize Aquzio workflow availability.</p>
       </div>
-      
+
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {stations.map((station) => {
             const deps = dependencies[station.name] || []
             return (
-              <div 
+              <div
                 key={station.name}
-                className={`p-4 rounded-xl border transition-all duration-200 ${
-                  station.isEnabled 
-                    ? 'bg-blue-50/20 border-blue-200 shadow-sm' 
-                    : 'bg-slate-50/50 border-slate-200 opacity-70'
-                }`}
+                className={`p-4 rounded-xl border transition-all duration-200 ${station.isEnabled
+                  ? 'bg-blue-50/20 border-blue-200 shadow-sm'
+                  : 'bg-slate-50/50 border-slate-200 opacity-70'
+                  }`}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1">
@@ -97,13 +96,12 @@ export const StationConfiguration: React.FC = () => {
                       <span className="block text-[10px] text-slate-400 font-semibold tracking-wider uppercase">Consumes</span>
                       <div className="flex flex-wrap gap-1.5">
                         {deps.map((dep) => (
-                          <span 
-                            key={dep} 
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${
-                              dep === 'Final Packaging' 
-                                ? 'bg-green-50 text-green-700 border border-green-200' 
-                                : 'bg-slate-100 text-slate-600 border border-slate-200'
-                            }`}
+                          <span
+                            key={dep}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${dep === 'Final Packaging'
+                              ? 'bg-green-50 text-green-700 border border-green-200'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                              }`}
                           >
                             <Box className="w-3 h-3 text-slate-400" />
                             {dep}
@@ -112,19 +110,17 @@ export const StationConfiguration: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <button
                     type="button"
                     disabled={saving}
                     onClick={() => handleToggle(station.name, station.isEnabled)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      station.isEnabled ? 'bg-blue-600' : 'bg-slate-200'
-                    }`}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${station.isEnabled ? 'bg-blue-600' : 'bg-slate-200'
+                      }`}
                   >
                     <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        station.isEnabled ? 'translate-x-5' : 'translate-x-0'
-                      }`}
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${station.isEnabled ? 'translate-x-5' : 'translate-x-0'
+                        }`}
                     />
                   </button>
                 </div>
@@ -136,7 +132,7 @@ export const StationConfiguration: React.FC = () => {
         <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 flex gap-3">
           <Info className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
           <p className="leading-relaxed">
-            Disabling production stations hides them dynamically from menus, schedules, dashboards, operator interfaces, and reports. 
+            Disabling production stations hides them dynamically from menus, schedules, dashboards, operator interfaces, and reports.
             Historical production batch records remain fully intact.
           </p>
         </div>

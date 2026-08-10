@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { 
-  ArrowLeft, 
-  Building2, 
-  Wallet, 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  Activity, 
-  Search, 
+import {
+  ArrowLeft,
+  Building2,
+  Wallet,
+  ArrowUpRight,
+  ArrowDownRight,
+  Activity,
+  Search,
   Filter,
   Eye,
   PenSquare,
@@ -25,12 +25,12 @@ import { simpleAccountsService } from '../../../services/simpleAccounts'
 import { getTransactionEventBadge } from '../../../utils/transactionBadge'
 import { AddMoneyModal } from './AddMoneyModal'
 import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
-import type { 
-  BankAccount, 
-  BankSummary, 
-  BankLedgerEntry, 
-  BankLedgerFilter, 
-  SimpleExpense, 
+import type {
+  BankAccount,
+  BankSummary,
+  BankLedgerEntry,
+  BankLedgerFilter,
+  SimpleExpense,
   UpdateSimpleExpenseRequest,
   BankAccountDropdown,
   BankLedgerAuditEntry
@@ -147,21 +147,29 @@ export const BankAccountDetailsPage: React.FC = () => {
     setFetchError(null)
 
     try {
-      // 1. Fetch Bank Account Details
-      const accountRes = await simpleAccountsService.getBankAccountById(id)
+      // Fetch Bank Account Details, Summary, and Dropdown in parallel
+      const [accountRes, summaryRes, dropdownRes] = await Promise.all([
+        simpleAccountsService.getBankAccountById(id),
+        simpleAccountsService.getBankSummary(id).catch((sumErr) => {
+          console.error('Failed to load bank summary:', sumErr)
+          return null
+        }),
+        simpleAccountsService.getBankAccountDropdown().catch((ddErr) => {
+          console.error('Failed to load bank dropdown:', ddErr)
+          return []
+        })
+      ])
+
       if (!accountRes) {
         setIsNotFound(true)
         setLoading(false)
         return
       }
-      setBankAccount(accountRes)
 
-      // 2. Fetch Bank Summary safely
-      try {
-        const summaryRes = await simpleAccountsService.getBankSummary(id)
+      setBankAccount(accountRes)
+      if (summaryRes) {
         setSummary(summaryRes)
-      } catch (sumErr: any) {
-        console.error('Failed to load bank summary:', sumErr)
+      } else {
         setSummary({
           currentBalance: accountRes.currentBalance,
           totalTransactions: 0,
@@ -173,14 +181,7 @@ export const BankAccountDetailsPage: React.FC = () => {
           thisMonthTransactions: 0
         })
       }
-
-      // 3. Dropdown list for edit modal
-      try {
-        const dropdownRes = await simpleAccountsService.getBankAccountDropdown()
-        setBankAccountsDropdown(dropdownRes || [])
-      } catch (ddErr) {
-        console.error('Failed to load bank dropdown:', ddErr)
-      }
+      setBankAccountsDropdown(dropdownRes || [])
     } catch (err: any) {
       console.error('Error fetching bank account:', err)
       const status = err.response?.status || err.status
@@ -385,14 +386,14 @@ export const BankAccountDetailsPage: React.FC = () => {
 
   const formatDateTime = (dateStr: string) => {
     if (!dateStr) return { dayStr: '—', timeStr: '' }
-    
+
     // Ensure the date string is treated as UTC if it doesn't have timezone info,
     // although our backend now explicitly returns UTC with Z
     const dateToParse = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : `${dateStr}Z`;
     const date = new Date(dateToParse)
-    
+
     if (isNaN(date.getTime())) return { dayStr: '—', timeStr: '' }
-    
+
     const dayStr = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' })
     const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })
     return { dayStr, timeStr }
@@ -401,7 +402,7 @@ export const BankAccountDetailsPage: React.FC = () => {
   const handlePrintLedgerEntry = (item: BankLedgerEntry) => {
     const isOutflow = item.debit > 0;
     const amount = isOutflow ? item.debit : item.credit;
-    
+
     setPrintDocData({
       title: isOutflow ? 'Bank Payment Voucher' : 'Bank Deposit Receipt',
       docNumber: item.referenceNumber || 'VOUCHER-TEMP',
@@ -431,7 +432,7 @@ export const BankAccountDetailsPage: React.FC = () => {
         amountPaid: amount,
         balance: 0
       },
-      notes: 'This is a system-generated bank transaction record from Aquora ledger accounts.'
+      notes: 'This is a system-generated bank transaction record from Aquzio ledger accounts.'
     });
     setPrintModalOpen(true);
   };
@@ -440,7 +441,7 @@ export const BankAccountDetailsPage: React.FC = () => {
     const type = item.transactionType || ''
     const relType = item.relatedEntityType || ''
     const desc = (item.description || '').toLowerCase()
-    
+
     // Check Reversal first
     if (relType.toLowerCase() === 'reversal' || type.toLowerCase().includes('reversal') || desc.includes('reversal')) {
       return (
@@ -581,16 +582,15 @@ export const BankAccountDetailsPage: React.FC = () => {
   return (
     <PageContainer>
       {/* HEADER */}
-      <PageHeader 
+      <PageHeader
         title={bankAccount.bankName}
         description={`${bankAccount.accountName} • ${maskAccountNumber(bankAccount.accountNumber)}${bankAccount.ifscCode ? ` • IFSC: ${bankAccount.ifscCode}` : ''}`}
         icon={Building2}
         badge={
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-            bankAccount.status === 'Active' 
-              ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' 
-              : 'bg-slate-100 text-slate-700 border border-slate-200'
-          }`}>
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${bankAccount.status === 'Active'
+            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+            : 'bg-slate-100 text-slate-700 border border-slate-200'
+            }`}>
             {bankAccount.status}
           </span>
         }
@@ -602,9 +602,9 @@ export const BankAccountDetailsPage: React.FC = () => {
                 {formatCurrency(bankAccount.currentBalance)}
               </p>
             </div>
-            <EnterpriseButton 
-              variant="primary" 
-              onClick={() => setIsAddMoneyOpen(true)} 
+            <EnterpriseButton
+              variant="primary"
+              onClick={() => setIsAddMoneyOpen(true)}
               className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 hover:border-emerald-700 text-white shrink-0"
             >
               <PlusCircle className="w-4 h-4" /> Add Money
@@ -619,31 +619,31 @@ export const BankAccountDetailsPage: React.FC = () => {
       {/* KPI CARDS */}
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard 
-            label="Total Received" 
-            value={formatCurrency(summary.totalMoneyReceived)} 
+          <KPICard
+            label="Total Received"
+            value={formatCurrency(summary.totalMoneyReceived)}
             icon={ArrowDownRight}
             colorClass="text-emerald-600"
             iconColorClass="text-emerald-600"
             iconBgClass="bg-emerald-50"
           />
-          <KPICard 
-            label="Total Paid" 
-            value={formatCurrency(summary.totalMoneyPaid)} 
+          <KPICard
+            label="Total Paid"
+            value={formatCurrency(summary.totalMoneyPaid)}
             icon={ArrowUpRight}
             colorClass="text-rose-600"
             iconColorClass="text-rose-600"
             iconBgClass="bg-rose-50"
           />
-          <KPICard 
-            label="Avg Monthly Flow" 
-            value={formatCurrency(summary.averageMonthlyFlow || 0)} 
+          <KPICard
+            label="Avg Monthly Flow"
+            value={formatCurrency(summary.averageMonthlyFlow || 0)}
             subtitle={`Largest Credit: ${formatCurrency(summary.largestDeposit || 0)}`}
             icon={Activity}
           />
-          <KPICard 
-            label="Last Transaction" 
-            value={summary.lastTransactionAmount ? formatCurrency(summary.lastTransactionAmount) : '—'} 
+          <KPICard
+            label="Last Transaction"
+            value={summary.lastTransactionAmount ? formatCurrency(summary.lastTransactionAmount) : '—'}
             subtitle={summary.lastTransactionDate ? `${new Date(summary.lastTransactionDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} • ${summary.lastTransactionDescription || ''}` : 'No transactions'}
             icon={Wallet}
             colorClass="text-slate-900"
@@ -654,7 +654,7 @@ export const BankAccountDetailsPage: React.FC = () => {
       {/* COMPACT BANK LEDGER TABLE */}
       <SectionCard title="Bank Ledger" description="Complete transaction history and running balance statement.">
         <div className="px-4 py-3 bg-slate-50/50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          
+
           <div className="flex items-center gap-2">
             <form onSubmit={handleSearch} className="relative">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -666,7 +666,7 @@ export const BankAccountDetailsPage: React.FC = () => {
                 className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#1A56DB]/20 focus:border-[#1A56DB] w-full sm:w-56 transition-all shadow-2xs"
               />
             </form>
-            <EnterpriseButton variant="secondary" onClick={() => {}} className="gap-1.5 py-1.5 text-xs shrink-0">
+            <EnterpriseButton variant="secondary" onClick={() => { }} className="gap-1.5 py-1.5 text-xs shrink-0">
               <Filter className="w-3.5 h-3.5" />
               Filter
             </EnterpriseButton>
@@ -709,8 +709,8 @@ export const BankAccountDetailsPage: React.FC = () => {
                   const type = (item.transactionType || '').toLowerCase()
 
                   return (
-                    <tr 
-                      key={item.id} 
+                    <tr
+                      key={item.id}
                       className="group hover:bg-slate-50/80 transition-colors"
                     >
                       <td className="px-4 py-2.5 whitespace-nowrap">
@@ -1081,9 +1081,9 @@ export const BankAccountDetailsPage: React.FC = () => {
               <EnterpriseButton variant="secondary" onClick={() => setIsDeleteModalOpen(false)} disabled={submittingDelete}>
                 Cancel
               </EnterpriseButton>
-              <EnterpriseButton 
-                variant="primary" 
-                onClick={handleConfirmDeleteExpense} 
+              <EnterpriseButton
+                variant="primary"
+                onClick={handleConfirmDeleteExpense}
                 loading={submittingDelete}
                 className="bg-rose-600 hover:bg-rose-700 text-white"
               >
@@ -1114,15 +1114,13 @@ export const BankAccountDetailsPage: React.FC = () => {
                   const isCreated = item.action.toLowerCase() === 'created'
                   return (
                     <div key={item.id} className="relative">
-                      <span className={`absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border border-white ${
-                        isCreated ? 'bg-emerald-500' : 'bg-blue-500'
-                      }`}></span>
+                      <span className={`absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border border-white ${isCreated ? 'bg-emerald-500' : 'bg-blue-500'
+                        }`}></span>
                       <div className="flex items-center justify-between font-bold text-slate-900 mb-0.5">
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] uppercase font-semibold ${
-                          isCreated 
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
-                            : 'bg-blue-50 text-blue-700 border border-blue-100'
-                        }`}>
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] uppercase font-semibold ${isCreated
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                          : 'bg-blue-50 text-blue-700 border border-blue-100'
+                          }`}>
                           {item.action}
                         </span>
                         <span className="text-[10px] text-slate-500 font-medium">
@@ -1230,9 +1228,9 @@ export const BankAccountDetailsPage: React.FC = () => {
               }} disabled={submittingDeleteDeposit}>
                 Cancel
               </EnterpriseButton>
-              <EnterpriseButton 
-                variant="primary" 
-                onClick={handleDeleteDeposit} 
+              <EnterpriseButton
+                variant="primary"
+                onClick={handleDeleteDeposit}
                 loading={submittingDeleteDeposit}
                 className="bg-rose-600 hover:bg-rose-700 text-white"
               >

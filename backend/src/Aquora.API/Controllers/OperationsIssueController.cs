@@ -55,6 +55,13 @@ namespace Aquora.API.Controllers
             return Ok(dashboard);
         }
 
+        [HttpGet("machines")]
+        public async Task<IActionResult> GetAvailableMachines()
+        {
+            var machines = await _issueService.GetAvailableMachinesAsync();
+            return Ok(machines);
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetIssueById(Guid id)
         {

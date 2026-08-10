@@ -8,6 +8,7 @@ export interface ActionDropdownItem {
   onClick: () => void
   variant?: 'default' | 'danger' | 'warning' | 'info'
   dividerBefore?: boolean
+  disabled?: boolean
 }
 
 export interface ActionDropdownProps {
@@ -16,6 +17,7 @@ export interface ActionDropdownProps {
   triggerClassName?: string
   items: ActionDropdownItem[]
   align?: 'left' | 'right'
+  disabled?: boolean
 }
 
 export const ActionDropdown: React.FC<ActionDropdownProps> = ({
@@ -23,7 +25,8 @@ export const ActionDropdown: React.FC<ActionDropdownProps> = ({
   triggerIcon = <ChevronDown className="w-3 h-3 text-slate-400" />,
   triggerClassName,
   items,
-  align = 'right'
+  align = 'right',
+  disabled = false
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [coords, setCoords] = useState<{ top: number; left?: number; right?: number }>({ top: 0 })
@@ -91,8 +94,9 @@ export const ActionDropdown: React.FC<ActionDropdownProps> = ({
       <button
         ref={triggerRef}
         type="button"
+        disabled={disabled}
         onClick={toggleOpen}
-        className={triggerClassName || "px-2.5 py-1 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 text-xs font-medium flex items-center gap-1 ml-auto shadow-sm transition-all active:scale-95 cursor-pointer"}
+        className={triggerClassName || "px-2.5 py-1 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 text-xs font-medium flex items-center gap-1 ml-auto shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"}
       >
         {triggerLabel} {triggerIcon}
       </button>

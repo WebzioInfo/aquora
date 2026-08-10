@@ -199,27 +199,10 @@ namespace Aquora.Persistence.Services
                     .Where(u => !u.IsDeleted)
                     .ToListAsync();
                 _logger.LogInformation("Total Users found: {Count}", users.Count);
-                bool modified = false;
                 foreach (var u in users)
                 {
                     _logger.LogInformation("  User: ID={Id}, Name='{Name}', Email='{Email}', TenantId={TenantId}, Created={Created}", 
                         u.Id, $"{u.FirstName} {u.LastName}", u.Email, u.TenantId, u.CreatedAt);
-                    
-                    if (u.Email.Equals("sinankuttasseri123@gmail.com", StringComparison.OrdinalIgnoreCase))
-                    {
-                        _logger.LogInformation("[CREDENTIALS RESET] Resetting test user '{Email}' credentials to standard validation values...", u.Email);
-                        var passwordHasher = _serviceProvider.GetRequiredService<Aquora.Application.Interfaces.IPasswordHasher>();
-                        u.PasswordHash = passwordHasher.HashPassword("TenantAdmin@2026!");
-                        u.PinHash = passwordHasher.HashPassword("1234");
-                        u.IsActive = true;
-                        u.EmailVerified = true;
-                        modified = true;
-                    }
-                }
-                if (modified)
-                {
-                    await _platformContext.SaveChangesAsync();
-                    _logger.LogInformation("[CREDENTIALS RESET] Test user credentials saved successfully.");
                 }
                 _logger.LogInformation("----------------------------------------------");
 
@@ -341,7 +324,26 @@ namespace Aquora.Persistence.Services
                                          UPDATE ""{tenant.SchemaName}"".""WaterTestReports"" SET ""ConcurrencyToken"" = md5(random()::text || clock_timestamp()::text) WHERE ""ConcurrencyToken"" IS NULL OR ""ConcurrencyToken"" = '';
                                          ALTER TABLE ""{tenant.SchemaName}"".""WaterTestReports"" ALTER COLUMN ""ConcurrencyToken"" SET NOT NULL;
                                          ALTER TABLE ""{tenant.SchemaName}"".""WaterTestReports"" ALTER COLUMN ""ConcurrencyToken"" SET DEFAULT md5(random()::text || clock_timestamp()::text);
-                                         UPDATE ""{tenant.SchemaName}"".""BankLedgerEntries"" SET ""EventType"" = 'CREATED' WHERE ""EventType"" IS NULL OR ""EventType"" = '';";
+                                         UPDATE ""{tenant.SchemaName}"".""BankLedgerEntries"" SET ""EventType"" = 'CREATED' WHERE ""EventType"" IS NULL OR ""EventType"" = '';
+
+                                         CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""OperationsIssueAffectedMachines"" (
+                                             ""Id"" uuid NOT NULL PRIMARY KEY,
+                                             ""IssueId"" uuid NOT NULL,
+                                             ""MachineId"" uuid NOT NULL,
+                                             ""MachineName"" text NOT NULL,
+                                             ""MachineCode"" text NULL,
+                                             CONSTRAINT fk_issue_affected_machines FOREIGN KEY (""IssueId"") REFERENCES ""{tenant.SchemaName}"".""OperationsIssues"" (""Id"") ON DELETE CASCADE
+                                         );
+
+                                         CREATE UNIQUE INDEX IF NOT EXISTS uq_issue_affected_machines ON ""{tenant.SchemaName}"".""OperationsIssueAffectedMachines"" (""IssueId"", ""MachineId"");
+
+                                         INSERT INTO ""{tenant.SchemaName}"".""OperationsIssueAffectedMachines"" (""Id"", ""IssueId"", ""MachineId"", ""MachineName"")
+                                         SELECT gen_random_uuid(), ""Id"", ""MachineId"", COALESCE(""MachineName"", 'Primary Machine')
+                                         FROM ""{tenant.SchemaName}"".""OperationsIssues""
+                                         WHERE ""MachineId"" IS NOT NULL
+                                         AND NOT EXISTS (
+                                             SELECT 1 FROM ""{tenant.SchemaName}"".""OperationsIssueAffectedMachines"" m WHERE m.""IssueId"" = ""{tenant.SchemaName}"".""OperationsIssues"".""Id"" AND m.""MachineId"" = ""{tenant.SchemaName}"".""OperationsIssues"".""MachineId""
+                                         );";
                                     await cmd.ExecuteNonQueryAsync();
                                 }
                             }
@@ -352,13 +354,16 @@ namespace Aquora.Persistence.Services
 
                             // Reconcile and migrate historical raw material stock to inventory movements
                             var rawMaterials = await tenantContext.RawMaterials.Where(rm => !rm.IsDeleted).ToListAsync();
+                            var movementsSums = await tenantContext.InventoryMovements
+                                .Where(m => m.RawMaterialId != null && !m.IsDeleted)
+                                .GroupBy(m => m.RawMaterialId!.Value)
+                                .Select(g => new { RawMaterialId = g.Key, TotalQuantity = g.Sum(m => m.Quantity) })
+                                .ToDictionaryAsync(x => x.RawMaterialId, x => x.TotalQuantity);
+
                             bool reconciledAny = false;
                             foreach (var rm in rawMaterials)
                             {
-                                var movementsSum = await tenantContext.InventoryMovements
-                                    .Where(m => m.RawMaterialId == rm.Id && !m.IsDeleted)
-                                    .SumAsync(m => m.Quantity);
-
+                                var movementsSum = movementsSums.TryGetValue(rm.Id, out var sum) ? sum : 0m;
                                 var diff = rm.CurrentStock - movementsSum;
                                 if (diff != 0)
                                 {
@@ -545,6 +550,31 @@ namespace Aquora.Persistence.Services
                                     try
                                     {
                                         cmd.CommandText = $@"
+                                            CREATE TABLE IF NOT EXISTS ""{schema}"".""Companies"" (
+                                                ""Id"" uuid NOT NULL PRIMARY KEY,
+                                                ""Name"" text NOT NULL,
+                                                ""Code"" text NOT NULL,
+                                                ""IsActive"" boolean NOT NULL DEFAULT true,
+                                                ""TimeZone"" text NULL DEFAULT 'Asia/Kolkata',
+                                                ""DateFormat"" text NULL DEFAULT 'dd MMM yyyy',
+                                                ""TimeFormat"" text NULL DEFAULT '12h',
+                                                ""AdminPinHash"" text NULL,
+                                                ""ApiKey"" text NULL,
+                                                ""TenantId"" uuid NOT NULL,
+                                                ""CreatedAt"" timestamp with time zone NOT NULL,
+                                                ""CreatedBy"" text NOT NULL,
+                                                ""UpdatedAt"" timestamp with time zone NULL,
+                                                ""UpdatedBy"" text NULL,
+                                                ""CreatedByIP"" text NULL,
+                                                ""UpdatedByIP"" text NULL,
+                                                ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                                ""DeletedAt"" timestamp with time zone NULL,
+                                                ""DeletedBy"" text NULL
+                                            );
+
+                                            ALTER TABLE ""{schema}"".""Companies"" ADD COLUMN IF NOT EXISTS ""AdminPinHash"" text NULL;
+                                            ALTER TABLE ""{schema}"".""Companies"" ADD COLUMN IF NOT EXISTS ""ApiKey"" text NULL;
+                                            
                                             UPDATE ""{schema}"".""Companies"" 
                                             SET ""TimeZone"" = 'Asia/Kolkata'
                                             WHERE ""TimeZone"" IS NULL;
@@ -556,6 +586,8 @@ namespace Aquora.Persistence.Services
                                             UPDATE ""{schema}"".""Companies"" 
                                             SET ""TimeFormat"" = '12h'
                                             WHERE ""TimeFormat"" IS NULL;
+
+                                            UPDATE ""public"".""Tenants"" SET ""Currency"" = 'INR' WHERE ""Currency"" = 'USD' OR ""Currency"" IS NULL;
 
                                             ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""PaymentMethod"" text NULL;
                                             ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""BankAccountId"" uuid NULL;
@@ -671,6 +703,25 @@ namespace Aquora.Persistence.Services
                                                 ""UpdatedBy"" text NULL,
                                                 ""DeletedAt"" timestamp with time zone NULL,
                                                 ""DeletedBy"" text NULL
+                                            );
+
+                                            CREATE TABLE IF NOT EXISTS ""{schema}"".""OperationsIssueAffectedMachines"" (
+                                                ""Id"" uuid NOT NULL PRIMARY KEY,
+                                                ""IssueId"" uuid NOT NULL,
+                                                ""MachineId"" uuid NOT NULL,
+                                                ""MachineName"" text NOT NULL,
+                                                ""MachineCode"" text NULL,
+                                                CONSTRAINT fk_issue_affected_machines FOREIGN KEY (""IssueId"") REFERENCES ""{schema}"".""OperationsIssues"" (""Id"") ON DELETE CASCADE
+                                            );
+
+                                            CREATE UNIQUE INDEX IF NOT EXISTS uq_issue_affected_machines ON ""{schema}"".""OperationsIssueAffectedMachines"" (""IssueId"", ""MachineId"");
+
+                                            INSERT INTO ""{schema}"".""OperationsIssueAffectedMachines"" (""Id"", ""IssueId"", ""MachineId"", ""MachineName"")
+                                            SELECT gen_random_uuid(), ""Id"", ""MachineId"", COALESCE(""MachineName"", 'Primary Machine')
+                                            FROM ""{schema}"".""OperationsIssues""
+                                            WHERE ""MachineId"" IS NOT NULL
+                                            AND NOT EXISTS (
+                                                SELECT 1 FROM ""{schema}"".""OperationsIssueAffectedMachines"" m WHERE m.""IssueId"" = ""{schema}"".""OperationsIssues"".""Id"" AND m.""MachineId"" = ""{schema}"".""OperationsIssues"".""MachineId""
                                             );
 
                                             CREATE TABLE IF NOT EXISTS ""{schema}"".""OperationsIssueComments"" (

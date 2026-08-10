@@ -323,7 +323,7 @@ export const OperatorLayout: React.FC = () => {
           <div className="flex items-center gap-2.5">
             <img src={BRAND.logo} alt={BRAND.name} className="h-9 w-auto object-contain shrink-0 bg-white/10 p-1 rounded-lg" />
             <div className="text-left">
-              <span className="font-extrabold text-xs leading-none tracking-tight block">Aquora</span>
+              <span className="font-extrabold text-xs leading-none tracking-tight block">Aquzio</span>
               <span className="font-bold text-[8px] uppercase tracking-widest block mt-0.5" style={{ color: lineTheme ? 'rgba(255,255,255,0.7)' : '#6B7280' }}>
                 Production Terminal
               </span>

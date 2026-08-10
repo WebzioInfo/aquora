@@ -33,7 +33,7 @@ export const CompanyLayout: React.FC = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
 
-  // Unread Count Query (15-second polling fallback)
+  // Initial sync unread count (real-time updates powered by SignalR)
   const { data: unreadCount = 0 } = useQuery<number>({
     queryKey: ['operationsUnreadCount'],
     queryFn: async () => {
@@ -44,10 +44,11 @@ export const CompanyLayout: React.FC = () => {
         return 0
       }
     },
-    refetchInterval: 15000
+    staleTime: Infinity,
+    refetchOnWindowFocus: false
   })
 
-  // Latest Notifications Query
+  // Initial sync latest notifications (real-time updates powered by SignalR)
   const { data: notificationsList = [] } = useQuery<any[]>({
     queryKey: ['operationsLatestNotifications'],
     queryFn: async () => {
@@ -58,7 +59,8 @@ export const CompanyLayout: React.FC = () => {
         return []
       }
     },
-    refetchInterval: 15000
+    staleTime: Infinity,
+    refetchOnWindowFocus: false
   })
 
   // Real-time SignalR Connection to /hubs/dashboard

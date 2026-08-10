@@ -343,49 +343,51 @@ PHASE 4: Active Database Instance Verification:
         }
         Log.Information("Database connectivity verified successfully.");
 
-        bool autoMigrate = builder.Configuration.GetValue<bool>("AUTO_MIGRATE_ON_STARTUP");
+        bool autoMigrate = builder.Configuration.GetValue<bool>("AUTO_MIGRATE_ON_STARTUP") || builder.Configuration.GetValue<bool>("Database:AutoMigrate");
+        bool autoRepair = builder.Configuration.GetValue<bool>("AUTO_REPAIR_ON_STARTUP") || builder.Configuration.GetValue<bool>("Database:AutoRepair");
         bool isMigrateCommand = args.Contains("migrate", StringComparer.OrdinalIgnoreCase);
+        bool isRepairSchemaCommand = args.Contains("repair-schema", StringComparer.OrdinalIgnoreCase);
+        bool isRepairDateTimeCommand = args.Contains("repair-datetime", StringComparer.OrdinalIgnoreCase);
+        bool isMaintenanceCommand = isMigrateCommand || isRepairSchemaCommand || isRepairDateTimeCommand;
 
         Log.Information("--------------------------------------------------");
         Log.Information("STARTUP AUDIT:");
         Log.Information("  1. Database Connectivity: VERIFIED");
-        Log.Information("  2. Auto Migration Policy: AUTO_MIGRATE_ON_STARTUP = {AutoMigrate}", autoMigrate);
-        Log.Information("  3. CLI Migration Command: {IsMigrateCommand}", isMigrateCommand);
-        Log.Information("  4. Background Workers: TenantProvisioningWorker, QueuedHostedService, OtpEmailWorker");
+        Log.Information("  2. Auto Migration Policy: AutoMigrate = {AutoMigrate}", autoMigrate);
+        Log.Information("  3. Auto Repair Policy: AutoRepair = {AutoRepair}", autoRepair);
+        Log.Information("  4. CLI Maintenance Command: {IsMaintenanceCommand}", isMaintenanceCommand);
+        Log.Information("  5. Background Workers: TenantProvisioningWorker, QueuedHostedService, OtpEmailWorker");
         Log.Information("--------------------------------------------------");
 
-        try
+        if (autoMigrate || isMaintenanceCommand)
         {
-            Log.Information("[DATABASE MIGRATION]: Running database schema sync and migrations...");
-            var migrationService = services.GetRequiredService<IMigrationService>();
-            await migrationService.MigrateAllAsync();
-            Log.Information("[DATABASE MIGRATION]: Migration and schema sync completed successfully.");
-
-            if (isMigrateCommand)
+            try
             {
-                Log.Information("[DATABASE MIGRATION]: CLI Command 'migrate' completed successfully. Exiting process.");
-                return;
+                Log.Information("[DATABASE MAINTENANCE]: Running database migration and schema repair (explicitly requested)...");
+                var migrationService = services.GetRequiredService<IMigrationService>();
+                await migrationService.MigrateAllAsync();
+                Log.Information("[DATABASE MAINTENANCE]: Migration and schema repair completed successfully.");
+
+                if (isMaintenanceCommand)
+                {
+                    Log.Information("[DATABASE MAINTENANCE]: CLI Maintenance Command completed successfully. Exiting process.");
+                    Environment.Exit(0);
+                    return;
+                }
+
+                var validator = services.GetRequiredService<Aquora.Persistence.Services.DatabaseSchemaValidator>();
+                await validator.ValidateSchemaAsync(platformContext, "public");
+                Log.Information("[DATABASE MAINTENANCE]: Schema validation passed successfully.");
+            }
+            catch (Exception migrationEx)
+            {
+                Log.Fatal(migrationEx, "[DATABASE MAINTENANCE ERROR]: A fatal error occurred during database migration execution.");
+                throw;
             }
         }
-        catch (Exception migrationEx)
+        else
         {
-            Log.Fatal(migrationEx, "[DATABASE MIGRATION ERROR]: A fatal error occurred during database migration execution.");
-            throw;
-        }
-
-        // --- GOD MODE SCHEMA VALIDATION ---
-        Log.Information("--------------------------------------------------");
-        Log.Information("PHASE 5: Enforcing strict schema validation...");
-        try
-        {
-            var validator = services.GetRequiredService<Aquora.Persistence.Services.DatabaseSchemaValidator>();
-            await validator.ValidateSchemaAsync(platformContext, "public");
-            Log.Information("Schema validation passed successfully. No orphans or mismatches detected.");
-        }
-        catch (Exception schemaEx)
-        {
-            Log.Fatal(schemaEx, "STARTUP ABORTED: Database Schema Validation Failed.");
-            throw; // Fail fast
+            Log.Information("[NORMAL RUNTIME]: Fast & Idempotent API Startup — Skipping automatic database migration, schema repair, and tenant-wide data scanning.");
         }
         Log.Information("--------------------------------------------------");
     }

@@ -86,6 +86,7 @@ namespace Aquora.Application.Interfaces
 
         // Operations Issue Management System Module
         DbSet<Aquora.Domain.Entities.Operations.OperationsIssue> OperationsIssues { get; }
+        DbSet<Aquora.Domain.Entities.Operations.OperationsIssueAffectedMachine> OperationsIssueAffectedMachines { get; }
         DbSet<Aquora.Domain.Entities.Operations.OperationsIssueComment> OperationsIssueComments { get; }
         DbSet<Aquora.Domain.Entities.Operations.OperationsIssueHistory> OperationsIssueHistories { get; }
 

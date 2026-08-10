@@ -3,6 +3,13 @@ using System.Collections.Generic;
 
 namespace Aquora.Application.DTOs.Operations
 {
+    public class AffectedMachineItemDto
+    {
+        public Guid MachineId { get; set; }
+        public string MachineName { get; set; } = string.Empty;
+        public string? MachineCode { get; set; }
+    }
+
     public class OperationsIssueDto
     {
         public Guid Id { get; set; }
@@ -21,6 +28,8 @@ namespace Aquora.Application.DTOs.Operations
 
         public Guid? MachineId { get; set; }
         public string? MachineName { get; set; }
+        public List<Guid> AffectedMachineIds { get; set; } = new List<Guid>();
+        public List<AffectedMachineItemDto> AffectedMachines { get; set; } = new List<AffectedMachineItemDto>();
         public Guid? ProductionLineId { get; set; }
         public string? ProductionLineName { get; set; }
         public Guid? BatchId { get; set; }
@@ -111,6 +120,8 @@ namespace Aquora.Application.DTOs.Operations
 
         public Guid? MachineId { get; set; }
         public string? MachineName { get; set; }
+        public List<Guid>? AffectedMachineIds { get; set; }
+        public List<string>? AffectedMachineNames { get; set; }
         public Guid? ProductionLineId { get; set; }
         public string? ProductionLineName { get; set; }
         public Guid? BatchId { get; set; }
@@ -163,6 +174,8 @@ namespace Aquora.Application.DTOs.Operations
         public string Description { get; set; } = string.Empty;
         public Guid? MachineId { get; set; }
         public string? MachineName { get; set; }
+        public List<Guid>? AffectedMachineIds { get; set; }
+        public List<string>? AffectedMachineNames { get; set; }
         public int? DowntimeMinutes { get; set; }
         public string? Attachments { get; set; }
     }

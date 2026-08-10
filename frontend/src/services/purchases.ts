@@ -1,4 +1,4 @@
-import { api } from './api'
+import { api, getDeduplicated } from './api'
 
 export interface PurchaseItem {
   id?: string
@@ -155,12 +155,12 @@ export const purchaseService = {
     category?: string
     paymentStatus?: string
   }) => {
-    const res = await api.get<{ data: PagedPurchasesResponse }>('/api/v1/purchases', { params })
+    const res = await getDeduplicated<{ data: PagedPurchasesResponse }>('/api/v1/purchases', { params })
     return res.data.data
   },
 
   getPurchaseById: async (id: string) => {
-    const res = await api.get<{ data: Purchase }>(`/api/v1/purchases/${id}`)
+    const res = await getDeduplicated<{ data: Purchase }>(`/api/v1/purchases/${id}`)
     return res.data.data
   },
 

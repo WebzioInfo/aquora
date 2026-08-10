@@ -1,4 +1,4 @@
-import { api } from './api'
+import { api, getDeduplicated } from './api'
 
 // ==========================================
 // TYPES
@@ -360,17 +360,17 @@ export const simpleAccountsService = {
     search?: string
     status?: string
   }) => {
-    const res = await api.get<{ data: PagedBankAccountsResponse }>('/api/v1/bank-accounts', { params })
+    const res = await getDeduplicated<{ data: PagedBankAccountsResponse }>('/api/v1/bank-accounts', { params })
     return res.data.data
   },
 
   getBankAccountDropdown: async () => {
-    const res = await api.get<{ data: BankAccountDropdown[] }>('/api/v1/bank-accounts/dropdown')
+    const res = await getDeduplicated<{ data: BankAccountDropdown[] }>('/api/v1/bank-accounts/dropdown')
     return res.data.data
   },
 
   getBankAccountById: async (id: string) => {
-    const res = await api.get<{ data: BankAccount }>(`/api/v1/bank-accounts/${id}`)
+    const res = await getDeduplicated<{ data: BankAccount }>(`/api/v1/bank-accounts/${id}`)
     return res.data.data
   },
 
@@ -390,7 +390,7 @@ export const simpleAccountsService = {
   },
 
   getCashBooks: async (params?: { pageNumber?: number, pageSize?: number, search?: string, status?: string }) => {
-    const res = await api.get<{ data: PagedCashBooksResponse }>('/api/v1/cash-books', { params })
+    const res = await getDeduplicated<{ data: PagedCashBooksResponse }>('/api/v1/cash-books', { params })
     return res.data.data
   },
 

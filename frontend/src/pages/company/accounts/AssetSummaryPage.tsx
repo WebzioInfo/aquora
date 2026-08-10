@@ -453,7 +453,7 @@ export const AssetSummaryPage: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-2">
           <EnterpriseButton onClick={() => setIsAddModalOpen(true)} variant="primary">
-            <Plus className="w-4 h-4 mr-1.5" /> + Add Asset
+            <Plus className="w-4 h-4 mr-1.5" /> Add Asset
           </EnterpriseButton>
           <EnterpriseButton onClick={() => setIsImportModalOpen(true)} variant="secondary">
             <Upload className="w-4 h-4 mr-1.5" /> Import
@@ -519,33 +519,29 @@ export const AssetSummaryPage: React.FC = () => {
       <div className="border-b border-slate-200 flex gap-6">
         <button
           onClick={() => setActiveTab('register')}
-          className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${
-            activeTab === 'register' ? 'border-[#1A56DB] text-[#1A56DB]' : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+          className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'register' ? 'border-[#1A56DB] text-[#1A56DB]' : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
         >
           Fixed Assets Register
         </button>
         <button
           onClick={() => setActiveTab('inventory')}
-          className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${
-            activeTab === 'inventory' ? 'border-[#1A56DB] text-[#1A56DB]' : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+          className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'inventory' ? 'border-[#1A56DB] text-[#1A56DB]' : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
         >
           Inventory Stock Valuation (Separated)
         </button>
         <button
           onClick={() => setActiveTab('maintenance')}
-          className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${
-            activeTab === 'maintenance' ? 'border-[#1A56DB] text-[#1A56DB]' : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+          className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'maintenance' ? 'border-[#1A56DB] text-[#1A56DB]' : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
         >
           Maintenance & Warranty Schedule
         </button>
         <button
           onClick={() => setActiveTab('reports')}
-          className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${
-            activeTab === 'reports' ? 'border-[#1A56DB] text-[#1A56DB]' : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+          className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'reports' ? 'border-[#1A56DB] text-[#1A56DB]' : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
         >
           Asset Reports & Analytics
         </button>
@@ -635,7 +631,7 @@ export const AssetSummaryPage: React.FC = () => {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold uppercase tracking-wider">
-                  <th className="p-3">Asset ID / Tag</th>
+
                   <th className="p-3">Asset Name</th>
                   <th className="p-3">Category</th>
                   <th className="p-3">Location / Department</th>
@@ -662,10 +658,6 @@ export const AssetSummaryPage: React.FC = () => {
                 ) : (
                   assetsList.map((asset) => (
                     <tr key={asset.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="p-3 font-mono">
-                        <span className="font-bold text-[#1A56DB] block">{asset.assetCode}</span>
-                        <span className="text-[10px] text-slate-400 font-semibold">{asset.assetTag}</span>
-                      </td>
                       <td className="p-3">
                         <span className="font-bold text-slate-900 block">{asset.assetName}</span>
                         {asset.serialNumber && <span className="text-[10px] text-slate-400 font-mono">SN: {asset.serialNumber}</span>}
@@ -698,10 +690,10 @@ export const AssetSummaryPage: React.FC = () => {
                             asset.currentStatus === 'Active' || asset.currentStatus === 'InUse'
                               ? 'success'
                               : asset.currentStatus === 'UnderMaintenance'
-                              ? 'warning'
-                              : asset.currentStatus === 'Disposed'
-                              ? 'danger'
-                              : 'gray'
+                                ? 'warning'
+                                : asset.currentStatus === 'Disposed'
+                                  ? 'danger'
+                                  : 'gray'
                           }
                         >
                           {asset.currentStatus}
@@ -709,13 +701,12 @@ export const AssetSummaryPage: React.FC = () => {
                       </td>
                       <td className="p-3 text-center">
                         <span
-                          className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                            asset.condition === 'Excellent' || asset.condition === 'Good'
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : asset.condition === 'Fair'
+                          className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${asset.condition === 'Excellent' || asset.condition === 'Good'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : asset.condition === 'Fair'
                               ? 'bg-amber-50 text-amber-700 border border-amber-200'
                               : 'bg-rose-50 text-rose-700 border border-rose-200'
-                          }`}
+                            }`}
                         >
                           {asset.condition}
                         </span>
@@ -1124,10 +1115,10 @@ export const AssetSummaryPage: React.FC = () => {
                   <div className="p-2 bg-blue-100/70 border border-blue-200 rounded-lg font-mono font-black text-slate-900 text-sm">
                     {formatCurrency(
                       (createForm.purchasePrice || 0) +
-                        (createForm.taxAmount || 0) +
-                        (createForm.freightCost || 0) +
-                        (createForm.installationCost || 0) +
-                        (createForm.otherCapitalizedCost || 0)
+                      (createForm.taxAmount || 0) +
+                      (createForm.freightCost || 0) +
+                      (createForm.installationCost || 0) +
+                      (createForm.otherCapitalizedCost || 0)
                     )}
                   </div>
                 </div>

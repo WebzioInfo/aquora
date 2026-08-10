@@ -1,21 +1,21 @@
 import React, { useState, useEffect } from 'react'
 import { api } from '../../../services/api'
 import { useNotificationStore } from '../../../store/useNotificationStore'
-import { ShieldAlert, Key, Eye, EyeOff, Copy, RefreshCw, Save } from 'lucide-react'
+import { ShieldCheck, Eye, EyeOff, Copy, RefreshCw, Save, Lock } from 'lucide-react'
 
 export const SecuritySettings: React.FC = () => {
   const { showToast } = useNotificationStore()
   const [loading, setLoading] = useState(true)
-  const [savingSecret, setSavingSecret] = useState(false)
+  const [savingPin, setSavingPin] = useState(false)
   const [regeneratingApi, setRegeneratingApi] = useState(false)
 
-  // Security keys state
-  const [secretKey, setSecretKey] = useState('')
-  const [confirmSecret, setConfirmSecret] = useState('')
-  const [hasSecretKey, setHasSecretKey] = useState(false)
+  // Security PIN state
+  const [adminPin, setAdminPin] = useState('')
+  const [confirmPin, setConfirmPin] = useState('')
+  const [isPinSet, setIsPinSet] = useState(false)
   const [apiKey, setApiKey] = useState('')
   
-  const [revealSecret, setRevealSecret] = useState(false)
+  const [revealPin, setRevealPin] = useState(false)
   const [revealApiKey, setRevealApiKey] = useState(false)
 
   const fetchSecurityConfig = async () => {
@@ -23,7 +23,7 @@ export const SecuritySettings: React.FC = () => {
       setLoading(true)
       const res = await api.get('/api/v1/company/security')
       if (res.data?.success && res.data?.data) {
-        setHasSecretKey(res.data.data.hasSecretKey)
+        setIsPinSet(!!(res.data.data.isPinSet || res.data.data.hasAdminPin || res.data.data.hasSecretKey))
         setApiKey(res.data.data.apiKey || '')
       }
     } catch (err: any) {
@@ -37,52 +37,44 @@ export const SecuritySettings: React.FC = () => {
     fetchSecurityConfig()
   }, [])
 
-  const handleGenerateSecret = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+~`|}{[]:;?><,./-='
-    let generated = ''
-    const array = new Uint32Array(64)
-    window.crypto.getRandomValues(array)
-    for (let i = 0; i < array.length; i++) {
-      generated += chars[array[i] % chars.length]
-    }
-    setSecretKey(generated)
-    setConfirmSecret(generated)
-    setRevealSecret(true)
-    showToast('Secure secret generated. Verify details and save.', 'info')
+  const handlePinChange = (val: string, setter: React.Dispatch<React.SetStateAction<string>>) => {
+    const numeric = val.replace(/\D/g, '').slice(0, 4)
+    setter(numeric)
   }
 
-  const handleSaveSecret = async (e: React.FormEvent) => {
+  const handleSavePin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!secretKey) {
-      showToast('Please enter a secret key.', 'error')
+    if (!adminPin || adminPin.length !== 4) {
+      showToast('PIN must be exactly 4 digits.', 'error')
       return
     }
-    if (secretKey.length < 64) {
-      showToast('Secret key must be at least 64 characters long.', 'error')
-      return
-    }
-    if (secretKey !== confirmSecret) {
-      showToast('Secrets do not match.', 'error')
+    if (adminPin !== confirmPin) {
+      showToast('PINs do not match.', 'error')
       return
     }
 
     try {
-      setSavingSecret(true)
-      const res = await api.put('/api/v1/company/security', {
-        secretKey,
-        confirmSecret
+      setSavingPin(true)
+      const res = await api.put('/api/v1/company/security/admin-pin', {
+        adminPin: adminPin,
+        confirmAdminPin: confirmPin,
+        pin: adminPin,
+        confirmPin: confirmPin
       })
       if (res.data?.success) {
-        showToast('Company Secret Key saved securely.', 'success')
-        setSecretKey('')
-        setConfirmSecret('')
-        setRevealSecret(false)
+        showToast('Admin Security PIN saved successfully.', 'success')
+        setAdminPin('')
+        setConfirmPin('')
+        setRevealPin(false)
         fetchSecurityConfig()
+      } else {
+        showToast(res.data?.message || 'Failed to save Admin PIN.', 'error')
       }
     } catch (err: any) {
-      showToast(err.message || 'Failed to save secret key.', 'error')
+      const msg = err.response?.data?.message || err.message || 'Failed to save Admin PIN.'
+      showToast(msg, 'error')
     } finally {
-      setSavingSecret(false)
+      setSavingPin(false)
     }
   }
 
@@ -114,102 +106,100 @@ export const SecuritySettings: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-12 bg-white rounded-xl border border-slate-200">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <div className="flex items-center justify-center p-12 bg-white rounded-xl border border-slate-200 shadow-sm">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      {/* COMPANY SECRET CONFIGURATION */}
-      <form onSubmit={handleSaveSecret} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      {/* ADMIN SECURITY PIN CONFIGURATION */}
+      <form onSubmit={handleSavePin} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
           <div>
-            <h3 className="text-sm font-semibold text-slate-800">Company Secret</h3>
-            <p className="text-xs text-slate-500 mt-1">Configure the main administrative key for authorized ERP operations.</p>
+            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+              <Lock className="w-4 h-4 text-blue-600" /> Admin Security PIN
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">Set a 4-digit PIN required for sensitive administrator operations.</p>
           </div>
-          {hasSecretKey && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
-              Configured
+          {isPinSet ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <ShieldCheck className="w-3.5 h-3.5" /> Configured
+            </span>
+          ) : (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+              Not Set
             </span>
           )}
         </div>
         
-        <div className="p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-6 space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-xl">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Company Secret Key</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Admin PIN</label>
               <div className="relative">
                 <input
-                  type={revealSecret ? 'text' : 'password'}
-                  value={secretKey}
-                  onChange={(e) => setSecretKey(e.target.value)}
-                  className="w-full text-sm border-slate-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg p-2.5 pr-20 border font-mono"
-                  placeholder="At least 64 characters"
+                  type={revealPin ? 'text' : 'password'}
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={adminPin}
+                  onChange={(e) => handlePinChange(e.target.value, setAdminPin)}
+                  className="w-full text-sm border-slate-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg p-2.5 pr-10 border font-mono tracking-widest text-center"
+                  placeholder="• • • •"
                 />
-                <div className="absolute right-2 top-2 flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setRevealSecret(!revealSecret)}
-                    className="p-1 hover:bg-slate-100 rounded text-slate-500"
-                  >
-                    {revealSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!secretKey}
-                    onClick={() => handleCopy(secretKey, 'Secret Key')}
-                    className="p-1 hover:bg-slate-100 rounded text-slate-500 disabled:opacity-40"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setRevealPin(!revealPin)}
+                  className="absolute right-2 top-2.5 p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {revealPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Confirm Secret</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Confirm PIN</label>
               <input
-                type={revealSecret ? 'text' : 'password'}
-                value={confirmSecret}
-                onChange={(e) => setConfirmSecret(e.target.value)}
-                className="w-full text-sm border-slate-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg p-2.5 border font-mono"
-                placeholder="Re-enter secret key"
+                type={revealPin ? 'text' : 'password'}
+                inputMode="numeric"
+                maxLength={4}
+                value={confirmPin}
+                onChange={(e) => handlePinChange(e.target.value, setConfirmPin)}
+                className="w-full text-sm border-slate-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg p-2.5 border font-mono tracking-widest text-center"
+                placeholder="• • • •"
               />
             </div>
           </div>
 
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 flex gap-3">
-            <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="p-4 bg-blue-50/60 border border-blue-100 rounded-xl text-xs text-blue-900 flex gap-3">
+            <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
             <div>
-              <h4 className="font-semibold mb-1">Strict Requirements & Protection</h4>
-              <p className="leading-relaxed">
-                The Company Secret is used for secure back-channel operations (e.g. resetting employee passwords safely). 
-                It is stored in the database as a non-reversible cryptographic hash. Generating a key must satisfy a minimum length of 64 characters.
+              <h4 className="font-semibold mb-1">Sensitive Access</h4>
+              <p className="leading-relaxed opacity-90">
+                This PIN is required before viewing sensitive user credentials or performing protected administrator operations.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-between">
-          <button
-            type="button"
-            onClick={handleGenerateSecret}
-            className="border border-slate-200 hover:bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2"
-          >
-            <Key className="w-4 h-4 text-slate-500" />
-            Generate Secure Secret
-          </button>
-          
+        <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
           <button
             type="submit"
-            disabled={savingSecret}
-            className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors disabled:bg-blue-400 flex items-center gap-2"
+            disabled={savingPin || adminPin.length !== 4 || confirmPin.length !== 4}
+            className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm active:scale-95"
           >
-            {savingSecret && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-            <Save className="w-4 h-4" />
-            Save Secret
+            {savingPin ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                <span>Save PIN</span>
+              </>
+            )}
           </button>
         </div>
       </form>
@@ -218,7 +208,7 @@ export const SecuritySettings: React.FC = () => {
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-4 border-b border-slate-100 bg-slate-50/50">
           <h3 className="text-sm font-semibold text-slate-800">API Key</h3>
-          <p className="text-xs text-slate-500 mt-1">Credentials for integrating Aquora ERP with third-party software.</p>
+          <p className="text-xs text-slate-500 mt-1">Credentials for integrating Aquzio ERP with third-party software.</p>
         </div>
         
         <div className="p-6 space-y-4">
@@ -258,7 +248,7 @@ export const SecuritySettings: React.FC = () => {
             type="button"
             disabled={regeneratingApi}
             onClick={handleRegenerateApiKey}
-            className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors disabled:bg-blue-400 flex items-center gap-2"
+            className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center gap-2 shadow-sm active:scale-95"
           >
             {regeneratingApi ? (
               <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

@@ -125,8 +125,11 @@ export const OperationsIssuesListPage: React.FC = () => {
     }
   }, [search, selectedDept, selectedPriority, selectedStatus])
 
+  const [hasError, setHasError] = useState(false);
+
   const fetchData = async () => {
     setIsLoading(true);
+    setHasError(false);
     try {
       const [issuesRes, dashRes] = await Promise.all([
         operationsIssueApi.getIssues({
@@ -144,6 +147,7 @@ export const OperationsIssuesListPage: React.FC = () => {
       setTotalCount(issuesRes.data.totalCount || 0);
       setDashboard(dashRes.data);
     } catch (error) {
+      setHasError(true);
       toast.error('Failed to load operations issues');
     } finally {
       setIsLoading(false);
@@ -220,8 +224,8 @@ export const OperationsIssuesListPage: React.FC = () => {
 
       {/* KPI Cards */}
       {dashboard && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <EnterpriseCard className="p-4 bg-white border border-slate-200">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          <EnterpriseCard className="p-3.5 bg-white border border-slate-200">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Unread Incidents</p>
@@ -238,7 +242,7 @@ export const OperationsIssuesListPage: React.FC = () => {
             </div>
           </EnterpriseCard>
 
-          <EnterpriseCard className="p-4 bg-white border border-slate-200">
+          <EnterpriseCard className="p-3.5 bg-white border border-slate-200">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Open Incidents</p>
@@ -250,7 +254,7 @@ export const OperationsIssuesListPage: React.FC = () => {
             </div>
           </EnterpriseCard>
 
-          <EnterpriseCard className="p-4 bg-white border border-slate-200">
+          <EnterpriseCard className="p-3.5 bg-white border border-slate-200">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Critical / Emergency</p>
@@ -262,7 +266,7 @@ export const OperationsIssuesListPage: React.FC = () => {
             </div>
           </EnterpriseCard>
 
-          <EnterpriseCard className="p-4 bg-white border border-slate-200">
+          <EnterpriseCard className="p-3.5 bg-white border border-slate-200">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Machine Downtime</p>
@@ -274,19 +278,7 @@ export const OperationsIssuesListPage: React.FC = () => {
             </div>
           </EnterpriseCard>
 
-          <EnterpriseCard className="p-4 bg-white border border-slate-200">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Avg Resolution Time</p>
-                <h3 className="text-2xl font-black text-slate-900 mt-1">{dashboard.avgResolutionTimeHours} <span className="text-xs font-normal text-slate-500">hrs</span></h3>
-              </div>
-              <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-lg">
-                <Clock className="w-5 h-5" />
-              </div>
-            </div>
-          </EnterpriseCard>
-
-          <EnterpriseCard className="p-4 bg-white border border-slate-200">
+          <EnterpriseCard className="p-3.5 bg-white border border-slate-200">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Resolved Today</p>
@@ -380,6 +372,17 @@ export const OperationsIssuesListPage: React.FC = () => {
             <div className="p-12 text-center">
               <EnterpriseLoading label="Loading operations issues..." />
             </div>
+          ) : hasError ? (
+            <EnterpriseCard className="p-12 text-center space-y-3 bg-red-50/50 border border-red-200">
+              <AlertTriangle className="w-10 h-10 text-red-500 mx-auto" />
+              <h3 className="text-base font-bold text-red-900">Unable to load operations issues</h3>
+              <p className="text-xs text-red-700 max-w-sm mx-auto">
+                An error occurred while fetching issues from the server. Please try again.
+              </p>
+              <EnterpriseButton variant="primary" onClick={fetchData}>
+                Retry
+              </EnterpriseButton>
+            </EnterpriseCard>
           ) : issues.length === 0 ? (
             <EnterpriseCard className="p-12 text-center space-y-3 bg-white border border-slate-200">
               <AlertTriangle className="w-10 h-10 text-slate-300 mx-auto" />
@@ -424,9 +427,36 @@ export const OperationsIssuesListPage: React.FC = () => {
                             {row.title}
                           </p>
                         </div>
-                        <p className="text-[11px] text-slate-500">{row.category} {row.machineName ? `• ${row.machineName}` : ''}</p>
+                        <p className="text-[11px] text-slate-500">{row.category}</p>
                       </div>
                     )
+                  },
+                  {
+                    id: 'affectedMachines',
+                    header: 'Affected Machines',
+                    cell: (row: OperationsIssue) => {
+                      const machines = row.affectedMachines && row.affectedMachines.length > 0
+                        ? row.affectedMachines.map(m => m.machineName)
+                        : (row.machineName ? [row.machineName] : []);
+
+                      if (machines.length === 0) {
+                        return <span className="text-slate-400 text-xs italic">—</span>;
+                      }
+
+                      if (machines.length === 1) {
+                        return <span className="text-xs font-semibold text-slate-800">{machines[0]}</span>;
+                      }
+
+                      const tooltipText = machines.join(', ');
+                      return (
+                        <div className="flex items-center gap-1.5" title={tooltipText}>
+                          <span className="text-xs font-semibold text-slate-800">{machines[0]}</span>
+                          <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 flex-shrink-0">
+                            +{machines.length - 1} more
+                          </span>
+                        </div>
+                      );
+                    }
                   },
                   {
                     id: 'batchNumber',

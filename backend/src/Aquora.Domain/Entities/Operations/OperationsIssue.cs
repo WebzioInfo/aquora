@@ -71,6 +71,7 @@ namespace Aquora.Domain.Entities.Operations
         public string? Attachments { get; set; }
 
         // Collections
+        public virtual ICollection<OperationsIssueAffectedMachine> AffectedMachines { get; set; } = new List<OperationsIssueAffectedMachine>();
         public virtual ICollection<OperationsIssueComment> Comments { get; set; } = new List<OperationsIssueComment>();
         public virtual ICollection<OperationsIssueHistory> HistoryLogs { get; set; } = new List<OperationsIssueHistory>();
 

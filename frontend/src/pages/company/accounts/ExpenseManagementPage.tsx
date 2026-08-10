@@ -553,7 +553,7 @@ export const ExpenseManagementPage: React.FC = () => {
                 <div className="relative"><Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><input type="text" placeholder="Search cash book..." value={cashBookSearchTerm} onChange={(e) => setCashBookSearchTerm(e.target.value)} className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600" /></div>
                 <select value={formData.cashBookId} onChange={(e) => setFormData({ ...formData, cashBookId: e.target.value })} className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600 font-semibold">
                   <option value="">-- Choose Cash Book --</option>
-                  {filteredCashBooks.map(c => <option key={c.id} value={c.id}>{c.name} [Bal: ?{c.currentBalance.toLocaleString('en-IN')}]</option>)}
+                  {filteredCashBooks.map(c => <option key={c.id} value={c.id}>{c.name} [Bal: ₹ {c.currentBalance.toLocaleString('en-IN')}]</option>)}
                 </select>
                 {(!cashBooks || cashBooks.length === 0) && <p className="text-[10px] text-amber-600 font-medium mt-1">No active cash books found. Please create one in Ledger first.</p>}
               </div>
@@ -562,7 +562,7 @@ export const ExpenseManagementPage: React.FC = () => {
             {formData.paymentMethod === 'Bank' && (
               <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-2">
                 <label className="block text-xs font-bold text-indigo-900 uppercase">Select Bank Account *</label>
-                
+
                 {/* Search Box */}
                 <div className="relative">
                   <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />

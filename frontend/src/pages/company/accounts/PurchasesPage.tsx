@@ -135,9 +135,19 @@ export const PurchasesPage: React.FC = () => {
     }
   }
 
+  const [debouncedSearch, setDebouncedSearch] = useState(search)
+
+  useEffect(() => {
+    if (search === debouncedSearch) return
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search)
+    }, 300)
+    return () => clearTimeout(handler)
+  }, [search, debouncedSearch])
+
   useEffect(() => {
     fetchPurchases()
-  }, [pageNumber, search, dateFilter, startDate, endDate, selectedVendorId, selectedCategory, selectedTaxType, selectedStatus, selectedPaymentMethod, minAmount, maxAmount, sortBy])
+  }, [pageNumber, debouncedSearch, dateFilter, startDate, endDate, selectedVendorId, selectedCategory, selectedTaxType, selectedStatus, selectedPaymentMethod, minAmount, maxAmount, sortBy])
 
   const clearFilters = () => {
     setSearch('')

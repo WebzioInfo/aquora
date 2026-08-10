@@ -479,6 +479,7 @@ namespace Aquora.API.Controllers
         }
 
         [HttpPut("reset-password")]
+        [HttpPost("reset-password")]
         public async Task<ActionResult<ApiResponse<bool>>> ResetPassword([FromBody] ResetEmployeePasswordRequest request)
         {
             try
@@ -490,11 +491,17 @@ namespace Aquora.API.Controllers
                 }
 
                 var tenantId = GetTenantId();
+                var adminPin = request.ResolvedAdminPin;
 
-                if (!VerifySecurityPin(tenantId, request.Pin))
+                if (string.IsNullOrWhiteSpace(adminPin))
                 {
-                    await LogSecurityAuditAsync(tenantId, "InvalidPin", request.EmployeeId.ToString(), "Invalid Company Secret PIN attempt during password reset.");
-                    return BadRequest(ApiResponse<bool>.CreateFailure("Invalid Company Secret PIN.", "Validation Error", HttpContext.TraceIdentifier));
+                    return BadRequest(ApiResponse<bool>.CreateFailure("Admin PIN is required.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                if (!VerifySecurityPin(tenantId, adminPin))
+                {
+                    await LogSecurityAuditAsync(tenantId, "InvalidPin", request.EmployeeId.ToString(), "Invalid Admin PIN attempt during password reset.");
+                    return BadRequest(ApiResponse<bool>.CreateFailure("Invalid admin PIN.", "Validation Error", HttpContext.TraceIdentifier));
                 }
 
                 var user = await _platformContext.Users
@@ -571,13 +578,29 @@ namespace Aquora.API.Controllers
                     return StatusCode(403, ApiResponse<bool>.CreateFailure("Only Company Admin can set the security PIN.", "Forbidden", HttpContext.TraceIdentifier));
                 }
 
-                if (request.Pin != request.ConfirmPin)
+                var pin = request.ResolvedAdminPin;
+                var confirmPin = request.ResolvedConfirmPin;
+
+                if (string.IsNullOrWhiteSpace(pin) || pin.Length != 4 || !pin.All(char.IsDigit))
                 {
-                    return BadRequest(ApiResponse<bool>.CreateFailure("PIN and Confirm PIN do not match.", "Validation Error", HttpContext.TraceIdentifier));
+                    return BadRequest(ApiResponse<bool>.CreateFailure("Admin PIN must be exactly 4 digits.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                if (pin != confirmPin)
+                {
+                    return BadRequest(ApiResponse<bool>.CreateFailure("PINs do not match.", "Validation Error", HttpContext.TraceIdentifier));
                 }
 
                 var tenantId = GetTenantId();
-                var pinHash = _passwordHasher.HashPassword(request.Pin);
+                var pinHash = _passwordHasher.HashPassword(pin);
+
+                var company = await _tenantContext.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
+                if (company != null)
+                {
+                    company.AdminPinHash = pinHash;
+                    await _tenantContext.SaveChangesAsync();
+                }
+
                 SaveSecurityPinHash(tenantId, pinHash);
 
                 return Success(true, "Security PIN updated successfully.");
@@ -608,13 +631,20 @@ namespace Aquora.API.Controllers
         {
             try
             {
+                var pin = request.ResolvedAdminPin;
+                if (string.IsNullOrWhiteSpace(pin) || pin.Length != 4 || !pin.All(char.IsDigit))
+                {
+                    return BadRequest(ApiResponse<bool>.CreateFailure("Admin PIN must be exactly 4 digits.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
                 var tenantId = GetTenantId();
-                var isValid = VerifySecurityPin(tenantId, request.Pin);
+                var isValid = VerifySecurityPin(tenantId, pin);
                 if (!isValid)
                 {
-                    await LogSecurityAuditAsync(tenantId, "InvalidPin", null, "Invalid Company Secret PIN verification attempt.");
+                    await LogSecurityAuditAsync(tenantId, "InvalidPin", null, "Invalid Admin PIN verification attempt.");
+                    return BadRequest(ApiResponse<bool>.CreateFailure("Invalid admin PIN.", "Validation Error", HttpContext.TraceIdentifier));
                 }
-                return Success(isValid, "PIN verification checked.");
+                return Success(true, "Admin PIN verified successfully.");
             }
             catch (Exception ex)
             {
@@ -634,11 +664,17 @@ namespace Aquora.API.Controllers
                 }
 
                 var tenantId = GetTenantId();
+                var adminPin = request.ResolvedAdminPin;
 
-                if (!VerifySecurityPin(tenantId, request.Pin))
+                if (string.IsNullOrWhiteSpace(adminPin))
                 {
-                    await LogSecurityAuditAsync(tenantId, "InvalidPin", request.EmployeeId.ToString(), "Invalid Company Secret PIN attempt during password view.");
-                    return BadRequest(ApiResponse<string>.CreateFailure("Invalid Company Secret PIN.", "Validation Error", HttpContext.TraceIdentifier));
+                    return BadRequest(ApiResponse<string>.CreateFailure("Admin PIN is required.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                if (!VerifySecurityPin(tenantId, adminPin))
+                {
+                    await LogSecurityAuditAsync(tenantId, "InvalidPin", request.EmployeeId.ToString(), "Invalid Admin PIN attempt during password view.");
+                    return BadRequest(ApiResponse<string>.CreateFailure("Invalid admin PIN.", "Validation Error", HttpContext.TraceIdentifier));
                 }
 
                 var secrets = GetEmployeeSecrets(tenantId);
@@ -681,6 +717,16 @@ namespace Aquora.API.Controllers
 
         private string? GetSecurityPinHash(Guid tenantId)
         {
+            try
+            {
+                var company = _tenantContext.Companies.FirstOrDefault(c => !c.IsDeleted);
+                if (company != null && !string.IsNullOrEmpty(company.AdminPinHash))
+                {
+                    return company.AdminPinHash;
+                }
+            }
+            catch { }
+
             var path = GetSecurityPinFilePath(tenantId);
             if (!System.IO.File.Exists(path)) return null;
             try
@@ -697,9 +743,10 @@ namespace Aquora.API.Controllers
 
         private bool VerifySecurityPin(Guid tenantId, string pin)
         {
+            if (string.IsNullOrWhiteSpace(pin)) return false;
             var hash = GetSecurityPinHash(tenantId);
             if (string.IsNullOrEmpty(hash)) return false;
-            return _passwordHasher.VerifyPassword(pin, hash);
+            return _passwordHasher.VerifyPassword(pin.Trim(), hash);
         }
 
         private void SaveSecurityPinHash(Guid tenantId, string pinHash)

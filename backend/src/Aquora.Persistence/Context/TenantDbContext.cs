@@ -109,6 +109,7 @@ namespace Aquora.Persistence.Context
 
         // Operations Issue Management System Module
         public DbSet<Aquora.Domain.Entities.Operations.OperationsIssue> OperationsIssues => Set<Aquora.Domain.Entities.Operations.OperationsIssue>();
+        public DbSet<Aquora.Domain.Entities.Operations.OperationsIssueAffectedMachine> OperationsIssueAffectedMachines => Set<Aquora.Domain.Entities.Operations.OperationsIssueAffectedMachine>();
         public DbSet<Aquora.Domain.Entities.Operations.OperationsIssueComment> OperationsIssueComments => Set<Aquora.Domain.Entities.Operations.OperationsIssueComment>();
         public DbSet<Aquora.Domain.Entities.Operations.OperationsIssueHistory> OperationsIssueHistories => Set<Aquora.Domain.Entities.Operations.OperationsIssueHistory>();
 
@@ -128,6 +129,17 @@ namespace Aquora.Persistence.Context
 
             modelBuilder.Entity<TenantDomain>()
                 .ToTable("TenantDomains", "public", t => t.ExcludeFromMigrations());
+
+            // High-Performance Composite Indexes for Purchases, Bank Ledger, and Cash Book
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.Purchase>()
+                .HasIndex(p => new { p.TenantId, p.IsDeleted, p.PurchaseDate, p.CreatedAt });
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.Purchase>()
+                .HasIndex(p => new { p.TenantId, p.VendorId, p.IsDeleted });
+
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+                .HasIndex(b => new { b.TenantId, b.BankAccountId, b.TransactionDate, b.CreatedAt });
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+                .HasIndex(b => new { b.TenantId, b.CashBookId, b.LedgerAccountType, b.TransactionDate, b.CreatedAt });
 
             // BackupHistory Configuration (Make tracking fields safely nullable for backward compatibility)
             modelBuilder.Entity<Aquora.Domain.Entities.Administration.BackupHistory>()
@@ -163,6 +175,16 @@ namespace Aquora.Persistence.Context
                 .WithMany(p => p.Results)
                 .HasForeignKey(r => r.ParameterId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Aquora.Domain.Entities.Operations.OperationsIssueAffectedMachine>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.IssueId, e.MachineId }).IsUnique();
+                entity.HasOne(e => e.Issue)
+                      .WithMany(i => i.AffectedMachines)
+                      .HasForeignKey(e => e.IssueId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
 
             modelBuilder.Entity<UserRole>()
                 .HasIndex(ur => new { ur.UserId, ur.RoleId });

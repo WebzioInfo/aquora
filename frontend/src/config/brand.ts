@@ -1,6 +1,6 @@
 export const BRAND = {
-  name: "Aquora",
-  fullTitle: "Aquora",
+  name: "Aquzio",
+  fullTitle: "Aquzio",
   tagline: "Enterprise SaaS ERP",
   logo: "/assets/branding/aquora-logo.png",
   watermarkLogo: "/assets/branding/aquora-watermark.png",

@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { 
-  ArrowLeft, Edit3, Landmark, Activity, FileText, 
+import {
+  ArrowLeft, Edit3, Landmark, Activity, FileText,
   MapPin, Phone, Mail, User, ShieldAlert,
   Coins, Briefcase, FileSignature, Clock, BookOpen, Truck
 } from 'lucide-react'
@@ -54,8 +54,8 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
           <p className="text-xs text-slate-400 max-w-sm mx-auto mb-6">
             The customer record might have been deleted, or you do not have permission to view it.
           </p>
-          <EnterpriseButton 
-            variant="secondary" 
+          <EnterpriseButton
+            variant="secondary"
             onClick={() => navigate('/company/customers')}
             className="inline-flex items-center gap-1.5"
           >
@@ -99,60 +99,60 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
             Back
           </button>
         </div>
-        
+
         <div className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-black text-xl uppercase shrink-0">
               {customer.customerName.charAt(0)}
             </div>
             <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold text-slate-900 leading-none">{customer.customerName}</h2>
-              <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                {customer.customerCode}
-              </span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isB2B ? 'bg-indigo-50 text-indigo-600' : 'bg-orange-50 text-orange-600'}`}>
-                {customer.customerType}
-              </span>
-              <EnterpriseBadge 
-                variant={customer.status === 'Active' ? 'success' : 'danger'}
-                className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5"
-              >
-                {customer.status}
-              </EnterpriseBadge>
-            </div>
-            {customer.businessName && (
-              <p className="text-xs font-medium text-slate-500 mt-1">{customer.businessName}</p>
-            )}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-500 text-xs mt-2">
-              <span className="flex items-center gap-1 font-mono">
-                <Phone className="w-3.5 h-3.5" /> {customer.phone}
-              </span>
-              {customer.email && (
-                <span className="flex items-center gap-1">
-                  <Mail className="w-3.5 h-3.5" /> {customer.email}
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold text-slate-900 leading-none">{customer.customerName}</h2>
+                <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                  {customer.customerCode}
                 </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isB2B ? 'bg-indigo-50 text-indigo-600' : 'bg-orange-50 text-orange-600'}`}>
+                  {customer.customerType}
+                </span>
+                <EnterpriseBadge
+                  variant={customer.status === 'Active' ? 'success' : 'danger'}
+                  className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5"
+                >
+                  {customer.status}
+                </EnterpriseBadge>
+              </div>
+              {customer.businessName && (
+                <p className="text-xs font-medium text-slate-500 mt-1">{customer.businessName}</p>
               )}
-              <span className="flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5" /> {customer.city}, {customer.state}
-              </span>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-500 text-xs mt-2">
+                <span className="flex items-center gap-1 font-mono">
+                  <Phone className="w-3.5 h-3.5" /> {customer.phone}
+                </span>
+                {customer.email && (
+                  <span className="flex items-center gap-1">
+                    <Mail className="w-3.5 h-3.5" /> {customer.email}
+                  </span>
+                )}
+                <span className="flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5" /> {customer.city}, {customer.state}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2">
-          <EnterpriseButton 
-            variant="primary" 
-            onClick={() => onEditCustomer(customer)}
-            className="inline-flex items-center gap-1.5 h-8 px-3 font-bold text-xs"
-          >
-            <Edit3 className="w-3.5 h-3.5" /> Edit
-          </EnterpriseButton>
-          <EnterpriseButton variant="secondary" disabled className="h-8 px-3 font-bold text-xs opacity-50">Deactivate</EnterpriseButton>
-          <EnterpriseButton variant="danger" disabled className="h-8 px-3 font-bold text-xs opacity-50">Delete</EnterpriseButton>
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            <EnterpriseButton
+              variant="primary"
+              onClick={() => onEditCustomer(customer)}
+              className="inline-flex items-center gap-1.5 h-8 px-3 font-bold text-xs"
+            >
+              <Edit3 className="w-3.5 h-3.5" /> Edit
+            </EnterpriseButton>
+            <EnterpriseButton variant="secondary" disabled className="h-8 px-3 font-bold text-xs opacity-50">Deactivate</EnterpriseButton>
+            <EnterpriseButton variant="danger" disabled className="h-8 px-3 font-bold text-xs opacity-50">Delete</EnterpriseButton>
+          </div>
         </div>
-      </div>
       </div>
 
       {/* TABS */}
@@ -354,7 +354,7 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
                     </div>
                     <div>
                       <span className="block text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Preferred Brand</span>
-                      <span className="block font-semibold text-slate-800 leading-none">{customer.preferredJarBrand || 'Default (Aquora)'}</span>
+                      <span className="block font-semibold text-slate-800 leading-none">{customer.preferredJarBrand || 'Default (Aquzio)'}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -405,7 +405,7 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
             <div>
               <h5 className="text-sm font-bold text-slate-800">Module Integration Placeholder</h5>
               <p className="text-xs text-slate-500 max-w-sm mx-auto mt-2 leading-relaxed">
-                The {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} subview is a visual placeholder for the upcoming ERP module implementation. 
+                The {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} subview is a visual placeholder for the upcoming ERP module implementation.
                 Transaction logs, outstanding ledger mappings, and analytical reports are currently out of scope.
               </p>
             </div>

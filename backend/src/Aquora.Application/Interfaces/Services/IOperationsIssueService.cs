@@ -34,6 +34,7 @@ namespace Aquora.Application.Interfaces.Services
         Task<OperationsIssueDto?> CreateMaintenanceWorkOrderAsync(Guid id);
         Task<bool> DeleteIssueAsync(Guid id);
         Task<OperationsIssueDashboardDto> GetDashboardAsync();
+        Task<List<AffectedMachineItemDto>> GetAvailableMachinesAsync();
 
         // Real-time Notification & Read Status Tracking
         Task<int> GetUnreadCountAsync();

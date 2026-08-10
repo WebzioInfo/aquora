@@ -15,7 +15,7 @@ namespace Aquora.Domain.Entities
         public string Status { get; set; } = "Active"; // Active, Trial, Expired, Cancelled, Suspended, Upgraded, Downgraded
         public string BillingCycle { get; set; } = "Monthly";
         public decimal PricePaid { get; set; }
-        public string Currency { get; set; } = "USD";
+        public string Currency { get; set; } = "INR";
 
         public DateTime StartDate { get; set; } = DateTime.UtcNow;
         public DateTime EndDate { get; set; } = DateTime.UtcNow.AddDays(30);

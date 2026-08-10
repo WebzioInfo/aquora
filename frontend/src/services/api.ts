@@ -13,6 +13,27 @@ export const api = axios.create({
   },
 })
 
+// In-Flight GET Request Deduplication Cache
+const inFlightGetRequests = new Map<string, Promise<any>>()
+
+export const getDeduplicated = async <T = any>(url: string, config?: any): Promise<{ data: T }> => {
+  const key = `${url}:${JSON.stringify(config?.params || {})}`
+  if (inFlightGetRequests.has(key)) {
+    return inFlightGetRequests.get(key)
+  }
+
+  const promise = api.get<T>(url, config)
+    .then((res) => res)
+    .finally(() => {
+      setTimeout(() => {
+        inFlightGetRequests.delete(key)
+      }, 100)
+    })
+
+  inFlightGetRequests.set(key, promise)
+  return promise
+}
+
 // Request Interceptor: Attach Token & Tenant ID
 api.interceptors.request.use(
   (config) => {

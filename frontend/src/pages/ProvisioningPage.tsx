@@ -8,9 +8,9 @@ import { authService } from '../services/auth'
 import { api, API_BASE_URL } from '../services/api'
 import BRAND from '../config/brand'
 import AuthWatermark from '../components/ui/AuthWatermark'
-import { 
+import {
   Server, Database, CheckCircle2, AlertTriangle, AlertCircle, HelpCircle, LogOut, Wifi, WifiOff,
-  Loader2, RefreshCw, Download, ArrowRight, ShieldCheck 
+  Loader2, RefreshCw, Download, ArrowRight, ShieldCheck
 } from 'lucide-react'
 
 interface ProvisionStep {
@@ -143,7 +143,7 @@ export const ProvisioningPage: React.FC = () => {
 
     const updateSignalRState = (payload: any) => {
       if (!isMountedRef.current) return
-      
+
       const newStatus = payload.status || (payload.progress >= 100 ? 'Completed' : 'Provisioning')
       setStatusState(prev => {
         const nextProgress = payload.progress ?? prev.progress
@@ -240,7 +240,7 @@ export const ProvisioningPage: React.FC = () => {
 
   // Download Diagnostic Log
   const handleDownloadLog = () => {
-    const logContent = `AQUORA ERP PROVISIONING DIAGNOSTIC LOG
+    const logContent = `AQUZIO ERP PROVISIONING DIAGNOSTIC LOG
 Timestamp: ${new Date().toISOString()}
 Status: ${statusState.status}
 Progress: ${statusState.progress}%
@@ -268,12 +268,12 @@ ${(statusState.steps || []).map(s => `- [${s.status}] ${s.name} (${s.key})`).joi
     <div className="w-full flex justify-center items-center font-sans">
 
       {/* FRESH WHITE SURFACE CARD */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-[480px] bg-white border border-[#E5E7EB] rounded-2xl shadow-xs p-8 sm:p-9 space-y-5 relative z-10"
       >
-        
+
         {/* Header */}
         <div className="flex flex-col items-center text-center space-y-1.5 select-none">
           <img src={BRAND.logo} alt={BRAND.name} className="h-14 w-auto object-contain mb-1" />
@@ -331,7 +331,7 @@ ${(statusState.steps || []).map(s => `- [${s.status}] ${s.name} (${s.key})`).joi
           <span className="text-xs font-bold text-[#111827] block select-none">
             Provisioning Pipeline Steps
           </span>
-          
+
           <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
             {steps.map((st, idx) => {
               const isStepDone = st.status === 'Completed'
@@ -339,14 +339,13 @@ ${(statusState.steps || []).map(s => `- [${s.status}] ${s.name} (${s.key})`).joi
               const isStepFailed = st.status === 'Failed'
 
               return (
-                <div 
-                  key={st.key || idx} 
-                  className={`p-2.5 rounded-xl border text-xs flex items-center justify-between transition-colors ${
-                    isStepDone ? 'bg-emerald-50/40 border-emerald-200/60' :
+                <div
+                  key={st.key || idx}
+                  className={`p-2.5 rounded-xl border text-xs flex items-center justify-between transition-colors ${isStepDone ? 'bg-emerald-50/40 border-emerald-200/60' :
                     isStepRunning ? 'bg-blue-50/50 border-blue-200' :
-                    isStepFailed ? 'bg-rose-50 border-rose-200' :
-                    'bg-[#FAFBFC] border-[#E5E7EB]'
-                  }`}
+                      isStepFailed ? 'bg-rose-50 border-rose-200' :
+                        'bg-[#FAFBFC] border-[#E5E7EB]'
+                    }`}
                 >
                   <div className="flex items-center gap-2.5 truncate">
                     {isStepDone && <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
@@ -355,22 +354,20 @@ ${(statusState.steps || []).map(s => `- [${s.status}] ${s.name} (${s.key})`).joi
                     {!isStepDone && !isStepRunning && !isStepFailed && (
                       <div className="w-4 h-4 rounded-full border border-slate-300 shrink-0" />
                     )}
-                    <span className={`truncate font-medium ${
-                      isStepDone ? 'text-emerald-950 font-semibold' :
+                    <span className={`truncate font-medium ${isStepDone ? 'text-emerald-950 font-semibold' :
                       isStepRunning ? 'text-[#2563EB] font-bold' :
-                      isStepFailed ? 'text-rose-950 font-bold' :
-                      'text-[#6B7280]'
-                    }`}>
+                        isStepFailed ? 'text-rose-950 font-bold' :
+                          'text-[#6B7280]'
+                      }`}>
                       {st.name}
                     </span>
                   </div>
 
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
-                    isStepDone ? 'bg-emerald-100 text-emerald-800' :
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${isStepDone ? 'bg-emerald-100 text-emerald-800' :
                     isStepRunning ? 'bg-blue-100 text-blue-800' :
-                    isStepFailed ? 'bg-rose-100 text-rose-800' :
-                    'bg-slate-100 text-slate-500'
-                  }`}>
+                      isStepFailed ? 'bg-rose-100 text-rose-800' :
+                        'bg-slate-100 text-slate-500'
+                    }`}>
                     {st.status}
                   </span>
                 </div>
@@ -412,7 +409,7 @@ ${(statusState.steps || []).map(s => `- [${s.status}] ${s.name} (${s.key})`).joi
                 </button>
 
                 <a
-                  href="mailto:support@aquora.com?subject=Workspace Provisioning Issue"
+                  href="mailto:webzio.info@gmail.com?subject=Workspace Provisioning Issue"
                   className="flex-1 h-10 bg-[#F8FAFC] hover:bg-[#F1F5F9] border border-[#E5E7EB] text-[#111827] font-semibold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <HelpCircle className="w-3.5 h-3.5 text-[#6B7280]" />

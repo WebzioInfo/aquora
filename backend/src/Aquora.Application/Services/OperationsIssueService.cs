@@ -58,88 +58,114 @@ namespace Aquora.Application.Services
         {
             var tenantId = GetTenantId();
             var query = _context.OperationsIssues
-                .Where(i => i.TenantId == tenantId && !i.IsDeleted)
-                .AsQueryable();
+                .Include(i => i.Comments)
+                .Include(i => i.AffectedMachines)
+                .Where(i => i.TenantId == tenantId && !i.IsDeleted);
 
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var s = search.Trim().ToLower();
-                query = query.Where(i =>
-                    i.IssueNumber.ToLower().Contains(s) ||
-                    i.Title.ToLower().Contains(s) ||
-                    i.Description.ToLower().Contains(s) ||
-                    i.ReportedByName.ToLower().Contains(s) ||
-                    (i.MachineName != null && i.MachineName.ToLower().Contains(s)));
+                query = query.Where(i => i.IssueNumber.ToLower().Contains(s)
+                    || i.Title.ToLower().Contains(s)
+                    || i.Description.ToLower().Contains(s)
+                    || (i.MachineName != null && i.MachineName.ToLower().Contains(s))
+                    || i.AffectedMachines.Any(m => m.MachineName.ToLower().Contains(s)));
             }
 
-            if (!string.IsNullOrWhiteSpace(department))
+            if (!string.IsNullOrWhiteSpace(department) && department != "All")
+            {
                 query = query.Where(i => i.Department == department);
+            }
 
-            if (!string.IsNullOrWhiteSpace(category))
+            if (!string.IsNullOrWhiteSpace(category) && category != "All")
+            {
                 query = query.Where(i => i.Category == category);
+            }
 
-            if (!string.IsNullOrWhiteSpace(priority))
+            if (!string.IsNullOrWhiteSpace(priority) && priority != "All")
+            {
                 query = query.Where(i => i.Priority == priority);
+            }
 
-            if (!string.IsNullOrWhiteSpace(status))
+            if (!string.IsNullOrWhiteSpace(status) && status != "All")
+            {
                 query = query.Where(i => i.Status == status);
+            }
 
             if (machineId.HasValue)
-                query = query.Where(i => i.MachineId == machineId.Value);
+            {
+                query = query.Where(i => i.MachineId == machineId || i.AffectedMachines.Any(m => m.MachineId == machineId));
+            }
 
             if (startDate.HasValue)
+            {
                 query = query.Where(i => i.ReportedAt >= startDate.Value.ToUniversalTime());
+            }
 
             if (endDate.HasValue)
+            {
                 query = query.Where(i => i.ReportedAt <= endDate.Value.ToUniversalTime());
+            }
 
             var totalCount = await query.CountAsync();
 
-            var items = await query
+            var issues = await query
                 .OrderByDescending(i => i.ReportedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .Select(i => new OperationsIssueDto
-                {
-                    Id = i.Id,
-                    IssueNumber = i.IssueNumber,
-                    Title = i.Title,
-                    Description = i.Description,
-                    Department = i.Department,
-                    Category = i.Category,
-                    Priority = i.Priority,
-                    Status = i.Status,
-                    ReportedByUserId = i.ReportedByUserId,
-                    ReportedByName = i.ReportedByName,
-                    AssignedToUserId = i.AssignedToUserId,
-                    AssignedToName = i.AssignedToName,
-                    MachineId = i.MachineId,
-                    MachineName = i.MachineName,
-                    ProductionLineId = i.ProductionLineId,
-                    ProductionLineName = i.ProductionLineName,
-                    BatchNumber = i.BatchNumber,
-                    ShiftId = i.ShiftId,
-                    ReportedAt = i.ReportedAt,
-                    DueDate = i.DueDate,
-                    ResolvedAt = i.ResolvedAt,
-                    ClosedAt = i.ClosedAt,
-                    VerifiedAt = i.VerifiedAt,
-                    EstimatedCost = i.EstimatedCost,
-                    ActualCost = i.ActualCost,
-                    DowntimeMinutes = i.DowntimeMinutes,
-                    RequiresMaintenance = i.RequiresMaintenance,
-                    MaintenanceWorkOrderId = i.MaintenanceWorkOrderId,
-                    RootCause = i.RootCause,
-                    CorrectiveAction = i.CorrectiveAction,
-                    PreventiveAction = i.PreventiveAction,
-                    Attachments = i.Attachments,
-                    IsRead = i.IsRead,
-                    ReadAt = i.ReadAt,
-                    ReadBy = i.ReadBy,
-                    CommentsCount = i.Comments.Count,
-                    CreatedAt = i.CreatedAt
-                })
                 .ToListAsync();
+
+            var items = issues.Select(i => new OperationsIssueDto
+            {
+                Id = i.Id,
+                IssueNumber = i.IssueNumber,
+                Title = i.Title,
+                Description = i.Description,
+                Department = i.Department,
+                Category = i.Category,
+                Priority = i.Priority,
+                Status = i.Status,
+                ReportedByUserId = i.ReportedByUserId,
+                ReportedByName = i.ReportedByName,
+                AssignedToUserId = i.AssignedToUserId,
+                AssignedToName = i.AssignedToName,
+                MachineId = i.MachineId,
+                MachineName = i.MachineName,
+                AffectedMachineIds = i.AffectedMachines != null && i.AffectedMachines.Any()
+                    ? i.AffectedMachines.Select(m => m.MachineId).ToList()
+                    : (i.MachineId.HasValue ? new List<Guid> { i.MachineId.Value } : new List<Guid>()),
+                AffectedMachines = i.AffectedMachines != null && i.AffectedMachines.Any()
+                    ? i.AffectedMachines.Select(m => new AffectedMachineItemDto
+                    {
+                        MachineId = m.MachineId,
+                        MachineName = m.MachineName,
+                        MachineCode = m.MachineCode
+                    }).ToList()
+                    : (i.MachineId.HasValue ? new List<AffectedMachineItemDto> { new AffectedMachineItemDto { MachineId = i.MachineId.Value, MachineName = i.MachineName ?? "Primary Machine" } } : new List<AffectedMachineItemDto>()),
+                ProductionLineId = i.ProductionLineId,
+                ProductionLineName = i.ProductionLineName,
+                BatchNumber = i.BatchNumber,
+                ShiftId = i.ShiftId,
+                ReportedAt = i.ReportedAt,
+                DueDate = i.DueDate,
+                ResolvedAt = i.ResolvedAt,
+                ClosedAt = i.ClosedAt,
+                VerifiedAt = i.VerifiedAt,
+                EstimatedCost = i.EstimatedCost,
+                ActualCost = i.ActualCost,
+                DowntimeMinutes = i.DowntimeMinutes,
+                RequiresMaintenance = i.RequiresMaintenance,
+                MaintenanceWorkOrderId = i.MaintenanceWorkOrderId,
+                RootCause = i.RootCause,
+                CorrectiveAction = i.CorrectiveAction,
+                PreventiveAction = i.PreventiveAction,
+                Attachments = i.Attachments,
+                IsRead = i.IsRead,
+                ReadAt = i.ReadAt,
+                ReadBy = i.ReadBy,
+                CommentsCount = i.Comments != null ? i.Comments.Count : 0,
+                CreatedAt = i.CreatedAt
+            }).ToList();
 
             return new PagedResult<OperationsIssueDto>(items, totalCount, pageNumber, pageSize);
         }
@@ -150,6 +176,7 @@ namespace Aquora.Application.Services
             var issue = await _context.OperationsIssues
                 .Include(i => i.Comments)
                 .Include(i => i.HistoryLogs)
+                .Include(i => i.AffectedMachines)
                 .FirstOrDefaultAsync(i => i.Id == id && i.TenantId == tenantId && !i.IsDeleted);
 
             if (issue == null) return null;
@@ -170,6 +197,13 @@ namespace Aquora.Application.Services
                 AssignedToName = issue.AssignedToName,
                 MachineId = issue.MachineId,
                 MachineName = issue.MachineName,
+                AffectedMachineIds = issue.AffectedMachines.Select(m => m.MachineId).ToList(),
+                AffectedMachines = issue.AffectedMachines.Select(m => new AffectedMachineItemDto
+                {
+                    MachineId = m.MachineId,
+                    MachineName = m.MachineName,
+                    MachineCode = m.MachineCode
+                }).ToList(),
                 ProductionLineId = issue.ProductionLineId,
                 ProductionLineName = issue.ProductionLineName,
                 BatchNumber = issue.BatchNumber,
@@ -225,6 +259,26 @@ namespace Aquora.Application.Services
 
             var issueNumber = await GenerateIssueNumberAsync();
 
+            var machineIds = new List<Guid>();
+            if (request.AffectedMachineIds != null && request.AffectedMachineIds.Count > 0)
+            {
+                machineIds = request.AffectedMachineIds.Distinct().Where(m => m != Guid.Empty).ToList();
+            }
+            else if (request.MachineId.HasValue && request.MachineId.Value != Guid.Empty)
+            {
+                machineIds.Add(request.MachineId.Value);
+            }
+            else if (request.AffectedMachineNames != null && request.AffectedMachineNames.Count > 0)
+            {
+                foreach (var _ in request.AffectedMachineNames.Where(n => !string.IsNullOrWhiteSpace(n)).Distinct())
+                {
+                    machineIds.Add(Guid.NewGuid());
+                }
+            }
+
+            var primaryMachineId = machineIds.FirstOrDefault();
+            var primaryMachineName = request.MachineName;
+
             var issue = new OperationsIssue
             {
                 Id = Guid.NewGuid(),
@@ -239,8 +293,8 @@ namespace Aquora.Application.Services
                 Status = "Open",
                 ReportedByUserId = userId,
                 ReportedByName = userName,
-                MachineId = request.MachineId,
-                MachineName = request.MachineName,
+                MachineId = primaryMachineId != Guid.Empty ? primaryMachineId : (Guid?)null,
+                MachineName = primaryMachineName,
                 ProductionLineId = request.ProductionLineId,
                 ProductionLineName = request.ProductionLineName,
                 BatchId = request.BatchId,
@@ -261,6 +315,21 @@ namespace Aquora.Application.Services
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = userId
             };
+            for (int idx = 0; idx < machineIds.Count; idx++)
+            {
+                var mId = machineIds[idx];
+                string name = (request.AffectedMachineNames != null && idx < request.AffectedMachineNames.Count && !string.IsNullOrWhiteSpace(request.AffectedMachineNames[idx]))
+                    ? request.AffectedMachineNames[idx]
+                    : (mId == primaryMachineId && !string.IsNullOrWhiteSpace(primaryMachineName) ? primaryMachineName : $"Machine {mId.ToString().Substring(0, 8)}");
+
+                issue.AffectedMachines.Add(new OperationsIssueAffectedMachine
+                {
+                    Id = Guid.NewGuid(),
+                    IssueId = issue.Id,
+                    MachineId = mId,
+                    MachineName = name
+                });
+            }
 
             issue.HistoryLogs.Add(new OperationsIssueHistory
             {
@@ -366,15 +435,30 @@ namespace Aquora.Application.Services
 
         public async Task<OperationsIssueDto> QuickOperatorReportAsync(QuickOperatorReportRequest request)
         {
+            var machineIds = request.AffectedMachineIds?.Where(m => m != Guid.Empty).Distinct().ToList() ?? new List<Guid>();
+            var machineNames = request.AffectedMachineNames?.Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList() ?? new List<string>();
+
+            if (!machineNames.Any() && !string.IsNullOrWhiteSpace(request.MachineName))
+            {
+                machineNames.Add(request.MachineName);
+            }
+
+            if (!machineIds.Any() && request.MachineId.HasValue && request.MachineId.Value != Guid.Empty)
+            {
+                machineIds.Add(request.MachineId.Value);
+            }
+
             var createReq = new CreateOperationsIssueRequest
             {
-                Title = $"[OPERATOR REPORT] {request.Category} - {request.MachineName ?? request.Department}",
+                Title = $"[OPERATOR REPORT] {request.Category} - {(machineNames.Any() ? string.Join(", ", machineNames) : request.Department)}",
                 Description = request.Description,
                 Department = request.Department,
                 Category = request.Category,
                 Priority = request.Priority,
-                MachineId = request.MachineId,
-                MachineName = request.MachineName,
+                MachineId = machineIds.FirstOrDefault(),
+                MachineName = machineNames.FirstOrDefault(),
+                AffectedMachineIds = machineIds,
+                AffectedMachineNames = machineNames,
                 DowntimeMinutes = request.DowntimeMinutes,
                 RequiresMaintenance = true,
                 Attachments = request.Attachments
@@ -387,6 +471,7 @@ namespace Aquora.Application.Services
         {
             var tenantId = GetTenantId();
             var issue = await _context.OperationsIssues
+                .Include(i => i.AffectedMachines)
                 .FirstOrDefaultAsync(i => i.Id == id && i.TenantId == tenantId && !i.IsDeleted);
 
             if (issue == null) return null;
@@ -401,8 +486,26 @@ namespace Aquora.Application.Services
             issue.Status = request.Status;
             issue.AssignedToUserId = request.AssignedToUserId;
             issue.AssignedToName = request.AssignedToName;
-            issue.MachineId = request.MachineId;
-            issue.MachineName = request.MachineName;
+
+            var machineIds = new List<Guid>();
+            if (request.AffectedMachineIds != null && request.AffectedMachineIds.Count > 0)
+            {
+                machineIds = request.AffectedMachineIds.Distinct().Where(m => m != Guid.Empty).ToList();
+            }
+            else if (request.MachineId.HasValue && request.MachineId.Value != Guid.Empty)
+            {
+                machineIds.Add(request.MachineId.Value);
+            }
+
+            var primaryMachineId = machineIds.FirstOrDefault();
+            var primaryMachineName = request.MachineName;
+
+            issue.MachineId = primaryMachineId != Guid.Empty ? primaryMachineId : (Guid?)null;
+            if (!string.IsNullOrWhiteSpace(primaryMachineName))
+            {
+                issue.MachineName = primaryMachineName;
+            }
+
             issue.ProductionLineId = request.ProductionLineId;
             issue.ProductionLineName = request.ProductionLineName;
             issue.BatchNumber = request.BatchNumber;
@@ -414,13 +517,32 @@ namespace Aquora.Application.Services
             issue.UpdatedAt = DateTime.UtcNow;
             issue.UpdatedBy = _currentUserContext.UserId ?? "System";
 
+            _context.OperationsIssueAffectedMachines.RemoveRange(issue.AffectedMachines);
+            issue.AffectedMachines.Clear();
+
+            for (int idx = 0; idx < machineIds.Count; idx++)
+            {
+                var mId = machineIds[idx];
+                string name = (request.AffectedMachineNames != null && idx < request.AffectedMachineNames.Count && !string.IsNullOrWhiteSpace(request.AffectedMachineNames[idx]))
+                    ? request.AffectedMachineNames[idx]
+                    : (mId == primaryMachineId && !string.IsNullOrWhiteSpace(primaryMachineName) ? primaryMachineName : $"Machine {mId.ToString().Substring(0, 8)}");
+
+                issue.AffectedMachines.Add(new OperationsIssueAffectedMachine
+                {
+                    Id = Guid.NewGuid(),
+                    IssueId = issue.Id,
+                    MachineId = mId,
+                    MachineName = name
+                });
+            }
+
             _context.OperationsIssueHistories.Add(new OperationsIssueHistory
             {
                 Id = Guid.NewGuid(),
                 IssueId = issue.Id,
                 PerformedBy = userName,
                 Action = "EDITED",
-                Details = "Updated issue details.",
+                Details = "Updated issue details and affected machines.",
                 Timestamp = DateTime.UtcNow
             });
 
@@ -839,6 +961,59 @@ namespace Aquora.Application.Services
 
             await _context.SaveChangesAsync();
             return unreadIssues.Count;
+        }
+
+        public async Task<List<AffectedMachineItemDto>> GetAvailableMachinesAsync()
+        {
+            var tenantId = GetTenantId();
+            var list = new List<AffectedMachineItemDto>();
+
+            try
+            {
+                var assets = await _context.Assets
+                    .Where(a => a.TenantId == tenantId && !a.IsDeleted && (a.AssetCategory == "Machinery" || a.AssetCategory == "Equipment"))
+                    .Select(a => new AffectedMachineItemDto
+                    {
+                        MachineId = a.Id,
+                        MachineName = a.AssetName,
+                        MachineCode = a.AssetTag
+                    })
+                    .ToListAsync();
+
+                list.AddRange(assets);
+            }
+            catch { }
+
+            if (!list.Any())
+            {
+                var defaultMachines = new[]
+                {
+                    ("Blowing Machine 01", "BLW-01"),
+                    ("Blowing Machine 02", "BLW-02"),
+                    ("Filling Machine 01", "FIL-01"),
+                    ("Filling Machine 02", "FIL-02"),
+                    ("Labeling Machine 01", "LBL-01"),
+                    ("Packing Machine 01", "PCK-01"),
+                    ("Air Compressor 01", "CMP-01"),
+                    ("Diesel Generator 01", "GEN-01"),
+                    ("Conveyor Line A", "CNV-01")
+                };
+
+                foreach (var (name, code) in defaultMachines)
+                {
+                    var idBytes = System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes($"{tenantId}_{code}"));
+                    var machineGuid = new Guid(idBytes);
+
+                    list.Add(new AffectedMachineItemDto
+                    {
+                        MachineId = machineGuid,
+                        MachineName = name,
+                        MachineCode = code
+                    });
+                }
+            }
+
+            return list;
         }
     }
 }
