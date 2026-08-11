@@ -19,6 +19,7 @@ const PlatformDashboardPage = React.lazy(() => import('../pages/platform/Platfor
 const PlatformManagementPage = React.lazy(() => import('../pages/platform/PlatformManagementPage'))
 const SettingsPage = React.lazy(() => import('../pages/company/SettingsPage').then(module => ({ default: module.SettingsPage })))
 const CompanyDashboardPage = React.lazy(() => import('../pages/company/CompanyDashboardPage'))
+const ProductionSetupPage = React.lazy(() => import('../pages/company/ProductionSetupPage'))
 const BatchDetailsPage = React.lazy(() => import('../pages/company/BatchDetailsPage'))
 const OperatorDashboardPage = React.lazy(() => import('../pages/operator/OperatorDashboardPage'))
 const ProductSelectionPage = React.lazy(() => import('../pages/operator/ProductSelectionPage'))
@@ -561,6 +562,7 @@ export const AppRoutes: React.FC = () => {
           <Route index element={<Navigate to="/company/dashboard" replace />} />
           <Route path="dashboard" element={<CompanyDashboardPage />} />
           <Route path="production" element={<CompanyDashboardPage />} />
+          <Route path="production-setup" element={<ProductionSetupPage />} />
           <Route path="production/batches/:batchId" element={<BatchDetailsPage />} />
           <Route path="inventory" element={<CompanyDashboardPage />} />
           <Route path="sales" element={<CompanyDashboardPage />} />

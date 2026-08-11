@@ -2781,24 +2781,30 @@ export const CompanyDashboardPage: React.FC = () => {
                   const createdDateObj = new Date(batch.createdAt || batch.startedAt)
                   const formattedDate = createdDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                   const formattedTime = createdDateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                  const lineDisplay = batch.productionLineName || batch.lineName || (batch.productionLine ? (batch.productionLine.name || batch.productionLine.Name) : null) || (batch.productionLineCode ? `Line ${batch.productionLineCode}` : null) || 'Line —'
 
                   return (
                     <div
                       key={batch.id}
                       onClick={() => navigate(`/company/production/batches/${batch.id}`)}
-                      className="bg-white border border-slate-200 rounded-md p-2.5 hover:bg-slate-50 hover:border-blue-300 transition-colors cursor-pointer flex flex-col min-h-[85px]"
-                      title={`Open ${batch.batchNumber}`}
+                      className="bg-white border border-slate-200 rounded-md p-2.5 hover:bg-slate-50 hover:border-blue-300 transition-colors cursor-pointer flex flex-col justify-between min-h-[85px]"
+                      title={`Open ${batch.batchNumber} (${lineDisplay})`}
                     >
-                      <div className="flex justify-between items-start gap-2 mb-1.5">
-                        <span className="text-[16px] sm:text-[18px] font-bold text-slate-900 leading-tight truncate">
-                          {batch.batchNumber}
-                        </span>
-                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border leading-none shrink-0 ${cls}`}>
-                          {label}
-                        </span>
+                      <div>
+                        <div className="flex justify-between items-start gap-2 mb-0.5">
+                          <span className="text-[16px] sm:text-[18px] font-bold text-slate-900 leading-tight truncate">
+                            {batch.batchNumber}
+                          </span>
+                          <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border leading-none shrink-0 ${cls}`}>
+                            {label}
+                          </span>
+                        </div>
+                        <div className="text-[11px] font-medium text-slate-500 truncate leading-tight">
+                          {lineDisplay}
+                        </div>
                       </div>
 
-                      <div className="mt-auto flex justify-between items-end text-[11px] font-medium text-slate-500">
+                      <div className="mt-auto pt-1 flex justify-between items-end text-[11px] font-medium text-slate-500">
                         <span>{formattedDate}</span>
                         <span>{formattedTime}</span>
                       </div>

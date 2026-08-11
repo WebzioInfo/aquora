@@ -9,7 +9,7 @@ import { api, API_BASE_URL } from '../services/api'
 import { setCompanyPrefs } from '../utils/dateFormatter'
 import {
   LayoutDashboard, Factory, Package, TrendingUp, Users, Truck,
-  Settings, ChevronRight, Play, Plus, X, Layers, Workflow, CalendarClock,
+  Settings, ChevronRight, Play, Plus, X, Layers, Workflow, CalendarClock, Sliders,
   Droplet, Droplets, Boxes, Tag, ShoppingCart, PieChart, IdCard, Beaker, Database, AlertTriangle
 } from 'lucide-react'
 import EnterpriseSidebar from '../components/ui/EnterpriseSidebar'
@@ -170,8 +170,7 @@ export const CompanyLayout: React.FC = () => {
   const sidebarItems = [
     { label: 'Dashboard', path: '/company/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
     { label: 'Production Batches', path: '/company/production', icon: <Layers className="w-5 h-5" /> },
-    { label: 'Production Lines', path: '/company/production?tab=lines', icon: <Workflow className="w-5 h-5" /> },
-    { label: 'Production Shifts', path: '/company/production?tab=shifts', icon: <CalendarClock className="w-5 h-5" /> },
+    { label: 'Production Setup', path: '/company/production-setup', icon: <Sliders className="w-5 h-5" /> },
     { label: '20L Operations', path: '/company/operations', icon: <Droplet className="w-5 h-5" /> },
     { label: 'Products Inventory', path: '/company/inventory', icon: <Package className="w-5 h-5" /> },
     { label: 'Raw Materials', path: '/company/inventory?tab=raw_materials', icon: <Boxes className="w-5 h-5" /> },
@@ -192,12 +191,12 @@ export const CompanyLayout: React.FC = () => {
       ]
     },
     { label: 'Water Test Reports', path: '/company/qc/water-test', icon: <Droplets className="w-5 h-5" /> },
-    { label: 'Business Intelligence', path: '/company/business-finance', icon: <TrendingUp className="w-5 h-5" /> },
+    // { label: 'Business Intelligence', path: '/company/business-finance', icon: <TrendingUp className="w-5 h-5" /> },
     { label: 'Customers', path: '/company/customers', icon: <Users className="w-5 h-5" /> },
     { label: 'Employees', path: '/company/employees', icon: <IdCard className="w-5 h-5" /> },
-    { 
-      label: 'Operations Issues', 
-      path: '/company/operations-issues', 
+    {
+      label: 'Operations Issues',
+      path: '/company/operations-issues',
       icon: <AlertTriangle className="w-5 h-5" />,
       badge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined,
       pulseBadge: unreadCount > 0

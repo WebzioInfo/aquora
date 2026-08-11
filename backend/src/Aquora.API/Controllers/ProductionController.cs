@@ -805,6 +805,123 @@ namespace Aquora.API.Controllers
             }
         }
 
+        // 2d. POST api/v1/production/batches/{batchId}/stop
+        [HttpPost("batches/{batchId}/stop")]
+        public async Task<ActionResult<ApiResponse<object>>> StopBatch([FromRoute] Guid batchId, [FromBody] StopProductionBatchRequest? request)
+        {
+            if (batchId == Guid.Empty)
+            {
+                return ValidationError<object>("batchId", "Batch ID is required.");
+            }
+
+            var dbContext = _tenantContext as DbContext;
+            if (dbContext == null)
+            {
+                return Failure<object>("Database context is invalid.", "Infrastructure error");
+            }
+
+            using var transaction = await dbContext.Database.BeginTransactionAsync();
+            try
+            {
+                // 1. Fetch ProductionBatch
+                var batch = await _tenantContext.ProductionBatches
+                    .Include(b => b.ProductionLine)
+                    .FirstOrDefaultAsync(b => b.Id == batchId && !b.IsDeleted);
+
+                if (batch == null)
+                {
+                    return Failure<object>("Production batch not found.", "Validation failed");
+                }
+
+                if (batch.Status == "Completed" || batch.Status == "Stopped" || batch.Status == "Closed")
+                {
+                    return Failure<object>($"Production batch is already {batch.Status.ToLower()}.", "Validation failed");
+                }
+
+                var now = DateTime.UtcNow;
+
+                // 2. Fetch corresponding ProductionSession (if matching by ID or BatchNumber)
+                var session = await _tenantContext.ProductionSessions
+                    .Include(s => s.ProductionEntries)
+                    .FirstOrDefaultAsync(s => (s.Id == batchId || (s.BatchNumber == batch.BatchNumber && s.ProductionLineId == batch.ProductionLineId)) && s.Status == "Running" && !s.IsDeleted);
+
+                int producedQty = batch.ProducedQuantity;
+                if (session != null)
+                {
+                    session.Status = "Completed";
+                    session.EndedAt = now;
+                    var stopReasonText = !string.IsNullOrWhiteSpace(request?.Reason) ? request.Reason : "Batch Stopped";
+                    var remarksText = !string.IsNullOrWhiteSpace(request?.Remarks) ? request.Remarks : null;
+                    session.Remarks = remarksText != null ? $"{stopReasonText} - {remarksText}" : stopReasonText;
+                    session.TotalCasesProduced = session.ProductionEntries.Where(e => !e.IsDeleted).Sum(e => e.CasesProduced);
+                    producedQty = session.TotalCasesProduced;
+                }
+
+                // 3. Update Batch state
+                batch.Status = "Completed";
+                batch.CompletedAt = now;
+                batch.ProducedQuantity = producedQty;
+
+                // 4. Record Audit Log
+                var tenantId = GetTenantId();
+                var userIdStr = GetCurrentUserId();
+                var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "operator@aquzio.com";
+                var lineName = batch.ProductionLine?.Name ?? "Production Line";
+
+                var auditLog = new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    UserId = userIdStr,
+                    UserEmail = userEmail,
+                    Action = "StopBatch",
+                    TableName = "ProductionBatch",
+                    PrimaryKey = batch.Id.ToString(),
+                    Timestamp = now,
+                    IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
+                    Device = Request.Headers["User-Agent"].ToString() ?? "Aquzio Console",
+                    Reason = $"Production batch {batch.BatchNumber} stopped on line '{lineName}'. Reason: {request?.Reason ?? "Production Completed"}. Total cases: {producedQty}.",
+                    Module = "Production"
+                };
+                _tenantContext.AuditLogs.Add(auditLog);
+
+                await _tenantContext.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                // Live SignalR Dashboard Notification
+                await NotifyDashboardAsync("BatchStopped", new
+                {
+                    batchId = batch.Id,
+                    batchNumber = batch.BatchNumber,
+                    lineId = batch.ProductionLineId,
+                    lineName = lineName,
+                    producedQuantity = producedQty,
+                    stoppedAt = now
+                });
+
+                Serilog.Log.Information(
+                    "[BATCH STOP TRANSACTION SUCCESS]: TenantId={TenantId}, BatchId={BatchId}, BatchNumber={BatchNumber}, ProducedQty={ProducedQty}, StoppedAt={StoppedAt}",
+                    tenantId, batch.Id, batch.BatchNumber, producedQty, now
+                );
+
+                return Success<object>(new
+                {
+                    batch.Id,
+                    batch.BatchNumber,
+                    Status = batch.Status,
+                    batch.ProducedQuantity,
+                    CompletedAt = batch.CompletedAt,
+                    LineName = lineName
+                }, "Production batch stopped successfully.");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Serilog.Log.Error(ex, "[BATCH STOP FAILURE]: BatchId={BatchId}", batchId);
+                return Failure<object>(ex.Message, "Unable to stop the production batch. Please try again.");
+            }
+        }
+
         // 2b. GET /api/operator/production-context
         [HttpGet("/api/operator/production-context")]
         public async Task<ActionResult<ApiResponse<object>>> GetProductionContext([FromQuery] Guid lineId)
@@ -1665,5 +1782,11 @@ namespace Aquora.API.Controllers
         public string Time { get; set; } = string.Empty;
         public long Timestamp { get; set; }
         public string Text { get; set; } = string.Empty;
+    }
+
+    public class StopProductionBatchRequest
+    {
+        public string? Reason { get; set; }
+        public string? Remarks { get; set; }
     }
 }
