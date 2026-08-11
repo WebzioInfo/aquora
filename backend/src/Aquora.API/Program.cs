@@ -232,7 +232,25 @@ builder.Services.AddCors(options =>
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        policy.WithOrigins(uniqueOrigins)
+        policy.SetIsOriginAllowed(origin =>
+              {
+                  if (string.IsNullOrWhiteSpace(origin)) return false;
+                  try
+                  {
+                      var uri = new Uri(origin);
+                      var host = uri.Host;
+                      return host.EndsWith("vercel.app", StringComparison.OrdinalIgnoreCase) ||
+                             host.EndsWith("webziointernational.in", StringComparison.OrdinalIgnoreCase) ||
+                             host.Equals("app.aquora.com", StringComparison.OrdinalIgnoreCase) ||
+                             host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                             host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+                             uniqueOrigins.Any(u => string.Equals(u, origin.TrimEnd('/'), StringComparison.OrdinalIgnoreCase));
+                  }
+                  catch
+                  {
+                      return false;
+                  }
+              })
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials()

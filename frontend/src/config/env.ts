@@ -26,9 +26,10 @@ if (isProduction) {
   }
 }
 
-// Default local URL if not specified during development
+const defaultProductionUrl = 'https://aquora-backend.webziointernational.in'
 const defaultLocalUrl = 'http://localhost:5000'
-let finalUrl = rawApiUrl || defaultLocalUrl
+
+let finalUrl = rawApiUrl || (isProduction ? defaultProductionUrl : defaultLocalUrl)
 
 const getSanitizedBaseUrl = (url: string): string => {
   let cleaned = url.trim()
