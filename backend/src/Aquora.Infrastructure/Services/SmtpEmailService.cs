@@ -34,8 +34,9 @@ namespace Aquora.Infrastructure.Services
             return SecureSocketOptions.Auto;
         }
 
-        public async Task SendEmailAsync(string toEmail, string subject, string body, bool isHtml = true)
+        public async Task SendEmailAsync(string toEmail, string subject, string body, bool isHtml = true, CancellationToken cancellationToken = default)
         {
+            var totalSw = System.Diagnostics.Stopwatch.StartNew();
             var host = _options.Host;
             var port = _options.Port;
             var user = _options.User;
@@ -76,43 +77,62 @@ namespace Aquora.Infrastructure.Services
 
             message.Body = bodyBuilder.ToMessageBody();
 
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(12)); // 12-second hard timeout for complete SMTP operation
+
             try
             {
                 using var client = new SmtpClient();
+                client.Timeout = 12000; // 12-second socket timeout
                 client.ServerCertificateValidationCallback = (s, c, h, e) => true;
 
                 var socketOption = DetermineSocketOptions(port, _options.UseSsl);
                 _logger.LogInformation("[SMTP CONNECTING] Connecting to {Host}:{Port} with {SocketOption}...", host, port, socketOption);
 
+                var swStep = System.Diagnostics.Stopwatch.StartNew();
                 try
                 {
-                    await client.ConnectAsync(host, port, socketOption);
+                    await client.ConnectAsync(host, port, socketOption, cts.Token);
                 }
-                catch (Exception connEx) when (socketOption != SecureSocketOptions.Auto)
+                catch (Exception connEx) when (socketOption != SecureSocketOptions.Auto && !cts.Token.IsCancellationRequested)
                 {
                     _logger.LogWarning(connEx, "[SMTP CONNECT FALLBACK] Connection using {SocketOption} failed. Retrying with SecureSocketOptions.Auto...", socketOption);
                     client.ServerCertificateValidationCallback = (s, c, h, e) => true;
-                    await client.ConnectAsync(host, port, SecureSocketOptions.Auto);
+                    await client.ConnectAsync(host, port, SecureSocketOptions.Auto, cts.Token);
                 }
+                var connectMs = swStep.ElapsedMilliseconds;
 
                 _logger.LogInformation("[SMTP AUTHENTICATING] Authenticating with user: {User}...", user);
-                await client.AuthenticateAsync(user, password);
+                swStep.Restart();
+                await client.AuthenticateAsync(user, password, cts.Token);
+                var authMs = swStep.ElapsedMilliseconds;
 
                 _logger.LogInformation("[SMTP SENDING] Delivering message to SMTP server for recipient: {Recipient}...", toEmail);
-                var response = await client.SendAsync(message);
+                swStep.Restart();
+                var response = await client.SendAsync(message, cts.Token);
+                var sendMs = swStep.ElapsedMilliseconds;
 
-                await client.DisconnectAsync(true);
+                await client.DisconnectAsync(true, cts.Token);
+                totalSw.Stop();
 
-                _logger.LogInformation("[SMTP SUCCESS] Message accepted by SMTP server for {Recipient}. Provider Response: {Response}", toEmail, response);
+                _logger.LogInformation("[SMTP TIMINGS SUCCESS] Delivered to {Recipient} in {TotalMs}ms (Connect: {ConnectMs}ms, Auth: {AuthMs}ms, Send: {SendMs}ms). Provider Response: {Response}",
+                    toEmail, totalSw.ElapsedMilliseconds, connectMs, authMs, sendMs, response);
+            }
+            catch (OperationCanceledException)
+            {
+                totalSw.Stop();
+                _logger.LogError("[SMTP TIMEOUT] Connection or send timed out after {ElapsedMs}ms for recipient {Recipient} at {Host}:{Port}.", totalSw.ElapsedMilliseconds, toEmail, host, port);
+                throw new TimeoutException($"SMTP operation timed out after 12 seconds while contacting {host}:{port}.");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[SMTP FAILURE] Failed to deliver email to {Recipient} via SMTP ({Host}:{Port}). Error: {Message}", toEmail, host, port, ex.Message);
+                totalSw.Stop();
+                _logger.LogError(ex, "[SMTP FAILURE] Failed to deliver email to {Recipient} via SMTP ({Host}:{Port}) after {ElapsedMs}ms. Error: {Message}", toEmail, host, port, totalSw.ElapsedMilliseconds, ex.Message);
                 throw;
             }
         }
 
-        public async Task SendOtpEmailAsync(string toEmail, string otpCode, int expiryMinutes)
+        public async Task SendOtpEmailAsync(string toEmail, string otpCode, int expiryMinutes, CancellationToken cancellationToken = default)
         {
             var subject = "Aquora ERP - Email Verification Code";
             
@@ -134,7 +154,7 @@ namespace Aquora.Infrastructure.Services
             </body>
             </html>";
 
-            await SendEmailAsync(toEmail, subject, body, true);
+            await SendEmailAsync(toEmail, subject, body, true, cancellationToken);
         }
 
         public async Task<(bool Success, string ErrorMessage)> VerifySmtpConfigurationAsync()

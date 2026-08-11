@@ -36,9 +36,9 @@ namespace Aquora.API.Controllers
         }
 
         [HttpPost("send-otp")]
-        public async Task<ActionResult<ApiResponse<bool>>> SendOtp([FromBody] SendOtpRequest request)
+        public async Task<ActionResult<ApiResponse<bool>>> SendOtp([FromBody] SendOtpRequest request, CancellationToken cancellationToken)
         {
-            var result = await _authService.SendOtpAsync(request);
+            var result = await _authService.SendOtpAsync(request, cancellationToken);
             return Success(result, "OTP code sent successfully.");
         }
 

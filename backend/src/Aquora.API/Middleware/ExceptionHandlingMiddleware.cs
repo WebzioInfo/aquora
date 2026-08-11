@@ -48,6 +48,7 @@ namespace Aquora.API.Middleware
             var statusCode = exception switch
             {
                 _ when rateLimitEx != null => HttpStatusCode.TooManyRequests,
+                TimeoutException or TaskCanceledException or OperationCanceledException => HttpStatusCode.GatewayTimeout,
                 _ when isUniqueViolation || isDuplicateEmailMsg => HttpStatusCode.Conflict,
                 UnauthorizedAccessException => HttpStatusCode.Unauthorized,
                 KeyNotFoundException => HttpStatusCode.NotFound,
@@ -75,6 +76,12 @@ namespace Aquora.API.Middleware
             {
                 errorMessage = rateLimitEx.Message;
                 errorCode = "OTP_RATE_LIMITED";
+                errorDetails.Add(errorMessage);
+            }
+            else if (exception is TimeoutException or TaskCanceledException or OperationCanceledException)
+            {
+                errorMessage = "Email service timed out while delivering the verification code. Please try again.";
+                errorCode = "SMTP_TIMEOUT";
                 errorDetails.Add(errorMessage);
             }
             else if (isUniqueViolation)

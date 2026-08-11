@@ -8,6 +8,7 @@ export const API_BASE_URL = envConfig.apiUrl
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 20000, // 20-second hard timeout to prevent frozen UI states
   headers: {
     'Content-Type': 'application/json',
   },

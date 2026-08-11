@@ -6,7 +6,7 @@ namespace Aquora.Application.Interfaces.Services
     public interface IAuthService
     {
         Task<bool> RegisterAsync(RegisterRequest request);
-        Task<bool> SendOtpAsync(SendOtpRequest request);
+        Task<bool> SendOtpAsync(SendOtpRequest request, CancellationToken cancellationToken = default);
         Task<LoginResponse> VerifyOtpAsync(VerifyOtpRequest request);
         Task<LoginResponse> LoginAsync(LoginRequest request);
         Task<LoginResponse> RefreshTokenAsync(RefreshTokenRequest request);

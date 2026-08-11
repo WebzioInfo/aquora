@@ -163,14 +163,14 @@ namespace Aquora.Application.Services
             return ex.Message.Contains("23505") || ex.Message.Contains("IX_Users_Email");
         }
 
-        public async Task<bool> SendOtpAsync(SendOtpRequest request)
+        public async Task<bool> SendOtpAsync(SendOtpRequest request, CancellationToken cancellationToken = default)
         {
             var email = request.Email.Trim().ToLowerInvariant();
             var rawPurpose = string.IsNullOrWhiteSpace(request.Purpose) ? "Registration" : request.Purpose.Trim();
             var purpose = rawPurpose.Equals("EmailVerification", StringComparison.OrdinalIgnoreCase) ? "Registration" : rawPurpose;
             var now = DateTime.UtcNow;
 
-            var user = await _platformContext.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email && !u.IsDeleted);
+            var user = await _platformContext.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email && !u.IsDeleted, cancellationToken);
             if (purpose == "Registration" && user != null && user.EmailVerified)
             {
                 Console.WriteLine($"[OTP SEND REJECTED]: User '{email}' is already verified.");
@@ -185,7 +185,7 @@ namespace Aquora.Application.Services
             var existing = await _platformContext.OTPVerifications
                 .FirstOrDefaultAsync(o => o.Email.ToLower() == email && 
                     (o.Purpose == purpose || (purpose == "Registration" && o.Purpose == "EmailVerification")) && 
-                    !o.IsVerified);
+                    !o.IsVerified, cancellationToken);
 
             if (existing != null && existing.LastSentAt.HasValue && existing.LastSentAt.Value.AddMinutes(1) > now)
             {
@@ -208,7 +208,7 @@ namespace Aquora.Application.Services
             // Deliver OTP email via SMTP first before committing rate limit to DB
             try
             {
-                await _emailService.SendOtpEmailAsync(email, code, 10);
+                await _emailService.SendOtpEmailAsync(email, code, 10, cancellationToken);
                 Console.WriteLine($"[OTP EMAIL SENT SUCCESS]: Email successfully delivered to SMTP server for recipient '{GetSafeEmailIdentifier(email)}'.");
             }
             catch (Exception ex)
