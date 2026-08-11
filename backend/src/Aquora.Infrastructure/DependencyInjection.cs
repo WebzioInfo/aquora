@@ -32,47 +32,62 @@ namespace Aquora.Infrastructure
             services.AddOptions<SmtpOptions>()
                 .Configure(options =>
                 {
-                    string GetValue(params string?[] keys)
+                    string GetValue(params string[] keys)
                     {
                         foreach (var key in keys)
                         {
                             if (string.IsNullOrEmpty(key)) continue;
-                            var val = configuration[key];
-                            if (!string.IsNullOrWhiteSpace(val)) return val.Trim();
                             var envVal = Environment.GetEnvironmentVariable(key);
                             if (!string.IsNullOrWhiteSpace(envVal)) return envVal.Trim();
+
+                            var val = configuration[key];
+                            if (!string.IsNullOrWhiteSpace(val)) return val.Trim();
                         }
                         return string.Empty;
                     }
 
                     options.Host = GetValue("SMTP_HOST", "Smtp:Host", "MAIL_HOST", "MAIL_SERVER");
                     options.Port = int.TryParse(GetValue("SMTP_PORT", "Smtp:Port", "MAIL_PORT"), out var port) ? port : 587;
-                    options.User = GetValue("SMTP_USER", "SMTP_USERNAME", "Smtp:User", "MAIL_USER", "MAIL_USERNAME");
-                    options.Password = GetValue("SMTP_PASSWORD", "SMTP_PASS", "Smtp:Password", "MAIL_PASSWORD", "MAIL_PASS");
-                    options.FromName = GetValue("SMTP_FROM_NAME", "Smtp:FromName", "MAIL_FROM_NAME") is var fromName && !string.IsNullOrWhiteSpace(fromName) ? fromName : "Aquora ERP";
-                    options.FromEmail = GetValue("SMTP_FROM", "SMTP_FROM_EMAIL", "Smtp:FromEmail", "MAIL_FROM") is var fromEmail && !string.IsNullOrWhiteSpace(fromEmail) ? fromEmail : options.User;
+                    
+                    var username = GetValue("SMTP_USERNAME", "SMTP_USER", "Smtp:Username", "Smtp:User", "MAIL_USERNAME", "MAIL_USER");
+                    options.Username = username;
 
-                    var secureVal = GetValue("SMTP_SECURE", "SMTP_SSL", "SMTP_USE_SSL", "Smtp:UseSsl", "MAIL_ENCRYPTION");
-                    if (bool.TryParse(secureVal, out var useSslBool))
+                    options.Password = GetValue("SMTP_PASSWORD", "SMTP_PASS", "Smtp:Password", "MAIL_PASSWORD", "MAIL_PASS");
+
+                    var fromName = GetValue("SMTP_FROM_NAME", "Smtp:FromName", "MAIL_FROM_NAME");
+                    options.FromName = !string.IsNullOrWhiteSpace(fromName) ? fromName : "Aquora";
+
+                    var fromEmail = GetValue("SMTP_FROM_EMAIL", "SMTP_FROM", "Smtp:FromEmail", "MAIL_FROM");
+                    options.FromEmail = !string.IsNullOrWhiteSpace(fromEmail) ? fromEmail : username;
+
+                    var sslVal = GetValue("SMTP_ENABLE_SSL", "SMTP_SECURE", "SMTP_SSL", "SMTP_USE_SSL", "Smtp:EnableSsl", "Smtp:UseSsl", "MAIL_ENCRYPTION");
+                    if (bool.TryParse(sslStrVal(sslVal), out var enableSslBool))
                     {
-                        options.UseSsl = useSslBool;
+                        options.EnableSsl = enableSslBool;
                     }
-                    else if (secureVal.Equals("ssl", StringComparison.OrdinalIgnoreCase) || secureVal.Equals("true", StringComparison.OrdinalIgnoreCase) || options.Port == 465)
+                    else if (sslVal.Equals("ssl", StringComparison.OrdinalIgnoreCase) || sslVal.Equals("true", StringComparison.OrdinalIgnoreCase) || options.Port == 465)
                     {
-                        options.UseSsl = true;
+                        options.EnableSsl = true;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(sslVal) && (sslVal.Equals("false", StringComparison.OrdinalIgnoreCase) || sslVal.Equals("0", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        options.EnableSsl = false;
                     }
                     else
                     {
-                        options.UseSsl = false;
+                        options.EnableSsl = true;
                     }
+
+                    static string sslStrVal(string val) => val;
                 })
                 .Validate(options => 
                 {
                     return !string.IsNullOrWhiteSpace(options.Host) &&
                            options.Port > 0 &&
-                           !string.IsNullOrWhiteSpace(options.User) &&
-                           !string.IsNullOrWhiteSpace(options.Password);
-                }, "SMTP configuration is incomplete. Host, Port, User, and Password must be provided.")
+                           !string.IsNullOrWhiteSpace(options.Username) &&
+                           !string.IsNullOrWhiteSpace(options.Password) &&
+                           !string.IsNullOrWhiteSpace(options.FromEmail);
+                }, "SMTP configuration is incomplete: SMTP_HOST / SMTP_PORT / SMTP_USERNAME / SMTP_PASSWORD / SMTP_FROM_EMAIL are required.")
                 .ValidateOnStart();
 
 

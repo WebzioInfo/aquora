@@ -33,7 +33,7 @@ import { FilterBar } from '../../../components/ui/layout/FilterBar';
 import { operationsIssueApi } from '../../../services/api/operationsIssue';
 import type { OperationsIssue, OperationsIssueDashboard } from '../../../services/api/operationsIssue';
 
-const DEPARTMENTS = ['All', 'Production', 'Warehouse', 'Dispatch', 'QC', 'HR', 'Maintenance', 'General'];
+const DEPARTMENTS = ['All', 'Production', 'Warehouse', 'Dispatch', 'QC', 'Quality', 'HR', 'Maintenance', 'General'];
 const PRIORITIES = ['All', 'Low', 'Medium', 'High', 'Critical', 'Emergency'];
 const STATUSES = ['All', 'Open', 'Acknowledged', 'Assigned', 'InProgress', 'WaitingForParts', 'OnHold', 'Resolved', 'Verified', 'Closed'];
 

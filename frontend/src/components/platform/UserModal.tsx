@@ -235,6 +235,7 @@ export const UserModal: React.FC<UserModalProps> = ({
                 <option value="Finance">Finance</option>
                 <option value="HR">HR</option>
                 <option value="IT">IT Support</option>
+                <option value="Quality">Quality</option>
               </select>
             </div>
 

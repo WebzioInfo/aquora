@@ -80,8 +80,15 @@ namespace Aquora.Application.Services
 
             await _platformContext.SaveChangesAsync();
 
-            // Queue the OTP email in background worker
-            _taskQueue.QueueOtpJob(email, code, 10);
+            // Deliver OTP email via SMTP and verify provider acceptance before returning success
+            try
+            {
+                await _emailService.SendOtpEmailAsync(email, code, 10);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Unable to send OTP email via SMTP. Please verify email configuration or try again later. Details: {ex.Message}");
+            }
             
             return true;
         }

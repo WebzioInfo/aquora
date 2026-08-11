@@ -424,107 +424,18 @@ finally
 
 static void LoadEnvironmentVariables(WebApplicationBuilder builder)
 {
-    var envDict = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-    var searchDirs = new List<string>();
-
-    var currentDir = System.IO.Directory.GetCurrentDirectory();
-    var baseDir = AppContext.BaseDirectory;
-
-    for (int i = 0; i < 5; i++)
+    // Use DotNetEnv for local development support
+    // Does NOT fail or require a .env file on Railway / Render
+    try
     {
-        if (!string.IsNullOrEmpty(currentDir))
-        {
-            if (!searchDirs.Contains(currentDir)) searchDirs.Add(currentDir);
-            var p1 = System.IO.Directory.GetParent(currentDir);
-            currentDir = p1?.FullName;
-        }
-
-        if (!string.IsNullOrEmpty(baseDir))
-        {
-            if (!searchDirs.Contains(baseDir)) searchDirs.Add(baseDir);
-            var p2 = System.IO.Directory.GetParent(baseDir);
-            baseDir = p2?.FullName;
-        }
+        DotNetEnv.Env.TraversePath().Load();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[ENV LOADER INFO] DotNetEnv load notice: {ex.Message}");
     }
 
-
-    var envName = builder.Environment.EnvironmentName;
-    var candidates = new[] { $".env.{envName}.local", $".env.{envName}", ".env.local", ".env" };
-    var foundFiles = new List<string>();
-
-    foreach (var dir in searchDirs)
-    {
-        foreach (var candidate in candidates)
-        {
-            var path = System.IO.Path.Combine(dir, candidate);
-            if (System.IO.File.Exists(path) && !foundFiles.Contains(path))
-            {
-                foundFiles.Add(path);
-            }
-        }
-    }
-
-    foreach (var filePath in foundFiles)
-    {
-        try
-        {
-            Console.WriteLine($"[ENV LOADER] Loading environment file: '{filePath}'");
-            var lines = System.IO.File.ReadAllLines(filePath);
-            foreach (var rawLine in lines)
-            {
-                var line = rawLine.Trim();
-                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#") || line.StartsWith("//")) continue;
-
-                int eqIdx = line.IndexOf('=');
-                if (eqIdx <= 0) continue;
-
-                var key = line.Substring(0, eqIdx).Trim();
-                var val = line.Substring(eqIdx + 1).Trim();
-
-                // Strip inline comments if not quoted
-                if (!val.StartsWith("\"") && !val.StartsWith("'"))
-                {
-                    int hashIdx = val.IndexOf('#');
-                    if (hashIdx >= 0) val = val.Substring(0, hashIdx).Trim();
-                }
-
-                // Strip outer quotes
-                if ((val.StartsWith("\"") && val.EndsWith("\"")) || (val.StartsWith("'") && val.EndsWith("'")))
-                {
-                    if (val.Length >= 2)
-                    {
-                        val = val.Substring(1, val.Length - 2);
-                    }
-                }
-
-                // Preserve pre-existing process environment variables (host platform overrides)
-                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(key)))
-                {
-                    Environment.SetEnvironmentVariable(key, val);
-                    envDict[key] = val;
-                    builder.Configuration[key] = val;
-
-                    // Support section syntax (JwtSettings__Secret -> JwtSettings:Secret)
-                    if (key.Contains("__"))
-                    {
-                        var normalizedKey = key.Replace("__", ":");
-                        envDict[normalizedKey] = val;
-                        builder.Configuration[normalizedKey] = val;
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ENV LOADER WARN] Error reading env file '{filePath}': {ex.Message}");
-        }
-    }
-
-    if (envDict.Count > 0)
-    {
-        builder.Configuration.AddInMemoryCollection(envDict);
-    }
-    // Process environment variables from host (Railway/Docker) override .env file entries
+    // Process environment variables from host (Railway/Render/Docker) take precedence
     builder.Configuration.AddEnvironmentVariables();
 }
 

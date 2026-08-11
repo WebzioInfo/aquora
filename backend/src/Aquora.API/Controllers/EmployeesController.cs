@@ -870,7 +870,8 @@ namespace Aquora.API.Controllers
                     "Sales",
                     "Finance",
                     "HR",
-                    "IT Support"
+                    "IT Support",
+                    "Quality"
                 };
 
                 return Success(dbDepartments, "Departments loaded successfully.");

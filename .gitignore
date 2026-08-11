@@ -27,3 +27,9 @@ dist/
 # System / Gemini agent cache files
 .gemini/
 **/scratch/
+
+# Environment files
+.env
+.env.*
+!.env.example
+

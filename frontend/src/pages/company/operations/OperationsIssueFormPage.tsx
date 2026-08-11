@@ -15,7 +15,7 @@ import { AquoraMultiMachineSelect } from '../../../components/ui/AquoraMultiMach
 import { operationsIssueApi } from '../../../services/api/operationsIssue';
 import type { CreateOperationsIssueRequest, AffectedMachineItem } from '../../../services/api/operationsIssue';
 
-const DEPARTMENTS = ['Production', 'Warehouse', 'Dispatch', 'QC', 'HR', 'Maintenance', 'General'];
+const DEPARTMENTS = ['Production', 'Warehouse', 'Dispatch', 'QC', 'Quality', 'HR', 'Maintenance', 'General'];
 const CATEGORIES = [
   'Machine Breakdown',
   'Power Failure',
