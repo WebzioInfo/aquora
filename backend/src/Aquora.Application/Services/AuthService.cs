@@ -165,59 +165,70 @@ namespace Aquora.Application.Services
 
         public async Task<bool> SendOtpAsync(SendOtpRequest request, CancellationToken cancellationToken = default)
         {
+            var totalSw = System.Diagnostics.Stopwatch.StartNew();
+            var stepSw = System.Diagnostics.Stopwatch.StartNew();
+
             var email = request.Email.Trim().ToLowerInvariant();
             var rawPurpose = string.IsNullOrWhiteSpace(request.Purpose) ? "Registration" : request.Purpose.Trim();
             var purpose = rawPurpose.Equals("EmailVerification", StringComparison.OrdinalIgnoreCase) ? "Registration" : rawPurpose;
             var now = DateTime.UtcNow;
 
+            Console.WriteLine($"[SendOtp Timeline] Request received for recipient '{GetSafeEmailIdentifier(email)}'.");
+
             var user = await _platformContext.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email && !u.IsDeleted, cancellationToken);
+            var userLookupMs = stepSw.ElapsedMilliseconds;
+
             if (purpose == "Registration" && user != null && user.EmailVerified)
             {
-                Console.WriteLine($"[OTP SEND REJECTED]: User '{email}' is already verified.");
+                Console.WriteLine($"[SendOtp Timeline] User lookup ({userLookupMs}ms) - REJECTED: User '{GetSafeEmailIdentifier(email)}' is already verified.");
                 throw new InvalidOperationException("ALREADY_VERIFIED");
             }
             if (purpose == "PasswordReset" && user == null)
             {
-                Console.WriteLine($"[OTP SEND SAFE IGNORE]: PasswordReset requested for non-registered email '{email}'. Suppressing error response to prevent account enumeration.");
+                Console.WriteLine($"[SendOtp Timeline] User lookup ({userLookupMs}ms) - SAFE IGNORE: Non-registered email.");
                 return true;
             }
 
+            stepSw.Restart();
             var existing = await _platformContext.OTPVerifications
                 .FirstOrDefaultAsync(o => o.Email.ToLower() == email && 
                     (o.Purpose == purpose || (purpose == "Registration" && o.Purpose == "EmailVerification")) && 
                     !o.IsVerified, cancellationToken);
+            var dbLookupMs = stepSw.ElapsedMilliseconds;
 
             if (existing != null && existing.LastSentAt.HasValue && existing.LastSentAt.Value.AddMinutes(1) > now)
             {
                 var elapsedSeconds = (int)(now - existing.LastSentAt.Value).TotalSeconds;
                 var remainingSeconds = Math.Max(1, 60 - elapsedSeconds);
-                Console.WriteLine($"[OTP RATE LIMIT]: Cooldown active for '{email}'. {remainingSeconds} seconds remaining.");
+                Console.WriteLine($"[SendOtp Timeline] Cooldown check - Rate limited. {remainingSeconds}s remaining.");
                 throw new OtpRateLimitException($"Please wait {remainingSeconds} seconds before requesting another OTP.", remainingSeconds);
             }
 
             if (existing != null && existing.CreatedAt.AddHours(1) > now && existing.SendCount >= 5)
             {
                 var remainingMinutes = Math.Max(1, 60 - (int)(now - existing.CreatedAt).TotalMinutes);
-                Console.WriteLine($"[OTP RATE LIMIT]: Maximum hourly send count reached for '{email}'.");
+                Console.WriteLine($"[SendOtp Timeline] Hourly cap check - Rate limited for {remainingMinutes}m.");
                 throw new OtpRateLimitException("OTP rate limit exceeded. Please try again later.", remainingMinutes * 60);
             }
 
-            // Generate cryptographically secure OTP
+            stepSw.Restart();
             var code = System.Security.Cryptography.RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
-            
-            // Deliver OTP email via SMTP first before committing rate limit to DB
+            var otpGenMs = stepSw.ElapsedMilliseconds;
+
+            stepSw.Restart();
             try
             {
                 await _emailService.SendOtpEmailAsync(email, code, 10, cancellationToken);
-                Console.WriteLine($"[OTP EMAIL SENT SUCCESS]: Email successfully delivered to SMTP server for recipient '{GetSafeEmailIdentifier(email)}'.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[OTP EMAIL SEND FAILED]: SMTP delivery failed for recipient '{GetSafeEmailIdentifier(email)}': {ex.Message}");
+                var smtpFailMs = stepSw.ElapsedMilliseconds;
+                Console.WriteLine($"[SendOtp Timeline] SMTP send FAILED after {smtpFailMs}ms: {ex.Message}");
                 throw new InvalidOperationException($"Unable to send OTP email via SMTP. Please verify email configuration or try again later. Details: {ex.Message}");
             }
+            var smtpMs = stepSw.ElapsedMilliseconds;
 
-            // Record OTP & update rate limit counters only after successful email transmission
+            stepSw.Restart();
             if (existing == null)
             {
                 existing = new OTPVerification
@@ -237,9 +248,11 @@ namespace Aquora.Application.Services
             existing.LastSentAt = now;
             existing.CreatedAt = existing.CreatedAt == default ? now : existing.CreatedAt;
 
-            await _platformContext.SaveChangesAsync();
-            
-            Console.WriteLine($"[OTP GENERATED & PERSISTED]: OTP generated for email '{email}', Purpose '{purpose}', Expiry '{existing.ExpiryTime}', RequestId '{existing.RequestId}'.");
+            await _platformContext.SaveChangesAsync(cancellationToken);
+            var dbSaveMs = stepSw.ElapsedMilliseconds;
+
+            totalSw.Stop();
+            Console.WriteLine($"[SendOtp Timeline COMPLETE] Total: {totalSw.ElapsedMilliseconds}ms (UserLookup: {userLookupMs}ms, DbLookup: {dbLookupMs}ms, OtpGen: {otpGenMs}ms, SmtpSend: {smtpMs}ms, DbSave: {dbSaveMs}ms).");
 
             return true;
         }

@@ -112,6 +112,88 @@ namespace Aquora.API.Controllers
                 timestamp = DateTime.UtcNow
             });
         }
+
+        /// <summary>
+        /// Diagnostic endpoint testing DNS and TCP egress connectivity to smtp.gmail.com ports 587 and 465.
+        /// </summary>
+        [HttpGet("smtp-diagnostic")]
+        public async Task<IActionResult> SmtpNetworkDiagnostic()
+        {
+            var host = "smtp.gmail.com";
+            var dnsPass = false;
+            var dnsIps = "";
+            var tcp587Pass = false;
+            var tcp465Pass = false;
+            var diagnosticLog = new System.Collections.Generic.List<string>();
+
+            // 1. DNS Resolution Test
+            try
+            {
+                var ips = await System.Net.Dns.GetHostAddressesAsync(host);
+                dnsPass = ips.Length > 0;
+                dnsIps = string.Join(", ", System.Linq.Enumerable.Select(ips, ip => ip.ToString()));
+                diagnosticLog.Add($"DNS: Successfully resolved {host} to [{dnsIps}]");
+            }
+            catch (Exception ex)
+            {
+                diagnosticLog.Add($"DNS FAIL: Could not resolve {host}: {ex.Message}");
+            }
+
+            // 2. TCP Port 587 Test
+            try
+            {
+                using var client587 = new System.Net.Sockets.TcpClient();
+                var connectTask = client587.ConnectAsync(host, 587);
+                var timeoutTask = Task.Delay(4000);
+                var completed = await Task.WhenAny(connectTask, timeoutTask);
+                if (completed == connectTask && client587.Connected)
+                {
+                    tcp587Pass = true;
+                    diagnosticLog.Add($"TCP 587: Successfully connected to {host}:587");
+                }
+                else
+                {
+                    diagnosticLog.Add($"TCP 587 FAIL: Connection to {host}:587 timed out after 4000ms. Outbound port 587 is blocked by hosting environment.");
+                }
+            }
+            catch (Exception ex)
+            {
+                diagnosticLog.Add($"TCP 587 ERROR: {ex.Message}");
+            }
+
+            // 3. TCP Port 465 Test (Alternative SSL Port)
+            try
+            {
+                using var client465 = new System.Net.Sockets.TcpClient();
+                var connectTask = client465.ConnectAsync(host, 465);
+                var timeoutTask = Task.Delay(4000);
+                var completed = await Task.WhenAny(connectTask, timeoutTask);
+                if (completed == connectTask && client465.Connected)
+                {
+                    tcp465Pass = true;
+                    diagnosticLog.Add($"TCP 465: Successfully connected to {host}:465");
+                }
+                else
+                {
+                    diagnosticLog.Add($"TCP 465 FAIL: Connection to {host}:465 timed out after 4000ms. Outbound port 465 is blocked by hosting environment.");
+                }
+            }
+            catch (Exception ex)
+            {
+                diagnosticLog.Add($"TCP 465 ERROR: {ex.Message}");
+            }
+
+            return Ok(new
+            {
+                targetHost = host,
+                dnsResolution = dnsPass ? "PASS" : "FAIL",
+                resolvedIpAddresses = dnsIps,
+                tcpPort587 = tcp587Pass ? "PASS" : "FAIL",
+                tcpPort465 = tcp465Pass ? "PASS" : "FAIL",
+                diagnostics = diagnosticLog,
+                timestamp = DateTime.UtcNow
+            });
+        }
     }
 }
 
