@@ -10,6 +10,7 @@ import { operationsIssueApi } from '../../services/api/operationsIssue'
 import { ArrowLeft, AlertTriangle, ChevronDown, ChevronUp, Package, Clock, User, Calendar, History, Box, FileText, CheckCircle2, PlayCircle, Layers, Wrench, ShieldCheck, Square, Loader2 } from 'lucide-react'
 import EnterpriseLoading from '../../components/ui/EnterpriseLoading'
 import EnterpriseModal from '../../components/ui/EnterpriseModal'
+import { useStationConfig } from '../../hooks/useStationConfig'
 
 // ─── Live Duration Cell ────────────────────────────────────────────────────────
 const LiveDuration: React.FC<{ startedAt: string; endedAt?: string | null }> = ({ startedAt, endedAt }) => {
@@ -112,6 +113,7 @@ export const BatchDetailsPage: React.FC = () => {
   const { batchId } = useParams<{ batchId: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { isBlowingEnabled, isFillingEnabled, isLabelingEnabled, isPackingEnabled } = useStationConfig()
   const [expandedEntries, setExpandedEntries] = useState<Record<string, boolean>>({})
 
   // ── Stop Batch State ────────────────────────────────────────────────────────
@@ -413,22 +415,53 @@ export const BatchDetailsPage: React.FC = () => {
                 </h3>
               </div>
               <div className="p-3">
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                  {summaryData ? (
-                    <>
-                      <CompactMatWidget color="blue" title="Preform" used={summaryData.preformUsed} waste={summaryData.preformWaste} unit="Bags" />
-                      <CompactMatWidget color="purple" title="Cap" used={summaryData.capUsed} waste={summaryData.capWaste} unit="Boxes" />
-                      <CompactMatWidget color="green" title="Label" used={summaryData.labelUsed} waste={summaryData.labelWaste} unit="KG" />
-                      <CompactMatWidget color="orange" title="Shrink" used={summaryData.shrinkUsed} waste={summaryData.shrinkWaste} unit="KG" />
-                      <CompactMatWidget color="slate" title="Glue" used={summaryData.glueUsed} waste={summaryData.glueWaste} unit="KG" />
-                      <CompactMatWidget color="cyan" title="Ink / Jet" used={summaryData.inkUsed ? 'Yes' : 'No'} waste={summaryData.makeupUsed ? 'Yes' : 'No'} unit="" isBoolean />
-                    </>
-                  ) : (
-                    <div className="col-span-full py-6 text-center text-[12px] text-slate-400 font-medium italic">
-                      Material consumption data is not available.
+                {(() => {
+                  const enabledMatCards = summaryData ? [
+                    isBlowingEnabled && (
+                      <CompactMatWidget key="preform" color="blue" title="Preform" used={summaryData.preformUsed} waste={summaryData.preformWaste} unit="Bags" />
+                    ),
+                    isFillingEnabled && (
+                      <CompactMatWidget key="cap" color="purple" title="Cap" used={summaryData.capUsed} waste={summaryData.capWaste} unit="Boxes" />
+                    ),
+                    isLabelingEnabled && (
+                      <CompactMatWidget key="label" color="green" title="Label" used={summaryData.labelUsed} waste={summaryData.labelWaste} unit="KG" />
+                    ),
+                    isPackingEnabled && (
+                      <CompactMatWidget key="shrink" color="orange" title="Shrink" used={summaryData.shrinkUsed} waste={summaryData.shrinkWaste} unit="KG" />
+                    ),
+                    isLabelingEnabled && (
+                      <CompactMatWidget key="glue" color="slate" title="Glue" used={summaryData.glueUsed} waste={summaryData.glueWaste} unit="KG" />
+                    ),
+                    (isFillingEnabled || isLabelingEnabled) && (
+                      <CompactMatWidget key="ink" color="cyan" title="Ink / Jet" used={summaryData.inkUsed ? 'Yes' : 'No'} waste={summaryData.makeupUsed ? 'Yes' : 'No'} unit="" isBoolean />
+                    )
+                  ].filter(Boolean) : []
+
+                  const cardCount = enabledMatCards.length
+
+                  return (
+                    <div 
+                      className="grid gap-2 grid-cols-2 sm:grid-cols-3"
+                      style={{
+                        gridTemplateColumns: cardCount > 0 ? `repeat(${Math.min(cardCount, 6)}, minmax(0, 1fr))` : undefined
+                      }}
+                    >
+                      {summaryData ? (
+                        cardCount > 0 ? (
+                          enabledMatCards
+                        ) : (
+                          <div className="col-span-full py-4 text-center text-[12px] text-slate-400 font-medium italic">
+                            No material consumption cards enabled for current station configuration.
+                          </div>
+                        )
+                      ) : (
+                        <div className="col-span-full py-6 text-center text-[12px] text-slate-400 font-medium italic">
+                          Material consumption data is not available.
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  )
+                })()}
               </div>
             </div>
 
@@ -525,13 +558,28 @@ export const BatchDetailsPage: React.FC = () => {
                         {/* Expanded Material Data */}
                         {isExpanded && (
                           <div className="px-4 py-3 bg-slate-50 border-t border-slate-100">
-                            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
-                               <MiniMatCard label="Preform" used={item.preformUsage} waste={item.preformWastage} unit={item.preformUnit || "Bag"} />
-                               <MiniMatCard label="Cap" used={item.capUsage} waste={item.capWastage} unit={item.capUnit || "Box"} />
-                               <MiniMatCard label="Label" used={item.labelUsage} waste={item.labelWastage} unit={item.labelUnit || "KG"} />
-                               <MiniMatCard label="Shrink" used={item.shrinkUsage} waste={item.shrinkWastage} unit={item.shrinkUnit || "KG"} />
-                               <MiniMatCard label="Glue" used={item.glueUsage} waste={item.glueWastage} unit={item.glueUnit || "KG"} />
-                            </div>
+                            {(() => {
+                              const miniMatCards = [
+                                isBlowingEnabled && <MiniMatCard key="preform" label="Preform" used={item.preformUsage} waste={item.preformWastage} unit={item.preformUnit || "Bag"} />,
+                                isFillingEnabled && <MiniMatCard key="cap" label="Cap" used={item.capUsage} waste={item.capWastage} unit={item.capUnit || "Box"} />,
+                                isLabelingEnabled && <MiniMatCard key="label" label="Label" used={item.labelUsage} waste={item.labelWastage} unit={item.labelUnit || "KG"} />,
+                                isPackingEnabled && <MiniMatCard key="shrink" label="Shrink" used={item.shrinkUsage} waste={item.shrinkWastage} unit={item.shrinkUnit || "KG"} />,
+                                isLabelingEnabled && <MiniMatCard key="glue" label="Glue" used={item.glueUsage} waste={item.glueWastage} unit={item.glueUnit || "KG"} />
+                              ].filter(Boolean)
+
+                              const miniCount = miniMatCards.length
+
+                              return (
+                                <div 
+                                  className="grid gap-2 grid-cols-2 sm:grid-cols-3"
+                                  style={{
+                                    gridTemplateColumns: miniCount > 0 ? `repeat(${Math.min(miniCount, 5)}, minmax(0, 1fr))` : undefined
+                                  }}
+                                >
+                                  {miniMatCards}
+                                </div>
+                              )
+                            })()}
                           </div>
                         )}
                       </div>
@@ -575,7 +623,7 @@ export const BatchDetailsPage: React.FC = () => {
                                 </div>
                                 <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-1">Materials</span>
                                 <div className="flex flex-col gap-1.5">
-                                  {ev.entry.preformName && (
+                                  {ev.entry.preformName && isBlowingEnabled && (
                                     <div className="bg-white border border-slate-100 rounded px-2 py-1.5 flex justify-between items-center shadow-sm">
                                       <span className="text-[10px] font-bold text-slate-700 w-12">Preform</span>
                                       <div className="flex gap-3 text-[10px]">
@@ -584,7 +632,7 @@ export const BatchDetailsPage: React.FC = () => {
                                       </div>
                                     </div>
                                   )}
-                                  {ev.entry.capName && (ev.entry.capUsage > 0 || ev.entry.capWastage > 0) && (
+                                  {ev.entry.capName && isFillingEnabled && (ev.entry.capUsage > 0 || ev.entry.capWastage > 0) && (
                                     <div className="bg-white border border-slate-100 rounded px-2 py-1.5 flex justify-between items-center shadow-sm">
                                       <span className="text-[10px] font-bold text-slate-700 w-12">Cap</span>
                                       <div className="flex gap-3 text-[10px]">
@@ -593,7 +641,7 @@ export const BatchDetailsPage: React.FC = () => {
                                       </div>
                                     </div>
                                   )}
-                                  {ev.entry.labelName && (ev.entry.labelUsage > 0 || ev.entry.labelWastage > 0) && (
+                                  {ev.entry.labelName && isLabelingEnabled && (ev.entry.labelUsage > 0 || ev.entry.labelWastage > 0) && (
                                     <div className="bg-white border border-slate-100 rounded px-2 py-1.5 flex justify-between items-center shadow-sm">
                                       <span className="text-[10px] font-bold text-slate-700 w-12">Label</span>
                                       <div className="flex gap-3 text-[10px]">
@@ -602,7 +650,7 @@ export const BatchDetailsPage: React.FC = () => {
                                       </div>
                                     </div>
                                   )}
-                                  {ev.entry.shrinkName && (ev.entry.shrinkUsage > 0 || ev.entry.shrinkWastage > 0) && (
+                                  {ev.entry.shrinkName && isPackingEnabled && (ev.entry.shrinkUsage > 0 || ev.entry.shrinkWastage > 0) && (
                                     <div className="bg-white border border-slate-100 rounded px-2 py-1.5 flex justify-between items-center shadow-sm">
                                       <span className="text-[10px] font-bold text-slate-700 w-12">Shrink</span>
                                       <div className="flex gap-3 text-[10px]">
@@ -611,7 +659,7 @@ export const BatchDetailsPage: React.FC = () => {
                                       </div>
                                     </div>
                                   )}
-                                  {ev.entry.glueName && (ev.entry.glueUsage > 0 || ev.entry.glueWastage > 0) && (
+                                  {ev.entry.glueName && isLabelingEnabled && (ev.entry.glueUsage > 0 || ev.entry.glueWastage > 0) && (
                                     <div className="bg-white border border-slate-100 rounded px-2 py-1.5 flex justify-between items-center shadow-sm">
                                       <span className="text-[10px] font-bold text-slate-700 w-12">Glue</span>
                                       <div className="flex gap-3 text-[10px]">
