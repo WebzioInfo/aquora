@@ -37,12 +37,15 @@ export const LoginPage: React.FC = () => {
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false)
   const [forgotStep, setForgotStep] = useState<'request' | 'verify'>('request')
   const [forgotEmail, setForgotEmail] = useState('')
-  const [forgotLoading, setForgotLoading] = useState(false)
-  const [resetCode, setResetCode] = useState<string[]>(Array(6).fill(''))
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const codeRefs = useRef<(HTMLInputElement | null)[]>([])
+  const [resendCooldown, setResendCooldown] = useState(0)
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev > 1 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [resendCooldown])
 
   const {
     register,
@@ -128,6 +131,7 @@ export const LoginPage: React.FC = () => {
   // Forgot password handlers
   const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (forgotLoading || resendCooldown > 0) return
     if (!forgotEmail) {
       showToast('Please enter your corporate email address.', 'error')
       return
@@ -139,15 +143,15 @@ export const LoginPage: React.FC = () => {
         showToast('Password recovery PIN sent to your email.', 'success')
         setForgotStep('verify')
         setResetCode(Array(6).fill(''))
+        setResendCooldown(60)
       } else {
         showToast(response.message || 'Failed to send recovery code.', 'error')
       }
     } catch (error: any) {
       if (error.response?.status === 429 || error.response?.data?.code === 'OTP_RATE_LIMITED') {
-        const retryAfter = error.response?.data?.retryAfterSeconds || error.response?.headers?.['retry-after']
-        const msg = retryAfter 
-          ? `Please wait ${retryAfter} seconds before requesting another code.` 
-          : (error.response?.data?.message || 'Please wait before requesting another code.')
+        const retryAfter = Number(error.response?.data?.retryAfterSeconds || error.response?.headers?.['retry-after'] || 60)
+        setResendCooldown(retryAfter)
+        const msg = `Please wait ${retryAfter} seconds before requesting another code.`
         showToast(msg, 'error')
       } else {
         showToast(error.response?.data?.message || 'Failed to send recovery code.', 'error')
@@ -478,10 +482,18 @@ export const LoginPage: React.FC = () => {
 
                     <button
                       type="submit"
-                      disabled={forgotLoading}
-                      className="w-full h-[54px] bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      disabled={forgotLoading || resendCooldown > 0}
+                      className="w-full h-[54px] bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {forgotLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Recovery Code'}
+                      {forgotLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" /> Sending...
+                        </>
+                      ) : resendCooldown > 0 ? (
+                        `Resend Code in ${resendCooldown}s`
+                      ) : (
+                        'Send Recovery Code'
+                      )}
                     </button>
                   </form>
                 ) : (

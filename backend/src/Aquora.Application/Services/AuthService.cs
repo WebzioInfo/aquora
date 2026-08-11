@@ -205,6 +205,19 @@ namespace Aquora.Application.Services
             // Generate cryptographically secure OTP
             var code = System.Security.Cryptography.RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
             
+            // Deliver OTP email via SMTP first before committing rate limit to DB
+            try
+            {
+                await _emailService.SendOtpEmailAsync(email, code, 10);
+                Console.WriteLine($"[OTP EMAIL SENT SUCCESS]: Email successfully delivered to SMTP server for recipient '{GetSafeEmailIdentifier(email)}'.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[OTP EMAIL SEND FAILED]: SMTP delivery failed for recipient '{GetSafeEmailIdentifier(email)}': {ex.Message}");
+                throw new InvalidOperationException($"Unable to send OTP email via SMTP. Please verify email configuration or try again later. Details: {ex.Message}");
+            }
+
+            // Record OTP & update rate limit counters only after successful email transmission
             if (existing == null)
             {
                 existing = new OTPVerification
@@ -227,18 +240,6 @@ namespace Aquora.Application.Services
             await _platformContext.SaveChangesAsync();
             
             Console.WriteLine($"[OTP GENERATED & PERSISTED]: OTP generated for email '{email}', Purpose '{purpose}', Expiry '{existing.ExpiryTime}', RequestId '{existing.RequestId}'.");
-
-            // Deliver OTP email via SMTP and verify provider acceptance before returning success
-            try
-            {
-                await _emailService.SendOtpEmailAsync(email, code, 10);
-                Console.WriteLine($"[OTP EMAIL SENT SUCCESS]: Email successfully delivered to SMTP server for recipient '{GetSafeEmailIdentifier(email)}'.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[OTP EMAIL SEND FAILED]: SMTP delivery failed for recipient '{GetSafeEmailIdentifier(email)}': {ex.Message}");
-                throw new InvalidOperationException($"Unable to send OTP email via SMTP. Please verify email configuration or try again later. Details: {ex.Message}");
-            }
 
             return true;
         }
