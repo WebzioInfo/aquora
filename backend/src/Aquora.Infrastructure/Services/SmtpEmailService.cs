@@ -43,16 +43,24 @@ namespace Aquora.Infrastructure.Services
             var fromName = string.IsNullOrWhiteSpace(_options.FromName) ? "Aquora ERP" : _options.FromName;
             var fromEmail = string.IsNullOrWhiteSpace(_options.FromEmail) ? user : _options.FromEmail;
 
+            var isHostPresent = !string.IsNullOrWhiteSpace(host);
+            var isUserPresent = !string.IsNullOrWhiteSpace(user);
             var isPasswordPresent = !string.IsNullOrEmpty(password);
+            var isFromEmailPresent = !string.IsNullOrWhiteSpace(fromEmail);
 
-            _logger.LogInformation("[SMTP INIT] Preparing email for {Recipient}. Host: {Host}, Port: {Port}, User: {User}, From: {FromEmail}, Password Present: {PasswordPresent}",
-                toEmail, host, port, user, fromEmail, isPasswordPresent);
+            _logger.LogInformation("[SMTP DIAGNOSTIC] Host Present: {HostPresent} ({Host}), Port: {Port}, Username Present: {UserPresent} ({User}), FromEmail Present: {FromEmailPresent}, Password Present: {PasswordPresent}, EnableSsl: {EnableSsl}",
+                isHostPresent, isHostPresent ? host : "MISSING", port, isUserPresent, isUserPresent ? user : "MISSING", isFromEmailPresent, isPasswordPresent, _options.EnableSsl);
 
-            if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(password))
+            if (!isHostPresent || !isUserPresent || !isPasswordPresent)
             {
-                _logger.LogError("[SMTP ERROR] Missing required SMTP configuration properties. Host: '{Host}', User: '{User}', Password Present: {PasswordPresent}",
-                    host, user, isPasswordPresent);
-                throw new InvalidOperationException("SMTP configuration is invalid or missing required credentials.");
+                var missingFields = new System.Collections.Generic.List<string>();
+                if (!isHostPresent) missingFields.Add("SMTP_HOST");
+                if (!isUserPresent) missingFields.Add("SMTP_USERNAME");
+                if (!isPasswordPresent) missingFields.Add("SMTP_PASSWORD");
+
+                var missingStr = string.Join(", ", missingFields);
+                _logger.LogError("[SMTP ERROR] Missing required SMTP configuration variables: {MissingFields}", missingStr);
+                throw new InvalidOperationException($"SMTP configuration is incomplete on server. Missing required environment variables: {missingStr}. Please configure these in Railway Service Variables and restart the service.");
             }
 
             var message = new MimeMessage();
