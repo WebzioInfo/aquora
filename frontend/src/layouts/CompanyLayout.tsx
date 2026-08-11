@@ -260,7 +260,6 @@ export const CompanyLayout: React.FC = () => {
         <EnterpriseTopbar
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-          breadcrumbs={getBreadcrumbs()}
           notificationsOpen={notificationsOpen}
           onToggleNotifications={() => setNotificationsOpen(!notificationsOpen)}
           profileMenuOpen={profileMenuOpen}

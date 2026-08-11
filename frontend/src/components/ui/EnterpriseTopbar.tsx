@@ -53,13 +53,6 @@ export const EnterpriseTopbar: React.FC<EnterpriseTopbarProps> = ({
         >
           <Menu className="w-5 h-5" />
         </button>
-        
-        {/* Breadcrumbs */}
-        {breadcrumbs && (
-          <div className="hidden md:flex items-center select-none text-xs font-semibold text-[#667085]">
-            {breadcrumbs}
-          </div>
-        )}
       </div>
 
       {/* Right nav items */}
