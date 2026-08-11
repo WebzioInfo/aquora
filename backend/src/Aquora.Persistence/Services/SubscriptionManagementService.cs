@@ -759,7 +759,7 @@ namespace Aquora.Persistence.Services
                 {
                     plan.MonthlyPrice = 999.00m;
                     plan.YearlyPrice = 9990.00m;
-                    plan.Description = "Ideal for small manufacturing businesses starting with Aquora.";
+                    plan.Description = "Ideal for small manufacturing businesses starting with Aquzio.";
                 }
                 else if (string.Equals(plan.Name, "Professional", StringComparison.OrdinalIgnoreCase))
                 {
@@ -801,7 +801,7 @@ namespace Aquora.Persistence.Services
                     Id = starterId,
                     Name = "Starter",
                     Code = "STARTER",
-                    Description = "Ideal for small manufacturing businesses starting with Aquora.",
+                    Description = "Ideal for small manufacturing businesses starting with Aquzio.",
                     MonthlyPrice = 999.00m,
                     YearlyPrice = 9990.00m,
                     OfferPrice = 799.00m,

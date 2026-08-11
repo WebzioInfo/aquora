@@ -11,7 +11,7 @@ namespace Aquora.Infrastructure.Configuration
             set => Username = value;
         }
         public string Password { get; set; } = string.Empty;
-        public string FromName { get; set; } = "Aquora";
+        public string FromName { get; set; } = "Aquzio";
         public string FromEmail { get; set; } = string.Empty;
         public bool EnableSsl { get; set; } = true;
         public bool UseSsl

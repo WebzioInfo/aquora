@@ -1,5 +1,5 @@
 /**
- * Global Date & Time Formatter Utility for Aquora ERP.
+ * Global Date & Time Formatter Utility for Aquzio ERP.
  * Converts UTC timestamps to the company's configured timezone and formats them accordingly.
  */
 

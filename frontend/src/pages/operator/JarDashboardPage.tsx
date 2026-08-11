@@ -1303,7 +1303,7 @@ export const JarDashboardPage: React.FC = () => {
                           <div className="font-semibold text-slate-900">{distribContext?.distributorName || 'Test Distributor'}</div>
                           <div className="text-[10px] text-slate-500">{vehicleNumber || 'KL-07-AB-1234'}</div>
                         </td>
-                        <td className="py-3 px-3 font-semibold text-slate-700">Aquora Premium 20L</td>
+                        <td className="py-3 px-3 font-semibold text-slate-700">Aquzio Premium 20L</td>
                         <td className="py-3 px-3 text-center font-bold text-blue-800 text-[13px]">85</td>
                         <td className="py-3 px-3 text-center font-bold text-amber-800 text-[13px]">20</td>
                         <td className="py-3 px-3 text-center font-bold text-emerald-800 text-[13px]">60</td>

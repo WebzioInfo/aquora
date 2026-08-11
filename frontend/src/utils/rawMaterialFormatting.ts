@@ -1,5 +1,5 @@
 /**
- * Centralized Raw Material Usage & Wastage Formatting Utility for Aquora ERP
+ * Centralized Raw Material Usage & Wastage Formatting Utility for Aquzio ERP
  */
 
 export function formatWeightValue(val: number): string {

@@ -33,7 +33,7 @@ namespace Aquora.Infrastructure.Services
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var apiKey = _options.ApiKey;
             var fromEmail = string.IsNullOrWhiteSpace(_options.FromEmail) ? "onboarding@resend.dev" : _options.FromEmail;
-            var fromName = string.IsNullOrWhiteSpace(_options.FromName) ? "Aquora" : _options.FromName;
+            var fromName = string.IsNullOrWhiteSpace(_options.FromName) ? "Aquzio" : _options.FromName;
 
             if (string.IsNullOrWhiteSpace(apiKey))
             {
@@ -94,14 +94,14 @@ namespace Aquora.Infrastructure.Services
 
         public async Task SendOtpEmailAsync(string toEmail, string otpCode, int expiryMinutes, CancellationToken cancellationToken = default)
         {
-            var subject = "Aquora ERP - Email Verification Code";
+            var subject = "Aquzio ERP - Email Verification Code";
             
             var body = $@"
             <!DOCTYPE html>
             <html>
             <body style='font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f5;'>
                 <div style='max-width: 600px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);'>
-                    <h2 style='color: #0f172a; margin-top: 0;'>Aquora ERP</h2>
+                    <h2 style='color: #0f172a; margin-top: 0;'>Aquzio ERP</h2>
                     <h3 style='color: #334155; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;'>Email Verification</h3>
                     <p style='color: #475569; font-size: 16px;'>Your One-Time Password is:</p>
                     <div style='background-color: #f8fafc; padding: 15px; border-radius: 6px; text-align: center; margin: 20px 0;'>

@@ -56,7 +56,7 @@ export const envConfig: FrontendEnvConfig = {
   apiUrl: getSanitizedBaseUrl(finalUrl),
   isProduction,
   isDevelopment,
-  appName: getEnvVar('VITE_APP_NAME') || 'AQUORA ERP'
+  appName: getEnvVar('VITE_APP_NAME') || 'AQUZIO ERP'
 }
 
 export default envConfig
