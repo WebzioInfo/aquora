@@ -79,16 +79,7 @@ namespace Aquora.Infrastructure
                     }
 
                     static string sslStrVal(string val) => val;
-                })
-                .Validate(options => 
-                {
-                    return !string.IsNullOrWhiteSpace(options.Host) &&
-                           options.Port > 0 &&
-                           !string.IsNullOrWhiteSpace(options.Username) &&
-                           !string.IsNullOrWhiteSpace(options.Password) &&
-                           !string.IsNullOrWhiteSpace(options.FromEmail);
-                }, "SMTP configuration is incomplete: SMTP_HOST / SMTP_PORT / SMTP_USERNAME / SMTP_PASSWORD / SMTP_FROM_EMAIL are required.")
-                .ValidateOnStart();
+                });
 
 
             // Background tenant provisioning pipeline
