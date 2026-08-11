@@ -252,22 +252,31 @@ export const LoginPage: React.FC = () => {
   return (
     <div className="w-full flex justify-center items-center font-sans">
 
-      {/* FRESH WHITE AUTHENTICATION SURFACE (440px width, 16px rounded, soft border) */}
+      {/* TRANSLUCENT AUTHENTICATION SURFACE */}
       <motion.div 
         animate={shakeError ? { x: [-8, 8, -6, 6, -3, 3, 0] } : {}}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl shadow-xs p-8 sm:p-9 space-y-5 relative z-10"
+        className="w-full max-w-[420px] rounded-2xl p-8 sm:p-9 space-y-5 relative z-10 shadow-sm"
+        style={{
+          background: 'rgba(255, 255, 255, 0.92)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255, 255, 255, 0.65)'
+        }}
       >
         
         {/* Header */}
-        <div className="flex flex-col items-center text-center space-y-2 select-none">
-          <img src={BRAND.logo} alt={BRAND.name} className="h-14 w-auto object-contain mb-1" />
+        <div className="flex flex-col items-center text-center space-y-1 select-none mb-2">
+          <img src={BRAND.logo} alt={BRAND.name} className="h-14 w-auto object-contain mb-2" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#2563EB]">
+            Enterprise Manufacturing Platform
+          </span>
           <div>
             <h2 className="text-xl font-extrabold text-[#111827] tracking-tight">
               Welcome Back
             </h2>
-            <p className="text-xs font-medium text-[#6B7280] mt-0.5">
-              Sign in to continue to {BRAND.name} Platform
+            <p className="text-[11px] font-medium text-[#6B7280] mt-1">
+              Sign in to continue to your {BRAND.name} platform.
             </p>
           </div>
         </div>

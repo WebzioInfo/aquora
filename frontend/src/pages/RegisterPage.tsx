@@ -113,21 +113,30 @@ export const RegisterPage: React.FC = () => {
   return (
     <div className="w-full flex justify-center items-center font-sans">
 
-      {/* FRESH WHITE SURFACE */}
+      {/* TRANSLUCENT SURFACE */}
       <motion.div 
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl shadow-xs p-8 sm:p-9 space-y-4 relative z-10"
+        className="w-full max-w-[420px] rounded-2xl p-8 sm:p-9 space-y-4 relative z-10 shadow-sm"
+        style={{
+          background: 'rgba(255, 255, 255, 0.92)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255, 255, 255, 0.65)'
+        }}
       >
         
         {/* Header */}
-        <div className="flex flex-col items-center text-center space-y-1.5 select-none">
-          <img src={BRAND.logo} alt={BRAND.name} className="h-12 w-auto object-contain mb-1" />
+        <div className="flex flex-col items-center text-center space-y-1 select-none mb-2">
+          <img src={BRAND.logo} alt={BRAND.name} className="h-12 w-auto object-contain mb-2" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#2563EB]">
+            Enterprise Manufacturing Platform
+          </span>
           <div>
             <h2 className="text-xl font-extrabold text-[#111827] tracking-tight">
               Create Account
             </h2>
-            <p className="text-xs font-medium text-[#6B7280] mt-0.5">
+            <p className="text-[11px] font-medium text-[#6B7280] mt-1">
               Register your {BRAND.name} workspace
             </p>
           </div>
