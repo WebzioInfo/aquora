@@ -1041,7 +1041,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
               <thead>
                 <tr className="bg-[#F8FAFC] border-b border-[#E5E7EB] text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none h-[36px]">
                   <th className="py-2 px-4">Date</th>
-                  <th className="py-2 px-4">Transaction No</th>
+                  {/* <th className="py-2 px-4">Transaction No</th> */}
                   <th className="py-2 px-4">Customer</th>
                   <th className="py-2 px-4">Product</th>
                   <th className="py-2 px-4">Type</th>
@@ -1057,9 +1057,9 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                     <td className="py-3 px-4 text-slate-600 whitespace-nowrap">
                       {new Date(txn.transactionDate).toLocaleDateString('en-IN', { dateStyle: 'medium' })}
                     </td>
-                    <td className="py-3 px-4 font-mono font-bold text-slate-800">
+                    {/* <td className="py-3 px-4 font-mono font-bold text-slate-800">
                       {txn.transactionNumber}
-                    </td>
+                    </td> */}
                     <td className="py-3 px-4 font-semibold text-slate-700">
                       {txn.customerName}
                     </td>

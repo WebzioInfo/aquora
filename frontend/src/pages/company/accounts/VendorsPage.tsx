@@ -282,7 +282,7 @@ export const VendorsPage: React.FC = () => {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-[#F8FAFC] border-b border-[#E5E9F2] text-slate-600 font-bold uppercase tracking-wider">
-                  <th className="px-4 py-3">Vendor Code</th>
+                  {/* <th className="px-4 py-3">Vendor Code</th> */}
                   <th className="px-4 py-3">Vendor Name</th>
                   <th className="px-4 py-3">Phone</th>
                   <th className="px-4 py-3">Email</th>
@@ -297,9 +297,9 @@ export const VendorsPage: React.FC = () => {
               <tbody className="divide-y divide-[#E5E9F2]">
                 {vendors.map((vendor) => (
                   <tr key={vendor.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 font-bold font-mono text-[#1A56DB]">
+                    {/* <td className="px-4 py-3 font-bold font-mono text-[#1A56DB]">
                       {vendor.vendorCode || `VND-${vendor.id.substring(0, 4).toUpperCase()}`}
-                    </td>
+                    </td> */}
                     <td className="px-4 py-3 font-bold text-slate-900">
                       {vendor.name}
                       {vendor.address && (

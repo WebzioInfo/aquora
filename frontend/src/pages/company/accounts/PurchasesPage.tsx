@@ -87,7 +87,7 @@ export const PurchasesPage: React.FC = () => {
   ]
 
   useEffect(() => {
-    vendorService.getVendorDropdown().then(setVendors).catch(() => {})
+    vendorService.getVendorDropdown().then(setVendors).catch(() => { })
   }, [])
 
   const fetchPurchases = async () => {
@@ -98,8 +98,8 @@ export const PurchasesPage: React.FC = () => {
 
       const now = new Date()
       if (dateFilter === 'today') {
-        sDate = new Date(now.setHours(0,0,0,0)).toISOString()
-        eDate = new Date(now.setHours(23,59,59,999)).toISOString()
+        sDate = new Date(now.setHours(0, 0, 0, 0)).toISOString()
+        eDate = new Date(now.setHours(23, 59, 59, 999)).toISOString()
       } else if (dateFilter === 'this_week') {
         const first = now.getDate() - now.getDay()
         sDate = new Date(now.setDate(first)).toISOString()
@@ -249,14 +249,14 @@ export const PurchasesPage: React.FC = () => {
         unitPrice: item.unitPrice,
         amount: item.totalAmount
       })) || [
-        {
-          sno: 1,
-          description: `Purchase record: ${p.purchaseCategory || ''}`,
-          quantity: 1,
-          unitPrice: p.grandTotal,
-          amount: p.grandTotal
-        }
-      ],
+          {
+            sno: 1,
+            description: `Purchase record: ${p.purchaseCategory || ''}`,
+            quantity: 1,
+            unitPrice: p.grandTotal,
+            amount: p.grandTotal
+          }
+        ],
       financialSummary: {
         subTotal: p.subTotal || p.grandTotal,
         taxAmount: p.taxAmount || 0,
@@ -508,7 +508,6 @@ export const PurchasesPage: React.FC = () => {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-[#F8FAFC] border-b border-[#E5E9F2] text-slate-600 font-bold uppercase tracking-wider">
-                  <th className="px-4 py-3">Purchase No</th>
                   <th className="px-4 py-3">Purchase Date</th>
                   <th className="px-4 py-3">Vendor</th>
                   <th className="px-4 py-3">Category</th>
@@ -517,16 +516,12 @@ export const PurchasesPage: React.FC = () => {
                   <th className="px-4 py-3 text-right">Paid Amount</th>
                   <th className="px-4 py-3 text-right">Balance</th>
                   <th className="px-4 py-3">Payment Status</th>
-                  <th className="px-4 py-3">Last Updated</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E5E9F2]">
                 {purchases.map((purchase) => (
                   <tr key={purchase.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-4 py-3 font-bold text-[#1A56DB] font-mono whitespace-nowrap">
-                      {purchase.purchaseNo}
-                    </td>
                     <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                       {new Date(purchase.purchaseDate).toLocaleDateString('en-IN', {
                         day: '2-digit',
@@ -559,20 +554,6 @@ export const PurchasesPage: React.FC = () => {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {getStatusBadge(purchase)}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                      <div>
-                        <span className="font-semibold text-slate-700 block">
-                          {new Date(purchase.updatedAt || purchase.createdAt).toLocaleDateString('en-IN', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric'
-                          })}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-medium block">
-                          by {purchase.updatedByName || purchase.createdByName || 'Unknown User'}
-                        </span>
-                      </div>
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
@@ -627,7 +608,7 @@ export const PurchasesPage: React.FC = () => {
                             <CreditCard className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        
+
                         <button
                           onClick={() => handleDuplicate(purchase.id)}
                           className="p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded transition-colors"

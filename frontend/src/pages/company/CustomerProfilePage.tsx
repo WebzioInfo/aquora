@@ -350,6 +350,15 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0">
+                      <Clock className="w-4 h-4 text-slate-500" />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Outstanding Jars</span>
+                      <span className="block font-semibold text-slate-800 leading-none">{customer.outstandingJars || 0} Jars with customer</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0">
                       <BookOpen className="w-4 h-4 text-slate-500" />
                     </div>
                     <div>

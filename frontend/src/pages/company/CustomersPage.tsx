@@ -606,6 +606,10 @@ export const CustomersPage: React.FC = () => {
       showToast('Opening Balance cannot be negative.', 'warning')
       return
     }
+    if (Number(formData.outstandingJars) < 0) {
+      showToast('Outstanding jars cannot be negative.', 'warning')
+      return
+    }
 
     if (!formData.paymentTerms) {
       showToast('Please select Payment Terms.', 'warning')
@@ -1375,6 +1379,24 @@ export const CustomersPage: React.FC = () => {
                             } as any);
                           }}
                           helpText="Current reserved empty jars available for this customer."
+                        />
+                        <PremiumInput
+                          label="Outstanding Jars"
+                          name="outstandingJars"
+                          type="number"
+                          min={0}
+                          value={formData.outstandingJars}
+                          onChange={(e: any) => {
+                            const val = parseInt(e.target.value);
+                            const finalVal = isNaN(val) ? 0 : val;
+                            if (finalVal < 0) {
+                              showToast('Outstanding jars cannot be negative.', 'warning');
+                            }
+                            handleFormChange({
+                              target: { name: 'outstandingJars', value: finalVal < 0 ? 0 : finalVal }
+                            } as any);
+                          }}
+                          helpText="Current number of 20L jars physically held by customer and expected to be returned."
                         />
                       </div>
 

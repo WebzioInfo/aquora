@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  AlertTriangle, 
-  Plus, 
-  Search, 
-  Filter, 
-  Clock, 
-  CheckCircle2, 
-  Wrench, 
-  Zap, 
+import {
+  AlertTriangle,
+  Plus,
+  Search,
+  Filter,
+  Clock,
+  CheckCircle2,
+  Wrench,
+  Zap,
   ChevronRight,
   TrendingUp,
   Building2,
@@ -296,21 +296,19 @@ export const OperationsIssuesListPage: React.FC = () => {
       <div className="flex border-b border-slate-200 gap-6">
         <button
           onClick={() => setActiveTab('issues')}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${
-            activeTab === 'issues'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
-          }`}
+          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${activeTab === 'issues'
+            ? 'border-blue-600 text-blue-600'
+            : 'border-transparent text-slate-500 hover:text-slate-900'
+            }`}
         >
           All Operations Issues ({totalCount})
         </button>
         <button
           onClick={() => setActiveTab('analytics')}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${
-            activeTab === 'analytics'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
-          }`}
+          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${activeTab === 'analytics'
+            ? 'border-blue-600 text-blue-600'
+            : 'border-transparent text-slate-500 hover:text-slate-900'
+            }`}
         >
           Analytics & Downtime Report
         </button>
@@ -398,19 +396,6 @@ export const OperationsIssuesListPage: React.FC = () => {
             <EnterpriseCard className="p-0 overflow-hidden bg-white border border-slate-200">
               <EnterpriseTable
                 columns={[
-                  {
-                    id: 'issueNumber',
-                    header: 'Issue Number',
-                    accessorKey: 'issueNumber',
-                    cell: (row: OperationsIssue) => (
-                      <span 
-                        onClick={() => navigate(`/company/operations-issues/${row.id}`)}
-                        className="font-bold text-blue-600 hover:underline cursor-pointer"
-                      >
-                        #{row.issueNumber}
-                      </span>
-                    )
-                  },
                   {
                     id: 'title',
                     header: 'Title & Category',

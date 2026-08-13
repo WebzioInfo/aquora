@@ -219,7 +219,41 @@ export function mapErrorToUserFriendly(error: any): UserFriendlyError {
     }
   }
 
-  // F. Stock / Business Rule Guards
+  // F. 20L Jar Operations Guards
+  if (
+    msgLower.includes('insufficient outstanding jars') ||
+    msgLower.includes('has no outstanding 20l jars') ||
+    (code === 'INVALID_OPERATION' && (msgLower.includes('outstanding') || msgLower.includes('balance')))
+  ) {
+    const custMatch = rawMsg.match(/customer ['"]([^'"]+)['"]/i) || rawMsg.match(/customer ([A-Za-z0-9_ -]+?)(\.|$|\,|Current)/i)
+    const custName = custMatch ? custMatch[1].trim() : ''
+    const formattedName = custName || 'Customer'
+    return {
+      title: 'Return Not Recorded',
+      message: `${formattedName} has no outstanding 20L jars to return. Please check the customer's jar balance and try again.`,
+      category: 'validation',
+      canUserFix: true,
+      code: 'INVALID_OPERATION',
+    }
+  }
+
+  if (
+    msgLower.includes('insufficient reserved empty jars') ||
+    (code === 'INVALID_OPERATION' && msgLower.includes('reserved empty jars'))
+  ) {
+    const custMatch = rawMsg.match(/customer ['"]([^'"]+)['"]/i) || rawMsg.match(/customer ([A-Za-z0-9_ -]+?)(\.|$|\,|Current)/i)
+    const custName = custMatch ? custMatch[1].trim() : ''
+    const formattedName = custName || 'Customer'
+    return {
+      title: 'Reservation Limit Reached',
+      message: `${formattedName} does not have enough reserved empty jars for this action. Please check customer reservations and try again.`,
+      category: 'validation',
+      canUserFix: true,
+      code: 'INVALID_OPERATION',
+    }
+  }
+
+  // G. Stock / Business Rule Guards
   if (msgLower.includes('stock') || msgLower.includes('inventory')) {
     return {
       title: 'Stock Unavailable',

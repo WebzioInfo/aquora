@@ -563,7 +563,37 @@ export const JarDashboardPage: React.FC = () => {
       }
       setActiveTab('action-hub')
     } catch (ex: any) {
-      showToast('Error recording unloading transaction.', 'error')
+      console.error('Error recording unloading transaction:', ex)
+      const dist = distributors.find((d: any) => (d.id || d.customerId) === selectedDistributorId)
+      const distName = dist?.customerName || (dist as any)?.name
+
+      const rawMsg = ex?.response?.data?.message || ex?.message || ''
+      const rawCode = ex?.response?.data?.code || ex?.code || ''
+      const msgLower = (typeof rawMsg === 'string' ? rawMsg : '').toLowerCase()
+
+      const isInsufficientJars =
+        msgLower.includes('insufficient outstanding jars') ||
+        msgLower.includes('insufficient jars') ||
+        msgLower.includes('no outstanding 20l jars') ||
+        (rawCode === 'INVALID_OPERATION' && (msgLower.includes('jar') || msgLower.includes('balance') || msgLower.includes('outstanding'))) ||
+        ex?.userFriendly?.title === 'Return Not Recorded' ||
+        ex?.title === 'Return Not Recorded'
+
+      if (isInsufficientJars) {
+        const custMatch = typeof rawMsg === 'string' ? rawMsg.match(/customer ['"]([^'"]+)['"]/i) : null
+        const customerName = distName || (custMatch ? custMatch[1].trim() : 'Customer')
+
+        showToast(
+          `${customerName} has no outstanding 20L jars to return. Please check the customer's jar balance and try again.`,
+          'error',
+          undefined,
+          'Return Not Recorded'
+        )
+      } else {
+        const title = ex?.title || ex?.userFriendly?.title || 'Return Not Recorded'
+        const message = ex?.userFriendly?.message || (typeof ex?.message === 'string' && ex.message !== 'An error occurred' ? ex.message : 'Error recording unloading transaction.')
+        showToast(message, 'error', undefined, title)
+      }
     }
   }
 
@@ -586,7 +616,10 @@ export const JarDashboardPage: React.FC = () => {
       await refreshDashboard()
       setActiveTab('action-hub')
     } catch (ex: any) {
-      showToast('Error logging washed jar batch.', 'error')
+      console.error('Error logging washed jar batch:', ex)
+      const title = ex?.title || ex?.userFriendly?.title || 'Washing Not Recorded'
+      const message = ex?.userFriendly?.message || (typeof ex?.message === 'string' && ex.message !== 'An error occurred' ? ex.message : 'Error logging washed jar batch.')
+      showToast(message, 'error', undefined, title)
     }
   }
 
@@ -621,7 +654,10 @@ export const JarDashboardPage: React.FC = () => {
       await refreshDashboard()
       setActiveTab('action-hub')
     } catch (ex: any) {
-      showToast('Error saving filling logs.', 'error')
+      console.error('Error saving filling logs:', ex)
+      const title = ex?.title || ex?.userFriendly?.title || 'Filling Not Recorded'
+      const message = ex?.userFriendly?.message || (typeof ex?.message === 'string' && ex.message !== 'An error occurred' ? ex.message : 'Error saving filling logs.')
+      showToast(message, 'error', undefined, title)
     }
   }
 
@@ -689,7 +725,10 @@ export const JarDashboardPage: React.FC = () => {
       await refreshDashboard()
       setActiveTab('action-hub')
     } catch (ex: any) {
-      showToast('Error recording loaded vehicle logs.', 'error')
+      console.error('Error recording loaded vehicle logs:', ex)
+      const title = ex?.title || ex?.userFriendly?.title || 'Loading Not Recorded'
+      const message = ex?.userFriendly?.message || (typeof ex?.message === 'string' && ex.message !== 'An error occurred' ? ex.message : 'Error recording loaded vehicle logs.')
+      showToast(message, 'error', undefined, title)
     }
   }
 
@@ -705,8 +744,11 @@ export const JarDashboardPage: React.FC = () => {
         setDistribContext({ ...distribContext, reservedEmptyJars: 0 })
       }
       await refreshDashboard()
-    } catch (ex) {
-      showToast('Failed to claim reserved empty jars.', 'error')
+    } catch (ex: any) {
+      console.error('Failed to claim reserved empty jars:', ex)
+      const title = ex?.title || ex?.userFriendly?.title || 'Claim Not Recorded'
+      const message = ex?.userFriendly?.message || (typeof ex?.message === 'string' && ex.message !== 'An error occurred' ? ex.message : 'Failed to claim reserved empty jars.')
+      showToast(message, 'error', undefined, title)
     }
   }
 

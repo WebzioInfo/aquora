@@ -92,9 +92,10 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   },
 
   showError: (error, fallbackMessage) => {
-    // Import dynamically or map inline
-    const msg = error?.response?.data?.message || error?.message || fallbackMessage || 'An unexpected error occurred.'
-    get().showToast(msg, 'error')
+    const userFriendly = error?.userFriendly || (error?.title && error?.message ? error : null)
+    const title = error?.title || userFriendly?.title || error?.response?.data?.title || undefined
+    const msg = userFriendly?.message || error?.response?.data?.message || error?.message || fallbackMessage || 'An unexpected error occurred.'
+    get().showToast(msg, 'error', undefined, title)
   },
 
   removeToast: (id) =>

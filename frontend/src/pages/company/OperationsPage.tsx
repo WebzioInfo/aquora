@@ -132,8 +132,40 @@ export const OperationsPage: React.FC = () => {
       setLaterReq('')
       setDamagedQty('')
       setReturnRemarks('')
-    } catch (err) {
-      showToast('Failed to record return.', 'error')
+    } catch (err: any) {
+      console.error('Error recording return entry:', err)
+
+      // Dynamically resolve customer name from selected distributor
+      const selectedDist = distributors.find(d => (d.id || d.customerId) === returnDistributor)
+      const distName = selectedDist?.customerName || selectedDist?.name
+
+      const rawMsg = err?.response?.data?.message || err?.message || ''
+      const rawCode = err?.response?.data?.code || err?.code || ''
+      const msgLower = (typeof rawMsg === 'string' ? rawMsg : '').toLowerCase()
+
+      const isInsufficientJars =
+        msgLower.includes('insufficient outstanding jars') ||
+        msgLower.includes('insufficient jars') ||
+        msgLower.includes('no outstanding 20l jars') ||
+        (rawCode === 'INVALID_OPERATION' && (msgLower.includes('jar') || msgLower.includes('balance') || msgLower.includes('outstanding'))) ||
+        err?.userFriendly?.title === 'Return Not Recorded' ||
+        err?.title === 'Return Not Recorded'
+
+      if (isInsufficientJars) {
+        const custMatch = typeof rawMsg === 'string' ? rawMsg.match(/customer ['"]([^'"]+)['"]/i) : null
+        const customerName = distName || (custMatch ? custMatch[1].trim() : 'Customer')
+
+        showToast(
+          `${customerName} has no outstanding 20L jars to return. Please check the customer's jar balance and try again.`,
+          'error',
+          undefined,
+          'Return Not Recorded'
+        )
+      } else {
+        const title = err?.title || err?.userFriendly?.title || 'Return Not Recorded'
+        const message = err?.userFriendly?.message || (typeof err?.message === 'string' && err.message !== 'An error occurred' ? err.message : 'Failed to record return. Please check the details and try again.')
+        showToast(message, 'error', undefined, title)
+      }
     } finally {
       setIsSubmittingReturn(false)
     }
@@ -185,8 +217,11 @@ export const OperationsPage: React.FC = () => {
       setLoadBatch('')
       setLoadCapMaterial('')
       setLoadSealRequired(false)
-    } catch (err) {
-      showToast('Failed to record loading.', 'error')
+    } catch (err: any) {
+      console.error('Error recording loading:', err)
+      const title = err?.title || err?.userFriendly?.title || 'Loading Not Recorded'
+      const message = err?.userFriendly?.message || (typeof err?.message === 'string' && err.message !== 'An error occurred' ? err.message : 'Failed to record loading. Please check the loading parameters and try again.')
+      showToast(message, 'error', undefined, title)
     } finally {
       setIsSubmittingLoad(false)
     }

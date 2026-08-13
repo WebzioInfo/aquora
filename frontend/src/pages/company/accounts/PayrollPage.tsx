@@ -133,7 +133,7 @@ export const PayrollPage: React.FC = () => {
   })
 
   const updatePaymentMutation = useMutation({
-    mutationFn: (payload: { id: string; data: CreateSalaryPaymentRequest }) => 
+    mutationFn: (payload: { id: string; data: CreateSalaryPaymentRequest }) =>
       payrollService.updateSalaryPayment(payload.id, payload.data),
     onSuccess: () => {
       showToast('Salary Payment updated successfully.', 'success')
@@ -673,7 +673,7 @@ export const PayrollPage: React.FC = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 uppercase select-none">
-                  <th className="py-3 px-4">Salary No</th>
+                  {/* <th className="py-3 px-4">Salary No</th> */}
                   <th className="py-3 px-4">Employee</th>
                   <th className="py-3 px-4">Month</th>
                   <th className="py-3 px-4 text-right">Basic Salary</th>
@@ -688,7 +688,7 @@ export const PayrollPage: React.FC = () => {
               <tbody className="divide-y divide-slate-100 text-sm">
                 {payrollData.items.map((payment) => (
                   <tr key={payment.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-3.5 px-4 font-mono font-bold text-[#1e293b]">{payment.salaryNo}</td>
+                    {/* <td className="py-3.5 px-4 font-mono font-bold text-[#1e293b]">{payment.salaryNo}</td> */}
                     <td className="py-3.5 px-4">
                       <div className="flex flex-col">
                         <span className="font-semibold text-slate-800">{payment.employeeName}</span>
@@ -1523,15 +1523,13 @@ export const PayrollPage: React.FC = () => {
                   const isCreated = item.action.toLowerCase() === 'created'
                   return (
                     <div key={item.id} className="relative">
-                      <span className={`absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border border-white ${
-                        isCreated ? 'bg-emerald-500' : 'bg-blue-500'
-                      }`}></span>
+                      <span className={`absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border border-white ${isCreated ? 'bg-emerald-500' : 'bg-blue-500'
+                        }`}></span>
                       <div className="flex items-center justify-between font-bold text-slate-900 mb-0.5">
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] uppercase font-semibold ${
-                          isCreated 
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
-                            : 'bg-blue-50 text-blue-700 border border-blue-100'
-                        }`}>
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] uppercase font-semibold ${isCreated
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                          : 'bg-blue-50 text-blue-700 border border-blue-100'
+                          }`}>
                           {item.action}
                         </span>
                         <span className="text-[10px] text-slate-500 font-medium">

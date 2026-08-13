@@ -388,7 +388,7 @@ export const ExpenseManagementPage: React.FC = () => {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold uppercase tracking-wider">
-                  <th className="p-3">Expense #</th>
+                  {/* <th className="p-3">Expense #</th> */}
                   <th className="p-3">Date</th>
                   <th className="p-3">Category</th>
                   <th className="p-3">Description</th>
@@ -402,7 +402,7 @@ export const ExpenseManagementPage: React.FC = () => {
                 {data?.items && data.items.length > 0 ? (
                   data.items.map((expense) => (
                     <tr key={expense.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="p-3 font-bold text-slate-900">{expense.expenseNumber}</td>
+                      {/* <td className="p-3 font-bold text-slate-900">{expense.expenseNumber}</td> */}
                       <td className="p-3 text-slate-600">{new Date(expense.expenseDate).toLocaleDateString()}</td>
                       <td className="p-3"><EnterpriseBadge variant="gray">{expense.category}</EnterpriseBadge></td>
                       <td className="p-3 text-slate-700 max-w-[200px] truncate" title={expense.description}>{expense.description}</td>
