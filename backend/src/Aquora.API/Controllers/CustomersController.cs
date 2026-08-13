@@ -35,6 +35,31 @@ namespace Aquora.API.Controllers
             return _currentUserContext.Roles.Any(r => allowedRoles.Contains(r, StringComparer.OrdinalIgnoreCase));
         }
 
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _healedCustomerSchemas = new();
+
+        private async Task EnsureCustomerColumnsAsync()
+        {
+            var schema = string.IsNullOrWhiteSpace(_tenantContext.SchemaName)
+                ? "public"
+                : _tenantContext.SchemaName;
+
+            if (_healedCustomerSchemas.ContainsKey(schema)) return;
+
+            try
+            {
+                var sql = $@"
+                    ALTER TABLE ""{schema}"".""Customers"" ADD COLUMN IF NOT EXISTS ""Price"" numeric NOT NULL DEFAULT 0;
+                    ALTER TABLE ""{schema}"".""Customers"" ADD COLUMN IF NOT EXISTS ""Discount"" numeric NOT NULL DEFAULT 0;
+                ";
+                await _tenantContext.Database.ExecuteSqlRawAsync(sql);
+                _healedCustomerSchemas.TryAdd(schema, true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to self-heal Customers table columns for schema {Schema}", schema);
+            }
+        }
+
         [HttpGet]
         public async Task<ActionResult<ApiResponse<PagedResult<CustomerDto>>>> GetCustomers(
             [FromQuery] int pageNumber = 1,
@@ -49,6 +74,7 @@ namespace Aquora.API.Controllers
         {
             try
             {
+                await EnsureCustomerColumnsAsync();
                 var query = _tenantContext.Customers.Where(c => !c.IsDeleted).AsQueryable();
 
                 // Tenant Isolation

@@ -789,5 +789,63 @@ namespace Aquora.Persistence.Services
 
             return "text";
         }
+
+        public async Task EnsureAllTenantSchemasRepairedAsync(DbContext platformDbContext)
+        {
+            try
+            {
+                var connStr = platformDbContext.Database.GetConnectionString();
+                if (string.IsNullOrWhiteSpace(connStr)) return;
+
+                using var connection = new NpgsqlConnection(connStr);
+                await connection.OpenAsync();
+
+                var schemas = new List<string>();
+                using (var cmd = connection.CreateCommand())
+                {
+                    cmd.CommandText = @"
+                        SELECT schema_name 
+                        FROM information_schema.schemata 
+                        WHERE schema_name = 'public' 
+                           OR schema_name LIKE 'aquora_tenant_%' 
+                           OR schema_name LIKE 'tenant_%';";
+
+                    using var reader = await cmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        schemas.Add(reader.GetString(0));
+                    }
+                }
+
+                foreach (var schema in schemas)
+                {
+                    try
+                    {
+                        using var alterCmd = connection.CreateCommand();
+                        alterCmd.CommandText = $@"
+                            DO $$ 
+                            BEGIN 
+                                IF EXISTS (
+                                    SELECT FROM information_schema.tables 
+                                    WHERE table_schema = '{schema}' AND table_name = 'Customers'
+                                ) THEN
+                                    ALTER TABLE ""{schema}"".""Customers"" ADD COLUMN IF NOT EXISTS ""Price"" numeric NOT NULL DEFAULT 0;
+                                    ALTER TABLE ""{schema}"".""Customers"" ADD COLUMN IF NOT EXISTS ""Discount"" numeric NOT NULL DEFAULT 0;
+                                END IF;
+                            END $$;";
+                        await alterCmd.ExecuteNonQueryAsync();
+                        _logger.LogInformation("[SCHEMA AUTO-REPAIR] Verified Price and Discount columns for schema {Schema}", schema);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "[SCHEMA AUTO-REPAIR WARN] Failed to add Price/Discount columns for schema {Schema}: {Message}", schema, ex.Message);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[SCHEMA AUTO-REPAIR WARN] Tenant schema repair loop encountered an issue: {Message}", ex.Message);
+            }
+        }
     }
 }

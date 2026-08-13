@@ -361,6 +361,9 @@ PHASE 4: Active Database Instance Verification:
         }
         Log.Information("Database connectivity verified successfully.");
 
+        var schemaValidator = services.GetRequiredService<Aquora.Persistence.Services.DatabaseSchemaValidator>();
+        await schemaValidator.EnsureAllTenantSchemasRepairedAsync(platformContext);
+
         bool autoMigrate = builder.Configuration.GetValue<bool>("AUTO_MIGRATE_ON_STARTUP") || builder.Configuration.GetValue<bool>("Database:AutoMigrate");
         bool autoRepair = builder.Configuration.GetValue<bool>("AUTO_REPAIR_ON_STARTUP") || builder.Configuration.GetValue<bool>("Database:AutoRepair");
         bool isMigrateCommand = args.Contains("migrate", StringComparer.OrdinalIgnoreCase);
@@ -377,7 +380,7 @@ PHASE 4: Active Database Instance Verification:
         Log.Information("  5. Background Workers: TenantProvisioningWorker, QueuedHostedService, OtpEmailWorker");
         Log.Information("--------------------------------------------------");
 
-        if (autoMigrate || isMaintenanceCommand)
+        if (autoMigrate || autoRepair || isMaintenanceCommand)
         {
             try
             {

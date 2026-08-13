@@ -7,6 +7,7 @@ namespace Aquora.Application.Interfaces
 {
     public interface ITenantDbContext
     {
+        string SchemaName { get; }
         DbSet<Company> Companies { get; }
         DbSet<ProductionLine> ProductionLines { get; }
         DbSet<Station> Stations { get; }

@@ -79,6 +79,31 @@ namespace Aquora.API.Controllers
             return _currentUserContext.Roles.Any(r => allowedRoles.Contains(r, StringComparer.OrdinalIgnoreCase));
         }
 
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _healedSalesCustomerSchemas = new();
+
+        private async Task EnsureCustomerColumnsAsync()
+        {
+            var schema = string.IsNullOrWhiteSpace(_tenantContext.SchemaName)
+                ? "public"
+                : _tenantContext.SchemaName;
+
+            if (_healedSalesCustomerSchemas.ContainsKey(schema)) return;
+
+            try
+            {
+                var sql = $@"
+                    ALTER TABLE ""{schema}"".""Customers"" ADD COLUMN IF NOT EXISTS ""Price"" numeric NOT NULL DEFAULT 0;
+                    ALTER TABLE ""{schema}"".""Customers"" ADD COLUMN IF NOT EXISTS ""Discount"" numeric NOT NULL DEFAULT 0;
+                ";
+                await _tenantContext.Database.ExecuteSqlRawAsync(sql);
+                _healedSalesCustomerSchemas.TryAdd(schema, true);
+            }
+            catch
+            {
+                // Self-heal attempt completed
+            }
+        }
+
         [HttpGet]
         public async Task<ActionResult<ApiResponse<PagedResult<SalesTransactionDto>>>> GetSales(
             [FromQuery] int pageNumber = 1,
@@ -94,6 +119,7 @@ namespace Aquora.API.Controllers
         {
             try
             {
+                await EnsureCustomerColumnsAsync();
                 var tenantId = _currentUserContext.TenantId;
                 var query = _tenantContext.SalesTransactions
                     .Include(t => t.Customer)
