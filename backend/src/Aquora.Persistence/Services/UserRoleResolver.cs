@@ -46,10 +46,6 @@ namespace Aquora.Persistence.Services
                     if (userRole?.Role != null && !string.IsNullOrWhiteSpace(userRole.Role.Name))
                     {
                         var tenantRoleName = userRole.Role.Name;
-                        if (userRole.Role.Code == "OWNER" || tenantRoleName.Equals("Owner", StringComparison.OrdinalIgnoreCase))
-                        {
-                            tenantRoleName = "CompanyAdmin";
-                        }
 
                         if (user.RoleName != tenantRoleName)
                         {
@@ -83,10 +79,6 @@ namespace Aquora.Persistence.Services
                         if (role != null && !string.IsNullOrWhiteSpace(role.Name))
                         {
                             var roleName = role.Name;
-                            if (role.Code == "OWNER" || roleName.Equals("Owner", StringComparison.OrdinalIgnoreCase))
-                            {
-                                roleName = "CompanyAdmin";
-                            }
 
                             if (user.RoleName != roleName)
                             {
@@ -136,10 +128,6 @@ namespace Aquora.Persistence.Services
                     if (ur.Role != null && !string.IsNullOrWhiteSpace(ur.Role.Name))
                     {
                         var rName = ur.Role.Name;
-                        if (ur.Role.Code == "OWNER" || rName.Equals("Owner", StringComparison.OrdinalIgnoreCase))
-                        {
-                            rName = "CompanyAdmin";
-                        }
                         tenantRoleMap[ur.UserId] = rName;
                     }
                 }
@@ -176,7 +164,7 @@ namespace Aquora.Persistence.Services
             {
                 allRolesMap = await _tenantContext.Roles
                     .AsNoTracking()
-                    .ToDictionaryAsync(r => r.Id, r => (r.Code == "OWNER" || r.Name.Equals("Owner", StringComparison.OrdinalIgnoreCase)) ? "CompanyAdmin" : r.Name);
+                    .ToDictionaryAsync(r => r.Id, r => r.Name);
             }
             catch { }
 
@@ -264,7 +252,7 @@ namespace Aquora.Persistence.Services
                     if (matchingRole == null && newRoleName.Equals("CompanyAdmin", StringComparison.OrdinalIgnoreCase))
                     {
                         matchingRole = await _tenantContext.Roles
-                            .FirstOrDefaultAsync(r => r.Code == "OWNER" || r.Name == "CompanyAdmin" || r.Name == "Owner");
+                            .FirstOrDefaultAsync(r => r.Name == "CompanyAdmin" || r.Code == "COMPANYADMIN");
                     }
 
                     if (matchingRole == null)

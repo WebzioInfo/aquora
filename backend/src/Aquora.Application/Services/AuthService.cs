@@ -699,10 +699,7 @@ namespace Aquora.Application.Services
                             {
                                 if (ur.Role != null)
                                 {
-                                    var roleCode = (ur.Role.Code == "OWNER" || ur.Role.Name.Equals("Owner", StringComparison.OrdinalIgnoreCase)) 
-                                        ? "CompanyAdmin" 
-                                        : ur.Role.Name;
-
+                                    var roleCode = ur.Role.Name;
                                     roles.Add(roleCode);
 
                                     var rolePerms = await tenantContext.RolePermissions
@@ -730,8 +727,12 @@ namespace Aquora.Application.Services
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[AUTH SERVICE WARN]: Could not query tenant roles/permissions for tenant {user.TenantId}: {ex.Message}. Falling back to default 'CompanyAdmin'.");
-                    if (!roles.Contains("CompanyAdmin"))
+                    Console.WriteLine($"[AUTH SERVICE WARN]: Could not query tenant roles/permissions for tenant {user.TenantId}: {ex.Message}.");
+                    if (!string.IsNullOrWhiteSpace(user.RoleName))
+                    {
+                        roles.Add(user.RoleName);
+                    }
+                    else if (!roles.Contains("CompanyAdmin"))
                     {
                         roles.Add("CompanyAdmin");
                     }

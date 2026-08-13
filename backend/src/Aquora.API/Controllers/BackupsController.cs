@@ -11,7 +11,7 @@ namespace Aquora.API.Controllers
 {
     [ApiController]
     [Route("api/v1/backups")]
-    [Authorize(Roles = "SuperAdmin,CompanyOwner,CompanyAdmin,Admin,QC")]
+    [Authorize(Roles = "SuperAdmin,CompanyOwner,CompanyAdmin,Admin,QC,Owner")]
     public class BackupsController : ControllerBase
     {
         private readonly IBackupService _backupService;
@@ -19,6 +19,11 @@ namespace Aquora.API.Controllers
         public BackupsController(IBackupService backupService)
         {
             _backupService = backupService;
+        }
+
+        private bool IsReadOnlyUser()
+        {
+            return User.IsInRole("Owner") || User.HasClaim(c => c.Type == System.Security.Claims.ClaimTypes.Role && c.Value.Equals("Owner", StringComparison.OrdinalIgnoreCase));
         }
 
         [HttpGet("dashboard")]
@@ -67,6 +72,7 @@ namespace Aquora.API.Controllers
         [HttpPost("create")]
         public async Task<IActionResult> CreateBackup([FromBody] CreateBackupRequest request)
         {
+            if (IsReadOnlyUser()) return StatusCode(403, ApiResponse<object>.CreateFailure("Owner role is read-only.", "Forbidden"));
             try
             {
                 var result = await _backupService.CreateBackupAsync(request);
@@ -103,6 +109,7 @@ namespace Aquora.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBackup(Guid id)
         {
+            if (IsReadOnlyUser()) return StatusCode(403, ApiResponse<object>.CreateFailure("Owner role is read-only.", "Forbidden"));
             try
             {
                 var success = await _backupService.DeleteBackupAsync(id);
@@ -118,6 +125,7 @@ namespace Aquora.API.Controllers
         [HttpPost("{id}/restore")]
         public async Task<IActionResult> RestoreBackup(Guid id, [FromBody] RestoreBackupRequest request)
         {
+            if (IsReadOnlyUser()) return StatusCode(403, ApiResponse<object>.CreateFailure("Owner role is read-only.", "Forbidden"));
             try
             {
                 var result = await _backupService.RestoreBackupAsync(id, request);

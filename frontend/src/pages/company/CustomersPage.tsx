@@ -79,8 +79,9 @@ export const CustomersPage: React.FC = () => {
 
   // Permissions check based on specifications
   const userRoles = user?.roles || []
+  const isOwner = userRoles.some(r => r.toLowerCase() === 'owner')
   const isOperator = userRoles.includes('Operator') && userRoles.length === 1
-  const canWrite = !isOperator
+  const canWrite = !isOperator && !isOwner
 
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('')

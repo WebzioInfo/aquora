@@ -11,6 +11,7 @@ import { ArrowLeft, AlertTriangle, ChevronDown, ChevronUp, Package, Clock, User,
 import EnterpriseLoading from '../../components/ui/EnterpriseLoading'
 import EnterpriseModal from '../../components/ui/EnterpriseModal'
 import { useStationConfig } from '../../hooks/useStationConfig'
+import { useAuthStore } from '../../store/useAuthStore'
 
 // ─── Live Duration Cell ────────────────────────────────────────────────────────
 const LiveDuration: React.FC<{ startedAt: string; endedAt?: string | null }> = ({ startedAt, endedAt }) => {
@@ -113,6 +114,9 @@ export const BatchDetailsPage: React.FC = () => {
   const { batchId } = useParams<{ batchId: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { user } = useAuthStore()
+  const isOwner = (user?.roles?.some(r => ['owner', 'companyowner', 'platformowner'].includes(r.toLowerCase())) || user?.roleName?.toLowerCase() === 'owner') ?? false
+  const canWrite = !isOwner
   const { isBlowingEnabled, isFillingEnabled, isLabelingEnabled, isPackingEnabled } = useStationConfig()
   const [expandedEntries, setExpandedEntries] = useState<Record<string, boolean>>({})
 

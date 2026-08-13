@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from '../../../utils/toast';
+import { useAuthStore } from '../../../store/useAuthStore';
 
 import PageContainer from '../../../components/ui/layout/PageContainer';
 import PageHeader from '../../../components/ui/layout/PageHeader';
@@ -49,6 +50,9 @@ export const normalizeIssueStatus = (status: string | undefined | null): Normali
 export const OperationsIssueDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuthStore();
+  const isOwner = (user?.roles?.some(r => ['owner', 'companyowner', 'platformowner'].includes(r.toLowerCase())) || user?.roleName?.toLowerCase() === 'owner') ?? false;
+  const canWrite = !isOwner;
 
   const [isLoading, setIsLoading] = useState(true);
   const [issue, setIssue] = useState<OperationsIssueDetail | null>(null);
@@ -243,7 +247,7 @@ export const OperationsIssueDetailPage: React.FC = () => {
               <ArrowLeft className="w-3.5 h-3.5" /> Back
             </button>
 
-            {normalizedStatus === 'Open' && (
+            {canWrite && normalizedStatus === 'Open' && (
               <button
                 disabled={isActionSubmitting}
                 onClick={() => handleStatusChange('InProgress')}
@@ -253,7 +257,7 @@ export const OperationsIssueDetailPage: React.FC = () => {
               </button>
             )}
 
-            {(normalizedStatus === 'Open' || normalizedStatus === 'InProgress') && (
+            {canWrite && (normalizedStatus === 'Open' || normalizedStatus === 'InProgress') && (
               <button
                 disabled={isActionSubmitting}
                 onClick={() => setShowResolveModal(true)}
@@ -263,7 +267,7 @@ export const OperationsIssueDetailPage: React.FC = () => {
               </button>
             )}
 
-            {normalizedStatus === 'Resolved' && (
+            {canWrite && normalizedStatus === 'Resolved' && (
               <button
                 disabled={isActionSubmitting}
                 onClick={handleVerifyAndClose}

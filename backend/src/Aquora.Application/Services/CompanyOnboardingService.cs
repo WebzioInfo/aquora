@@ -70,7 +70,7 @@ namespace Aquora.Application.Services
                     if (existingTenant.IsInitialized || existingTenant.Status == "Completed")
                     {
                         Console.WriteLine($"[ONBOARDING]: User {userId} requested onboarding but Tenant {existingTenant.Id} is already initialized.");
-                        var defaultRoles = new System.Collections.Generic.List<string> { "CompanyAdmin" };
+                        var defaultRoles = new System.Collections.Generic.List<string> { "Owner" };
                         var defaultPerms = new System.Collections.Generic.List<string> { Permissions.DashboardRead };
                         var accToken = _tokenService.GenerateAccessToken(user, defaultRoles, defaultPerms);
                         var refToken = _tokenService.GenerateRefreshToken();
@@ -79,7 +79,7 @@ namespace Aquora.Application.Services
                             TenantId = existingTenant.Id,
                             CompanyName = existingTenant.Name,
                             SchemaName = existingTenant.SchemaName,
-                            OwnerRole = "CompanyAdmin",
+                            OwnerRole = "Owner",
                             ProvisioningStatus = "Completed",
                             AccessToken = accToken,
                             RefreshToken = refToken,
@@ -90,7 +90,7 @@ namespace Aquora.Application.Services
                     else
                     {
                         // Provisioning in progress — return active state without duplicating tenant entry
-                        var defaultRoles = new System.Collections.Generic.List<string> { "CompanyAdmin" };
+                        var defaultRoles = new System.Collections.Generic.List<string> { "Owner" };
                         var defaultPerms = new System.Collections.Generic.List<string>();
                         var accToken = _tokenService.GenerateAccessToken(user, defaultRoles, defaultPerms);
                         var refToken = _tokenService.GenerateRefreshToken();
@@ -99,7 +99,7 @@ namespace Aquora.Application.Services
                             TenantId = existingTenant.Id,
                             CompanyName = existingTenant.Name,
                             SchemaName = existingTenant.SchemaName,
-                            OwnerRole = "CompanyAdmin",
+                            OwnerRole = "Owner",
                             ProvisioningStatus = existingTenant.Status ?? "Provisioning",
                             AccessToken = accToken,
                             RefreshToken = refToken,
@@ -159,14 +159,14 @@ namespace Aquora.Application.Services
             });
 
             // 3. Generate dynamic token with default role and permission claims during provisioning
-            var roles = new System.Collections.Generic.List<string> { "CompanyAdmin" };
+            var roles = new System.Collections.Generic.List<string> { "Owner" };
             var permissions = new System.Collections.Generic.List<string>
             {
-                Permissions.TenantRead, Permissions.TenantWrite,
-                Permissions.UsersRead, Permissions.UsersWrite,
-                Permissions.RolesRead, Permissions.RolesWrite,
+                Permissions.TenantRead,
+                Permissions.UsersRead,
+                Permissions.RolesRead,
                 Permissions.AuditRead,
-                Permissions.HierarchyRead, Permissions.HierarchyWrite,
+                Permissions.HierarchyRead,
                 Permissions.DashboardRead
             };
 
@@ -183,7 +183,7 @@ namespace Aquora.Application.Services
                 CompanyId = Guid.Empty, // Created asynchronously in background
                 CompanyName = request.CompanyName.Trim(),
                 SchemaName = schemaName,
-                OwnerRole = "CompanyAdmin",
+                OwnerRole = "Owner",
                 ProvisioningStatus = "Provisioning",
                 AccessToken = accessToken,
                 RefreshToken = refreshToken,
@@ -252,14 +252,14 @@ namespace Aquora.Application.Services
             });
 
             // Generate dynamic token
-            var roles = new System.Collections.Generic.List<string> { "CompanyAdmin" };
+            var roles = new System.Collections.Generic.List<string> { "Owner" };
             var permissions = new System.Collections.Generic.List<string>
             {
-                Permissions.TenantRead, Permissions.TenantWrite,
-                Permissions.UsersRead, Permissions.UsersWrite,
-                Permissions.RolesRead, Permissions.RolesWrite,
+                Permissions.TenantRead,
+                Permissions.UsersRead,
+                Permissions.RolesRead,
                 Permissions.AuditRead,
-                Permissions.HierarchyRead, Permissions.HierarchyWrite,
+                Permissions.HierarchyRead,
                 Permissions.DashboardRead
             };
 
@@ -276,7 +276,7 @@ namespace Aquora.Application.Services
                 CompanyId = Guid.Empty,
                 CompanyName = tenant.Name,
                 SchemaName = tenant.SchemaName,
-                OwnerRole = "CompanyAdmin",
+                OwnerRole = "Owner",
                 ProvisioningStatus = "Provisioning",
                 AccessToken = accessToken,
                 RefreshToken = refreshToken,

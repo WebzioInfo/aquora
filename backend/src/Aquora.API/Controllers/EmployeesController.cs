@@ -128,6 +128,21 @@ namespace Aquora.API.Controllers
                 var role = await _tenantContext.Roles
                     .FirstOrDefaultAsync(r => r.Code.ToUpper() == request.RoleCode.ToUpper() || r.Name.ToLower() == request.RoleCode.ToLower());
 
+                if (role == null && (request.RoleCode.Equals("OWNER", StringComparison.OrdinalIgnoreCase) || request.RoleCode.Equals("Owner", StringComparison.OrdinalIgnoreCase)))
+                {
+                    role = new Role
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Owner",
+                        Code = "OWNER",
+                        TenantId = tenantId,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "System"
+                    };
+                    _tenantContext.Roles.Add(role);
+                    await _tenantContext.SaveChangesAsync();
+                }
+
                 if (role == null)
                 {
                     return Failure<EmployeeDto>($"Role Code '{request.RoleCode}' is invalid or does not exist for this tenant.", "Validation Error");
@@ -846,6 +861,21 @@ namespace Aquora.API.Controllers
         {
             try
             {
+                var hasOwner = await _tenantContext.Roles.AnyAsync(r => r.Code.ToUpper() == "OWNER" || r.Name.ToLower() == "owner");
+                if (!hasOwner)
+                {
+                    _tenantContext.Roles.Add(new Role
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Owner",
+                        Code = "OWNER",
+                        TenantId = (await _tenantContext.Roles.Select(r => r.TenantId).FirstOrDefaultAsync()),
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "System"
+                    });
+                    await _tenantContext.SaveChangesAsync();
+                }
+
                 var roles = await _tenantContext.Roles
                     .OrderBy(r => r.Name)
                     .ToListAsync();

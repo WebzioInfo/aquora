@@ -26,6 +26,7 @@ import { RecordPurchasePaymentModal } from '../../../components/purchases/Record
 import { purchaseService, type Purchase, type PurchaseSummaryStats } from '../../../services/purchases'
 import { vendorService, type VendorDropdownItem } from '../../../services/vendors'
 import { useNotificationStore } from '../../../store/useNotificationStore'
+import { useAuthStore } from '../../../store/useAuthStore'
 import EnterpriseHeader from '../../../components/ui/EnterpriseHeader'
 import EnterpriseCard from '../../../components/ui/EnterpriseCard'
 import EnterpriseButton from '../../../components/ui/EnterpriseButton'
@@ -37,6 +38,9 @@ import EnterpriseNumberInput from '../../../components/ui/EnterpriseNumberInput'
 export const PurchasesPage: React.FC = () => {
   const navigate = useNavigate()
   const { showToast } = useNotificationStore()
+  const { user } = useAuthStore()
+  const isOwner = (user?.roles?.some(r => ['owner', 'companyowner', 'platformowner'].includes(r.toLowerCase())) || user?.roleName?.toLowerCase() === 'owner') ?? false
+  const canWrite = !isOwner && (user?.roles?.some(r => ['CompanyAdmin', 'Admin', 'Manager', 'Accountant'].includes(r)) ?? false)
 
   const [purchases, setPurchases] = useState<Purchase[]>([])
   const [loading, setLoading] = useState<boolean>(true)
@@ -329,9 +333,11 @@ export const PurchasesPage: React.FC = () => {
             <EnterpriseButton variant="secondary" size="sm" onClick={exportCSV}>
               <FileSpreadsheet className="w-4 h-4 mr-1.5 text-emerald-600" /> Export Register
             </EnterpriseButton>
-            <EnterpriseButton variant="primary" size="sm" onClick={() => navigate('/company/accounts/purchases/new')}>
-              <Plus className="w-4 h-4 mr-1.5" /> Create Purchase
-            </EnterpriseButton>
+            {canWrite && (
+              <EnterpriseButton variant="primary" size="sm" onClick={() => navigate('/company/accounts/purchases/new')}>
+                <Plus className="w-4 h-4 mr-1.5" /> Create Purchase
+              </EnterpriseButton>
+            )}
           </div>
         }
       />
@@ -567,7 +573,7 @@ export const PurchasesPage: React.FC = () => {
                         </button>
 
                         {/* EDIT */}
-                        {!purchase.isCancelled && (
+                        {canWrite && !purchase.isCancelled && (
                           <button
                             onClick={() => navigate(`/company/accounts/purchases/edit/${purchase.id}`)}
                             className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
@@ -587,16 +593,18 @@ export const PurchasesPage: React.FC = () => {
                         </button>
 
                         {/* DELETE */}
-                        <button
-                          onClick={() => handleDelete(purchase.id, purchase.purchaseNo)}
-                          className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors"
-                          title="Delete Purchase"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {canWrite && (
+                          <button
+                            onClick={() => handleDelete(purchase.id, purchase.purchaseNo)}
+                            className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors"
+                            title="Delete Purchase"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
 
                         {/* MODULE SPECIFIC EXTRA ACTIONS */}
-                        {!purchase.isCancelled && purchase.balanceAmount > 0 && (
+                        {canWrite && !purchase.isCancelled && purchase.balanceAmount > 0 && (
                           <button
                             onClick={() => {
                               setPaymentModalPurchase(purchase)
@@ -609,15 +617,17 @@ export const PurchasesPage: React.FC = () => {
                           </button>
                         )}
 
-                        <button
-                          onClick={() => handleDuplicate(purchase.id)}
-                          className="p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded transition-colors"
-                          title="Duplicate Purchase"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                        </button>
+                        {canWrite && (
+                          <button
+                            onClick={() => handleDuplicate(purchase.id)}
+                            className="p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded transition-colors"
+                            title="Duplicate Purchase"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        )}
 
-                        {!purchase.isCancelled && (
+                        {canWrite && !purchase.isCancelled && (
                           <button
                             onClick={() => handleCancel(purchase.id, purchase.purchaseNo)}
                             className="p-1 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded transition-colors"

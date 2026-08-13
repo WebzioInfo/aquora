@@ -150,7 +150,7 @@ export const EnterpriseTopbar: React.FC<EnterpriseTopbarProps> = ({
                   {user?.firstName} {user?.lastName}
                 </span>
                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide truncate block mt-0.5">
-                  {user?.roles?.[0] || 'Company Admin'}
+                  {user?.roles?.[0] || 'User'}
                 </span>
               </div>
               <button 

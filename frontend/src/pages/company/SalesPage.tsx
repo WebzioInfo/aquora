@@ -941,13 +941,15 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
         title="Sales"
         description="Log finished goods dispatches, returns, and damages with proper inventory adjustments."
         actions={
-          <button
-            onClick={handleOpenCreate}
-            className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Create Transaction
-          </button>
+          canWrite ? (
+            <button
+              onClick={handleOpenCreate}
+              className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Create Transaction
+            </button>
+          ) : undefined
         }
       />
 
@@ -1094,20 +1096,24 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          onClick={() => handleOpenEdit(txn)}
-                          title="Edit Transaction"
-                          className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleOpenDelete(txn)}
-                          title="Delete/Reverse"
-                          className="p-1.5 text-slate-400 hover:text-red-650 hover:bg-slate-100 rounded transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {canWrite && (
+                          <button
+                            onClick={() => handleOpenEdit(txn)}
+                            title="Edit Transaction"
+                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {canWrite && (
+                          <button
+                            onClick={() => handleOpenDelete(txn)}
+                            title="Delete/Reverse"
+                            className="p-1.5 text-slate-400 hover:text-red-650 hover:bg-slate-100 rounded transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -7,7 +7,7 @@ namespace Aquora.Application.Interfaces
     {
         public Guid CompanyId { get; set; }
         public Guid OwnerRoleId { get; set; }
-        public string OwnerRoleName { get; set; } = "CompanyAdmin";
+        public string OwnerRoleName { get; set; } = "Owner";
     }
 
     public interface ITenantDatabaseService

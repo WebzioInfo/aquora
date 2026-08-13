@@ -80,10 +80,12 @@ export const ProductionShiftsManager: React.FC = () => {
   // Role permissions: Company Admin / Super Admin full access, Supervisor/Operator view-only
   const userRoles = (user?.roles || []).map((r: string) => r.toLowerCase().replace(/[\s_]/g, ''));
   const primaryRole = (user?.roleName || '').toLowerCase().replace(/[\s_]/g, '');
-  const canManage =
+  const isOwner = userRoles.some((r: string) => ['owner', 'companyowner', 'platformowner'].includes(r)) || primaryRole === 'owner';
+  const canManage = !isOwner && (
     !!user?.isPlatformAdmin ||
     userRoles.some((r: string) => ['companyadmin', 'admin', 'superadmin', 'platformadmin'].includes(r)) ||
-    ['companyadmin', 'admin', 'superadmin', 'platformadmin'].includes(primaryRole);
+    ['companyadmin', 'admin', 'superadmin', 'platformadmin'].includes(primaryRole)
+  );
 
   const { data: shifts = [], isLoading } = useQuery<ProductionShift[]>({
     queryKey: ['productionShifts'],

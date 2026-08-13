@@ -832,9 +832,20 @@ namespace Aquora.Persistence.Services
                                     ALTER TABLE ""{schema}"".""Customers"" ADD COLUMN IF NOT EXISTS ""Price"" numeric NOT NULL DEFAULT 0;
                                     ALTER TABLE ""{schema}"".""Customers"" ADD COLUMN IF NOT EXISTS ""Discount"" numeric NOT NULL DEFAULT 0;
                                 END IF;
+
+                                IF EXISTS (
+                                    SELECT FROM information_schema.tables 
+                                    WHERE table_schema = '{schema}' AND table_name = 'Roles'
+                                ) THEN
+                                    INSERT INTO ""{schema}"".""Roles"" (""Id"", ""Name"", ""Code"", ""TenantId"", ""CreatedAt"", ""CreatedBy"", ""IsDeleted"")
+                                    SELECT gen_random_uuid(), 'Owner', 'OWNER', COALESCE((SELECT ""TenantId"" FROM ""{schema}"".""Roles"" LIMIT 1), '00000000-0000-0000-0000-000000000000'::uuid), CURRENT_TIMESTAMP, 'System', false
+                                    WHERE NOT EXISTS (
+                                        SELECT 1 FROM ""{schema}"".""Roles"" WHERE UPPER(""Code"") = 'OWNER' OR UPPER(""Name"") = 'OWNER'
+                                    );
+                                END IF;
                             END $$;";
                         await alterCmd.ExecuteNonQueryAsync();
-                        _logger.LogInformation("[SCHEMA AUTO-REPAIR] Verified Price and Discount columns for schema {Schema}", schema);
+                        _logger.LogInformation("[SCHEMA AUTO-REPAIR] Verified Price, Discount columns, and Owner Role for schema {Schema}", schema);
                     }
                     catch (Exception ex)
                     {

@@ -328,21 +328,26 @@ namespace Aquora.Persistence.Services
                         // 1. Seed security roles inside schema
                         var roleNames = new[]
                         {
-                            "CompanyAdmin", "Admin", "Manager", "Supervisor", "Operator",
+                            "Owner", "CompanyAdmin", "Admin", "Manager", "Supervisor", "Operator",
                             "Store Keeper", "Sales", "HR", "QC"
                         };
                         Console.WriteLine($"[ROLE SEEDING]: Seeding roles: {string.Join(", ", roleNames)} inside schema '{schemaName}'.");
 
                         Role ownerRole = null!;
+                        Role companyAdminRole = null!;
                         Role qcRole = null!;
                         foreach (var roleName in roleNames)
                         {
                             var code = roleName.Replace(" ", "_").ToUpperInvariant();
                             var role = new Role { Name = roleName, Code = code, TenantId = tenantId };
                             tenantContext.Roles.Add(role);
-                            if (roleName == "CompanyAdmin")
+                            if (roleName == "Owner")
                             {
                                 ownerRole = role;
+                            }
+                            if (roleName == "CompanyAdmin")
+                            {
+                                companyAdminRole = role;
                             }
                             if (roleName == "QC")
                             {
@@ -389,16 +394,29 @@ namespace Aquora.Persistence.Services
                             await onProgress(80, "Creating your account", "Setting up your administrator profile...");
                         }
 
-                        // 3. Map all permissions to Company Owner & Assign UserRole to Admin
-                        foreach (var perm in seededPermissions)
+                        // 3. Map permissions: CompanyAdmin gets all permissions, Owner gets Read-Only permissions
+                        var ownerReadPerms = seededPermissions.Where(p => p.Code.EndsWith(".Read")).ToList();
+                        foreach (var perm in ownerReadPerms)
                         {
-                            var rp = new RolePermission
+                            tenantContext.RolePermissions.Add(new RolePermission
                             {
                                 RoleId = ownerRole.Id,
                                 PermissionId = perm.Id,
                                 TenantId = tenantId
-                            };
-                            tenantContext.RolePermissions.Add(rp);
+                            });
+                        }
+
+                        if (companyAdminRole != null)
+                        {
+                            foreach (var perm in seededPermissions)
+                            {
+                                tenantContext.RolePermissions.Add(new RolePermission
+                                {
+                                    RoleId = companyAdminRole.Id,
+                                    PermissionId = perm.Id,
+                                    TenantId = tenantId
+                                });
+                            }
                         }
 
                         // Map QC permissions to QC Role

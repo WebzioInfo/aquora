@@ -26,12 +26,16 @@ import type {
   UpdateCashBookRequest
 } from '../../../services/simpleAccounts'
 import { useNotificationStore } from '../../../store/useNotificationStore'
+import { useAuthStore } from '../../../store/useAuthStore'
 import LedgerTabSwitcher from './LedgerTabSwitcher'
 import { AddMoneyModal } from './AddMoneyModal'
 
 const CashBooksPage: React.FC = () => {
   const { showToast } = useNotificationStore()
   const navigate = useNavigate()
+  const { user } = useAuthStore()
+  const isOwner = (user?.roles?.some(r => ['owner', 'companyowner', 'platformowner'].includes(r.toLowerCase())) || user?.roleName?.toLowerCase() === 'owner') ?? false
+  const canWrite = !isOwner && (user?.roles?.some(r => ['CompanyAdmin', 'Admin', 'Manager', 'Accountant'].includes(r)) ?? false)
 
   // State
   const [cashBooks, setCashBooks] = useState<CashBook[]>([])
@@ -188,9 +192,11 @@ const CashBooksPage: React.FC = () => {
         title="Cash Books"
         description="Manage company cash books, monitor cash balances, and track automated cash transactions."
         actions={
-          <EnterpriseButton variant="primary" onClick={openAdd}>
-            <Plus className="w-4 h-4 mr-2" /> Create Cash Book
-          </EnterpriseButton>
+          canWrite ? (
+            <EnterpriseButton variant="primary" onClick={openAdd}>
+              <Plus className="w-4 h-4 mr-2" /> Create Cash Book
+            </EnterpriseButton>
+          ) : undefined
         }
       />
 
@@ -330,33 +336,39 @@ const CashBooksPage: React.FC = () => {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => openEdit(book)}
-                          className="p-1.5 hover:bg-slate-200 rounded text-slate-600 transition-colors"
-                          title="Edit Cash Book"
-                        >
-                          <PenSquare className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedBook(book)
-                            setIsDeleteModalOpen(true)
-                          }}
-                          className="p-1.5 hover:bg-rose-100 text-rose-600 rounded transition-colors"
-                          title="Delete Cash Book"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedBook(book)
-                            setIsAddMoneyModalOpen(true)
-                          }}
-                          className="p-1.5 hover:bg-emerald-50 text-emerald-600 rounded transition-colors"
-                          title="Add Money"
-                        >
-                          <PlusCircle className="w-4 h-4" />
-                        </button>
+                        {canWrite && (
+                          <button
+                            onClick={() => openEdit(book)}
+                            className="p-1.5 hover:bg-slate-200 rounded text-slate-600 transition-colors"
+                            title="Edit Cash Book"
+                          >
+                            <PenSquare className="w-4 h-4" />
+                          </button>
+                        )}
+                        {canWrite && (
+                          <button
+                            onClick={() => {
+                              setSelectedBook(book)
+                              setIsDeleteModalOpen(true)
+                            }}
+                            className="p-1.5 hover:bg-rose-100 text-rose-600 rounded transition-colors"
+                            title="Delete Cash Book"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        {canWrite && (
+                          <button
+                            onClick={() => {
+                              setSelectedBook(book)
+                              setIsAddMoneyModalOpen(true)
+                            }}
+                            className="p-1.5 hover:bg-emerald-50 text-emerald-600 rounded transition-colors"
+                            title="Add Money"
+                          >
+                            <PlusCircle className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

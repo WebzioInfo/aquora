@@ -70,9 +70,15 @@ namespace Aquora.API.Controllers
             return Ok(issue);
         }
 
+        private bool IsReadOnlyUser()
+        {
+            return User.IsInRole("Owner") || User.HasClaim(c => c.Type == System.Security.Claims.ClaimTypes.Role && c.Value.Equals("Owner", StringComparison.OrdinalIgnoreCase));
+        }
+
         [HttpPost]
         public async Task<IActionResult> CreateIssue([FromBody] CreateOperationsIssueRequest request)
         {
+            if (IsReadOnlyUser()) return StatusCode(403, "Owner role is read-only.");
             var issue = await _issueService.CreateIssueAsync(request);
             await _notificationService.PublishIssueCreatedAsync(GetTenantId(), issue);
             return CreatedAtAction(nameof(GetIssueById), new { id = issue.Id }, issue);

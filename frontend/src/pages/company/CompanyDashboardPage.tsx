@@ -1057,13 +1057,17 @@ export const CompanyDashboardPage: React.FC = () => {
   const [rawMaterialFormStockAdjustment, setRawMaterialFormStockAdjustment] = useState('0')
 
 
-  const canWrite = user?.roles?.some((role: string) =>
-    ['CompanyAdmin', 'Admin', 'Manager', 'Accountant'].includes(role)
-  ) ?? false
+  const isOwnerRole = (user?.roles?.some((role: string) =>
+    ['owner', 'companyowner', 'platformowner'].includes(role.toLowerCase())
+  ) || user?.roleName?.toLowerCase() === 'owner') ?? false
 
-  const isCompanyAdmin = user?.roles?.some((role: string) =>
+  const canWrite = !isOwnerRole && (user?.roles?.some((role: string) =>
+    ['CompanyAdmin', 'Admin', 'Manager', 'Accountant'].includes(role)
+  ) ?? false)
+
+  const isCompanyAdmin = !isOwnerRole && (user?.roles?.some((role: string) =>
     ['CompanyAdmin', 'SuperAdmin', 'PlatformAdmin'].includes(role)
-  ) ?? false
+  ) ?? false)
 
   // Fetch Products List
   const { data: productsData, isLoading: productsLoading } = useQuery({
@@ -1674,7 +1678,7 @@ export const CompanyDashboardPage: React.FC = () => {
   })
 
   // Fetch Roles
-  const { data: roles = [] } = useQuery<any[]>({
+  const { data: rawRoles = [] } = useQuery<any[]>({
     queryKey: ['employeesRoles'],
     queryFn: async () => {
       const res = await api.get('/api/v1/employees/roles')
@@ -1682,6 +1686,14 @@ export const CompanyDashboardPage: React.FC = () => {
     },
     enabled: isEmployeesView && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
+
+  const roles = React.useMemo(() => {
+    const list = [...rawRoles]
+    if (!list.some((r: any) => (r.code && r.code.toUpperCase() === 'OWNER') || (r.name && r.name.toLowerCase() === 'owner'))) {
+      list.push({ id: 'role-owner-default', code: 'OWNER', name: 'Owner' })
+    }
+    return list.sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''))
+  }, [rawRoles])
 
   // Fetch Departments
   const { data: departments = [] } = useQuery<string[]>({
@@ -3131,6 +3143,7 @@ export const CompanyDashboardPage: React.FC = () => {
           let badgeClass = "bg-slate-100 text-[#374151]"
           const code = row.roleCode.toUpperCase()
           if (code === 'COMPANYADMIN') badgeClass = "bg-[#EFF4FF] text-[#1D4ED8]"
+          else if (code === 'OWNER') badgeClass = "bg-[#FEF3C7] text-[#92400E]"
           else if (code === 'OPERATOR') badgeClass = "bg-[#FEF3C7] text-[#B45309]"
           else if (code === 'SUPERVISOR') badgeClass = "bg-[#F3E8FF] text-[#6B21A8]"
           else if (code === 'MANAGER') badgeClass = "bg-[#D1FAE5] text-[#047857]"
@@ -3355,6 +3368,7 @@ export const CompanyDashboardPage: React.FC = () => {
                     let badgeClass = "bg-slate-100 text-[#374151]"
                     const code = selectedEmployeeForView.roleCode.toUpperCase()
                     if (code === 'COMPANYADMIN') badgeClass = "bg-[#EFF4FF] text-[#1A56DB]"
+                    else if (code === 'OWNER') badgeClass = "bg-[#FEF3C7] text-[#92400E]"
                     else if (code === 'OPERATOR') badgeClass = "bg-[#FEF3C7] text-[#92400E]"
                     else if (code === 'SUPERVISOR') badgeClass = "bg-[#F3E8FF] text-[#6B21A8]"
                     else if (code === 'MANAGER') badgeClass = "bg-[#D1FAE5] text-[#065F46]"

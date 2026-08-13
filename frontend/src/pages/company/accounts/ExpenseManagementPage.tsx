@@ -12,6 +12,7 @@ import EnterpriseLoading from '../../../components/ui/EnterpriseLoading'
 import EnterpriseNumberInput from '../../../components/ui/EnterpriseNumberInput'
 import { Plus, Search, Eye, Edit2, Trash2, Landmark, RefreshCw, Printer } from 'lucide-react'
 import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
+import { useAuthStore } from '../../../store/useAuthStore'
 
 const EXPENSE_CATEGORIES = [
   'Salary',
@@ -30,6 +31,9 @@ const PAYMENT_METHODS = ['Cash', 'Bank']
 export const ExpenseManagementPage: React.FC = () => {
   const queryClient = useQueryClient()
   const { showToast } = useNotificationStore()
+  const { user } = useAuthStore()
+  const isOwner = (user?.roles?.some(r => ['owner', 'companyowner', 'platformowner'].includes(r.toLowerCase())) || user?.roleName?.toLowerCase() === 'owner') ?? false
+  const canWrite = !isOwner && (user?.roles?.some(r => ['CompanyAdmin', 'Admin', 'Manager', 'Accountant'].includes(r)) ?? false)
 
   // Filter & Search states
   const [pageNumber, setPageNumber] = useState(1)
@@ -328,9 +332,11 @@ export const ExpenseManagementPage: React.FC = () => {
         title="Expense Management"
         description="Record operational expenses, manage payment sources, and maintain automated bank balance deductions."
         actions={
-          <EnterpriseButton variant="primary" onClick={handleOpenCreate}>
-            <Plus className="w-4 h-4 mr-2" /> Add Expense
-          </EnterpriseButton>
+          canWrite ? (
+            <EnterpriseButton variant="primary" onClick={handleOpenCreate}>
+              <Plus className="w-4 h-4 mr-2" /> Add Expense
+            </EnterpriseButton>
+          ) : undefined
         }
       />
 
@@ -426,13 +432,15 @@ export const ExpenseManagementPage: React.FC = () => {
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          onClick={() => handleOpenEdit(expense)}
-                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
-                          title="Edit Expense"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
+                        {canWrite && (
+                          <button
+                            onClick={() => handleOpenEdit(expense)}
+                            className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
+                            title="Edit Expense"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handlePrintExpense(expense)}
                           className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
@@ -440,13 +448,15 @@ export const ExpenseManagementPage: React.FC = () => {
                         >
                           <Printer className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          onClick={() => handleDelete(expense.id)}
-                          className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors"
-                          title="Delete Expense"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {canWrite && (
+                          <button
+                            onClick={() => handleDelete(expense.id)}
+                            className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors"
+                            title="Delete Expense"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))

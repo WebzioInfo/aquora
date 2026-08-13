@@ -32,12 +32,16 @@ import { FilterBar } from '../../../components/ui/layout/FilterBar';
 
 import { operationsIssueApi } from '../../../services/api/operationsIssue';
 import type { OperationsIssue, OperationsIssueDashboard } from '../../../services/api/operationsIssue';
+import { useAuthStore } from '../../../store/useAuthStore';
 
 const DEPARTMENTS = ['All', 'Production', 'Warehouse', 'Dispatch', 'QC', 'Quality', 'HR', 'Maintenance', 'General'];
 const PRIORITIES = ['All', 'Low', 'Medium', 'High', 'Critical', 'Emergency'];
 const STATUSES = ['All', 'Open', 'Acknowledged', 'Assigned', 'InProgress', 'WaitingForParts', 'OnHold', 'Resolved', 'Verified', 'Closed'];
 
 export const OperationsIssuesListPage: React.FC = () => {
+  const { user } = useAuthStore();
+  const isOwner = (user?.roles?.some(r => ['owner', 'companyowner', 'platformowner'].includes(r.toLowerCase())) || user?.roleName?.toLowerCase() === 'owner') ?? false;
+  const canWrite = !isOwner;
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<'issues' | 'analytics'>('issues');
@@ -206,18 +210,22 @@ export const OperationsIssuesListPage: React.FC = () => {
             >
               <CheckCircle2 className="w-3.5 h-3.5 text-slate-600" /> Mark All Read
             </button>
-            <button
-              onClick={() => navigate('/company/operations-issues/quick-report')}
-              className="h-[32px] px-3 bg-amber-500 hover:bg-amber-600 text-white text-[12px] font-extrabold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
-            >
-              <Zap className="w-3.5 h-3.5 fill-current" /> 30s Operator Report
-            </button>
-            <button
-              onClick={() => navigate('/company/operations-issues/new')}
-              className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
-            >
-              <Plus className="w-3.5 h-3.5" /> Report Issue
-            </button>
+            {canWrite && (
+              <button
+                onClick={() => navigate('/company/operations-issues/quick-report')}
+                className="h-[32px] px-3 bg-amber-500 hover:bg-amber-600 text-white text-[12px] font-extrabold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+              >
+                <Zap className="w-3.5 h-3.5 fill-current" /> 30s Operator Report
+              </button>
+            )}
+            {canWrite && (
+              <button
+                onClick={() => navigate('/company/operations-issues/new')}
+                className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5" /> Report Issue
+              </button>
+            )}
           </div>
         }
       />

@@ -21,6 +21,7 @@ import {
 import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
 import { vendorService, type Vendor, type CreateVendorRequest } from '../../../services/vendors'
 import { useNotificationStore } from '../../../store/useNotificationStore'
+import { useAuthStore } from '../../../store/useAuthStore'
 import EnterpriseHeader from '../../../components/ui/EnterpriseHeader'
 import EnterpriseCard from '../../../components/ui/EnterpriseCard'
 import EnterpriseButton from '../../../components/ui/EnterpriseButton'
@@ -32,6 +33,9 @@ import EnterpriseNumberInput from '../../../components/ui/EnterpriseNumberInput'
 export const VendorsPage: React.FC = () => {
   const navigate = useNavigate()
   const { showToast } = useNotificationStore()
+  const { user } = useAuthStore()
+  const isOwner = (user?.roles?.some(r => ['owner', 'companyowner', 'platformowner'].includes(r.toLowerCase())) || user?.roleName?.toLowerCase() === 'owner') ?? false
+  const canWrite = !isOwner && (user?.roles?.some(r => ['CompanyAdmin', 'Admin', 'Manager', 'Accountant'].includes(r)) ?? false)
 
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [loading, setLoading] = useState<boolean>(true)
@@ -238,9 +242,11 @@ export const VendorsPage: React.FC = () => {
             <EnterpriseButton variant="secondary" size="sm" onClick={fetchVendors} disabled={loading}>
               <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </EnterpriseButton>
-            <EnterpriseButton variant="primary" size="sm" onClick={handleOpenCreateModal}>
-              <Plus className="w-4 h-4 mr-1.5" /> Add New Vendor
-            </EnterpriseButton>
+            {canWrite && (
+              <EnterpriseButton variant="primary" size="sm" onClick={handleOpenCreateModal}>
+                <Plus className="w-4 h-4 mr-1.5" /> Add New Vendor
+              </EnterpriseButton>
+            )}
           </div>
         }
       />
@@ -343,13 +349,15 @@ export const VendorsPage: React.FC = () => {
                         </button>
 
                         {/* EDIT */}
-                        <button
-                          onClick={() => handleOpenEditModal(vendor)}
-                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
-                          title="Edit Vendor"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
+                        {canWrite && (
+                          <button
+                            onClick={() => handleOpenEditModal(vendor)}
+                            className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
+                            title="Edit Vendor"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
 
                         {/* PRINT */}
                         <button
@@ -361,22 +369,26 @@ export const VendorsPage: React.FC = () => {
                         </button>
 
                         {/* DELETE */}
-                        <button
-                          onClick={() => handleDelete(vendor.id, vendor.name)}
-                          className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors"
-                          title="Delete Vendor"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {canWrite && (
+                          <button
+                            onClick={() => handleDelete(vendor.id, vendor.name)}
+                            className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors"
+                            title="Delete Vendor"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
 
                         {/* STATUS TOGGLE */}
-                        <button
-                          onClick={() => handleToggleStatus(vendor.id, vendor.name)}
-                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
-                          title={vendor.isActive ? 'Deactivate Vendor' : 'Activate Vendor'}
-                        >
-                          {vendor.isActive ? <ToggleRight className="w-3.5 h-3.5 text-emerald-600" /> : <ToggleLeft className="w-3.5 h-3.5 text-slate-400" />}
-                        </button>
+                        {canWrite && (
+                          <button
+                            onClick={() => handleToggleStatus(vendor.id, vendor.name)}
+                            className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
+                            title={vendor.isActive ? 'Deactivate Vendor' : 'Activate Vendor'}
+                          >
+                            {vendor.isActive ? <ToggleRight className="w-3.5 h-3.5 text-emerald-600" /> : <ToggleLeft className="w-3.5 h-3.5 text-slate-400" />}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
