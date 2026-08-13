@@ -41,33 +41,16 @@ export const AuthLayout: React.FC = () => {
           />
         </AnimatePresence>
 
-        {/* SOFT WHITE TRANSPARENT GRADIENT (PRECISION OVERLAY) */}
+        {/* SOFT CENTER-FOCUSED LIGHT OVERLAY */}
         <div 
-          className="absolute inset-0 pointer-events-none hidden md:block"
+          className="absolute inset-0 pointer-events-none"
           style={{
-            background: `linear-gradient(
-              90deg,
-              rgba(255,255,255,0) 48%,
-              rgba(255,255,255,0.06) 56%,
-              rgba(255,255,255,0.20) 64%,
-              rgba(255,255,255,0.45) 70%,
-              rgba(255,255,255,0.72) 76%,
-              rgba(255,255,255,0.90) 82%,
-              rgba(255,255,255,0.97) 88%,
-              #fff 96%
-            )`
-          }}
-        />
-
-        {/* MOBILE FALLBACK GRADIENT (Centers the fade) */}
-        <div 
-          className="absolute inset-0 pointer-events-none block md:hidden"
-          style={{
-            background: `linear-gradient(
-              180deg,
-              rgba(255,255,255,0.2) 0%,
-              rgba(255,255,255,0.8) 40%,
-              rgba(255,255,255,0.95) 100%
+            background: `radial-gradient(
+              circle at center,
+              rgba(255, 255, 255, 0.72) 0%,
+              rgba(255, 255, 255, 0.50) 45%,
+              rgba(255, 255, 255, 0.25) 75%,
+              rgba(255, 255, 255, 0.12) 100%
             )`
           }}
         />
@@ -109,27 +92,21 @@ export const AuthLayout: React.FC = () => {
         </div>
       </header>
 
-      {/* 3. MAIN CONTENT AREA */}
-      <main className="flex-1 relative z-10 w-full flex">
-        
-        {/* The Left Side is open cinematic space (Empty space) */}
-        <div className="hidden md:flex flex-1" />
-
-        {/* The Right Side holds the form */}
-        <div className="w-full md:w-auto flex-shrink-0 flex items-center justify-center px-6 py-6 md:pr-[8%] lg:pr-[10%] xl:pr-[12%]">
-          <div className="w-full max-w-[420px]">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={location.pathname}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -15 }}
-                transition={{ duration: 0.3 }}
-              >
-                <Outlet />
-              </motion.div>
-            </AnimatePresence>
-          </div>
+      {/* 3. MAIN CONTENT AREA — CENTERED VIEWPORT CONTAINER */}
+      <main className="flex-1 relative z-10 w-full flex items-center justify-center px-4 sm:px-6 py-6 overflow-y-auto">
+        <div className="w-full max-w-[480px] my-auto flex justify-center items-center">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.3 }}
+              className="w-full flex justify-center items-center"
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
 
