@@ -14,8 +14,6 @@ import { brandService } from '../../services/brands'
 import { rawMaterialsService } from '../../services/rawMaterials'
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown'
 import { useNotificationStore } from '../../store/useNotificationStore'
-import { priceListService } from '../../services/priceLists'
-import { discountGroupService } from '../../services/discountGroups'
 import { useAuthStore } from '../../store/useAuthStore'
 import EnterpriseHeader from '../../components/ui/EnterpriseHeader'
 import PageContainer from '../../components/ui/layout/PageContainer'
@@ -199,6 +197,8 @@ export const CustomersPage: React.FC = () => {
     // Financial Settings
     priceList: '',
     discountGroup: '',
+    price: 0,
+    discount: 0,
     taxCategory: '',
     outstandingPlaceholder: 0,
     ledgerPlaceholder: '',
@@ -245,17 +245,6 @@ export const CustomersPage: React.FC = () => {
   const { data: materialsData, isLoading: isLoadingMaterials } = useQuery({
     queryKey: ['capMaterialsForDropdown'],
     queryFn: () => rawMaterialsService.getRawMaterials(1, 200),
-    staleTime: 5 * 60 * 1000
-  })
-
-  const { data: priceLists } = useQuery({
-    queryKey: ['priceLists'],
-    queryFn: priceListService.getAll
-  })
-
-  const { data: discountGroups } = useQuery({
-    queryKey: ['discountGroups'],
-    queryFn: discountGroupService.getAll
   })
 
   const brandItems = React.useMemo(() => {
@@ -459,6 +448,8 @@ export const CustomersPage: React.FC = () => {
       addressesJson: '[]',
       priceList: '',
       discountGroup: '',
+      price: 0,
+      discount: 0,
       taxCategory: '',
       outstandingPlaceholder: 0,
       ledgerPlaceholder: '',
@@ -543,6 +534,8 @@ export const CustomersPage: React.FC = () => {
       addressesJson: customer.addressesJson || '[]',
       priceList: customer.priceList || '',
       discountGroup: customer.discountGroup || '',
+      price: customer.price ?? 0,
+      discount: customer.discount ?? 0,
       taxCategory: customer.taxCategory || '',
       outstandingPlaceholder: customer.outstandingPlaceholder || 0,
       ledgerPlaceholder: customer.ledgerPlaceholder || '',
@@ -608,6 +601,14 @@ export const CustomersPage: React.FC = () => {
     }
     if (Number(formData.outstandingJars) < 0) {
       showToast('Outstanding jars cannot be negative.', 'warning')
+      return
+    }
+    if (Number(formData.price) < 0) {
+      showToast('Price cannot be negative.', 'warning')
+      return
+    }
+    if (Number(formData.discount) < 0) {
+      showToast('Discount cannot be negative.', 'warning')
       return
     }
 
@@ -686,6 +687,8 @@ export const CustomersPage: React.FC = () => {
         addressesJson: formData.addressesJson,
         priceList: formData.priceList.trim() || undefined,
         discountGroup: formData.discountGroup.trim() || undefined,
+        price: Number(formData.price) || 0,
+        discount: Number(formData.discount) || 0,
         taxCategory: formData.taxCategory.trim() || undefined,
         outstandingPlaceholder: Number(formData.outstandingPlaceholder),
         ledgerPlaceholder: formData.ledgerPlaceholder.trim() || undefined,
@@ -758,6 +761,8 @@ export const CustomersPage: React.FC = () => {
           addressesJson: formData.addressesJson,
           priceList: formData.priceList.trim() || undefined,
           discountGroup: formData.discountGroup.trim() || undefined,
+          price: Number(formData.price) || 0,
+          discount: Number(formData.discount) || 0,
           taxCategory: formData.taxCategory.trim() || undefined,
           outstandingPlaceholder: Number(formData.outstandingPlaceholder),
           ledgerPlaceholder: formData.ledgerPlaceholder.trim() || undefined,
@@ -1212,39 +1217,54 @@ export const CustomersPage: React.FC = () => {
                       </PremiumSelect>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-5">
-                      <PremiumSelect
-                        label="Price List Code"
-                        name="priceList"
-                        value={formData.priceList}
-                        onChange={handleFormChange}
-                      >
-                        <option value="">Select Price List</option>
-                        {priceLists?.filter(p => p.isActive).map(p => (
-                          <option key={p.id} value={p.code}>{p.code} - {p.description || 'No description'}</option>
-                        ))}
-                      </PremiumSelect>
-                      <PremiumSelect
-                        label="Discount Group"
-                        name="discountGroup"
-                        value={formData.discountGroup}
-                        onChange={handleFormChange}
-                      >
-                        <option value="">Select Discount Group</option>
-                        {discountGroups?.filter(d => d.isActive).map(d => (
-                          <option key={d.id} value={d.code}>{d.code} - {d.description || 'No description'}</option>
-                        ))}
-                      </PremiumSelect>
+                    <div className="grid grid-cols-2 gap-5">
                       <PremiumInput
-                        label="Tax Category"
-                        name="taxCategory"
-                        value={formData.taxCategory}
-                        onChange={handleFormChange}
-                        placeholder="e.g. GST_18"
+                        label="Price"
+                        name="price"
+                        type="number"
+                        min={0}
+                        step="any"
+                        value={formData.price}
+                        onChange={(e: any) => {
+                          const val = parseFloat(e.target.value);
+                          const finalVal = isNaN(val) ? 0 : val;
+                          if (finalVal < 0) {
+                            showToast('Price cannot be negative.', 'warning');
+                          }
+                          handleFormChange({
+                            target: { name: 'price', value: finalVal < 0 ? 0 : finalVal }
+                          } as any);
+                        }}
+                        placeholder="Enter price"
+                      />
+                      <PremiumInput
+                        label="Discount"
+                        name="discount"
+                        type="number"
+                        min={0}
+                        step="any"
+                        value={formData.discount}
+                        onChange={(e: any) => {
+                          const val = parseFloat(e.target.value);
+                          const finalVal = isNaN(val) ? 0 : val;
+                          if (finalVal < 0) {
+                            showToast('Discount cannot be negative.', 'warning');
+                          }
+                          handleFormChange({
+                            target: { name: 'discount', value: finalVal < 0 ? 0 : finalVal }
+                          } as any);
+                        }}
+                        placeholder="Enter discount"
                       />
                     </div>
 
-
+                    <PremiumInput
+                      label="Tax Category"
+                      name="taxCategory"
+                      value={formData.taxCategory}
+                      onChange={handleFormChange}
+                      placeholder="e.g. GST_18"
+                    />
                   </div>
                 )}
 

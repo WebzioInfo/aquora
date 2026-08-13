@@ -59,6 +59,8 @@ export interface Customer {
   // Financial Settings
   priceList?: string | null
   discountGroup?: string | null
+  price?: number
+  discount?: number
   taxCategory?: string | null
   outstandingPlaceholder?: number
   ledgerPlaceholder?: string | null
@@ -145,6 +147,8 @@ export interface CreateCustomerRequest {
   // Financial Settings
   priceList?: string
   discountGroup?: string
+  price?: number
+  discount?: number
   taxCategory?: string
   outstandingPlaceholder?: number
   ledgerPlaceholder?: string
@@ -230,6 +234,8 @@ export interface UpdateCustomerRequest {
   // Financial Settings
   priceList?: string
   discountGroup?: string
+  price?: number
+  discount?: number
   taxCategory?: string
   outstandingPlaceholder?: number
   ledgerPlaceholder?: string

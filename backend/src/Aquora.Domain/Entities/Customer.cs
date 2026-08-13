@@ -56,6 +56,8 @@ namespace Aquora.Domain.Entities
         // Financial Settings
         public string? PriceList { get; set; }
         public string? DiscountGroup { get; set; }
+        public decimal Price { get; set; } = 0;
+        public decimal Discount { get; set; } = 0;
         public string? TaxCategory { get; set; }
         public decimal OutstandingPlaceholder { get; set; } = 0;
         public string? LedgerPlaceholder { get; set; }

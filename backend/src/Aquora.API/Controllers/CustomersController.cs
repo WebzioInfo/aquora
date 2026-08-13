@@ -150,6 +150,8 @@ namespace Aquora.API.Controllers
                         AddressesJson = c.AddressesJson,
                         PriceList = c.PriceList,
                         DiscountGroup = c.DiscountGroup,
+                        Price = c.Price,
+                        Discount = c.Discount,
                         TaxCategory = c.TaxCategory,
                         OutstandingPlaceholder = c.OutstandingPlaceholder,
                         LedgerPlaceholder = c.LedgerPlaceholder,
@@ -248,6 +250,8 @@ namespace Aquora.API.Controllers
                     AddressesJson = customer.AddressesJson,
                     PriceList = customer.PriceList,
                     DiscountGroup = customer.DiscountGroup,
+                    Price = customer.Price,
+                    Discount = customer.Discount,
                     TaxCategory = customer.TaxCategory,
                     OutstandingPlaceholder = customer.OutstandingPlaceholder,
                     LedgerPlaceholder = customer.LedgerPlaceholder,
@@ -423,6 +427,8 @@ namespace Aquora.API.Controllers
                     AddressesJson = request.AddressesJson,
                     PriceList = string.IsNullOrWhiteSpace(request.PriceList) ? null : request.PriceList.Trim(),
                     DiscountGroup = string.IsNullOrWhiteSpace(request.DiscountGroup) ? null : request.DiscountGroup.Trim(),
+                    Price = request.Price,
+                    Discount = request.Discount,
                     TaxCategory = string.IsNullOrWhiteSpace(request.TaxCategory) ? null : request.TaxCategory.Trim(),
                     OutstandingPlaceholder = request.OutstandingPlaceholder,
                     LedgerPlaceholder = request.LedgerPlaceholder?.Trim(),
@@ -500,6 +506,8 @@ namespace Aquora.API.Controllers
                     AddressesJson = customer.AddressesJson,
                     PriceList = customer.PriceList,
                     DiscountGroup = customer.DiscountGroup,
+                    Price = customer.Price,
+                    Discount = customer.Discount,
                     TaxCategory = customer.TaxCategory,
                     OutstandingPlaceholder = customer.OutstandingPlaceholder,
                     LedgerPlaceholder = customer.LedgerPlaceholder,
@@ -658,6 +666,8 @@ namespace Aquora.API.Controllers
                 customer.AddressesJson = request.AddressesJson;
                 customer.PriceList = string.IsNullOrWhiteSpace(request.PriceList) ? null : request.PriceList.Trim();
                 customer.DiscountGroup = string.IsNullOrWhiteSpace(request.DiscountGroup) ? null : request.DiscountGroup.Trim();
+                customer.Price = request.Price;
+                customer.Discount = request.Discount;
                 customer.TaxCategory = string.IsNullOrWhiteSpace(request.TaxCategory) ? null : request.TaxCategory.Trim();
                 customer.OutstandingPlaceholder = request.OutstandingPlaceholder;
                 customer.LedgerPlaceholder = request.LedgerPlaceholder?.Trim();
@@ -735,6 +745,8 @@ namespace Aquora.API.Controllers
                     AddressesJson = customer.AddressesJson,
                     PriceList = customer.PriceList,
                     DiscountGroup = customer.DiscountGroup,
+                    Price = customer.Price,
+                    Discount = customer.Discount,
                     TaxCategory = customer.TaxCategory,
                     OutstandingPlaceholder = customer.OutstandingPlaceholder,
                     LedgerPlaceholder = customer.LedgerPlaceholder,

@@ -255,14 +255,12 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
                     <span className="block font-mono font-semibold text-slate-800">₹{customer.creditLimit?.toLocaleString('en-IN') || '0.00'}</span>
                   </div>
                   <div>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Price</span>
+                    <span className="block font-mono font-semibold text-slate-800">₹{customer.price?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</span>
                   </div>
                   <div>
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Price List Code</span>
-                    <span className="block font-mono font-semibold text-slate-800">{customer.priceList || 'Default List'}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Discount Group</span>
-                    <span className="block font-mono font-semibold text-slate-800">{customer.discountGroup || 'None'}</span>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Discount</span>
+                    <span className="block font-mono font-semibold text-slate-800">₹{customer.discount?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</span>
                   </div>
                 </div>
               </div>

@@ -102,6 +102,12 @@ namespace Aquora.Application.DTOs.Customers
         // Financial Settings
         public string? PriceList { get; set; }
         public string? DiscountGroup { get; set; }
+
+        [Range(0, double.MaxValue, ErrorMessage = "Price cannot be negative.")]
+        public decimal Price { get; set; } = 0;
+
+        [Range(0, double.MaxValue, ErrorMessage = "Discount cannot be negative.")]
+        public decimal Discount { get; set; } = 0;
         public string? TaxCategory { get; set; }
         public decimal OutstandingPlaceholder { get; set; } = 0;
         public string? LedgerPlaceholder { get; set; }

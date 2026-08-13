@@ -53,6 +53,8 @@ namespace Aquora.Application.DTOs.Customers
         // Financial Settings
         public string? PriceList { get; set; }
         public string? DiscountGroup { get; set; }
+        public decimal Price { get; set; }
+        public decimal Discount { get; set; }
         public string? TaxCategory { get; set; }
         public decimal OutstandingPlaceholder { get; set; }
         public string? LedgerPlaceholder { get; set; }
