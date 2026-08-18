@@ -62,8 +62,9 @@ namespace Aquora.Application.Interfaces
         DbSet<Aquora.Domain.Entities.Finance.Owner> Owners { get; }
         DbSet<Aquora.Domain.Entities.Finance.OwnerInvestmentTransaction> OwnerInvestmentTransactions { get; }
         DbSet<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry> BankLedgerAuditEntries { get; }
-        DbSet<User> Users { get; }
+        DbSet<Aquora.Domain.Entities.Payroll.MonthlySalary> MonthlySalaries { get; }
         DbSet<Aquora.Domain.Entities.Payroll.SalaryPayment> SalaryPayments { get; }
+        DbSet<User> Users { get; }
 
         // Purchase Management & Asset History Module
         DbSet<Aquora.Domain.Entities.Finance.Vendor> Vendors { get; }

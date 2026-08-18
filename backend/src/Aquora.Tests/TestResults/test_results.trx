@@ -1,0 +1,993 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="60fa9239-64fc-44c6-b14d-9386b295a3d3" name="siinaan@SIINAAN 2026-08-18 12:34:16" runUser="SIINAAN\siinaan" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-08-18T12:34:16.9348456+05:30" queuing="2026-08-18T12:34:16.9348462+05:30" start="2026-08-18T12:34:12.5388845+05:30" finish="2026-08-18T12:34:17.4292976+05:30" />
+  <TestSettings name="default" id="cb5cee4f-9371-4874-8f4c-93c3ad460eb0">
+    <Deployment runDeploymentRoot="siinaan_SIINAAN_2026-08-18_12_34_16" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="7ed32994-cf30-4b73-af41-286d0a6dc076" testId="81719902-6981-2f9e-9e7b-69dc9b8c9eca" testName="Aquora.Tests.PayrollBalanceSystemTests.Test11_DashboardMetricsUseActualPaymentsOnly" computerName="SIINAAN" duration="00:00:00.0333146" startTime="2026-08-18T12:34:17.2961402+05:30" endTime="2026-08-18T12:34:17.3291584+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7ed32994-cf30-4b73-af41-286d0a6dc076" />
+    <UnitTestResult executionId="a404ba7c-7634-419a-8ca0-dfcbc6804772" testId="b669ae8c-af2c-7cae-0b60-6b88d8e6831c" testName="Aquora.Tests.PayrollBalanceSystemTests.Test10_SeparationOfMonthlySalaryAndEarnedEntitlement" computerName="SIINAAN" duration="00:00:00.0318564" startTime="2026-08-18T12:34:16.9889145+05:30" endTime="2026-08-18T12:34:17.0199197+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a404ba7c-7634-419a-8ca0-dfcbc6804772" />
+    <UnitTestResult executionId="c8cb9cb9-8f2d-485e-8bb9-34325254d2c5" testId="02504ae7-96f8-711f-bcd9-c082271171d1" testName="Aquora.Tests.PayrollBalanceSystemTests.Test1_CreateMonthlySalaryEntitlement_InitialStateUnpaid" computerName="SIINAAN" duration="00:00:00.0060752" startTime="2026-08-18T12:34:17.2803123+05:30" endTime="2026-08-18T12:34:17.2828772+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c8cb9cb9-8f2d-485e-8bb9-34325254d2c5" />
+    <UnitTestResult executionId="f8946082-6f07-4c6a-8e9b-b5cfdaf33fe1" testId="2ab67f10-de94-56fc-70fc-3f54f8652568" testName="Aquora.Tests.PayrollBalanceSystemTests.Test8_ManualEntitlementOverride_PersistsAndAllowsPartialPayments" computerName="SIINAAN" duration="00:00:00.0065858" startTime="2026-08-18T12:34:17.0306675+05:30" endTime="2026-08-18T12:34:17.0486558+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f8946082-6f07-4c6a-8e9b-b5cfdaf33fe1">
+      <Output>
+        <ErrorInfo>
+          <Message>Assert.Equal() Failure: Values differ&#xD;
+Expected: 9000&#xD;
+Actual:   6666.67</Message>
+          <StackTrace>   at Aquora.Tests.PayrollBalanceSystemTests.Test8_ManualEntitlementOverride_PersistsAndAllowsPartialPayments() in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\PayrollBalanceSystemTests.cs:line 348&#xD;
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="8801ff08-0c1a-4a4e-9723-35a70b9de620" testId="49dc60aa-7648-aa93-aa9f-c34aba6ca25c" testName="Aquora.Tests.PayrollBalanceSystemTests.Test9_SaveEntitlementDoesNotCreatePayment" computerName="SIINAAN" duration="00:00:00.0057828" startTime="2026-08-18T12:34:17.3460417+05:30" endTime="2026-08-18T12:34:17.3517052+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8801ff08-0c1a-4a4e-9723-35a70b9de620" />
+    <UnitTestResult executionId="b5a3edcd-1deb-4b80-9ff1-a81afc1673b9" testId="7054ae44-b051-8852-cf23-b98b30b0d308" testName="Aquora.Tests.PayrollBalanceSystemTests.Test4_OverpaymentAttempt_ThrowsArgumentException" computerName="SIINAAN" duration="00:00:00.0118188" startTime="2026-08-18T12:34:17.2545670+05:30" endTime="2026-08-18T12:34:17.2654376+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="b5a3edcd-1deb-4b80-9ff1-a81afc1673b9" />
+    <UnitTestResult executionId="f8a0cc2e-f157-4db5-91f6-d45bc9052613" testId="5a6c6054-76f1-541c-8e51-26c1f896314c" testName="Aquora.Tests.PayrollBalanceSystemTests.Test12_AttendanceBasedSalarySettlement_SubtractsPreviousAdvances" computerName="SIINAAN" duration="00:00:00.0111068" startTime="2026-08-18T12:34:17.2656190+05:30" endTime="2026-08-18T12:34:17.2766833+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f8a0cc2e-f157-4db5-91f6-d45bc9052613" />
+    <UnitTestResult executionId="08b23188-752f-4ee2-b887-fde32724da80" testId="b69517c8-a5b1-4c72-c5bd-12b5f5d809e2" testName="Aquora.Tests.PayrollBalanceSystemTests.Test15_RealWorldScenario_250kSalary_150kAdvance_25DaysWorked_CalculatesCorrectBalance" computerName="SIINAAN" duration="00:00:00.0102770" startTime="2026-08-18T12:34:17.2422455+05:30" endTime="2026-08-18T12:34:17.2535462+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="08b23188-752f-4ee2-b887-fde32724da80">
+      <Output>
+        <ErrorInfo>
+          <Message>System.ArgumentException : Insufficient balance in the selected Bank Account. Current balance: INR 1,00,000.00</Message>
+          <StackTrace>   at Aquora.Application.Services.PayrollService.&lt;&gt;c__DisplayClass11_0.&lt;&lt;ProcessSalaryPaymentAsync&gt;b__0&gt;d.MoveNext() in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\PayrollService.cs:line 425&#xD;
+--- End of stack trace from previous location ---&#xD;
+   at Aquora.Application.Services.PayrollService.&lt;&gt;c__DisplayClass11_0.&lt;&lt;ProcessSalaryPaymentAsync&gt;b__0&gt;d.MoveNext() in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\PayrollService.cs:line 544&#xD;
+--- End of stack trace from previous location ---&#xD;
+   at Aquora.Application.Services.PayrollService.ProcessSalaryPaymentAsync(ProcessSalaryPaymentRequest request) in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\PayrollService.cs:line 321&#xD;
+   at Aquora.Tests.PayrollBalanceSystemTests.Test15_RealWorldScenario_250kSalary_150kAdvance_25DaysWorked_CalculatesCorrectBalance() in C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\PayrollBalanceSystemTests.cs:line 603&#xD;
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="830ecebb-59d6-41a6-b215-30c1c6e0e3e1" testId="b3761cfa-3bc1-38a4-baf7-52d4e66338ac" testName="Aquora.Tests.PayrollBalanceSystemTests.Test5_MultiplePartialPayments_CalculatesCumulativeBalance" computerName="SIINAAN" duration="00:00:02.6717743" startTime="2026-08-18T12:34:14.2105235+05:30" endTime="2026-08-18T12:34:16.8940132+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="830ecebb-59d6-41a6-b215-30c1c6e0e3e1" />
+    <UnitTestResult executionId="2eb18b81-eb46-4d2a-9dcd-33cd0adf6e6f" testId="185e7b63-ff2a-b2e3-ebbf-e8ae0b39ad63" testName="Aquora.Tests.PayrollBalanceSystemTests.Test7_ReverseTransaction_RestoresRemainingBalance" computerName="SIINAAN" duration="00:00:00.0934363" startTime="2026-08-18T12:34:16.9168623+05:30" endTime="2026-08-18T12:34:16.9880174+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2eb18b81-eb46-4d2a-9dcd-33cd0adf6e6f" />
+    <UnitTestResult executionId="60a6ca38-0f24-4fe5-a5db-230bd7136850" testId="f6ed07de-0a3c-0b13-e582-0940e1a5f89a" testName="Aquora.Tests.PayrollBalanceSystemTests.Test6_DuplicateMonthlySalaryGeneration_ReturnsExistingEntitlement" computerName="SIINAAN" duration="00:00:00.0165012" startTime="2026-08-18T12:34:17.3293487+05:30" endTime="2026-08-18T12:34:17.3458326+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="60a6ca38-0f24-4fe5-a5db-230bd7136850" />
+    <UnitTestResult executionId="56dcaa98-e77d-4298-88b5-3070bd017f87" testId="a61b94d6-9930-b28d-328c-75d1df4303d0" testName="Aquora.Tests.PayrollBalanceSystemTests.Test13_ExcessAdvance_SetsOverpaidStatus" computerName="SIINAAN" duration="00:00:00.1770679" startTime="2026-08-18T12:34:17.0648661+05:30" endTime="2026-08-18T12:34:17.2420052+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="56dcaa98-e77d-4298-88b5-3070bd017f87" />
+    <UnitTestResult executionId="090d42c8-8526-4f05-b6e2-494217ceea1b" testId="73f953ab-f72f-2b9b-1fbd-59f5b9ae6100" testName="Aquora.Tests.PayrollBalanceSystemTests.Test3_ProcessRemainingSettlement_UpdatesToFullyPaid" computerName="SIINAAN" duration="00:00:00.0104990" startTime="2026-08-18T12:34:17.0202968+05:30" endTime="2026-08-18T12:34:17.0305178+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="090d42c8-8526-4f05-b6e2-494217ceea1b" />
+    <UnitTestResult executionId="6670a0fc-5799-48c8-b3c7-7cbc7c32be94" testId="c8f94abe-cc1b-f64a-24cd-d85ec57759d6" testName="Aquora.Tests.PayrollBalanceSystemTests.Test14_ExistingUnlinkedPaymentRecords_AreLoadedInSettlementModalDetails" computerName="SIINAAN" duration="00:00:00.0169741" startTime="2026-08-18T12:34:17.0564865+05:30" endTime="2026-08-18T12:34:17.0647049+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="6670a0fc-5799-48c8-b3c7-7cbc7c32be94" />
+    <UnitTestResult executionId="9530cb30-665c-4966-8037-3c22efd74d87" testId="6eded874-c19f-83da-96fe-a86c6f6e038c" testName="Aquora.Tests.PayrollBalanceSystemTests.Test2_ProcessSalaryAdvance_UpdatesToPartiallyPaid" computerName="SIINAAN" duration="00:00:00.0126220" startTime="2026-08-18T12:34:17.2830994+05:30" endTime="2026-08-18T12:34:17.2957413+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="9530cb30-665c-4966-8037-3c22efd74d87" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="Aquora.Tests.PayrollBalanceSystemTests.Test6_DuplicateMonthlySalaryGeneration_ReturnsExistingEntitlement" storage="c:\users\siinaan\desktop\aquora\backend\src\aquora.tests\bin\debug\net10.0\aquora.tests.dll" id="f6ed07de-0a3c-0b13-e582-0940e1a5f89a">
+      <Execution id="60a6ca38-0f24-4fe5-a5db-230bd7136850" />
+      <TestMethod codeBase="C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\bin\Debug\net10.0\Aquora.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Aquora.Tests.PayrollBalanceSystemTests" name="Test6_DuplicateMonthlySalaryGeneration_ReturnsExistingEntitlement" />
+    </UnitTest>
+    <UnitTest name="Aquora.Tests.PayrollBalanceSystemTests.Test10_SeparationOfMonthlySalaryAndEarnedEntitlement" storage="c:\users\siinaan\desktop\aquora\backend\src\aquora.tests\bin\debug\net10.0\aquora.tests.dll" id="b669ae8c-af2c-7cae-0b60-6b88d8e6831c">
+      <Execution id="a404ba7c-7634-419a-8ca0-dfcbc6804772" />
+      <TestMethod codeBase="C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\bin\Debug\net10.0\Aquora.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Aquora.Tests.PayrollBalanceSystemTests" name="Test10_SeparationOfMonthlySalaryAndEarnedEntitlement" />
+    </UnitTest>
+    <UnitTest name="Aquora.Tests.PayrollBalanceSystemTests.Test12_AttendanceBasedSalarySettlement_SubtractsPreviousAdvances" storage="c:\users\siinaan\desktop\aquora\backend\src\aquora.tests\bin\debug\net10.0\aquora.tests.dll" id="5a6c6054-76f1-541c-8e51-26c1f896314c">
+      <Execution id="f8a0cc2e-f157-4db5-91f6-d45bc9052613" />
+      <TestMethod codeBase="C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\bin\Debug\net10.0\Aquora.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Aquora.Tests.PayrollBalanceSystemTests" name="Test12_AttendanceBasedSalarySettlement_SubtractsPreviousAdvances" />
+    </UnitTest>
+    <UnitTest name="Aquora.Tests.PayrollBalanceSystemTests.Test14_ExistingUnlinkedPaymentRecords_AreLoadedInSettlementModalDetails" storage="c:\users\siinaan\desktop\aquora\backend\src\aquora.tests\bin\debug\net10.0\aquora.tests.dll" id="c8f94abe-cc1b-f64a-24cd-d85ec57759d6">
+      <Execution id="6670a0fc-5799-48c8-b3c7-7cbc7c32be94" />
+      <TestMethod codeBase="C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\bin\Debug\net10.0\Aquora.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Aquora.Tests.PayrollBalanceSystemTests" name="Test14_ExistingUnlinkedPaymentRecords_AreLoadedInSettlementModalDetails" />
+    </UnitTest>
+    <UnitTest name="Aquora.Tests.PayrollBalanceSystemTests.Test9_SaveEntitlementDoesNotCreatePayment" storage="c:\users\siinaan\desktop\aquora\backend\src\aquora.tests\bin\debug\net10.0\aquora.tests.dll" id="49dc60aa-7648-aa93-aa9f-c34aba6ca25c">
+      <Execution id="8801ff08-0c1a-4a4e-9723-35a70b9de620" />
+      <TestMethod codeBase="C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\bin\Debug\net10.0\Aquora.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Aquora.Tests.PayrollBalanceSystemTests" name="Test9_SaveEntitlementDoesNotCreatePayment" />
+    </UnitTest>
+    <UnitTest name="Aquora.Tests.PayrollBalanceSystemTests.Test1_CreateMonthlySalaryEntitlement_InitialStateUnpaid" storage="c:\users\siinaan\desktop\aquora\backend\src\aquora.tests\bin\debug\net10.0\aquora.tests.dll" id="02504ae7-96f8-711f-bcd9-c082271171d1">
+      <Execution id="c8cb9cb9-8f2d-485e-8bb9-34325254d2c5" />
+      <TestMethod codeBase="C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\bin\Debug\net10.0\Aquora.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Aquora.Tests.PayrollBalanceSystemTests" name="Test1_CreateMonthlySalaryEntitlement_InitialStateUnpaid" />
+    </UnitTest>
+    <UnitTest name="Aquora.Tests.PayrollBalanceSystemTests.Test4_OverpaymentAttempt_ThrowsArgumentException" storage="c:\users\siinaan\desktop\aquora\backend\src\aquora.tests\bin\debug\net10.0\aquora.tests.dll" id="7054ae44-b051-8852-cf23-b98b30b0d308">
+      <Execution id="b5a3edcd-1deb-4b80-9ff1-a81afc1673b9" />
+      <TestMethod codeBase="C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\bin\Debug\net10.0\Aquora.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Aquora.Tests.PayrollBalanceSystemTests" name="Test4_OverpaymentAttempt_ThrowsArgumentException" />
+    </UnitTest>
+    <UnitTest name="Aquora.Tests.PayrollBalanceSystemTests.Test2_ProcessSalaryAdvance_UpdatesToPartiallyPaid" storage="c:\users\siinaan\desktop\aquora\backend\src\aquora.tests\bin\debug\net10.0\aquora.tests.dll" id="6eded874-c19f-83da-96fe-a86c6f6e038c">
+      <Execution id="9530cb30-665c-4966-8037-3c22efd74d87" />
+      <TestMethod codeBase="C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\bin\Debug\net10.0\Aquora.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Aquora.Tests.PayrollBalanceSystemTests" name="Test2_ProcessSalaryAdvance_UpdatesToPartiallyPaid" />
+    </UnitTest>
+    <UnitTest name="Aquora.Tests.PayrollBalanceSystemTests.Test8_ManualEntitlementOverride_PersistsAndAllowsPartialPayments" storage="c:\users\siinaan\desktop\aquora\backend\src\aquora.tests\bin\debug\net10.0\aquora.tests.dll" id="2ab67f10-de94-56fc-70fc-3f54f8652568">
+      <Execution id="f8946082-6f07-4c6a-8e9b-b5cfdaf33fe1" />
+      <TestMethod codeBase="C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\bin\Debug\net10.0\Aquora.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Aquora.Tests.PayrollBalanceSystemTests" name="Test8_ManualEntitlementOverride_PersistsAndAllowsPartialPayments" />
+    </UnitTest>
+    <UnitTest name="Aquora.Tests.PayrollBalanceSystemTests.Test7_ReverseTransaction_RestoresRemainingBalance" storage="c:\users\siinaan\desktop\aquora\backend\src\aquora.tests\bin\debug\net10.0\aquora.tests.dll" id="185e7b63-ff2a-b2e3-ebbf-e8ae0b39ad63">
+      <Execution id="2eb18b81-eb46-4d2a-9dcd-33cd0adf6e6f" />
+      <TestMethod codeBase="C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\bin\Debug\net10.0\Aquora.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Aquora.Tests.PayrollBalanceSystemTests" name="Test7_ReverseTransaction_RestoresRemainingBalance" />
+    </UnitTest>
+    <UnitTest name="Aquora.Tests.PayrollBalanceSystemTests.Test15_RealWorldScenario_250kSalary_150kAdvance_25DaysWorked_CalculatesCorrectBalance" storage="c:\users\siinaan\desktop\aquora\backend\src\aquora.tests\bin\debug\net10.0\aquora.tests.dll" id="b69517c8-a5b1-4c72-c5bd-12b5f5d809e2">
+      <Execution id="08b23188-752f-4ee2-b887-fde32724da80" />
+      <TestMethod codeBase="C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\bin\Debug\net10.0\Aquora.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Aquora.Tests.PayrollBalanceSystemTests" name="Test15_RealWorldScenario_250kSalary_150kAdvance_25DaysWorked_CalculatesCorrectBalance" />
+    </UnitTest>
+    <UnitTest name="Aquora.Tests.PayrollBalanceSystemTests.Test11_DashboardMetricsUseActualPaymentsOnly" storage="c:\users\siinaan\desktop\aquora\backend\src\aquora.tests\bin\debug\net10.0\aquora.tests.dll" id="81719902-6981-2f9e-9e7b-69dc9b8c9eca">
+      <Execution id="7ed32994-cf30-4b73-af41-286d0a6dc076" />
+      <TestMethod codeBase="C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\bin\Debug\net10.0\Aquora.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Aquora.Tests.PayrollBalanceSystemTests" name="Test11_DashboardMetricsUseActualPaymentsOnly" />
+    </UnitTest>
+    <UnitTest name="Aquora.Tests.PayrollBalanceSystemTests.Test5_MultiplePartialPayments_CalculatesCumulativeBalance" storage="c:\users\siinaan\desktop\aquora\backend\src\aquora.tests\bin\debug\net10.0\aquora.tests.dll" id="b3761cfa-3bc1-38a4-baf7-52d4e66338ac">
+      <Execution id="830ecebb-59d6-41a6-b215-30c1c6e0e3e1" />
+      <TestMethod codeBase="C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\bin\Debug\net10.0\Aquora.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Aquora.Tests.PayrollBalanceSystemTests" name="Test5_MultiplePartialPayments_CalculatesCumulativeBalance" />
+    </UnitTest>
+    <UnitTest name="Aquora.Tests.PayrollBalanceSystemTests.Test13_ExcessAdvance_SetsOverpaidStatus" storage="c:\users\siinaan\desktop\aquora\backend\src\aquora.tests\bin\debug\net10.0\aquora.tests.dll" id="a61b94d6-9930-b28d-328c-75d1df4303d0">
+      <Execution id="56dcaa98-e77d-4298-88b5-3070bd017f87" />
+      <TestMethod codeBase="C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\bin\Debug\net10.0\Aquora.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Aquora.Tests.PayrollBalanceSystemTests" name="Test13_ExcessAdvance_SetsOverpaidStatus" />
+    </UnitTest>
+    <UnitTest name="Aquora.Tests.PayrollBalanceSystemTests.Test3_ProcessRemainingSettlement_UpdatesToFullyPaid" storage="c:\users\siinaan\desktop\aquora\backend\src\aquora.tests\bin\debug\net10.0\aquora.tests.dll" id="73f953ab-f72f-2b9b-1fbd-59f5b9ae6100">
+      <Execution id="090d42c8-8526-4f05-b6e2-494217ceea1b" />
+      <TestMethod codeBase="C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\bin\Debug\net10.0\Aquora.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Aquora.Tests.PayrollBalanceSystemTests" name="Test3_ProcessRemainingSettlement_UpdatesToFullyPaid" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="81719902-6981-2f9e-9e7b-69dc9b8c9eca" executionId="7ed32994-cf30-4b73-af41-286d0a6dc076" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b669ae8c-af2c-7cae-0b60-6b88d8e6831c" executionId="a404ba7c-7634-419a-8ca0-dfcbc6804772" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="02504ae7-96f8-711f-bcd9-c082271171d1" executionId="c8cb9cb9-8f2d-485e-8bb9-34325254d2c5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="2ab67f10-de94-56fc-70fc-3f54f8652568" executionId="f8946082-6f07-4c6a-8e9b-b5cfdaf33fe1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="49dc60aa-7648-aa93-aa9f-c34aba6ca25c" executionId="8801ff08-0c1a-4a4e-9723-35a70b9de620" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7054ae44-b051-8852-cf23-b98b30b0d308" executionId="b5a3edcd-1deb-4b80-9ff1-a81afc1673b9" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5a6c6054-76f1-541c-8e51-26c1f896314c" executionId="f8a0cc2e-f157-4db5-91f6-d45bc9052613" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b69517c8-a5b1-4c72-c5bd-12b5f5d809e2" executionId="08b23188-752f-4ee2-b887-fde32724da80" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b3761cfa-3bc1-38a4-baf7-52d4e66338ac" executionId="830ecebb-59d6-41a6-b215-30c1c6e0e3e1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="185e7b63-ff2a-b2e3-ebbf-e8ae0b39ad63" executionId="2eb18b81-eb46-4d2a-9dcd-33cd0adf6e6f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="f6ed07de-0a3c-0b13-e582-0940e1a5f89a" executionId="60a6ca38-0f24-4fe5-a5db-230bd7136850" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a61b94d6-9930-b28d-328c-75d1df4303d0" executionId="56dcaa98-e77d-4298-88b5-3070bd017f87" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="73f953ab-f72f-2b9b-1fbd-59f5b9ae6100" executionId="090d42c8-8526-4f05-b6e2-494217ceea1b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c8f94abe-cc1b-f64a-24cd-d85ec57759d6" executionId="6670a0fc-5799-48c8-b3c7-7cbc7c32be94" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6eded874-c19f-83da-96fe-a86c6f6e038c" executionId="9530cb30-665c-4966-8037-3c22efd74d87" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="15" executed="15" passed="13" failed="2" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.11)&#xD;
+[xUnit.net 00:00:00.19]   Discovering: Aquora.Tests&#xD;
+[xUnit.net 00:00:00.30]   Discovered:  Aquora.Tests&#xD;
+[xUnit.net 00:00:00.37]   Starting:    Aquora.Tests&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "071413d7-b727-4fa8-87dd-1df9560d4f05",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00224556b983-3278-41bb-8dc6-802ae474afd2\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022BaseSalary\u0022:20000,\u0022Bonus\u0022:0,\u0022CalculatedEntitlement\u0022:20000,\u0022CompanyId\u0022:\u0022b99834dd-3763-4d1f-b1e8-58c0f3ff26a6\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:16.4659316Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u00227f938eed-7088-4091-bc65-d366721bfa5b\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022NetSalaryEntitlement\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022RemainingBalance\u0022:20000,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TenantId\u0022:\u0022071413d7-b727-4fa8-87dd-1df9560d4f05\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:16.537295Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "a1c35d0e-e5fb-4a87-8e72-9da9e809ee77"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "071413d7-b727-4fa8-87dd-1df9560d4f05",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "SalaryPayment",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u0022f1828906-de04-4a9d-b5c0-74376e920fee\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022Amount\u0022:5000,\u0022BankAccountId\u0022:\u002200a2e9b9-58bd-4a82-830b-a4ce77002453\u0022,\u0022Bonus\u0022:0,\u0022CashBookId\u0022:null,\u0022CompanyId\u0022:\u0022b99834dd-3763-4d1f-b1e8-58c0f3ff26a6\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:16.7193113Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u00227f938eed-7088-4091-bc65-d366721bfa5b\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022MonthlySalary\u0022:20000,\u0022MonthlySalaryId\u0022:\u00224556b983-3278-41bb-8dc6-802ae474afd2\u0022,\u0022NetSalary\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022PaymentDate\u0022:\u00222026-08-18T07:04:16.7184807Z\u0022,\u0022PaymentMethod\u0022:\u0022BankAccount\u0022,\u0022PaymentType\u0022:\u0022Salary Advance\u0022,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Paid\u0022,\u0022TenantId\u0022:\u0022071413d7-b727-4fa8-87dd-1df9560d4f05\u0022,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:16.8003529Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "24816b76-7be3-4293-a876-8a664002265a"&#xD;
+}&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "071413d7-b727-4fa8-87dd-1df9560d4f05",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Update",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00224556b983-3278-41bb-8dc6-802ae474afd2\u0022}",&#xD;
+  "OldValues": "{\u0022RemainingBalance\u0022:20000,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null}",&#xD;
+  "NewValues": "{\u0022RemainingBalance\u0022:15000,\u0022Status\u0022:\u0022Partially Paid\u0022,\u0022TotalPaid\u0022:5000,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:16.7995102Z\u0022,\u0022UpdatedBy\u0022:\u0022TestUser\u0022,\u0022UpdatedByIP\u0022:\u0022127.0.0.1\u0022}",&#xD;
+  "Timestamp": "2026-08-18T07:04:16.8005875Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "08f68f1c-b0c0-4134-b88c-c750839d36f6"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "071413d7-b727-4fa8-87dd-1df9560d4f05",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "SalaryPayment",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u002297e771d5-40b9-4397-a647-07440dd06204\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022Amount\u0022:3000,\u0022BankAccountId\u0022:\u002200a2e9b9-58bd-4a82-830b-a4ce77002453\u0022,\u0022Bonus\u0022:0,\u0022CashBookId\u0022:null,\u0022CompanyId\u0022:\u0022b99834dd-3763-4d1f-b1e8-58c0f3ff26a6\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:16.8142686Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u00227f938eed-7088-4091-bc65-d366721bfa5b\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022MonthlySalary\u0022:20000,\u0022MonthlySalaryId\u0022:\u00224556b983-3278-41bb-8dc6-802ae474afd2\u0022,\u0022NetSalary\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022PaymentDate\u0022:\u00222026-08-18T07:04:16.8142618Z\u0022,\u0022PaymentMethod\u0022:\u0022BankAccount\u0022,\u0022PaymentType\u0022:\u0022Salary Advance\u0022,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Paid\u0022,\u0022TenantId\u0022:\u0022071413d7-b727-4fa8-87dd-1df9560d4f05\u0022,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:16.8159114Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "7f861480-80c6-43a4-9e1a-c2f5d1e594e8"&#xD;
+}&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "071413d7-b727-4fa8-87dd-1df9560d4f05",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Update",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00224556b983-3278-41bb-8dc6-802ae474afd2\u0022}",&#xD;
+  "OldValues": "{\u0022RemainingBalance\u0022:15000,\u0022TotalPaid\u0022:5000,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:16.7995102Z\u0022}",&#xD;
+  "NewValues": "{\u0022RemainingBalance\u0022:12000,\u0022TotalPaid\u0022:8000,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:16.8153201Z\u0022}",&#xD;
+  "Timestamp": "2026-08-18T07:04:16.816031Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "8419a847-2300-49ec-834a-53f6f8a776f9"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "071413d7-b727-4fa8-87dd-1df9560d4f05",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "SalaryPayment",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00221e52cecc-16df-4972-8113-332b70c8e962\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022Amount\u0022:2000,\u0022BankAccountId\u0022:\u002200a2e9b9-58bd-4a82-830b-a4ce77002453\u0022,\u0022Bonus\u0022:0,\u0022CashBookId\u0022:null,\u0022CompanyId\u0022:\u0022b99834dd-3763-4d1f-b1e8-58c0f3ff26a6\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:16.8184114Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u00227f938eed-7088-4091-bc65-d366721bfa5b\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022MonthlySalary\u0022:20000,\u0022MonthlySalaryId\u0022:\u00224556b983-3278-41bb-8dc6-802ae474afd2\u0022,\u0022NetSalary\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022PaymentDate\u0022:\u00222026-08-18T07:04:16.8184049Z\u0022,\u0022PaymentMethod\u0022:\u0022BankAccount\u0022,\u0022PaymentType\u0022:\u0022Salary Advance\u0022,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Paid\u0022,\u0022TenantId\u0022:\u0022071413d7-b727-4fa8-87dd-1df9560d4f05\u0022,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:16.8201137Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "c5999c7c-c17b-4617-b61b-795498730f66"&#xD;
+}&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "071413d7-b727-4fa8-87dd-1df9560d4f05",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Update",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00224556b983-3278-41bb-8dc6-802ae474afd2\u0022}",&#xD;
+  "OldValues": "{\u0022RemainingBalance\u0022:12000,\u0022TotalPaid\u0022:8000,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:16.8153201Z\u0022}",&#xD;
+  "NewValues": "{\u0022RemainingBalance\u0022:10000,\u0022TotalPaid\u0022:10000,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:16.8193812Z\u0022}",&#xD;
+  "Timestamp": "2026-08-18T07:04:16.820235Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "bda42fd4-ae8a-47e8-b2de-84f89ecb85d8"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "11c910ec-8673-4065-b580-81b5d84e702d",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u002236872a0d-bfc0-4f4e-a402-f7aafc573bff\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022BaseSalary\u0022:20000,\u0022Bonus\u0022:0,\u0022CalculatedEntitlement\u0022:20000,\u0022CompanyId\u0022:\u0022f63d77e0-e5ff-4768-8c63-f4b95ff231a7\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:16.9394275Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u002231acde91-2d34-41bc-aea6-151e6ea0ea86\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022NetSalaryEntitlement\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022RemainingBalance\u0022:20000,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TenantId\u0022:\u002211c910ec-8673-4065-b580-81b5d84e702d\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:16.9401473Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "140cbcab-8c79-4eb8-885b-f6ba45a6f28f"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "11c910ec-8673-4065-b580-81b5d84e702d",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "SalaryPayment",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u0022c758f278-818e-48a9-ae95-c230182b6aeb\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022Amount\u0022:10000,\u0022BankAccountId\u0022:\u00227546ee57-1792-4fed-a811-25953b47d1ca\u0022,\u0022Bonus\u0022:0,\u0022CashBookId\u0022:null,\u0022CompanyId\u0022:\u0022f63d77e0-e5ff-4768-8c63-f4b95ff231a7\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:16.9414373Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u002231acde91-2d34-41bc-aea6-151e6ea0ea86\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022MonthlySalary\u0022:20000,\u0022MonthlySalaryId\u0022:\u002236872a0d-bfc0-4f4e-a402-f7aafc573bff\u0022,\u0022NetSalary\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022PaymentDate\u0022:\u00222026-08-18T07:04:16.9414303Z\u0022,\u0022PaymentMethod\u0022:\u0022BankAccount\u0022,\u0022PaymentType\u0022:\u0022Salary Advance\u0022,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Paid\u0022,\u0022TenantId\u0022:\u002211c910ec-8673-4065-b580-81b5d84e702d\u0022,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:16.9421772Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "86ea1ede-201e-460d-91c6-cc75955adfa9"&#xD;
+}&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "11c910ec-8673-4065-b580-81b5d84e702d",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Update",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u002236872a0d-bfc0-4f4e-a402-f7aafc573bff\u0022}",&#xD;
+  "OldValues": "{\u0022RemainingBalance\u0022:20000,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null}",&#xD;
+  "NewValues": "{\u0022RemainingBalance\u0022:10000,\u0022Status\u0022:\u0022Partially Paid\u0022,\u0022TotalPaid\u0022:10000,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:16.9418855Z\u0022,\u0022UpdatedBy\u0022:\u0022TestUser\u0022,\u0022UpdatedByIP\u0022:\u0022127.0.0.1\u0022}",&#xD;
+  "Timestamp": "2026-08-18T07:04:16.9422619Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "0a190a8d-d9b7-4248-bafb-a571a1b5fbdb"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "11c910ec-8673-4065-b580-81b5d84e702d",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Update",&#xD;
+  "TableName": "SalaryPayment",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u0022c758f278-818e-48a9-ae95-c230182b6aeb\u0022}",&#xD;
+  "OldValues": "{\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022IsDeleted\u0022:false,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null}",&#xD;
+  "NewValues": "{\u0022DeletedAt\u0022:\u00222026-08-18T07:04:16.9590127Z\u0022,\u0022DeletedBy\u0022:\u0022TestUser\u0022,\u0022IsDeleted\u0022:true,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:16.9596064Z\u0022,\u0022UpdatedBy\u0022:\u0022TestUser\u0022,\u0022UpdatedByIP\u0022:\u0022127.0.0.1\u0022}",&#xD;
+  "Timestamp": "2026-08-18T07:04:16.9601993Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "8606fefb-1eb0-4dad-9382-84cdf5a172d8"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "11c910ec-8673-4065-b580-81b5d84e702d",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Update",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u002236872a0d-bfc0-4f4e-a402-f7aafc573bff\u0022}",&#xD;
+  "OldValues": "{\u0022RemainingBalance\u0022:10000,\u0022Status\u0022:\u0022Partially Paid\u0022,\u0022TotalPaid\u0022:10000,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:16.9418855Z\u0022}",&#xD;
+  "NewValues": "{\u0022RemainingBalance\u0022:20000,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:16.9854382Z\u0022}",&#xD;
+  "Timestamp": "2026-08-18T07:04:16.9857952Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "cd3cd106-6158-4f8b-af08-e9d539abcea1"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "f3f17d37-d803-4475-a7be-04757f60aefa",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00224b7451f6-0fc6-43ef-8479-ce881035ed33\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022BaseSalary\u0022:20000,\u0022Bonus\u0022:0,\u0022CalculatedEntitlement\u0022:10000,\u0022CompanyId\u0022:\u00228403285f-dc10-4e27-a8a3-86fba134c008\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.0182299Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:15,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u00227857887b-00f0-4d46-9d1e-dfb5d1404392\u0022,\u0022GrossSalary\u0022:10000,\u0022IsDeleted\u0022:false,\u0022NetSalaryEntitlement\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022RemainingBalance\u0022:20000,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-10\u0022,\u0022SalaryNo\u0022:\u0022SAL-202610-0001\u0022,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TenantId\u0022:\u0022f3f17d37-d803-4475-a7be-04757f60aefa\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.0188712Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "72b0a421-b87a-478c-a1cd-ffea566b572e"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "f4688700-cc63-40d3-bcb9-9fbe3dadf3e2",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u0022f671238f-086c-4708-897b-55d8f61ccf2f\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022BaseSalary\u0022:20000,\u0022Bonus\u0022:0,\u0022CalculatedEntitlement\u0022:20000,\u0022CompanyId\u0022:\u00222f7d983c-6391-4933-bf09-dbe7d993e54f\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.0227388Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u0022e0e509af-6fb5-499d-b6e1-461291b340c4\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022NetSalaryEntitlement\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022RemainingBalance\u0022:20000,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TenantId\u0022:\u0022f4688700-cc63-40d3-bcb9-9fbe3dadf3e2\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.023361Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "0c97d50d-3c66-49fb-81e6-57db874a38ea"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "f4688700-cc63-40d3-bcb9-9fbe3dadf3e2",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "SalaryPayment",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u0022dc4d0d8a-54dd-4849-9917-c8caf2825634\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022Amount\u0022:10000,\u0022BankAccountId\u0022:\u00221489d674-27bc-4a6c-8580-74669d828c8f\u0022,\u0022Bonus\u0022:0,\u0022CashBookId\u0022:null,\u0022CompanyId\u0022:\u00222f7d983c-6391-4933-bf09-dbe7d993e54f\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.024577Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u0022e0e509af-6fb5-499d-b6e1-461291b340c4\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022MonthlySalary\u0022:20000,\u0022MonthlySalaryId\u0022:\u0022f671238f-086c-4708-897b-55d8f61ccf2f\u0022,\u0022NetSalary\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022PaymentDate\u0022:\u00222026-08-18T07:04:17.0245713Z\u0022,\u0022PaymentMethod\u0022:\u0022BankAccount\u0022,\u0022PaymentType\u0022:\u0022Salary Advance\u0022,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Paid\u0022,\u0022TenantId\u0022:\u0022f4688700-cc63-40d3-bcb9-9fbe3dadf3e2\u0022,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.025341Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "da9178f4-683d-43ff-9398-e99577862e6c"&#xD;
+}&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "f4688700-cc63-40d3-bcb9-9fbe3dadf3e2",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Update",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u0022f671238f-086c-4708-897b-55d8f61ccf2f\u0022}",&#xD;
+  "OldValues": "{\u0022RemainingBalance\u0022:20000,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null}",&#xD;
+  "NewValues": "{\u0022RemainingBalance\u0022:10000,\u0022Status\u0022:\u0022Partially Paid\u0022,\u0022TotalPaid\u0022:10000,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:17.0250574Z\u0022,\u0022UpdatedBy\u0022:\u0022TestUser\u0022,\u0022UpdatedByIP\u0022:\u0022127.0.0.1\u0022}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.025428Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "5dd5b2f7-dbd6-47d6-82ec-d7472af414fe"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "f4688700-cc63-40d3-bcb9-9fbe3dadf3e2",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "SalaryPayment",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00224630b1ac-df11-42bf-8fca-8e2d996fa2fa\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022Amount\u0022:10000,\u0022BankAccountId\u0022:\u00221489d674-27bc-4a6c-8580-74669d828c8f\u0022,\u0022Bonus\u0022:0,\u0022CashBookId\u0022:null,\u0022CompanyId\u0022:\u00222f7d983c-6391-4933-bf09-dbe7d993e54f\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.0269158Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u0022e0e509af-6fb5-499d-b6e1-461291b340c4\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022MonthlySalary\u0022:20000,\u0022MonthlySalaryId\u0022:\u0022f671238f-086c-4708-897b-55d8f61ccf2f\u0022,\u0022NetSalary\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022PaymentDate\u0022:\u00222026-08-18T07:04:17.0269101Z\u0022,\u0022PaymentMethod\u0022:\u0022BankAccount\u0022,\u0022PaymentType\u0022:\u0022Salary Settlement\u0022,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Paid\u0022,\u0022TenantId\u0022:\u0022f4688700-cc63-40d3-bcb9-9fbe3dadf3e2\u0022,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.0278277Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "509ec0d8-a3c9-4b2e-a043-f6b5c67de90b"&#xD;
+}&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "f4688700-cc63-40d3-bcb9-9fbe3dadf3e2",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Update",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u0022f671238f-086c-4708-897b-55d8f61ccf2f\u0022}",&#xD;
+  "OldValues": "{\u0022RemainingBalance\u0022:10000,\u0022Status\u0022:\u0022Partially Paid\u0022,\u0022TotalPaid\u0022:10000,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:17.0250574Z\u0022}",&#xD;
+  "NewValues": "{\u0022RemainingBalance\u0022:0,\u0022Status\u0022:\u0022Paid\u0022,\u0022TotalPaid\u0022:20000,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:17.0274557Z\u0022}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.028095Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "1afa2ef5-aade-45e7-a92d-6ff3cc4a3ffb"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "97ca9ee6-84c6-4f19-a7e9-3d560bed1480",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u002296e07a3e-475f-4ce7-a99f-41cc720b280d\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022BaseSalary\u0022:20000,\u0022Bonus\u0022:0,\u0022CalculatedEntitlement\u0022:6666.67,\u0022CompanyId\u0022:\u00227972ad7d-b2ec-442d-bf7a-f714da395690\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.0337628Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:10,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u00228849b9eb-3b3b-4eec-b5c1-23e864bb5f72\u0022,\u0022GrossSalary\u0022:6666.67,\u0022IsDeleted\u0022:false,\u0022NetSalaryEntitlement\u0022:9000,\u0022OtherDeduction\u0022:0,\u0022RemainingBalance\u0022:9000,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TenantId\u0022:\u002297ca9ee6-84c6-4f19-a7e9-3d560bed1480\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.0344117Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "0fb36c75-e566-49e3-92fc-a1c932de9b71"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "20d18b60-ea1e-42db-97e5-fc749c47c408",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "SalaryPayment",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00227e82782d-72ca-41b9-8d17-1d79810a2120\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022Amount\u0022:150000,\u0022BankAccountId\u0022:\u0022712d9a97-67df-43ac-b5c2-89a882560a50\u0022,\u0022Bonus\u0022:0,\u0022CashBookId\u0022:null,\u0022CompanyId\u0022:\u0022000e8530-f7e0-4474-ac4e-e44cfa4bebbc\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.0503077Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:8333.33,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u002211b776ea-7d58-4c10-add7-5fbe92a723ad\u0022,\u0022GrossSalary\u0022:250000,\u0022IsDeleted\u0022:false,\u0022MonthlySalary\u0022:250000,\u0022MonthlySalaryId\u0022:null,\u0022NetSalary\u0022:0,\u0022OtherDeduction\u0022:0,\u0022PaymentDate\u0022:\u00220001-01-01T00:00:00\u0022,\u0022PaymentMethod\u0022:\u0022BankAccount\u0022,\u0022PaymentType\u0022:\u0022Salary Advance\u0022,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Paid\u0022,\u0022TenantId\u0022:\u002220d18b60-ea1e-42db-97e5-fc749c47c408\u0022,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.0511674Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "96ae1643-888d-4d02-8815-04903e0c0bc9"&#xD;
+}&#xD;
+[xUnit.net 00:00:03.26]       Assert.Equal() Failure: Values differ&#xD;
+[xUnit.net 00:00:03.26]       Expected: 9000&#xD;
+[xUnit.net 00:00:03.26]       Actual:   6666.67&#xD;
+[xUnit.net 00:00:03.26]       Stack Trace:&#xD;
+[xUnit.net 00:00:03.26]         C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\PayrollBalanceSystemTests.cs(348,0): at Aquora.Tests.PayrollBalanceSystemTests.Test8_ManualEntitlementOverride_PersistsAndAllowsPartialPayments()&#xD;
+[xUnit.net 00:00:03.26]         --- End of stack trace from previous location ---&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "20d18b60-ea1e-42db-97e5-fc749c47c408",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u002228351491-4365-42cb-81e7-4da133158658\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022BaseSalary\u0022:20000,\u0022Bonus\u0022:0,\u0022CalculatedEntitlement\u0022:20000,\u0022CompanyId\u0022:\u0022000e8530-f7e0-4474-ac4e-e44cfa4bebbc\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.0527214Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u002211b776ea-7d58-4c10-add7-5fbe92a723ad\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022NetSalaryEntitlement\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022RemainingBalance\u0022:20000,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TenantId\u0022:\u002220d18b60-ea1e-42db-97e5-fc749c47c408\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.0567292Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "80b9fbae-90f1-4ecd-bab4-7581d1f629f2"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "20d18b60-ea1e-42db-97e5-fc749c47c408",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Update",&#xD;
+  "TableName": "SalaryPayment",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00227e82782d-72ca-41b9-8d17-1d79810a2120\u0022}",&#xD;
+  "OldValues": "{\u0022MonthlySalaryId\u0022:null,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null}",&#xD;
+  "NewValues": "{\u0022MonthlySalaryId\u0022:\u002228351491-4365-42cb-81e7-4da133158658\u0022,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:17.0637102Z\u0022,\u0022UpdatedBy\u0022:\u0022TestUser\u0022,\u0022UpdatedByIP\u0022:\u0022127.0.0.1\u0022}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.0640393Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "f5c61c7d-6c3d-45e6-b678-848d67f565e3"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "be6f34f4-9aa6-4f53-a2c5-8cd290bdbffe",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00223d8e7ac6-e583-477c-b277-4cda8c76c0c1\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022BaseSalary\u0022:20000,\u0022Bonus\u0022:0,\u0022CalculatedEntitlement\u0022:20000,\u0022CompanyId\u0022:\u00227a6db1be-e3d7-4561-8f6e-2ce9c75efa17\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.0721109Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u00220c614d85-d5f2-4209-8124-d88794ee8446\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022NetSalaryEntitlement\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022RemainingBalance\u0022:20000,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-09\u0022,\u0022SalaryNo\u0022:\u0022SAL-202609-0001\u0022,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TenantId\u0022:\u0022be6f34f4-9aa6-4f53-a2c5-8cd290bdbffe\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.0728318Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "1ced195b-692a-4e50-954f-4c3555d18bc5"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "be6f34f4-9aa6-4f53-a2c5-8cd290bdbffe",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "SalaryPayment",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00223537b532-8238-459b-825a-a19ae8b7626d\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022Amount\u0022:8000,\u0022BankAccountId\u0022:\u0022e4ad610c-3027-4d71-93e7-370ea208b22c\u0022,\u0022Bonus\u0022:0,\u0022CashBookId\u0022:null,\u0022CompanyId\u0022:\u00227a6db1be-e3d7-4561-8f6e-2ce9c75efa17\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.0748425Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u00220c614d85-d5f2-4209-8124-d88794ee8446\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022MonthlySalary\u0022:20000,\u0022MonthlySalaryId\u0022:\u00223d8e7ac6-e583-477c-b277-4cda8c76c0c1\u0022,\u0022NetSalary\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022PaymentDate\u0022:\u00222026-08-18T07:04:17.0748351Z\u0022,\u0022PaymentMethod\u0022:\u0022BankAccount\u0022,\u0022PaymentType\u0022:\u0022Salary Advance\u0022,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-09\u0022,\u0022SalaryNo\u0022:\u0022SAL-202609-0001\u0022,\u0022Status\u0022:\u0022Paid\u0022,\u0022TenantId\u0022:\u0022be6f34f4-9aa6-4f53-a2c5-8cd290bdbffe\u0022,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.0756944Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "f7b78ee7-d50c-450a-b227-033ce7241544"&#xD;
+}&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "be6f34f4-9aa6-4f53-a2c5-8cd290bdbffe",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Update",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00223d8e7ac6-e583-477c-b277-4cda8c76c0c1\u0022}",&#xD;
+  "OldValues": "{\u0022RemainingBalance\u0022:20000,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null}",&#xD;
+  "NewValues": "{\u0022RemainingBalance\u0022:12000,\u0022Status\u0022:\u0022Partially Paid\u0022,\u0022TotalPaid\u0022:8000,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:17.0754068Z\u0022,\u0022UpdatedBy\u0022:\u0022TestUser\u0022,\u0022UpdatedByIP\u0022:\u0022127.0.0.1\u0022}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.0757876Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "4b3aabbf-4c34-4bb4-9273-028c40f6cbc5"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "b6224c13-636a-4608-9f7f-932e08875670",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Update",&#xD;
+  "TableName": "User",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u002263d80edf-846e-4195-a235-4247a3cde7db\u0022}",&#xD;
+  "OldValues": "{\u0022CurrentSalary\u0022:20000,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null}",&#xD;
+  "NewValues": "{\u0022CurrentSalary\u0022:250000,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:17.2457287Z\u0022,\u0022UpdatedBy\u0022:\u0022TestUser\u0022,\u0022UpdatedByIP\u0022:\u0022127.0.0.1\u0022}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.2465159Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "f144ebda-2ee3-4a24-ab09-8e2dbc9afd45"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "b6224c13-636a-4608-9f7f-932e08875670",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u0022acead75d-a8e1-41b7-a5da-ea7d939954ad\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022BaseSalary\u0022:250000,\u0022Bonus\u0022:0,\u0022CalculatedEntitlement\u0022:250000,\u0022CompanyId\u0022:\u002248241719-836a-443c-98fa-5b30c50d8149\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.2494386Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:8333.33,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u002263d80edf-846e-4195-a235-4247a3cde7db\u0022,\u0022GrossSalary\u0022:250000,\u0022IsDeleted\u0022:false,\u0022NetSalaryEntitlement\u0022:250000,\u0022OtherDeduction\u0022:0,\u0022RemainingBalance\u0022:250000,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TenantId\u0022:\u0022b6224c13-636a-4608-9f7f-932e08875670\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.2501512Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "dfdda0d5-4da3-4b2e-bce0-c46a8987497e"&#xD;
+}&#xD;
+[xUnit.net 00:00:03.46]       System.ArgumentException : Insufficient balance in the selected Bank Account. Current balance: INR 1,00,000.00&#xD;
+[xUnit.net 00:00:03.46]       Stack Trace:&#xD;
+[xUnit.net 00:00:03.46]         C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\PayrollService.cs(425,0): at Aquora.Application.Services.PayrollService.&lt;&gt;c__DisplayClass11_0.&lt;&lt;ProcessSalaryPaymentAsync&gt;b__0&gt;d.MoveNext()&#xD;
+[xUnit.net 00:00:03.46]         --- End of stack trace from previous location ---&#xD;
+[xUnit.net 00:00:03.46]         C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\PayrollService.cs(544,0): at Aquora.Application.Services.PayrollService.&lt;&gt;c__DisplayClass11_0.&lt;&lt;ProcessSalaryPaymentAsync&gt;b__0&gt;d.MoveNext()&#xD;
+[xUnit.net 00:00:03.46]         --- End of stack trace from previous location ---&#xD;
+[xUnit.net 00:00:03.46]         C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Application\Services\PayrollService.cs(321,0): at Aquora.Application.Services.PayrollService.ProcessSalaryPaymentAsync(ProcessSalaryPaymentRequest request)&#xD;
+[xUnit.net 00:00:03.46]         C:\Users\siinaan\Desktop\aquora\backend\src\Aquora.Tests\PayrollBalanceSystemTests.cs(603,0): at Aquora.Tests.PayrollBalanceSystemTests.Test15_RealWorldScenario_250kSalary_150kAdvance_25DaysWorked_CalculatesCorrectBalance()&#xD;
+[xUnit.net 00:00:03.46]         --- End of stack trace from previous location ---&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "1d38975b-4ba4-464d-be98-2df0a3c2697e",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u002286d179af-0808-4926-936b-e77b52da7035\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022BaseSalary\u0022:20000,\u0022Bonus\u0022:0,\u0022CalculatedEntitlement\u0022:20000,\u0022CompanyId\u0022:\u0022ce00cbaf-61b5-4ef7-a660-03e6eae38166\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.2572497Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u0022b657622e-8ec0-425e-b470-1c77cf752fc2\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022NetSalaryEntitlement\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022RemainingBalance\u0022:20000,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TenantId\u0022:\u00221d38975b-4ba4-464d-be98-2df0a3c2697e\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.2579513Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "bf3e274f-08d4-4508-9f12-e81f11749e24"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "1d38975b-4ba4-464d-be98-2df0a3c2697e",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "SalaryPayment",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00229dc9a195-87c0-43d6-a86b-3da3f1926ac2\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022Amount\u0022:15000,\u0022BankAccountId\u0022:\u00226854a018-7824-49f4-a850-81abd5d79b92\u0022,\u0022Bonus\u0022:0,\u0022CashBookId\u0022:null,\u0022CompanyId\u0022:\u0022ce00cbaf-61b5-4ef7-a660-03e6eae38166\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.259328Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u0022b657622e-8ec0-425e-b470-1c77cf752fc2\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022MonthlySalary\u0022:20000,\u0022MonthlySalaryId\u0022:\u002286d179af-0808-4926-936b-e77b52da7035\u0022,\u0022NetSalary\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022PaymentDate\u0022:\u00222026-08-18T07:04:17.2593224Z\u0022,\u0022PaymentMethod\u0022:\u0022BankAccount\u0022,\u0022PaymentType\u0022:\u0022Salary Advance\u0022,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Paid\u0022,\u0022TenantId\u0022:\u00221d38975b-4ba4-464d-be98-2df0a3c2697e\u0022,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.2602392Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "54269f19-71d0-4bb2-95bb-df5a3d846613"&#xD;
+}&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "1d38975b-4ba4-464d-be98-2df0a3c2697e",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Update",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u002286d179af-0808-4926-936b-e77b52da7035\u0022}",&#xD;
+  "OldValues": "{\u0022RemainingBalance\u0022:20000,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null}",&#xD;
+  "NewValues": "{\u0022RemainingBalance\u0022:5000,\u0022Status\u0022:\u0022Partially Paid\u0022,\u0022TotalPaid\u0022:15000,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:17.2599324Z\u0022,\u0022UpdatedBy\u0022:\u0022TestUser\u0022,\u0022UpdatedByIP\u0022:\u0022127.0.0.1\u0022}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.2603274Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "fee212de-6e56-4d7d-89e6-2d8e31244542"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "a0cafe58-e9e7-4912-b5ce-0dd8136c1a72",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u002236974ef0-3e33-4ac4-9f2b-c32ee0524c1b\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022BaseSalary\u0022:20000,\u0022Bonus\u0022:0,\u0022CalculatedEntitlement\u0022:20000,\u0022CompanyId\u0022:\u002281323023-f4db-446f-a00d-c8ac4592c57f\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.2687228Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u0022fa85bfa9-45f5-4146-b8d7-2e45bd84da1a\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022NetSalaryEntitlement\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022RemainingBalance\u0022:20000,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-09\u0022,\u0022SalaryNo\u0022:\u0022SAL-202609-0001\u0022,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TenantId\u0022:\u0022a0cafe58-e9e7-4912-b5ce-0dd8136c1a72\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.2694335Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "6609a6ed-dd8e-4ada-9033-6c47e7676fac"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "a0cafe58-e9e7-4912-b5ce-0dd8136c1a72",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "SalaryPayment",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00226421ac7f-5899-4433-b9c3-e86d2c175430\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022Amount\u0022:5000,\u0022BankAccountId\u0022:\u00225faf2018-2855-4184-8e5e-1cc379d70ea6\u0022,\u0022Bonus\u0022:0,\u0022CashBookId\u0022:null,\u0022CompanyId\u0022:\u002281323023-f4db-446f-a00d-c8ac4592c57f\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.270926Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u0022fa85bfa9-45f5-4146-b8d7-2e45bd84da1a\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022MonthlySalary\u0022:20000,\u0022MonthlySalaryId\u0022:\u002236974ef0-3e33-4ac4-9f2b-c32ee0524c1b\u0022,\u0022NetSalary\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022PaymentDate\u0022:\u00222026-08-18T07:04:17.2709206Z\u0022,\u0022PaymentMethod\u0022:\u0022BankAccount\u0022,\u0022PaymentType\u0022:\u0022Salary Advance\u0022,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-09\u0022,\u0022SalaryNo\u0022:\u0022SAL-202609-0001\u0022,\u0022Status\u0022:\u0022Paid\u0022,\u0022TenantId\u0022:\u0022a0cafe58-e9e7-4912-b5ce-0dd8136c1a72\u0022,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.2718645Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "fa7c5e89-7f66-4c97-a69e-21d3a09b09ac"&#xD;
+}&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "a0cafe58-e9e7-4912-b5ce-0dd8136c1a72",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Update",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u002236974ef0-3e33-4ac4-9f2b-c32ee0524c1b\u0022}",&#xD;
+  "OldValues": "{\u0022RemainingBalance\u0022:20000,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null}",&#xD;
+  "NewValues": "{\u0022RemainingBalance\u0022:15000,\u0022Status\u0022:\u0022Partially Paid\u0022,\u0022TotalPaid\u0022:5000,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:17.2715431Z\u0022,\u0022UpdatedBy\u0022:\u0022TestUser\u0022,\u0022UpdatedByIP\u0022:\u0022127.0.0.1\u0022}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.2719954Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "50c2a16e-432f-4e6f-ae97-2092b8aca70c"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "a0cafe58-e9e7-4912-b5ce-0dd8136c1a72",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "SalaryPayment",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00225ad46ffc-b008-416b-a6b7-e3bd34ca05c0\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022Amount\u0022:5000,\u0022BankAccountId\u0022:\u00225faf2018-2855-4184-8e5e-1cc379d70ea6\u0022,\u0022Bonus\u0022:0,\u0022CashBookId\u0022:null,\u0022CompanyId\u0022:\u002281323023-f4db-446f-a00d-c8ac4592c57f\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.2740262Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:15,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u0022fa85bfa9-45f5-4146-b8d7-2e45bd84da1a\u0022,\u0022GrossSalary\u0022:10000,\u0022IsDeleted\u0022:false,\u0022MonthlySalary\u0022:20000,\u0022MonthlySalaryId\u0022:\u002236974ef0-3e33-4ac4-9f2b-c32ee0524c1b\u0022,\u0022NetSalary\u0022:10000,\u0022OtherDeduction\u0022:0,\u0022PaymentDate\u0022:\u00222026-08-18T07:04:17.2740194Z\u0022,\u0022PaymentMethod\u0022:\u0022BankAccount\u0022,\u0022PaymentType\u0022:\u0022Salary Settlement\u0022,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-09\u0022,\u0022SalaryNo\u0022:\u0022SAL-202609-0001\u0022,\u0022Status\u0022:\u0022Paid\u0022,\u0022TenantId\u0022:\u0022a0cafe58-e9e7-4912-b5ce-0dd8136c1a72\u0022,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.2749949Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "7cd7ea23-a2db-41a4-8ce8-62724f651e2f"&#xD;
+}&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "a0cafe58-e9e7-4912-b5ce-0dd8136c1a72",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Update",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u002236974ef0-3e33-4ac4-9f2b-c32ee0524c1b\u0022}",&#xD;
+  "OldValues": "{\u0022CalculatedEntitlement\u0022:20000,\u0022DaysWorked\u0022:30,\u0022GrossSalary\u0022:20000,\u0022NetSalaryEntitlement\u0022:20000,\u0022RemainingBalance\u0022:15000,\u0022Status\u0022:\u0022Partially Paid\u0022,\u0022TotalPaid\u0022:5000,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:17.2715431Z\u0022}",&#xD;
+  "NewValues": "{\u0022CalculatedEntitlement\u0022:10000,\u0022DaysWorked\u0022:15,\u0022GrossSalary\u0022:10000,\u0022NetSalaryEntitlement\u0022:10000,\u0022RemainingBalance\u0022:0,\u0022Status\u0022:\u0022Paid\u0022,\u0022TotalPaid\u0022:10000,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:17.2746247Z\u0022}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.2751049Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "19a2d1b1-f326-4370-a80a-5dc98524896a"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "3e0c1693-dbd3-44f5-aa1b-bd9eee8425f1",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u0022931303bc-42c1-482e-b3aa-de859b19e558\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022BaseSalary\u0022:20000,\u0022Bonus\u0022:0,\u0022CalculatedEntitlement\u0022:20000,\u0022CompanyId\u0022:\u0022f6c0c6ec-8242-4304-8bf6-296c3d83c425\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.2810105Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u0022d2820ff9-604a-4899-8dd1-320a2e10fe7c\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022NetSalaryEntitlement\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022RemainingBalance\u0022:20000,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TenantId\u0022:\u00223e0c1693-dbd3-44f5-aa1b-bd9eee8425f1\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.2819926Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "1f19d5cd-fa4c-4946-acf2-83d64ee6a705"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "0bcb50d0-e27e-45a7-9429-bdf0e43cc5a2",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00228a254b3d-bc57-491a-9c32-1b3840ea7441\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022BaseSalary\u0022:20000,\u0022Bonus\u0022:0,\u0022CalculatedEntitlement\u0022:20000,\u0022CompanyId\u0022:\u0022c92569c3-885c-4679-9b5b-adfc4b0badcb\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.2867799Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u00224d69b057-6dba-4ad1-ad0f-17ff1cb47bea\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022NetSalaryEntitlement\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022RemainingBalance\u0022:20000,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TenantId\u0022:\u00220bcb50d0-e27e-45a7-9429-bdf0e43cc5a2\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.2876298Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "c1cca02b-7f17-4778-9fcc-6d365a47b025"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "0bcb50d0-e27e-45a7-9429-bdf0e43cc5a2",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "SalaryPayment",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u002216b3435b-6b57-4213-9b20-265f081207f0\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022Amount\u0022:10000,\u0022BankAccountId\u0022:\u0022a511de3b-679c-4c84-9c67-b1e7e119ae8e\u0022,\u0022Bonus\u0022:0,\u0022CashBookId\u0022:null,\u0022CompanyId\u0022:\u0022c92569c3-885c-4679-9b5b-adfc4b0badcb\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.2890253Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u00224d69b057-6dba-4ad1-ad0f-17ff1cb47bea\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022MonthlySalary\u0022:20000,\u0022MonthlySalaryId\u0022:\u00228a254b3d-bc57-491a-9c32-1b3840ea7441\u0022,\u0022NetSalary\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022PaymentDate\u0022:\u00222026-08-18T07:04:17.2890188Z\u0022,\u0022PaymentMethod\u0022:\u0022BankAccount\u0022,\u0022PaymentType\u0022:\u0022Salary Advance\u0022,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Paid\u0022,\u0022TenantId\u0022:\u00220bcb50d0-e27e-45a7-9429-bdf0e43cc5a2\u0022,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.289817Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "7affba38-f67d-49ea-83b5-f9300ba0cd9c"&#xD;
+}&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "0bcb50d0-e27e-45a7-9429-bdf0e43cc5a2",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Update",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00228a254b3d-bc57-491a-9c32-1b3840ea7441\u0022}",&#xD;
+  "OldValues": "{\u0022RemainingBalance\u0022:20000,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null}",&#xD;
+  "NewValues": "{\u0022RemainingBalance\u0022:10000,\u0022Status\u0022:\u0022Partially Paid\u0022,\u0022TotalPaid\u0022:10000,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:17.2895348Z\u0022,\u0022UpdatedBy\u0022:\u0022TestUser\u0022,\u0022UpdatedByIP\u0022:\u0022127.0.0.1\u0022}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.2899048Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "c1938131-2a23-47f2-8b49-da0babfe2a27"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "7673a908-b294-4417-b93e-6500efbc30ff",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00223a1aeb38-62f6-475c-92ec-f24e4d386273\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022BaseSalary\u0022:20000,\u0022Bonus\u0022:0,\u0022CalculatedEntitlement\u0022:20000,\u0022CompanyId\u0022:\u0022bb657bf0-f8a2-4c93-ab51-480dd33bdcb9\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.3002023Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u0022cc050096-5322-47bf-bbc0-f3d47113ccfc\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022NetSalaryEntitlement\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022RemainingBalance\u0022:20000,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-11\u0022,\u0022SalaryNo\u0022:\u0022SAL-202611-0001\u0022,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TenantId\u0022:\u00227673a908-b294-4417-b93e-6500efbc30ff\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.300951Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "a14d66c3-9796-461f-bf5c-39527c1e9dc1"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "7673a908-b294-4417-b93e-6500efbc30ff",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "SalaryPayment",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00221c037396-0dca-4a12-9b2f-a28544a610a8\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022Amount\u0022:5000,\u0022BankAccountId\u0022:\u002271c2408c-98dc-47c4-8267-14fea390feb6\u0022,\u0022Bonus\u0022:0,\u0022CashBookId\u0022:null,\u0022CompanyId\u0022:\u0022bb657bf0-f8a2-4c93-ab51-480dd33bdcb9\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.3253025Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u0022cc050096-5322-47bf-bbc0-f3d47113ccfc\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022MonthlySalary\u0022:20000,\u0022MonthlySalaryId\u0022:\u00223a1aeb38-62f6-475c-92ec-f24e4d386273\u0022,\u0022NetSalary\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022PaymentDate\u0022:\u00222026-08-18T07:04:17.3252954Z\u0022,\u0022PaymentMethod\u0022:\u0022BankAccount\u0022,\u0022PaymentType\u0022:\u0022Salary Advance\u0022,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-11\u0022,\u0022SalaryNo\u0022:\u0022SAL-202611-0001\u0022,\u0022Status\u0022:\u0022Paid\u0022,\u0022TenantId\u0022:\u00227673a908-b294-4417-b93e-6500efbc30ff\u0022,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.3267279Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "9ac52764-bc2d-47b9-a09d-c35954a2d596"&#xD;
+}&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "7673a908-b294-4417-b93e-6500efbc30ff",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Update",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00223a1aeb38-62f6-475c-92ec-f24e4d386273\u0022}",&#xD;
+  "OldValues": "{\u0022RemainingBalance\u0022:20000,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null}",&#xD;
+  "NewValues": "{\u0022RemainingBalance\u0022:15000,\u0022Status\u0022:\u0022Partially Paid\u0022,\u0022TotalPaid\u0022:5000,\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:17.3262662Z\u0022,\u0022UpdatedBy\u0022:\u0022TestUser\u0022,\u0022UpdatedByIP\u0022:\u0022127.0.0.1\u0022}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.3268202Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "b5f64cee-9f73-4d00-b0a2-efe11e45a443"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "0ba9959e-2a1b-45b7-845a-1907d785eaae",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00220f989a18-488c-4af2-a4d4-8ac97e52f83e\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022BaseSalary\u0022:20000,\u0022Bonus\u0022:0,\u0022CalculatedEntitlement\u0022:20000,\u0022CompanyId\u0022:\u00227d76c1d7-16a3-4933-986a-995063e8d271\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.332126Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:30,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u0022dde6fab3-1709-4624-99fb-9562cf7958f2\u0022,\u0022GrossSalary\u0022:20000,\u0022IsDeleted\u0022:false,\u0022NetSalaryEntitlement\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022RemainingBalance\u0022:20000,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-08\u0022,\u0022SalaryNo\u0022:\u0022SAL-202608-0001\u0022,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TenantId\u0022:\u00220ba9959e-2a1b-45b7-845a-1907d785eaae\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.332744Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "8146d435-0f58-4654-8e19-8a0de303ab13"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "0ba9959e-2a1b-45b7-845a-1907d785eaae",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Update",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u00220f989a18-488c-4af2-a4d4-8ac97e52f83e\u0022}",&#xD;
+  "OldValues": "{\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null}",&#xD;
+  "NewValues": "{\u0022UpdatedAt\u0022:\u00222026-08-18T07:04:17.3379733Z\u0022,\u0022UpdatedBy\u0022:\u0022TestUser\u0022,\u0022UpdatedByIP\u0022:\u0022127.0.0.1\u0022}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.3381997Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "caf529cb-8133-42b3-8117-1d7ccbb5af34"&#xD;
+}&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[SCHEMA RESOLUTION LOGGER ERROR]: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+[AUDIT LOG INSERTING]:&#xD;
+{&#xD;
+  "TenantId": "c4d6221b-1a56-450c-a82c-523117869e54",&#xD;
+  "UserId": "TestUser",&#xD;
+  "UserEmail": "system@aquora.com",&#xD;
+  "Action": "Insert",&#xD;
+  "TableName": "MonthlySalary",&#xD;
+  "PrimaryKey": "{\u0022Id\u0022:\u002292ba1dc8-3e50-4bcf-ac37-d5fcb4b3056e\u0022}",&#xD;
+  "OldValues": "{}",&#xD;
+  "NewValues": "{\u0022AdvanceDeduction\u0022:0,\u0022BaseSalary\u0022:20000,\u0022Bonus\u0022:0,\u0022CalculatedEntitlement\u0022:6666.67,\u0022CompanyId\u0022:\u0022e5712b07-3f01-4e99-bc23-6a84c7854f08\u0022,\u0022CreatedAt\u0022:\u00222026-08-18T07:04:17.349676Z\u0022,\u0022CreatedBy\u0022:\u0022TestUser\u0022,\u0022CreatedByIP\u0022:\u0022127.0.0.1\u0022,\u0022DailySalary\u0022:666.67,\u0022DaysWorked\u0022:10,\u0022DeletedAt\u0022:null,\u0022DeletedBy\u0022:null,\u0022EmployeeId\u0022:\u00227019ab4f-4844-4f21-a153-114040aad5c8\u0022,\u0022GrossSalary\u0022:6666.67,\u0022IsDeleted\u0022:false,\u0022NetSalaryEntitlement\u0022:20000,\u0022OtherDeduction\u0022:0,\u0022RemainingBalance\u0022:20000,\u0022Remarks\u0022:null,\u0022SalaryMonth\u0022:\u00222026-09\u0022,\u0022SalaryNo\u0022:\u0022SAL-202609-0001\u0022,\u0022Status\u0022:\u0022Unpaid\u0022,\u0022TenantId\u0022:\u0022c4d6221b-1a56-450c-a82c-523117869e54\u0022,\u0022TotalPaid\u0022:0,\u0022UpdatedAt\u0022:null,\u0022UpdatedBy\u0022:null,\u0022UpdatedByIP\u0022:null,\u0022WorkingDays\u0022:30}",&#xD;
+  "Timestamp": "2026-08-18T07:04:17.3502823Z",&#xD;
+  "IpAddress": "127.0.0.1",&#xD;
+  "Device": "Unknown",&#xD;
+  "Reason": "System Operation",&#xD;
+  "Module": "Default",&#xD;
+  "Id": "c70574e8-c026-4290-b05d-3990d8f13e75"&#xD;
+}&#xD;
+[xUnit.net 00:00:03.56]   Finished:    Aquora.Tests&#xD;
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="SIINAAN" outcome="Error" timestamp="2026-08-18T12:34:17.0516211+05:30">
+        <Text>[xUnit.net 00:00:03.26]     Aquora.Tests.PayrollBalanceSystemTests.Test8_ManualEntitlementOverride_PersistsAndAllowsPartialPayments [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="SIINAAN" outcome="Error" timestamp="2026-08-18T12:34:17.2541018+05:30">
+        <Text>[xUnit.net 00:00:03.46]     Aquora.Tests.PayrollBalanceSystemTests.Test15_RealWorldScenario_250kSalary_150kAdvance_25DaysWorked_CalculatesCorrectBalance [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

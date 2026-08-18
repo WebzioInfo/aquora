@@ -84,6 +84,7 @@ namespace Aquora.Persistence.Context
         public DbSet<Aquora.Domain.Entities.Finance.Owner> Owners => Set<Aquora.Domain.Entities.Finance.Owner>();
         public DbSet<Aquora.Domain.Entities.Finance.OwnerInvestmentTransaction> OwnerInvestmentTransactions => Set<Aquora.Domain.Entities.Finance.OwnerInvestmentTransaction>();
         public DbSet<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry> BankLedgerAuditEntries => Set<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>();
+        public DbSet<Aquora.Domain.Entities.Payroll.MonthlySalary> MonthlySalaries => Set<Aquora.Domain.Entities.Payroll.MonthlySalary>();
         public DbSet<Aquora.Domain.Entities.Payroll.SalaryPayment> SalaryPayments => Set<Aquora.Domain.Entities.Payroll.SalaryPayment>();
         public DbSet<User> Users => Set<User>();
 
@@ -193,6 +194,15 @@ namespace Aquora.Persistence.Context
                 .HasIndex(rp => new { rp.RoleId, rp.PermissionId });
 
             // Purchase relationship configuration for EF Core cascade deletion
+            modelBuilder.Entity<Aquora.Domain.Entities.Payroll.MonthlySalary>(entity =>
+            {
+                entity.HasIndex(m => new { m.TenantId, m.CompanyId, m.EmployeeId, m.SalaryMonth, m.IsDeleted });
+                entity.HasMany(m => m.Payments)
+                      .WithOne(p => p.MonthlySalaryEntitlement)
+                      .HasForeignKey(p => p.MonthlySalaryId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
             modelBuilder.Entity<Aquora.Domain.Entities.Finance.Purchase>()
                 .HasMany(p => p.Items)
                 .WithOne(i => i.Purchase)

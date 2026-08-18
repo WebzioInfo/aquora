@@ -370,6 +370,41 @@ namespace Aquora.Persistence.Services
                         );";
                     await cmd.ExecuteNonQueryAsync();
                 }
+                else if (table.Equals("MonthlySalaries", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""MonthlySalaries"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""SalaryNo"" text NOT NULL,
+                            ""EmployeeId"" uuid NOT NULL,
+                            ""SalaryMonth"" text NOT NULL,
+                            ""BaseSalary"" numeric NOT NULL DEFAULT 0.0,
+                            ""WorkingDays"" integer NOT NULL DEFAULT 0,
+                            ""DaysWorked"" integer NOT NULL DEFAULT 0,
+                            ""DailySalary"" numeric NOT NULL DEFAULT 0.0,
+                            ""GrossSalary"" numeric NOT NULL DEFAULT 0.0,
+                            ""Bonus"" numeric NOT NULL DEFAULT 0.0,
+                            ""AdvanceDeduction"" numeric NOT NULL DEFAULT 0.0,
+                            ""OtherDeduction"" numeric NOT NULL DEFAULT 0.0,
+                            ""NetSalaryEntitlement"" numeric NOT NULL DEFAULT 0.0,
+                            ""TotalPaid"" numeric NOT NULL DEFAULT 0.0,
+                            ""RemainingBalance"" numeric NOT NULL DEFAULT 0.0,
+                            ""Status"" text NOT NULL DEFAULT 'Unpaid',
+                            ""Remarks"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );";
+                    await cmd.ExecuteNonQueryAsync();
+                }
                 else if (table.Equals("SalaryPayments", StringComparison.OrdinalIgnoreCase))
                 {
                     cmd.CommandText = $@"
@@ -825,6 +860,62 @@ namespace Aquora.Persistence.Services
                         alterCmd.CommandText = $@"
                             DO $$ 
                             BEGIN 
+                                CREATE TABLE IF NOT EXISTS ""{schema}"".""MonthlySalaries"" (
+                                    ""Id"" uuid NOT NULL PRIMARY KEY,
+                                    ""TenantId"" uuid NOT NULL,
+                                    ""CompanyId"" uuid NOT NULL,
+                                    ""SalaryNo"" text NOT NULL,
+                                    ""EmployeeId"" uuid NOT NULL,
+                                    ""SalaryMonth"" text NOT NULL,
+                                    ""BaseSalary"" numeric NOT NULL DEFAULT 0.0,
+                                    ""WorkingDays"" integer NOT NULL DEFAULT 0,
+                                    ""DaysWorked"" integer NOT NULL DEFAULT 0,
+                                    ""DailySalary"" numeric NOT NULL DEFAULT 0.0,
+                                    ""GrossSalary"" numeric NOT NULL DEFAULT 0.0,
+                                    ""Bonus"" numeric NOT NULL DEFAULT 0.0,
+                                    ""AdvanceDeduction"" numeric NOT NULL DEFAULT 0.0,
+                                    ""OtherDeduction"" numeric NOT NULL DEFAULT 0.0,
+                                    ""CalculatedEntitlement"" numeric NOT NULL DEFAULT 0.0,
+                                    ""NetSalaryEntitlement"" numeric NOT NULL DEFAULT 0.0,
+                                    ""TotalPaid"" numeric NOT NULL DEFAULT 0.0,
+                                    ""RemainingBalance"" numeric NOT NULL DEFAULT 0.0,
+                                    ""Status"" text NOT NULL DEFAULT 'Unpaid',
+                                    ""Remarks"" text NULL,
+                                    ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                    ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                    ""UpdatedAt"" timestamp with time zone NULL,
+                                    ""UpdatedBy"" text NULL,
+                                    ""CreatedByIP"" text NULL,
+                                    ""UpdatedByIP"" text NULL,
+                                    ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                    ""DeletedAt"" timestamp with time zone NULL,
+                                    ""DeletedBy"" text NULL
+                                );
+
+                                IF EXISTS (
+                                    SELECT FROM information_schema.tables 
+                                    WHERE table_schema = '{schema}' AND table_name = 'MonthlySalaries'
+                                ) THEN
+                                     ALTER TABLE ""{schema}"".""MonthlySalaries"" ADD COLUMN IF NOT EXISTS ""CalculatedEntitlement"" numeric NOT NULL DEFAULT 0.0;
+                                     ALTER TABLE ""{schema}"".""MonthlySalaries"" ADD COLUMN IF NOT EXISTS ""IsFinalized"" boolean NOT NULL DEFAULT false;
+                                     ALTER TABLE ""{schema}"".""MonthlySalaries"" ADD COLUMN IF NOT EXISTS ""FinalizedAt"" timestamp with time zone NULL;
+                                     ALTER TABLE ""{schema}"".""MonthlySalaries"" ADD COLUMN IF NOT EXISTS ""FinalizedBy"" text NULL;
+                                     UPDATE ""{schema}"".""MonthlySalaries"" SET ""CalculatedEntitlement"" = ""NetSalaryEntitlement"" WHERE (""CalculatedEntitlement"" IS NULL OR ""CalculatedEntitlement"" = 0.0) AND ""NetSalaryEntitlement"" > 0.0;
+                                END IF;
+
+                                IF EXISTS (
+                                    SELECT FROM information_schema.tables 
+                                    WHERE table_schema = '{schema}' AND table_name = 'SalaryPayments'
+                                ) THEN
+                                    ALTER TABLE ""{schema}"".""SalaryPayments"" ADD COLUMN IF NOT EXISTS ""MonthlySalaryId"" uuid NULL;
+                                    ALTER TABLE ""{schema}"".""SalaryPayments"" ADD COLUMN IF NOT EXISTS ""PaymentType"" text NOT NULL DEFAULT 'Salary Settlement';
+                                    ALTER TABLE ""{schema}"".""SalaryPayments"" ADD COLUMN IF NOT EXISTS ""Amount"" numeric NOT NULL DEFAULT 0.0;
+
+                                    UPDATE ""{schema}"".""SalaryPayments"" 
+                                    SET ""Amount"" = ""NetSalary"" 
+                                    WHERE (""Amount"" IS NULL OR ""Amount"" = 0.0) AND ""NetSalary"" > 0.0;
+                                END IF;
+
                                 IF EXISTS (
                                     SELECT FROM information_schema.tables 
                                     WHERE table_schema = '{schema}' AND table_name = 'Customers'

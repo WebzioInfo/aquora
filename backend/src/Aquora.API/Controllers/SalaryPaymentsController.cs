@@ -15,14 +15,18 @@ namespace Aquora.API.Controllers
     public class SalaryPaymentsController : ApiControllerBase
     {
         private readonly IPayrollService _payrollService;
+        private readonly Microsoft.Extensions.Logging.ILogger<SalaryPaymentsController> _logger;
 
-        public SalaryPaymentsController(IPayrollService payrollService)
+        public SalaryPaymentsController(
+            IPayrollService payrollService,
+            Microsoft.Extensions.Logging.ILogger<SalaryPaymentsController> logger)
         {
             _payrollService = payrollService;
+            _logger = logger;
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResponse<PagedResult<SalaryPaymentDto>>>> GetSalaryPayments(
+        public async Task<ActionResult<ApiResponse<PagedResult<MonthlySalaryDirectoryDto>>>> GetSalaryPayments(
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] string? search = null,
@@ -38,30 +42,125 @@ namespace Aquora.API.Controllers
                     EmployeeId = employeeId
                 };
 
-                var result = await _payrollService.GetSalaryPaymentsAsync(pageNumber, pageSize, filter);
-                return Success(result, "Salary payments loaded successfully.");
+                var result = await _payrollService.GetMonthlySalariesAsync(pageNumber, pageSize, filter);
+                return Success(result, "Monthly salary entitlements loaded successfully.");
             }
             catch (Exception ex)
             {
-                return Failure<PagedResult<SalaryPaymentDto>>(ex.Message, "Failed to load salary payments.");
+                _logger.LogError(ex, "Failed to load monthly salary entitlements.");
+                return Failure<PagedResult<MonthlySalaryDirectoryDto>>(ex.Message, "Failed to load monthly salary entitlements.");
             }
         }
 
-        [HttpGet("{id:guid}")]
-        public async Task<ActionResult<ApiResponse<SalaryPaymentDetailsDto>>> GetSalaryPaymentById(Guid id)
+        [HttpGet("metrics")]
+        public async Task<ActionResult<ApiResponse<PayrollDashboardMetricsDto>>> GetPayrollMetrics([FromQuery] string? month = null)
         {
             try
             {
-                var result = await _payrollService.GetSalaryPaymentByIdAsync(id);
-                if (result == null)
-                {
-                    return NotFound(ApiResponse<SalaryPaymentDetailsDto>.CreateFailure("Salary payment not found.", "Not Found", HttpContext.TraceIdentifier));
-                }
-                return Success(result, "Salary payment details loaded successfully.");
+                var result = await _payrollService.GetPayrollDashboardMetricsAsync(month);
+                return Success(result, "Payroll metrics loaded successfully.");
             }
             catch (Exception ex)
             {
-                return Failure<SalaryPaymentDetailsDto>(ex.Message, "Failed to load salary payment details.");
+                _logger.LogError(ex, "Failed to load payroll metrics.");
+                return Failure<PayrollDashboardMetricsDto>(ex.Message, "Failed to load payroll metrics.");
+            }
+        }
+
+        [HttpGet("{id}")]
+        public async Task<ActionResult<ApiResponse<MonthlySalaryDetailsDto>>> GetSalaryPaymentById(Guid id)
+        {
+            try
+            {
+                var result = await _payrollService.GetMonthlySalaryByIdAsync(id);
+                if (result == null)
+                {
+                    return NotFound(ApiResponse<MonthlySalaryDetailsDto>.CreateFailure("Monthly salary entitlement record not found.", "Not Found", HttpContext.TraceIdentifier));
+                }
+                return Success(result, "Monthly salary entitlement details loaded successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load monthly salary entitlement details for id {Id}.", id);
+                return Failure<MonthlySalaryDetailsDto>(ex.Message, "Failed to load monthly salary entitlement details.");
+            }
+        }
+
+        [HttpPost("entitlement")]
+        [HttpPost("entitlements")]
+        public async Task<ActionResult<ApiResponse<MonthlySalaryDetailsDto>>> CreateOrGetMonthlySalary([FromBody] CreateOrGetMonthlySalaryRequest request)
+        {
+            try
+            {
+                var result = await _payrollService.GetOrCreateMonthlySalaryAsync(request);
+                return Success(result, "Monthly salary entitlement record processed successfully.");
+            }
+            catch (ArgumentException ex)
+            {
+                return Failure<MonthlySalaryDetailsDto>(ex.Message, "Validation Error");
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Failure<MonthlySalaryDetailsDto>(ex.Message, "Validation Error");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to process monthly salary entitlement.");
+                return Failure<MonthlySalaryDetailsDto>(ex.Message, "Failed to process monthly salary entitlement.");
+            }
+        }
+
+        [HttpPost("pay")]
+        public async Task<ActionResult<ApiResponse<SalaryPaymentTransactionDto>>> ProcessSalaryPayment([FromBody] ProcessSalaryPaymentRequest request)
+        {
+            try
+            {
+                var result = await _payrollService.ProcessSalaryPaymentAsync(request);
+                return Success(result, "Salary payment processed successfully.");
+            }
+            catch (ArgumentException ex)
+            {
+                return Failure<SalaryPaymentTransactionDto>(ex.Message, "Validation Error");
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Failure<SalaryPaymentTransactionDto>(ex.Message, "Validation Error");
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<SalaryPaymentTransactionDto>.CreateFailure(ex.Message, "Not Found", HttpContext.TraceIdentifier));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to process salary payment for TraceId: {TraceId}", HttpContext.TraceIdentifier);
+                return Failure<SalaryPaymentTransactionDto>(ex.Message, "Failed to process salary payment.");
+            }
+        }
+
+        [HttpPost("finalize")]
+        public async Task<ActionResult<ApiResponse<MonthlySalaryDetailsDto>>> FinalizeMonthlySalary([FromBody] FinalizeMonthlySalaryRequest request)
+        {
+            try
+            {
+                var result = await _payrollService.FinalizeMonthlySalaryAsync(request);
+                return Success(result, "Payroll month finalized and closed successfully.");
+            }
+            catch (ArgumentException ex)
+            {
+                return Failure<MonthlySalaryDetailsDto>(ex.Message, "Validation Error");
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Failure<MonthlySalaryDetailsDto>(ex.Message, "Validation Error");
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<MonthlySalaryDetailsDto>.CreateFailure(ex.Message, "Not Found", HttpContext.TraceIdentifier));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to finalize payroll month for TraceId: {TraceId}", HttpContext.TraceIdentifier);
+                return Failure<MonthlySalaryDetailsDto>(ex.Message, "Failed to finalize payroll month.");
             }
         }
 
@@ -105,6 +204,28 @@ namespace Aquora.API.Controllers
             }
         }
 
+        [HttpPut("transactions/{transactionId:guid}")]
+        public async Task<ActionResult<ApiResponse<SalaryPaymentTransactionDto>>> UpdateSalaryPaymentTransaction(Guid transactionId, [FromBody] UpdateSalaryPaymentTransactionRequest request)
+        {
+            try
+            {
+                var result = await _payrollService.UpdateSalaryPaymentTransactionAsync(transactionId, request);
+                return Success(result, "Salary payment transaction updated successfully.");
+            }
+            catch (ArgumentException ex)
+            {
+                return Failure<SalaryPaymentTransactionDto>(ex.Message, "Validation Error");
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<SalaryPaymentTransactionDto>.CreateFailure(ex.Message, "Not Found", HttpContext.TraceIdentifier));
+            }
+            catch (Exception ex)
+            {
+                return Failure<SalaryPaymentTransactionDto>(ex.Message, "Failed to update salary payment transaction.");
+            }
+        }
+
         [HttpDelete("{id:guid}")]
         public async Task<ActionResult<ApiResponse<bool>>> DeleteSalaryPayment(Guid id)
         {
@@ -115,11 +236,29 @@ namespace Aquora.API.Controllers
                 {
                     return NotFound(ApiResponse<bool>.CreateFailure("Salary payment not found or failed to delete.", "Not Found", HttpContext.TraceIdentifier));
                 }
-                return Success(true, "Salary payment deleted successfully.");
+                return Success(true, "Salary payment transaction reversed successfully.");
             }
             catch (Exception ex)
             {
                 return Failure<bool>(ex.Message, "Failed to delete salary payment.");
+            }
+        }
+
+        [HttpDelete("transactions/{transactionId:guid}")]
+        public async Task<ActionResult<ApiResponse<bool>>> ReverseSalaryPaymentTransaction(Guid transactionId)
+        {
+            try
+            {
+                var result = await _payrollService.ReverseSalaryPaymentTransactionAsync(transactionId);
+                if (!result)
+                {
+                    return NotFound(ApiResponse<bool>.CreateFailure("Salary payment transaction not found or failed to reverse.", "Not Found", HttpContext.TraceIdentifier));
+                }
+                return Success(true, "Salary payment transaction reversed successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<bool>(ex.Message, "Failed to reverse salary payment transaction.");
             }
         }
 

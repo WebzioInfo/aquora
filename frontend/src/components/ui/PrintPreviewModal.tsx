@@ -187,7 +187,7 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
               <iframe
                 id="pdf-preview-iframe"
                 src={`${pdfUrl}#toolbar=0&navpanes=0`}
-                className="w-full h-[620px] bg-slate-50 border-none block"
+                className="w-full h-[50vh] min-h-[350px] max-h-[600px] bg-slate-50 border-none block"
                 title="Print Preview Viewer"
               />
             </div>

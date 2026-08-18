@@ -1,9 +1,11 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using Aquora.Domain.Common;
 
 namespace Aquora.Domain.Entities.Payroll
 {
-    public class SalaryPayment : BaseEntity, IMultiTenant, ICompanySpecific, IAuditable, ISoftDelete
+    public class MonthlySalary : BaseEntity, IMultiTenant, ICompanySpecific, IAuditable, ISoftDelete
     {
         public Guid TenantId { get; set; }
         public Guid CompanyId { get; set; }
@@ -15,7 +17,7 @@ namespace Aquora.Domain.Entities.Payroll
         public virtual User Employee { get; set; } = null!;
 
         public string SalaryMonth { get; set; } = string.Empty; // e.g. "2026-08"
-        public decimal MonthlySalary { get; set; }
+        public decimal BaseSalary { get; set; }
         public int WorkingDays { get; set; }
         public int DaysWorked { get; set; }
         public decimal DailySalary { get; set; }
@@ -23,20 +25,18 @@ namespace Aquora.Domain.Entities.Payroll
         public decimal Bonus { get; set; }
         public decimal AdvanceDeduction { get; set; }
         public decimal OtherDeduction { get; set; }
-        public decimal NetSalary { get; set; }
+        public decimal CalculatedEntitlement { get; set; }
+        public decimal NetSalaryEntitlement { get; set; }
 
-        public Guid? MonthlySalaryId { get; set; }
-        public virtual MonthlySalary? MonthlySalaryEntitlement { get; set; }
-
-        public string PaymentType { get; set; } = "Salary Settlement"; // Salary Advance, Salary Settlement, Partial Payment
-        public decimal Amount { get; set; }
-
-        public string PaymentMethod { get; set; } = "BankAccount"; // BankAccount, CashBook
-        public Guid? BankAccountId { get; set; }
-        public Guid? CashBookId { get; set; }
-        public DateTime PaymentDate { get; set; }
+        public decimal TotalPaid { get; set; }
+        public decimal RemainingBalance { get; set; }
+        public string Status { get; set; } = "Unpaid"; // Unpaid, Partially Paid, Paid, Fully Paid
+        public bool IsFinalized { get; set; }
+        public DateTime? FinalizedAt { get; set; }
+        public string? FinalizedBy { get; set; }
         public string? Remarks { get; set; }
-        public string Status { get; set; } = "Paid"; // Paid, Reversed
+
+        public virtual ICollection<SalaryPayment> Payments { get; set; } = new List<SalaryPayment>();
 
         // Auditable
         public DateTime CreatedAt { get; set; }
