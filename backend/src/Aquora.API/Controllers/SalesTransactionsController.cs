@@ -434,17 +434,54 @@ namespace Aquora.API.Controllers
 
                 if (request.TransactionType == "Sales Dispatch")
                 {
+                    if (request.UnitPrice <= 0 && product.SellingPrice > 0)
+                    {
+                        request.UnitPrice = product.SellingPrice;
+                    }
+
+                    if (request.TotalAmount <= 0 && request.Cases > 0)
+                    {
+                        request.TotalAmount = (request.Cases * request.UnitPrice) - request.DiscountAmount + request.TaxAmount;
+                    }
                     totalAmount = request.TotalAmount;
-                    amountReceived = request.AmountReceived;
-                    outstandingAmount = Math.Max(0m, totalAmount - amountReceived);
 
-                    if (amountReceived == 0m) paymentStatus = "Pending";
-                    else if (amountReceived < totalAmount) paymentStatus = "Partial";
-                    else paymentStatus = "Paid";
+                    var isCreditSale = string.Equals(request.PaymentMethod, "Credit", StringComparison.OrdinalIgnoreCase);
+                    if (isCreditSale)
+                    {
+                        if (customer == null || customer.CustomerCode == "CUST-SYS" || request.CustomerId == Guid.Empty)
+                        {
+                            return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Select a customer for credit sales.", "Validation Error", HttpContext.TraceIdentifier));
+                        }
 
-                    // Account Movement: Increase Customer Outstanding Balance
-                    customer.OutstandingPlaceholder += outstandingAmount;
-                    AppendCustomerLedgerEntry(customer, "Sales Dispatch", txnNumber, totalAmount, amountReceived, customer.OutstandingPlaceholder);
+                        // Validate Customer Credit Limit
+                        if (customer.CreditLimit > 0 && (customer.OutstandingPlaceholder + totalAmount) > customer.CreditLimit)
+                        {
+                            var availableCredit = Math.Max(0m, customer.CreditLimit - customer.OutstandingPlaceholder);
+                            return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure(
+                                $"Credit sale of ₹{totalAmount:N2} exceeds customer's available credit limit. Current outstanding: ₹{customer.OutstandingPlaceholder:N2}, Credit limit: ₹{customer.CreditLimit:N2}, Available credit: ₹{availableCredit:N2}.",
+                                "Credit Limit Exceeded",
+                                HttpContext.TraceIdentifier));
+                        }
+
+                        amountReceived = 0m;
+                        outstandingAmount = totalAmount;
+                        paymentStatus = "Pending";
+
+                        customer.OutstandingPlaceholder += outstandingAmount;
+                        AppendCustomerLedgerEntry(customer, "Sales Dispatch (Credit)", txnNumber, totalAmount, 0m, customer.OutstandingPlaceholder);
+                    }
+                    else
+                    {
+                        amountReceived = request.AmountReceived > 0 ? request.AmountReceived : totalAmount;
+                        outstandingAmount = Math.Max(0m, totalAmount - amountReceived);
+                        paymentStatus = outstandingAmount <= 0 ? "Paid" : (amountReceived <= 0 ? "Pending" : "Partial");
+
+                        if (outstandingAmount > 0)
+                        {
+                            customer.OutstandingPlaceholder += outstandingAmount;
+                        }
+                        AppendCustomerLedgerEntry(customer, $"Sales Dispatch ({request.PaymentMethod ?? "Cash"})", txnNumber, totalAmount, amountReceived, customer.OutstandingPlaceholder);
+                    }
 
                     // Resolve general ledger accounts
                     var salesRevenueAccount = await ResolveAccountAsync("Sales Revenue", "4001", "Revenue", "Cr", tenantId, company.Id);

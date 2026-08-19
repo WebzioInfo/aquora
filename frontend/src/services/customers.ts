@@ -321,5 +321,20 @@ export const customersService = {
   deleteCustomer: async (id: string): Promise<ApiResponse<boolean>> => {
     const response = await api.delete<ApiResponse<boolean>>(`/api/v1/customers/${id}`)
     return response.data
+  },
+
+  recordPayment: async (id: string, data: RecordCustomerPaymentRequest): Promise<ApiResponse<Customer>> => {
+    const response = await api.post<ApiResponse<Customer>>(`/api/v1/customers/${id}/payments`, data)
+    return response.data
   }
+}
+
+export interface RecordCustomerPaymentRequest {
+  amount: number
+  paymentMethod: string
+  bankAccountId?: string
+  cashBookId?: string
+  paymentDate?: string
+  referenceNumber?: string
+  remarks?: string
 }

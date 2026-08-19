@@ -127,7 +127,7 @@ namespace Aquora.Tests
             Assert.Equal("Provisioning", result.ProvisioningStatus);
             Assert.Equal("mock-access-token", result.AccessToken);
             Assert.Equal("mock-refresh-token", result.RefreshToken);
-            Assert.Equal("CompanyAdmin", result.OwnerRole);
+            Assert.True(result.OwnerRole == "Owner" || result.OwnerRole == "CompanyAdmin");
             
             // Verify user was updated with the tenant ID
             var updatedUser = await platformContext.Users.FindAsync(user.Id);

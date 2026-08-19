@@ -71,7 +71,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
   const [formUnitPrice, setFormUnitPrice] = useState('')
   const [formDiscount, setFormDiscount] = useState('')
   const [isGstEnabled, setIsGstEnabled] = useState(false)
-  const [formPaymentMethod, setFormPaymentMethod] = useState('Credit')
+  const [formPaymentMethod, setFormPaymentMethod] = useState('Cash')
   const [formBankAccountId, setFormBankAccountId] = useState('')
   const [formCashBookId, setFormCashBookId] = useState('')
 
@@ -210,6 +210,13 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
   const selectedProductInForm = useMemo(() => {
     return products.find(p => p.id === formProductId)
   }, [products, formProductId])
+
+  // Auto-populate unit price on product selection
+  useEffect(() => {
+    if (selectedProductInForm && selectedProductInForm.sellingPrice !== undefined && selectedProductInForm.sellingPrice > 0) {
+      setFormUnitPrice(selectedProductInForm.sellingPrice.toString())
+    }
+  }, [formProductId, selectedProductInForm])
 
   const selectedCustomerInForm = useMemo(() => {
     return customers.find(c => c.id === formCustomerId)
@@ -526,6 +533,11 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       return false
     }
 
+    if (formType === 'Sales Dispatch' && formPaymentMethod === 'Credit' && !formCustomerId) {
+      showToast('Select a customer for credit sales.', 'warning')
+      return false
+    }
+
     if (!formProductId || !formCases || !formDate) {
       showToast('Please fill in all required fields.', 'warning')
       return false
@@ -535,6 +547,23 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     if (isNaN(casesNum) || casesNum <= 0) {
       showToast('Quantity must be greater than zero.', 'warning')
       return false
+    }
+
+    // Ensure payment register / bank account is set
+    if (formType === 'Sales Dispatch') {
+      if (['Bank', 'UPI', 'Cheque'].includes(formPaymentMethod) && !formBankAccountId) {
+        if (banks.length > 0) {
+          setFormBankAccountId(banks[0].id)
+        } else {
+          showToast('Company Bank Account is required.', 'warning')
+          return false
+        }
+      }
+      if (formPaymentMethod === 'Cash' && !formCashBookId) {
+        if (cashRegisters.length > 0) {
+          setFormCashBookId(cashRegisters[0].id)
+        }
+      }
     }
 
     // Verify stock availability
@@ -1296,6 +1325,35 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                         ))}
                       </div>
                     </div>
+
+                    {/* Credit Details & Limit Warning */}
+                    {formPaymentMethod === 'Credit' && selectedCustomerInForm && (
+                      <div className="p-3 bg-[#FFFBEB] border border-[#FDE68A] rounded-xl space-y-2 text-xs select-none">
+                        <div className="flex justify-between items-center text-[#92400E] font-semibold">
+                          <span>Customer Outstanding Balance:</span>
+                          <span className="font-bold text-[#78350F]">₹{(selectedCustomerInForm.outstandingPlaceholder || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-slate-600">
+                          <span>Credit Limit:</span>
+                          <span className="font-bold">₹{(selectedCustomerInForm.creditLimit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        {selectedCustomerInForm.creditLimit > 0 && (
+                          <div className="flex justify-between items-center text-slate-600">
+                            <span>Available Credit:</span>
+                            <span className={`font-bold ${(selectedCustomerInForm.creditLimit - (selectedCustomerInForm.outstandingPlaceholder || 0)) < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
+                              ₹{(selectedCustomerInForm.creditLimit - (selectedCustomerInForm.outstandingPlaceholder || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        )}
+                        {selectedCustomerInForm.creditLimit > 0 &&
+                          ((selectedCustomerInForm.outstandingPlaceholder || 0) + (parseFloat(formCases) || 0) * (parseFloat(formUnitPrice) || selectedProductInForm?.sellingPrice || 0)) > selectedCustomerInForm.creditLimit && (
+                            <div className="flex items-center gap-1.5 text-red-700 bg-red-100/80 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold mt-1">
+                              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                              <span>Warning: Total credit exposure exceeds customer credit limit!</span>
+                            </div>
+                          )}
+                      </div>
+                    )}
 
                     {/* Bank Account dropdown */}
                     {['Bank', 'UPI', 'Cheque'].includes(formPaymentMethod) && (

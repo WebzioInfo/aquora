@@ -4,9 +4,11 @@ import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Edit3, Landmark, Activity, FileText,
   MapPin, Phone, Mail, User, ShieldAlert,
-  Coins, Briefcase, FileSignature, Clock, BookOpen, Truck
+  Coins, Briefcase, FileSignature, Clock, BookOpen, Truck,
+  Wallet, Eye
 } from 'lucide-react'
 import { customersService } from '../../services/customers'
+import { salesService } from '../../services/sales'
 import EnterpriseBadge from '../../components/ui/EnterpriseBadge'
 import EnterpriseButton from '../../components/ui/EnterpriseButton'
 import PageContainer from '../../components/ui/layout/PageContainer'
@@ -16,11 +18,12 @@ import type { TabItem } from '../../components/ui/layout/DetailTabs'
 interface CustomerProfilePageProps {
   customerId: string
   onEditCustomer: (customer: any) => void
+  onCollectPayment?: (customer: any) => void
 }
 
 type TabType = 'overview' | 'sales' | 'ledger' | 'jars' | 'dispatch' | 'docs' | 'contacts' | 'notes' | 'activity'
 
-export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ customerId, onEditCustomer }) => {
+export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ customerId, onEditCustomer, onCollectPayment }) => {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<TabType>('overview')
 
@@ -32,6 +35,16 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
       return res.data
     },
     enabled: !!customerId
+  })
+
+  // Fetch customer-specific sales history
+  const { data: salesData, isLoading: isSalesLoading } = useQuery({
+    queryKey: ['customerSalesHistory', customerId],
+    queryFn: async () => {
+      const res = await salesService.getTransactions(1, 100, '', '', customerId)
+      return res.data
+    },
+    enabled: activeTab === 'sales' && !!customerId
   })
 
   if (isLoading) {
@@ -57,7 +70,7 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
           <EnterpriseButton
             variant="secondary"
             onClick={() => navigate('/company/customers')}
-            className="inline-flex items-center gap-1.5"
+            className="inline-flex items-center gap-1.5 cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Customers
           </EnterpriseButton>
@@ -80,24 +93,44 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
     }
   }
 
+  const formatDateOnly = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      })
+    } catch {
+      return dateStr
+    }
+  }
+
+  const salesTransactions = salesData?.items || []
+  const hasOutstanding = (customer.outstandingPlaceholder || 0) > 0
+
   return (
     <PageContainer>
       {/* 2. TOP SUMMARY PROFILE CARD */}
       <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm overflow-hidden mb-6">
-        {/* Top bar: back / status */}
-        <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-[#F1F5F9]">
+        {/* Top bar: back button */}
+        <div className="flex flex-wrap items-center justify-between px-4 py-3 border-b border-[#F1F5F9] bg-slate-50/50">
           <button
-            onClick={() => {
-              const url = new URL(window.location.href);
-              url.searchParams.delete('customerId');
-              window.history.pushState({}, '', url);
-              window.dispatchEvent(new PopStateEvent('popstate'));
-            }}
-            className="h-[30px] px-2.5 text-[12px] font-bold text-slate-700 border border-[#E5E7EB] hover:bg-[#F8FAFC] rounded-lg flex items-center gap-1 cursor-pointer transition-all active:scale-[0.97]"
+            onClick={() => navigate('/company/customers')}
+            className="h-[30px] px-3 text-[12px] font-bold text-slate-700 border border-[#E5E7EB] hover:bg-white rounded-lg flex items-center gap-1.5 cursor-pointer transition-all active:scale-[0.97]"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Back
+            <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
+            Back to Customers
           </button>
+
+          {hasOutstanding && onCollectPayment && (
+            <button
+              onClick={() => onCollectPayment(customer)}
+              className="h-[30px] px-3 text-[12px] font-bold bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg flex items-center gap-1.5 cursor-pointer transition-all shadow-sm"
+            >
+              <Wallet className="w-3.5 h-3.5" />
+              Collect Payment (₹{(customer.outstandingPlaceholder || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })})
+            </button>
+          )}
         </div>
 
         <div className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -145,12 +178,10 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
             <EnterpriseButton
               variant="primary"
               onClick={() => onEditCustomer(customer)}
-              className="inline-flex items-center gap-1.5 h-8 px-3 font-bold text-xs"
+              className="inline-flex items-center gap-1.5 h-8 px-3 font-bold text-xs cursor-pointer"
             >
-              <Edit3 className="w-3.5 h-3.5" /> Edit
+              <Edit3 className="w-3.5 h-3.5" /> Edit Profile
             </EnterpriseButton>
-            <EnterpriseButton variant="secondary" disabled className="h-8 px-3 font-bold text-xs opacity-50">Deactivate</EnterpriseButton>
-            <EnterpriseButton variant="danger" disabled className="h-8 px-3 font-bold text-xs opacity-50">Delete</EnterpriseButton>
           </div>
         </div>
       </div>
@@ -172,29 +203,31 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
         onTabChange={(id) => setActiveTab(id as TabType)}
       />
 
-
-
-      {/* 4. ACTIVE VIEW RENDERING */}
-      <div className="min-h-[400px]">
+      {/* TAB CONTENT AREA */}
+      <div className="mt-4">
         {activeTab === 'overview' ? (
-          <div className="space-y-6">
-            {/* STATISTICS ROW */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="space-y-6 select-none">
+            {/* KPI STAT CARDS */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
                 <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Opening Balance</span>
-                <div className="text-lg font-black text-slate-800">₹{customer.openingBalance.toLocaleString('en-IN')}</div>
+                <div className="text-sm font-bold text-slate-900 mt-1 font-mono">
+                  ₹{Number(customer.openingBalance)?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}
+                </div>
+              </div>
+              <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Outstanding Balance</span>
+                <div className={`text-sm font-bold mt-1 font-mono ${hasOutstanding ? 'text-amber-700' : 'text-emerald-700'}`}>
+                  ₹{(customer.outstandingPlaceholder || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </div>
               </div>
               <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
                 <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Outstanding Jars</span>
-                <div className="text-lg font-black text-blue-600">{customer.outstandingJars || 0}</div>
-              </div>
-              <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Reserved Empty</span>
-                <div className="text-lg font-black text-orange-600">{customer.reservedEmptyJars || 0}</div>
+                <div className="text-sm font-bold text-slate-800 mt-1">{customer.outstandingJars || 0} Jars</div>
               </div>
               <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
                 <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Max Inventory</span>
-                <div className="text-lg font-black text-slate-800">{customer.maxJarLimit || 0}</div>
+                <div className="text-sm font-bold text-slate-800 mt-1">{customer.maxJarLimit || 0} Jars</div>
               </div>
               <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
                 <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Assigned Route</span>
@@ -282,47 +315,38 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
                       <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-1 block">{customer.country}</span>
                     </div>
                   </div>
-                  {customer.addressesJson && customer.addressesJson !== '[]' && (
-                    <div>
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Secondary Branches</span>
-                      <div className="max-h-[100px] overflow-y-auto text-[11px] font-medium text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100 leading-relaxed">
-                        {customer.addressesJson}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 
-              {/* Row 2 */}
-              {/* Left: Logistics & Distributor Configuration (colspan 2) */}
-              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm lg:col-span-2 flex flex-col">
-                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-4 flex items-center gap-1.5">
+              {/* Row 2: Compact Logistics & Setup Card */}
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm lg:col-span-2">
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-3 flex items-center gap-1.5 border-b border-slate-100 pb-2">
                   <Truck className="w-4 h-4 text-blue-500" /> Logistics & Setup
                 </h4>
-                <div className="grid grid-cols-2 gap-4 text-xs flex-1">
-                  <div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                     <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Assigned Driver</span>
                     <span className="block font-semibold text-slate-800">{customer.assignedDriver || 'N/A'}</span>
                   </div>
-                  <div>
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                     <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Assigned Sales Exec</span>
                     <span className="block font-semibold text-slate-800">{customer.assignedSalesExecutive || 'N/A'}</span>
                   </div>
-                  <div>
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                     <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Working Coverage Area</span>
                     <span className="block font-semibold text-slate-800">{customer.workingArea || 'N/A'}</span>
                   </div>
-                  <div>
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                     <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Working Days</span>
                     <span className="block font-semibold text-slate-800">{customer.workingDays || 'N/A'}</span>
                   </div>
                   {customer.customerType === 'Distributor' && (
                     <>
-                      <div>
+                      <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                         <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Commission Rate</span>
                         <span className="block font-semibold text-slate-800">{customer.commissionPercentage}%</span>
                       </div>
-                      <div>
+                      <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                         <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Base Salary</span>
                         <span className="block font-semibold text-slate-800">₹{customer.monthlySalary?.toLocaleString('en-IN') || '0.00'}</span>
                       </div>
@@ -336,7 +360,7 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
                 <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-4 flex items-center gap-1.5">
                   <Clock className="w-4 h-4 text-blue-500" /> 20L Jar Parameters
                 </h4>
-                <div className="space-y-4 text-xs flex-1">
+                <div className="space-y-3 text-xs flex-1">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0">
                       <Coins className="w-4 h-4 text-slate-500" />
@@ -355,33 +379,6 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
                       <span className="block font-semibold text-slate-800 leading-none">{customer.outstandingJars || 0} Jars with customer</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0">
-                      <BookOpen className="w-4 h-4 text-slate-500" />
-                    </div>
-                    <div>
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Preferred Brand</span>
-                      <span className="block font-semibold text-slate-800 leading-none">{customer.preferredJarBrand || 'Default (Aquzio)'}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0">
-                      <ShieldAlert className="w-4 h-4 text-slate-500" />
-                    </div>
-                    <div>
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Seal Required</span>
-                      <span className="block font-semibold text-slate-800 leading-none">{customer.sealRequired ? 'Double seal check' : 'Standard'}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0">
-                      <Truck className="w-4 h-4 text-slate-500" />
-                    </div>
-                    <div>
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Delivery Schedule</span>
-                      <span className="block font-semibold text-slate-800 leading-none">{customer.deliveryFrequency || 'Daily'} ({customer.preferredDeliveryTime || 'Morning'})</span>
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -390,7 +387,7 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
                 <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-100 pb-2 mb-3 flex items-center gap-1.5">
                   <FileText className="w-4 h-4 text-blue-500" /> Internal Notes & Remarks
                 </h4>
-                <div className="bg-slate-50 border border-slate-100 p-3 rounded-lg min-h-[60px] text-left">
+                <div className="bg-slate-50 border border-slate-100 p-3 rounded-lg min-h-[50px] text-left">
                   {customer.remarks ? (
                     <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed font-medium">
                       {customer.remarks}
@@ -403,6 +400,205 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
 
             </div>
           </div>
+        ) : activeTab === 'sales' ? (
+          /* LIVE SALES HISTORY TAB */
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden select-none">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div>
+                <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <Coins className="w-4 h-4 text-blue-600" />
+                  Customer Sales Transactions History
+                </h4>
+                <p className="text-xs text-slate-400 mt-0.5">Complete record of sales dispatches, invoices, and payment statuses for {customer.customerName}</p>
+              </div>
+              <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+                {salesTransactions.length} Transactions
+              </span>
+            </div>
+
+            {isSalesLoading ? (
+              <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
+                <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-slate-400">Loading sales transactions...</span>
+              </div>
+            ) : salesTransactions.length === 0 ? (
+              <div className="p-12 text-center text-xs text-slate-400">
+                <Coins className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                No sales transactions recorded for this customer yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider h-9">
+                      <th className="py-2.5 px-4">Date</th>
+                      <th className="py-2.5 px-4">Invoice / Sale No.</th>
+                      <th className="py-2.5 px-4">Product</th>
+                      <th className="py-2.5 px-4 text-right">Quantity</th>
+                      <th className="py-2.5 px-4 text-right">Subtotal</th>
+                      <th className="py-2.5 px-4 text-right">Discount</th>
+                      <th className="py-2.5 px-4 text-right">GST</th>
+                      <th className="py-2.5 px-4 text-right">Total</th>
+                      <th className="py-2.5 px-4 text-right">Paid</th>
+                      <th className="py-2.5 px-4 text-right">Outstanding</th>
+                      <th className="py-2.5 px-4 text-center">Payment Method</th>
+                      <th className="py-2.5 px-4 text-center">Status</th>
+                      <th className="py-2.5 px-4 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {salesTransactions.map((t) => {
+                      const total = t.totalAmount || 0
+                      const outstanding = t.outstandingAmount !== undefined ? t.outstandingAmount : (t.paymentStatus === 'Paid' ? 0 : total)
+                      const paid = t.amountReceived !== undefined ? t.amountReceived : Math.max(0, total - outstanding)
+                      const status = t.paymentStatus || (outstanding <= 0 ? 'Paid' : (paid > 0 ? 'Partially Paid' : 'Pending'))
+
+                      return (
+                        <tr key={t.id} className="hover:bg-slate-50/60 font-mono">
+                          <td className="py-3 px-4 font-sans font-medium text-slate-600">
+                            {formatDateOnly(t.transactionDate)}
+                          </td>
+                          <td className="py-3 px-4 font-bold text-blue-600">
+                            {t.transactionNumber}
+                          </td>
+                          <td className="py-3 px-4 font-sans font-semibold text-slate-800">
+                            {t.productName}
+                          </td>
+                          <td className="py-3 px-4 text-right font-semibold">
+                            {t.cases} Cases
+                          </td>
+                          <td className="py-3 px-4 text-right text-slate-600">
+                            ₹{((t.unitPrice || 0) * t.cases).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-3 px-4 text-right text-slate-500">
+                            ₹{(t.discountAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-3 px-4 text-right text-slate-500">
+                            ₹{(t.taxAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-3 px-4 text-right font-bold text-slate-900">
+                            ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-3 px-4 text-right font-bold text-emerald-700">
+                            ₹{paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-3 px-4 text-right font-bold text-amber-700">
+                            ₹{outstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-3 px-4 text-center font-sans">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
+                              {t.paymentMethod || 'Credit'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center font-sans">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                              status === 'Paid' ? 'bg-emerald-100 text-emerald-800' :
+                              status === 'Partially Paid' || status === 'Partial' ? 'bg-amber-100 text-amber-800' :
+                              'bg-rose-100 text-rose-800'
+                            }`}>
+                              {status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right font-sans">
+                            {outstanding > 0 && onCollectPayment ? (
+                              <button
+                                onClick={() => onCollectPayment(customer)}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[11px] rounded border border-emerald-200 transition-colors cursor-pointer"
+                                title="Collect Payment against Customer Receivable"
+                              >
+                                <Wallet className="w-3 h-3" />
+                                Collect
+                              </button>
+                            ) : (
+                              <span className="text-[11px] text-slate-400 font-medium">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : activeTab === 'ledger' ? (
+          /* LIVE CUSTOMER LEDGER TAB */
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden select-none">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div>
+                <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <Landmark className="w-4 h-4 text-blue-600" />
+                  Customer Credit Ledger & Statements
+                </h4>
+                <p className="text-xs text-slate-400 mt-0.5">Chronological record of dispatches, credit notes, and collection receipts</p>
+              </div>
+              <div className="text-right">
+                <span className="text-xs text-slate-400 block font-semibold">Current Outstanding</span>
+                <span className="text-sm font-bold text-slate-900 font-mono">
+                  ₹{(customer.outstandingPlaceholder || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
+            {(() => {
+              let entries: any[] = []
+              if (customer.ledgerPlaceholder) {
+                try {
+                  entries = JSON.parse(customer.ledgerPlaceholder)
+                } catch {}
+              }
+
+              if (entries.length === 0) {
+                return (
+                  <div className="p-12 text-center text-xs text-slate-400">
+                    <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    No ledger transactions recorded for this customer yet.
+                  </div>
+                )
+              }
+
+              return (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider h-9">
+                        <th className="py-2.5 px-4">Date</th>
+                        <th className="py-2.5 px-4">Transaction Type</th>
+                        <th className="py-2.5 px-4">Reference #</th>
+                        <th className="py-2.5 px-4 text-right">Debit (Sales)</th>
+                        <th className="py-2.5 px-4 text-right">Credit (Paid)</th>
+                        <th className="py-2.5 px-4 text-right">Balance</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-mono text-slate-700">
+                      {entries.map((entry, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/60">
+                          <td className="py-3 px-4 font-sans font-medium text-slate-600">
+                            {formatDateTime(entry.Date || entry.date)}
+                          </td>
+                          <td className="py-3 px-4 font-sans font-bold text-slate-800">
+                            {entry.TransactionType || entry.transactionType}
+                          </td>
+                          <td className="py-3 px-4 font-semibold text-blue-600">
+                            {entry.Reference || entry.reference || '—'}
+                          </td>
+                          <td className="py-3 px-4 text-right font-bold text-slate-900">
+                            {(entry.Debit || entry.debit) > 0 ? `₹${(entry.Debit || entry.debit).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '—'}
+                          </td>
+                          <td className="py-3 px-4 text-right font-bold text-emerald-700">
+                            {(entry.Credit || entry.credit) > 0 ? `₹${(entry.Credit || entry.credit).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '—'}
+                          </td>
+                          <td className="py-3 px-4 text-right font-bold text-slate-900">
+                            ₹{(entry.Balance ?? entry.balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            })()}
+          </div>
         ) : (
           /* Visual Placeholders for other tabs */
           <div className="bg-white border border-slate-200 rounded-xl p-12 text-center shadow-sm flex flex-col items-center justify-center gap-4 select-none">
@@ -410,22 +606,10 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
               <Landmark className="w-6 h-6 animate-pulse text-blue-500" />
             </div>
             <div>
-              <h5 className="text-sm font-bold text-slate-800">Module Integration Placeholder</h5>
+              <h5 className="text-sm font-bold text-slate-800">Module Integration</h5>
               <p className="text-xs text-slate-500 max-w-sm mx-auto mt-2 leading-relaxed">
-                The {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} subview is a visual placeholder for the upcoming ERP module implementation.
-                Transaction logs, outstanding ledger mappings, and analytical reports are currently out of scope.
+                The {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} tab is ready for detailed sub-analytics.
               </p>
-            </div>
-            <div className="flex gap-2.5 mt-2">
-              <EnterpriseButton variant="secondary" size="sm" disabled className="opacity-50 text-[11px] font-bold h-8 px-3">
-                Create Sales Order
-              </EnterpriseButton>
-              <EnterpriseButton variant="secondary" size="sm" disabled className="opacity-50 text-[11px] font-bold h-8 px-3">
-                Record Payment
-              </EnterpriseButton>
-              <EnterpriseButton variant="secondary" size="sm" disabled className="opacity-50 text-[11px] font-bold h-8 px-3">
-                Create Dispatch
-              </EnterpriseButton>
             </div>
           </div>
         )}

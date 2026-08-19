@@ -5,11 +5,12 @@ import {
   Search, Plus, Eye, Edit2, Trash2, X, AlertTriangle, 
   MapPin, Phone as PhoneIcon, FileText, Landmark, ShieldAlert,
   ArrowUpDown, Filter, ChevronLeft, ChevronRight, CheckCircle2, XCircle,
-  Printer
+  Printer, Wallet
 } from 'lucide-react'
 import { PrintPreviewModal } from '../../components/ui/PrintPreviewModal'
 import { customersService } from '../../services/customers'
 import type { Customer } from '../../services/customers'
+import { simpleAccountsService } from '../../services/simpleAccounts'
 import { brandService } from '../../services/brands'
 import { rawMaterialsService } from '../../services/rawMaterials'
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown'
@@ -106,6 +107,74 @@ export const CustomersPage: React.FC = () => {
   // Print Preview Modal States
   const [printModalOpen, setPrintModalOpen] = useState(false)
   const [printDocData, setPrintDocData] = useState<any>(null)
+
+  // Record Customer Payment Modal States
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+  const [selectedCustomerForPayment, setSelectedCustomerForPayment] = useState<Customer | null>(null)
+  const [paymentAmount, setPaymentAmount] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Bank' | 'UPI' | 'Cheque'>('Cash')
+  const [paymentBankAccountId, setPaymentBankAccountId] = useState('')
+  const [paymentCashBookId, setPaymentCashBookId] = useState('')
+  const [paymentRef, setPaymentRef] = useState('')
+  const [paymentRemarks, setPaymentRemarks] = useState('')
+
+  // Fetch Bank Accounts and Cash Books
+  const { data: bankAccounts } = useQuery({
+    queryKey: ['bankAccountsDropdownCust'],
+    queryFn: () => simpleAccountsService.getBankAccountDropdown()
+  })
+  const banks = bankAccounts || []
+
+  const { data: cashBooks } = useQuery({
+    queryKey: ['cashBooksDropdownCust'],
+    queryFn: () => simpleAccountsService.getCashBookDropdown()
+  })
+  const cashRegisters = cashBooks || []
+
+  const handleOpenRecordPaymentModal = (customer: Customer) => {
+    setSelectedCustomerForPayment(customer)
+    setPaymentAmount((customer.outstandingPlaceholder || 0).toString())
+    setPaymentMethod('Cash')
+    setPaymentRef(`PAY-${new Date().toISOString().substring(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`)
+    setPaymentRemarks('')
+    if (banks.length > 0) setPaymentBankAccountId(banks[0].id)
+    if (cashRegisters.length > 0) setPaymentCashBookId(cashRegisters[0].id)
+    setIsPaymentModalOpen(true)
+  }
+
+  const recordPaymentMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedCustomerForPayment) return
+      const amt = parseFloat(paymentAmount)
+      if (isNaN(amt) || amt <= 0) {
+        showToast('Please enter a valid payment amount.', 'warning')
+        throw new Error('Invalid amount')
+      }
+      return customersService.recordPayment(selectedCustomerForPayment.id, {
+        amount: amt,
+        paymentMethod,
+        bankAccountId: paymentMethod !== 'Cash' ? paymentBankAccountId : undefined,
+        cashBookId: paymentMethod === 'Cash' ? paymentCashBookId : undefined,
+        referenceNumber: paymentRef.trim() || undefined,
+        remarks: paymentRemarks.trim() || undefined
+      })
+    },
+    onSuccess: (res) => {
+      showToast(res?.message || 'Customer payment recorded successfully!', 'success')
+      setIsPaymentModalOpen(false)
+      queryClient.invalidateQueries({ queryKey: ['customersList'] })
+      queryClient.invalidateQueries({ queryKey: ['activeCustomersForSales'] })
+      queryClient.invalidateQueries({ queryKey: ['customerProfile'] })
+      queryClient.invalidateQueries({ queryKey: ['customerSalesHistory'] })
+      queryClient.invalidateQueries({ queryKey: ['salesTransactions'] })
+      queryClient.invalidateQueries({ queryKey: ['salesDashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['bankAccountsDropdownCust'] })
+      queryClient.invalidateQueries({ queryKey: ['cashBooksDropdownCust'] })
+    },
+    onError: (err: any) => {
+      showToast(err?.response?.data?.message || err.message || 'Failed to record customer payment.', 'error')
+    }
+  })
 
   const handlePrintCustomerStatement = (customer: Customer) => {
     setPrintDocData({
@@ -811,15 +880,199 @@ export const CustomersPage: React.FC = () => {
     toggleStatusMutation.mutate(customer)
   }
 
+  const renderModalsAndDrawers = () => (
+    <>
+      {/* PRINT PREVIEW MODAL */}
+      {printModalOpen && printDocData && (
+        <PrintPreviewModal
+          isOpen={printModalOpen}
+          onClose={() => {
+            setPrintModalOpen(false)
+            setPrintDocData(null)
+          }}
+          documentData={printDocData}
+        />
+      )}
+
+      {/* RECORD CUSTOMER PAYMENT MODAL */}
+      {isPaymentModalOpen && selectedCustomerForPayment && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-center items-center p-4">
+          <div className="bg-white border border-slate-200 w-full max-w-md rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b border-slate-100 px-6 py-4 bg-slate-50/50">
+              <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-emerald-600" />
+                Record Customer Collection
+              </h2>
+              <button onClick={() => setIsPaymentModalOpen(false)} className="text-slate-400 hover:text-slate-650 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => { e.preventDefault(); recordPaymentMutation.mutate(); }} className="p-6 space-y-4">
+              {/* Customer Info Header Card */}
+              <div className="p-3.5 bg-emerald-50/60 border border-emerald-100 rounded-xl space-y-1.5 text-xs">
+                <div className="font-bold text-emerald-950 text-sm">{selectedCustomerForPayment.customerName}</div>
+                <div className="flex justify-between text-emerald-800 font-medium">
+                  <span>Customer Code:</span>
+                  <span className="font-mono font-bold">{selectedCustomerForPayment.customerCode}</span>
+                </div>
+                <div className="flex justify-between text-emerald-900 font-bold border-t border-emerald-200/60 pt-1.5 mt-1">
+                  <span>Current Outstanding Balance:</span>
+                  <span className="text-emerald-950">₹{(selectedCustomerForPayment.outstandingPlaceholder || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+
+              {/* Amount to Collect */}
+              <div className="flex flex-col">
+                <div className="flex justify-between items-center mb-1">
+                  <PremiumLabel label="Amount to Collect (₹) *" />
+                  <span className="text-[11px] font-bold text-slate-500">
+                    Max collectible: ₹{(selectedCustomerForPayment.outstandingPlaceholder || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={selectedCustomerForPayment.outstandingPlaceholder || 0}
+                  value={paymentAmount}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value)
+                    const maxVal = selectedCustomerForPayment.outstandingPlaceholder || 0
+                    if (!isNaN(val) && val > maxVal) {
+                      setPaymentAmount(maxVal.toString())
+                      showToast(`Collection amount cannot exceed the current outstanding balance of ₹${maxVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 'warning')
+                    } else {
+                      setPaymentAmount(e.target.value)
+                    }
+                  }}
+                  placeholder="0.00"
+                  className="w-full h-[40px] px-3.5 border border-slate-200 text-sm font-bold rounded-lg focus:outline-none focus:border-emerald-500"
+                  required
+                />
+              </div>
+
+              {/* Payment Method */}
+              <div className="flex flex-col">
+                <PremiumLabel label="Payment Method *" />
+                <div className="flex gap-2">
+                  {(['Cash', 'Bank'] as const).map(m => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setPaymentMethod(m)}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${paymentMethod === m ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Cash Register Selection */}
+              {paymentMethod === 'Cash' && (
+                <div className="flex flex-col">
+                  <PremiumLabel label="Deposit to Cash Register *" />
+                  <select
+                    value={paymentCashBookId}
+                    onChange={(e) => setPaymentCashBookId(e.target.value)}
+                    className="w-full h-[40px] px-3 border border-slate-200 text-sm bg-white rounded-lg focus:outline-none cursor-pointer"
+                    required
+                  >
+                    <option value="">Select Cash Register...</option>
+                    {cashRegisters.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Bank Account Selection */}
+              {paymentMethod !== 'Cash' && (
+                <div className="flex flex-col">
+                  <PremiumLabel label="Deposit to Bank Account *" />
+                  <select
+                    value={paymentBankAccountId}
+                    onChange={(e) => setPaymentBankAccountId(e.target.value)}
+                    className="w-full h-[40px] px-3 border border-slate-200 text-sm bg-white rounded-lg focus:outline-none cursor-pointer"
+                    required
+                  >
+                    <option value="">Select Bank Account...</option>
+                    {banks.map(b => (
+                      <option key={b.id} value={b.id}>{b.bankName} — {b.accountNumber}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Reference # */}
+              <div className="flex flex-col">
+                <PremiumLabel label="Reference / Receipt #" />
+                <input
+                  type="text"
+                  value={paymentRef}
+                  onChange={(e) => setPaymentRef(e.target.value)}
+                  placeholder="PAY-2026..."
+                  className="w-full h-[40px] px-3.5 border border-slate-200 text-sm rounded-lg focus:outline-none"
+                />
+              </div>
+
+              {/* Remarks */}
+              <div className="flex flex-col">
+                <PremiumLabel label="Remarks" />
+                <input
+                  type="text"
+                  value={paymentRemarks}
+                  onChange={(e) => setPaymentRemarks(e.target.value)}
+                  placeholder="Notes, cheque number, transaction ID..."
+                  className="w-full h-[40px] px-3.5 border border-slate-200 text-sm rounded-lg focus:outline-none"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPaymentModalOpen(false)}
+                  className="flex-1 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={recordPaymentMutation.isPending}
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {recordPaymentMutation.isPending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <span>Record Payment</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
+  )
+
   const totalPages = customerData?.totalPages || 0
   const customers = customerData?.items || []
 
   if (customerId) {
     return (
-      <CustomerProfilePage 
-        customerId={customerId} 
-        onEditCustomer={handleOpenEditDrawer} 
-      />
+      <>
+        <CustomerProfilePage 
+          customerId={customerId} 
+          onEditCustomer={handleOpenEditDrawer} 
+          onCollectPayment={handleOpenRecordPaymentModal}
+        />
+        {renderModalsAndDrawers()}
+      </>
     )
   }
 
@@ -914,6 +1167,7 @@ export const CustomersPage: React.FC = () => {
                   <th className="py-2 px-4">Business Name</th>
                   <th className="py-2 px-4">Type</th>
                   <th className="py-2 px-4">Phone</th>
+                  <th className="py-2 px-4 text-right">Outstanding</th>
                   <th className="py-2 px-4 text-center">Status</th>
                   <th className="py-2 px-4 text-right">Actions</th>
                 </tr>
@@ -944,6 +1198,9 @@ export const CustomersPage: React.FC = () => {
                     <td className="py-3.5 px-4 font-mono">
                       {c.phone}
                     </td>
+                    <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-800">
+                      ₹{(c.outstandingPlaceholder || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </td>
                     <td className="py-3.5 px-4 text-center">
                       <button
                         onClick={() => handleToggleActive(c)}
@@ -959,6 +1216,17 @@ export const CustomersPage: React.FC = () => {
                     </td>
                     <td className="py-3.5 px-4 text-right whitespace-nowrap">
                       <div className="flex gap-1.5 justify-end">
+                        {/* RECORD PAYMENT */}
+                        {canWrite && (c.outstandingPlaceholder || 0) > 0 && (
+                          <button 
+                            onClick={() => handleOpenRecordPaymentModal(c)}
+                            className="p-1 hover:bg-emerald-50 hover:text-emerald-700 text-emerald-600 rounded transition-colors cursor-pointer"
+                            title="Record Payment / Collect Outstanding"
+                          >
+                            <Wallet className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
                         {/* VIEW */}
                         <button 
                           onClick={() => navigate(`/company/customers/profile/${c.id}`)}
@@ -1548,17 +1816,7 @@ export const CustomersPage: React.FC = () => {
         </div>
       )}
 
-      {/* PRINT PREVIEW MODAL */}
-      {printModalOpen && printDocData && (
-        <PrintPreviewModal
-          isOpen={printModalOpen}
-          onClose={() => {
-            setPrintModalOpen(false)
-            setPrintDocData(null)
-          }}
-          documentData={printDocData}
-        />
-      )}
+      {renderModalsAndDrawers()}
     </PageContainer>
   )
 }

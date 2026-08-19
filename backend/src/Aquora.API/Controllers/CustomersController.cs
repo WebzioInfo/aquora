@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Aquora.Application.Interfaces;
+using Aquora.Application.Interfaces.Services;
 using Aquora.Application.DTOs.Customers;
 using Aquora.Domain.Entities;
 using Aquora.Shared.Models;
@@ -20,12 +21,18 @@ namespace Aquora.API.Controllers
     {
         private readonly ITenantDbContext _tenantContext;
         private readonly ICurrentUserContext _currentUserContext;
+        private readonly ILedgerService _ledgerService;
         private readonly ILogger<CustomersController> _logger;
 
-        public CustomersController(ITenantDbContext tenantContext, ICurrentUserContext currentUserContext, ILogger<CustomersController> logger)
+        public CustomersController(
+            ITenantDbContext tenantContext,
+            ICurrentUserContext currentUserContext,
+            ILedgerService ledgerService,
+            ILogger<CustomersController> logger)
         {
             _tenantContext = tenantContext;
             _currentUserContext = currentUserContext;
+            _ledgerService = ledgerService;
             _logger = logger;
         }
 
@@ -849,5 +856,284 @@ namespace Aquora.API.Controllers
                 return Failure<bool>(ex.Message, "Failed to delete customer.");
             }
         }
+
+        [HttpPost("{id}/payments")]
+        public async Task<ActionResult<ApiResponse<CustomerDto>>> RecordCustomerPayment(Guid id, [FromBody] RecordCustomerPaymentRequest request)
+        {
+            if (!IsAuthorizedToWrite())
+            {
+                return StatusCode(403, ApiResponse<CustomerDto>.CreateFailure("You do not have permission to perform this action.", "Forbidden", HttpContext.TraceIdentifier));
+            }
+
+            if (request == null || request.Amount <= 0)
+            {
+                return BadRequest(ApiResponse<CustomerDto>.CreateFailure("Payment amount must be greater than zero.", "Validation Error", HttpContext.TraceIdentifier));
+            }
+
+            var dbContext = _tenantContext as DbContext;
+            if (dbContext == null)
+            {
+                return BadRequest(ApiResponse<CustomerDto>.CreateFailure("Database context is invalid.", "Infrastructure Error", HttpContext.TraceIdentifier));
+            }
+
+            using var dbTransaction = await dbContext.Database.BeginTransactionAsync();
+            try
+            {
+                var tenantId = _currentUserContext.TenantId;
+                var customer = await _tenantContext.Customers.FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId && !c.IsDeleted);
+                if (customer == null)
+                {
+                    return NotFound(ApiResponse<CustomerDto>.CreateFailure("Customer not found.", "Not Found", HttpContext.TraceIdentifier));
+                }
+
+                // Check authoritative outstanding balance
+                if (customer.OutstandingPlaceholder <= 0)
+                {
+                    return BadRequest(ApiResponse<CustomerDto>.CreateFailure("Customer has no outstanding balance to collect.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                if (request.Amount > customer.OutstandingPlaceholder)
+                {
+                    return BadRequest(ApiResponse<CustomerDto>.CreateFailure($"Collection amount (₹{request.Amount:N2}) cannot exceed current customer outstanding balance of ₹{customer.OutstandingPlaceholder:N2}.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                var paymentMethod = string.IsNullOrWhiteSpace(request.PaymentMethod) ? "Cash" : request.PaymentMethod.Trim();
+                var isBank = IsBankPaymentMethod(paymentMethod);
+                var isCash = paymentMethod.Equals("Cash", StringComparison.OrdinalIgnoreCase);
+
+                if (!isCash && !isBank)
+                {
+                    return BadRequest(ApiResponse<CustomerDto>.CreateFailure("Collection payment method must be Cash or Bank.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                if (isBank && (!request.BankAccountId.HasValue || request.BankAccountId.Value == Guid.Empty))
+                {
+                    var firstBank = await _tenantContext.BankAccounts.FirstOrDefaultAsync(b => b.TenantId == tenantId && !b.IsDeleted);
+                    if (firstBank != null) request.BankAccountId = firstBank.Id;
+                    else return BadRequest(ApiResponse<CustomerDto>.CreateFailure("Company Bank Account is required for bank/electronic payment.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                if (paymentMethod.Equals("Cash", StringComparison.OrdinalIgnoreCase) && (!request.CashBookId.HasValue || request.CashBookId.Value == Guid.Empty))
+                {
+                    var firstCash = await _tenantContext.CashBooks.FirstOrDefaultAsync(c => c.TenantId == tenantId && !c.IsDeleted);
+                    if (firstCash != null) request.CashBookId = firstCash.Id;
+                    else return BadRequest(ApiResponse<CustomerDto>.CreateFailure("Company Cash Register is required for cash payment.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                var randomCode = new Random().Next(1000, 9999);
+                var paymentRef = string.IsNullOrWhiteSpace(request.ReferenceNumber) ? $"PAY-{DateTime.UtcNow:yyyyMMdd}-{randomCode}" : request.ReferenceNumber.Trim();
+
+                // Update Customer Balance
+                customer.OutstandingPlaceholder = Math.Max(0m, customer.OutstandingPlaceholder - request.Amount);
+
+                // Append Customer Ledger Entry
+                AppendCustomerLedgerEntry(customer, "Customer Payment Received", paymentRef, 0m, request.Amount, customer.OutstandingPlaceholder);
+
+                // FIFO allocation to customer's open credit sales transactions
+                var openSales = await _tenantContext.SalesTransactions
+                    .Where(t => t.TenantId == tenantId && t.CustomerId == id && !t.IsDeleted && (t.PaymentStatus == "Pending" || t.PaymentStatus == "Partial" || t.PaymentStatus == "Partially Paid" || t.OutstandingAmount > 0))
+                    .OrderBy(t => t.TransactionDate)
+                    .ThenBy(t => t.CreatedAt)
+                    .ToListAsync();
+
+                decimal remainingPayment = request.Amount;
+                foreach (var sale in openSales)
+                {
+                    if (remainingPayment <= 0) break;
+
+                    decimal saleTotal = sale.TotalAmount;
+                    decimal currentPaid = sale.AmountReceived;
+                    decimal currentOutstanding = sale.OutstandingAmount > 0 ? sale.OutstandingAmount : Math.Max(0m, saleTotal - currentPaid);
+
+                    if (currentOutstanding <= 0) continue;
+
+                    decimal alloc = Math.Min(remainingPayment, currentOutstanding);
+                    sale.AmountReceived += alloc;
+                    sale.OutstandingAmount = Math.Max(0m, saleTotal - sale.AmountReceived);
+                    sale.PaymentStatus = sale.OutstandingAmount <= 0 ? "Paid" : "Partially Paid";
+
+                    _tenantContext.SalesTransactions.Update(sale);
+                    remainingPayment -= alloc;
+                }
+
+                _tenantContext.Customers.Update(customer);
+                await _tenantContext.SaveChangesAsync();
+
+                // Post to Bank Ledger or Cash Register
+                if (isBank && request.BankAccountId.HasValue)
+                {
+                    await _ledgerService.RecordTransactionAsync(
+                        request.BankAccountId.Value,
+                        request.PaymentDate != default ? request.PaymentDate : DateTime.UtcNow,
+                        paymentRef,
+                        "Customer Collection",
+                        $"Customer payment received from {customer.CustomerName}. Ref: {paymentRef}",
+                        0m,
+                        request.Amount,
+                        customer.Id,
+                        "CustomerPayment");
+                }
+                else if (paymentMethod.Equals("Cash", StringComparison.OrdinalIgnoreCase) && request.CashBookId.HasValue)
+                {
+                    await _ledgerService.RecordCashTransactionAsync(
+                        request.CashBookId.Value,
+                        request.PaymentDate != default ? request.PaymentDate : DateTime.UtcNow,
+                        paymentRef,
+                        "Customer Collection",
+                        $"Customer payment received from {customer.CustomerName}. Ref: {paymentRef}",
+                        0m,
+                        request.Amount,
+                        customer.Id,
+                        "CustomerPayment");
+                }
+
+                await dbTransaction.CommitAsync();
+
+                var dto = MapCustomerToDto(customer);
+                return Success(dto, $"Payment of ₹{request.Amount:N2} recorded successfully for {customer.CustomerName}.");
+            }
+            catch (Exception ex)
+            {
+                await dbTransaction.RollbackAsync();
+                _logger.LogError(ex, "Failed to record customer payment for customer {CustomerId}", id);
+                return Failure<CustomerDto>(ex.Message, "Failed to record customer payment.");
+            }
+        }
+
+        private static bool IsBankPaymentMethod(string? paymentMethod)
+        {
+            var method = paymentMethod?.Trim();
+            return method != null &&
+                (method.Equals("Bank", StringComparison.OrdinalIgnoreCase) ||
+                 method.Equals("BankAccount", StringComparison.OrdinalIgnoreCase) ||
+                 method.Equals("UPI", StringComparison.OrdinalIgnoreCase) ||
+                 method.Equals("Cheque", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void AppendCustomerLedgerEntry(Customer customer, string type, string refNo, decimal debit, decimal credit, decimal balance)
+        {
+            var list = new List<CustomerLedgerEntry>();
+            if (!string.IsNullOrWhiteSpace(customer.LedgerPlaceholder))
+            {
+                try
+                {
+                    list = System.Text.Json.JsonSerializer.Deserialize<List<CustomerLedgerEntry>>(customer.LedgerPlaceholder) ?? new List<CustomerLedgerEntry>();
+                }
+                catch {}
+            }
+
+            list.Add(new CustomerLedgerEntry
+            {
+                Date = DateTime.UtcNow,
+                TransactionType = type,
+                Reference = refNo,
+                Debit = debit,
+                Credit = credit,
+                Balance = balance
+            });
+
+            customer.LedgerPlaceholder = System.Text.Json.JsonSerializer.Serialize(list);
+        }
+
+        private CustomerDto MapCustomerToDto(Customer customer)
+        {
+            return new CustomerDto
+            {
+                Id = customer.Id,
+                CompanyId = customer.CompanyId,
+                CustomerCode = customer.CustomerCode,
+                CustomerType = customer.CustomerType,
+                CustomerName = customer.CustomerName,
+                BusinessName = customer.BusinessName,
+                ContactPerson = customer.ContactPerson,
+                Phone = customer.Phone,
+                AlternatePhone = customer.AlternatePhone,
+                Email = customer.Email,
+                GSTNumber = customer.GSTNumber,
+                PANNumber = customer.PANNumber,
+                BusinessType = customer.BusinessType,
+                GSTState = customer.GSTState,
+                AddressLine1 = customer.AddressLine1,
+                AddressLine2 = customer.AddressLine2,
+                City = customer.City,
+                District = customer.District,
+                State = customer.State,
+                Country = customer.Country,
+                PinCode = customer.PinCode,
+                OpeningBalance = customer.OpeningBalance,
+                BalanceType = customer.BalanceType,
+                CreditLimit = customer.CreditLimit,
+                PaymentTerms = customer.PaymentTerms,
+                Status = customer.Status,
+                IsActive = customer.IsActive,
+                Remarks = customer.Remarks,
+                CreatedAt = customer.CreatedAt,
+                UpdatedAt = customer.UpdatedAt,
+                WhatsApp = customer.WhatsApp,
+                Website = customer.Website,
+                PhotoUrl = customer.PhotoUrl,
+                BusinessRegistration = customer.BusinessRegistration,
+                BusinessCategory = customer.BusinessCategory,
+                Industry = customer.Industry,
+                TradeLicense = customer.TradeLicense,
+                TaxExempt = customer.TaxExempt,
+                AddressesJson = customer.AddressesJson,
+                PriceList = customer.PriceList,
+                DiscountGroup = customer.DiscountGroup,
+                Price = customer.Price,
+                Discount = customer.Discount,
+                TaxCategory = customer.TaxCategory,
+                OutstandingPlaceholder = customer.OutstandingPlaceholder,
+                LedgerPlaceholder = customer.LedgerPlaceholder,
+                AccountingPlaceholder = customer.AccountingPlaceholder,
+                DistributorType = customer.DistributorType,
+                CommissionPercentage = customer.CommissionPercentage,
+                MonthlySalary = customer.MonthlySalary,
+                SecurityDeposit = customer.SecurityDeposit,
+                AssignedRoute = customer.AssignedRoute,
+                AssignedVehicle = customer.AssignedVehicle,
+                AssignedDriver = customer.AssignedDriver,
+                AssignedSalesExecutive = customer.AssignedSalesExecutive,
+                DefaultDeliveryPriority = customer.DefaultDeliveryPriority,
+                WorkingArea = customer.WorkingArea,
+                WorkingDays = customer.WorkingDays,
+                JarDeposit = customer.JarDeposit,
+                OutstandingJars = customer.OutstandingJars,
+                MaxJarLimit = customer.MaxJarLimit,
+                ReservedEmptyJars = customer.ReservedEmptyJars,
+                PreferredJarBrand = customer.PreferredJarBrand,
+                PreferredCapMaterial = customer.PreferredCapMaterial,
+                SealRequired = customer.SealRequired,
+                PreferredDeliveryWindow = customer.PreferredDeliveryWindow,
+                EmergencyDelivery = customer.EmergencyDelivery,
+                PriorityCustomer = customer.PriorityCustomer,
+                PreferredProductsJson = customer.PreferredProductsJson,
+                PreferredDeliveryTime = customer.PreferredDeliveryTime,
+                DeliveryFrequency = customer.DeliveryFrequency,
+                ContactsJson = customer.ContactsJson,
+                DocumentsJson = customer.DocumentsJson
+            };
+        }
+    }
+
+    public class CustomerLedgerEntry
+    {
+        public DateTime Date { get; set; }
+        public string TransactionType { get; set; } = string.Empty;
+        public string Reference { get; set; } = string.Empty;
+        public decimal Debit { get; set; }
+        public decimal Credit { get; set; }
+        public decimal Balance { get; set; }
+    }
+
+    public class RecordCustomerPaymentRequest
+    {
+        public decimal Amount { get; set; }
+        public string PaymentMethod { get; set; } = "Cash";
+        public Guid? BankAccountId { get; set; }
+        public Guid? CashBookId { get; set; }
+        public DateTime PaymentDate { get; set; } = DateTime.UtcNow;
+        public string? ReferenceNumber { get; set; }
+        public string? Remarks { get; set; }
     }
 }
