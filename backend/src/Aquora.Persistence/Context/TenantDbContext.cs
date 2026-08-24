@@ -261,6 +261,28 @@ namespace Aquora.Persistence.Context
                 .HasIndex(p => p.SKU)
                 .IsUnique();
 
+            // CaseConfiguration configuration
+            modelBuilder.Entity<CaseConfiguration>(entity =>
+            {
+                entity.HasOne(c => c.Product)
+                      .WithMany()
+                      .HasForeignKey(c => c.ProductId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(c => new { c.TenantId, c.ProductId, c.IsDeleted, c.IsActive });
+            });
+
+            // SalesTransaction parent-child relationship configuration
+            modelBuilder.Entity<SalesTransaction>(entity =>
+            {
+                entity.HasOne(s => s.ParentTransaction)
+                      .WithMany()
+                      .HasForeignKey(s => s.ParentTransactionId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(s => s.ParentTransactionId);
+            });
+
             // RawMaterial configuration
             modelBuilder.Entity<RawMaterial>()
                 .HasIndex(rm => rm.Name)

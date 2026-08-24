@@ -28,6 +28,7 @@ namespace Aquora.API.Controllers
         private readonly IPlatformDbContext _platformContext;
         private readonly IHubContext<DashboardHub> _dashboardHub;
         private readonly ILedgerService _ledgerService;
+        private readonly ITenantProvider _tenantProvider;
 
         public SalesController(
             ITenantDbContext tenantContext,
@@ -35,7 +36,8 @@ namespace Aquora.API.Controllers
             IInventoryMovementService inventoryMovementService,
             IPlatformDbContext platformContext,
             IHubContext<DashboardHub> dashboardHub,
-            ILedgerService ledgerService)
+            ILedgerService ledgerService,
+            ITenantProvider tenantProvider)
         {
             _tenantContext = tenantContext;
             _currentUserContext = currentUserContext;
@@ -43,6 +45,7 @@ namespace Aquora.API.Controllers
             _platformContext = platformContext;
             _dashboardHub = dashboardHub;
             _ledgerService = ledgerService;
+            _tenantProvider = tenantProvider;
         }
 
         private async Task NotifyDashboardAsync(string eventName, object? data = null)
@@ -75,9 +78,7 @@ namespace Aquora.API.Controllers
         }
         private bool IsAuthorizedToWrite()
         {
-            var isOwner = _currentUserContext.Roles.Any(r => r.Equals("Owner", StringComparison.OrdinalIgnoreCase) || r.Equals("CompanyOwner", StringComparison.OrdinalIgnoreCase));
-            if (isOwner) return false;
-            var allowedRoles = new[] { "CompanyAdmin", "Admin", "Manager" };
+            var allowedRoles = new[] { "Owner", "CompanyOwner", "SuperAdmin", "PlatformAdmin", "CompanyAdmin", "Admin", "Manager", "Sales" };
             return _currentUserContext.Roles.Any(r => allowedRoles.Contains(r, StringComparer.OrdinalIgnoreCase));
         }
 
@@ -85,9 +86,9 @@ namespace Aquora.API.Controllers
 
         private async Task EnsureCustomerColumnsAsync()
         {
-            var schema = string.IsNullOrWhiteSpace(_tenantContext.SchemaName)
-                ? "public"
-                : _tenantContext.SchemaName;
+            var schema = !string.IsNullOrWhiteSpace(_tenantProvider.TenantSchemaName)
+                ? _tenantProvider.TenantSchemaName
+                : (!string.IsNullOrWhiteSpace(_tenantContext.SchemaName) ? _tenantContext.SchemaName : "public");
 
             if (_healedSalesCustomerSchemas.ContainsKey(schema)) return;
 
@@ -96,13 +97,15 @@ namespace Aquora.API.Controllers
                 var sql = $@"
                     ALTER TABLE ""{schema}"".""Customers"" ADD COLUMN IF NOT EXISTS ""Price"" numeric NOT NULL DEFAULT 0;
                     ALTER TABLE ""{schema}"".""Customers"" ADD COLUMN IF NOT EXISTS ""Discount"" numeric NOT NULL DEFAULT 0;
+                    ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""ParentTransactionId"" uuid NULL;
+                    CREATE INDEX IF NOT EXISTS ""IX_SalesTransactions_ParentTransactionId"" ON ""{schema}"".""SalesTransactions"" (""ParentTransactionId"");
                 ";
                 await _tenantContext.Database.ExecuteSqlRawAsync(sql);
                 _healedSalesCustomerSchemas.TryAdd(schema, true);
             }
-            catch
+            catch (Exception ex)
             {
-                // Self-heal attempt completed
+                Console.WriteLine($"[SALES DB HEAL WARNING]: {ex.Message}");
             }
         }
 
@@ -150,9 +153,14 @@ namespace Aquora.API.Controllers
                     query = query.Where(t => t.CustomerId == customer.Value);
                 }
 
-                if (!string.IsNullOrWhiteSpace(type))
+                if (!string.IsNullOrWhiteSpace(type) && !type.Equals("All", StringComparison.OrdinalIgnoreCase) && !type.Equals("All Types", StringComparison.OrdinalIgnoreCase))
                 {
                     query = query.Where(t => t.TransactionType == type);
+                }
+                else if (string.IsNullOrWhiteSpace(search))
+                {
+                    // Default collapsed register mode (All Types): Show only root parent transactions (where ParentTransactionId == null)
+                    query = query.Where(t => t.ParentTransactionId == null);
                 }
 
                 if (!string.IsNullOrWhiteSpace(status))
@@ -170,14 +178,14 @@ namespace Aquora.API.Controllers
                     query = query.Where(t => t.TransactionDate <= endDate.Value.ToUniversalTime());
                 }
 
-                // Sorting
+                // Sorting by actual creation timestamp (newest created first)
                 if (sort == "oldest")
                 {
-                    query = query.OrderBy(t => t.TransactionDate).ThenBy(t => t.Id);
+                    query = query.OrderBy(t => t.CreatedAt).ThenBy(t => t.TransactionDate).ThenBy(t => t.Id);
                 }
                 else
                 {
-                    query = query.OrderByDescending(t => t.TransactionDate).ThenByDescending(t => t.Id);
+                    query = query.OrderByDescending(t => t.CreatedAt).ThenByDescending(t => t.TransactionDate).ThenByDescending(t => t.Id);
                 }
 
                 var totalCount = await query.CountAsync();
@@ -185,6 +193,14 @@ namespace Aquora.API.Controllers
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
                     .ToListAsync();
+
+                // Calculate related child counts for parent dispatches in current page
+                var parentIds = items.Select(t => t.Id).ToList();
+                var childCounts = await _tenantContext.SalesTransactions
+                    .Where(t => t.ParentTransactionId.HasValue && parentIds.Contains(t.ParentTransactionId.Value) && !t.IsDeleted)
+                    .GroupBy(t => t.ParentTransactionId!.Value)
+                    .Select(g => new { ParentId = g.Key, Count = g.Count() })
+                    .ToDictionaryAsync(x => x.ParentId, x => x.Count);
 
                 // Look up user names to display who created it
                 var creatorIds = items
@@ -211,6 +227,8 @@ namespace Aquora.API.Controllers
                     ProductId = t.ProductId,
                     ProductName = t.Product?.Name ?? "Unknown Product",
                     ProductSku = t.Product?.SKU ?? string.Empty,
+                    ParentTransactionId = t.ParentTransactionId,
+                    RelatedCount = childCounts.TryGetValue(t.Id, out var rCount) ? rCount : 0,
                     Cases = t.Cases,
                     TransactionType = t.TransactionType,
                     TransactionDate = t.TransactionDate,
@@ -377,6 +395,42 @@ namespace Aquora.API.Controllers
                     return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Company not found.", "Validation Error", HttpContext.TraceIdentifier));
                 }
 
+                SalesTransaction? parentDispatch = null;
+                if (request.TransactionType == "Customer Return" || request.TransactionType == "Damage" || request.TransactionType == "Damaged Goods")
+                {
+                    if (!request.ParentTransactionId.HasValue || request.ParentTransactionId.Value == Guid.Empty)
+                    {
+                        return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure($"Parent Sales Dispatch is required for creating a {request.TransactionType}.", "Validation Error", HttpContext.TraceIdentifier));
+                    }
+
+                    parentDispatch = await _tenantContext.SalesTransactions
+                        .Include(s => s.Customer)
+                        .Include(s => s.Product)
+                        .FirstOrDefaultAsync(s => s.Id == request.ParentTransactionId.Value && s.TenantId == tenantId && !s.IsDeleted);
+
+                    if (parentDispatch == null || !string.Equals(parentDispatch.TransactionType, "Sales Dispatch", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Associated Sales Dispatch transaction not found or invalid.", "Validation Error", HttpContext.TraceIdentifier));
+                    }
+
+                    request.CustomerId = parentDispatch.CustomerId;
+                    request.ProductId = parentDispatch.ProductId;
+
+                    // Calculate existing returns/damages against parent
+                    var existingChildCases = await _tenantContext.SalesTransactions
+                        .Where(s => s.ParentTransactionId == parentDispatch.Id && !s.IsDeleted)
+                        .SumAsync(s => Math.Abs(s.Cases));
+
+                    var remainingCases = Math.Abs(parentDispatch.Cases) - existingChildCases;
+                    if (Math.Abs(request.Cases) > (remainingCases + 0.0001m))
+                    {
+                        return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure(
+                            $"Requested {request.TransactionType} of {Math.Abs(request.Cases)} cases exceeds available remaining quantity of {remainingCases} cases on Sales Dispatch {parentDispatch.TransactionNumber} (Original: {Math.Abs(parentDispatch.Cases)}, Processed: {existingChildCases}).",
+                            "Over-Return Error",
+                            HttpContext.TraceIdentifier));
+                    }
+                }
+
                 // Load customer
                 var customer = await _tenantContext.Customers.FirstOrDefaultAsync(c => c.Id == request.CustomerId && c.TenantId == tenantId && !c.IsDeleted);
                 if (customer == null && (request.TransactionType == "Sales Dispatch" || request.TransactionType == "Customer Return" || request.TransactionType == "Free Sample"))
@@ -517,10 +571,23 @@ namespace Aquora.API.Controllers
                 }
                 else if (request.TransactionType == "Customer Return")
                 {
-                    returnedAmount = request.ReturnedAmount;
-                    refundAmount = request.RefundAmount;
-                    adjustmentAmount = request.AdjustmentAmount > 0 ? request.AdjustmentAmount : Math.Max(0m, returnedAmount - refundAmount);
-                    returnType = request.ReturnType ?? "Customer Return";
+                    decimal calculatedReturn = Math.Abs(request.Cases) * (request.UnitPrice > 0 ? request.UnitPrice : product.SellingPrice);
+                    returnedAmount = calculatedReturn > 0 ? calculatedReturn : (request.ReturnedAmount > 0 ? request.ReturnedAmount : 0m);
+
+                    var isRefundSettlement = string.Equals(request.SettlementMethod, "Refund", StringComparison.OrdinalIgnoreCase) ||
+                        request.PaymentMethod == "Cash" || request.PaymentMethod == "Bank" || request.ReturnType == "Cash" || request.ReturnType == "Bank";
+
+                    if (isRefundSettlement)
+                    {
+                        refundAmount = returnedAmount;
+                        adjustmentAmount = 0m;
+                    }
+                    else // Deduct from Customer Credit / Credit Note / Account Adjustment
+                    {
+                        refundAmount = 0m;
+                        adjustmentAmount = returnedAmount;
+                    }
+                    returnType = !string.IsNullOrWhiteSpace(request.ReturnType) ? request.ReturnType : (request.PaymentMethod ?? "Credit Note");
 
                     // Reduce customer balance if credit-note/receivable adjustments
                     if (adjustmentAmount > 0)
@@ -550,14 +617,27 @@ namespace Aquora.API.Controllers
                     journalLines.Add((salesReturnAccount, returnedAmount, 0m, $"Customer returns: {txnNumber}"));
                     journalLines.Add((creditAccount, 0m, returnedAmount, $"Returns refund settlement: {txnNumber}"));
 
-                    decimal cost = request.Cases * product.CostPrice;
-                    if (cost > 0)
-                    {
-                        journalLines.Add((inventoryAccount, cost, 0m, $"Restoring stock: {txnNumber}"));
-                        journalLines.Add((cogsAccount, 0m, cost, $"COGS credit reversal: {txnNumber}"));
-                    }
+                    var isDamagedReturn = !string.IsNullOrWhiteSpace(request.ReturnCondition) &&
+                        (request.ReturnCondition.StartsWith("Damaged", StringComparison.OrdinalIgnoreCase) ||
+                         request.ReturnCondition.StartsWith("Reject", StringComparison.OrdinalIgnoreCase) ||
+                         request.ReturnCondition.StartsWith("No Restock", StringComparison.OrdinalIgnoreCase));
 
-                    stockAdjustment = request.Cases;
+                    if (isDamagedReturn)
+                    {
+                        // Damaged goods: Do NOT increase sellable stock
+                        stockAdjustment = 0;
+                    }
+                    else
+                    {
+                        // Good / Restock: Increase sellable inventory
+                        decimal cost = request.Cases * product.CostPrice;
+                        if (cost > 0)
+                        {
+                            journalLines.Add((inventoryAccount, cost, 0m, $"Restoring stock: {txnNumber}"));
+                            journalLines.Add((cogsAccount, 0m, cost, $"COGS credit reversal: {txnNumber}"));
+                        }
+                        stockAdjustment = Math.Abs(request.Cases);
+                    }
                 }
                 else if (request.TransactionType == "Damage" || request.TransactionType == "Damaged Goods")
                 {
@@ -631,6 +711,7 @@ namespace Aquora.API.Controllers
                     TransactionNumber = txnNumber,
                     CustomerId = customer.Id,
                     ProductId = request.ProductId,
+                    ParentTransactionId = request.ParentTransactionId,
                     Cases = request.Cases,
                     TransactionType = request.TransactionType,
                     TransactionDate = request.TransactionDate.ToUniversalTime(),
@@ -659,7 +740,8 @@ namespace Aquora.API.Controllers
                     ProductValue = productValue,
                     DamageCost = damageCost,
                     DamageReason = damageReason,
-                    CreatedBy = currentUserId
+                    CreatedBy = currentUserId,
+                    CreatedAt = DateTime.UtcNow
                 };
 
                 // Apply general ledger journal entries
@@ -1246,6 +1328,18 @@ namespace Aquora.API.Controllers
                 }
 
                 // 1. REVERSE GL ENTRIES & BANK LEDGERS
+                if (string.Equals(transaction.TransactionType, "Sales Dispatch", StringComparison.OrdinalIgnoreCase))
+                {
+                    var hasChildren = await _tenantContext.SalesTransactions
+                        .AnyAsync(s => s.ParentTransactionId == id && !s.IsDeleted);
+
+                    if (hasChildren)
+                    {
+                        return BadRequest(ApiResponse<object>.CreateFailure("Cannot delete this Sales Dispatch because active Returns or Damages are linked to it. Reverse the child transactions first.", "Validation Error", HttpContext.TraceIdentifier));
+                    }
+                }
+
+                // 1. REVERSE JOURNAL ENTRIES AND LEDGER
                 var journalEntry = await _tenantContext.JournalEntries
                     .Include(j => j.Lines)
                     .FirstOrDefaultAsync(j => j.ReferenceNumber == transaction.TransactionNumber && j.TenantId == tenantId);
@@ -1321,6 +1415,131 @@ namespace Aquora.API.Controllers
             {
                 await dbTransaction.RollbackAsync();
                 return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Transaction Failed", HttpContext.TraceIdentifier));
+            }
+        }
+
+        [HttpGet("{id}/history")]
+        public async Task<ActionResult<ApiResponse<object>>> GetDispatchHistory(Guid id)
+        {
+            try
+            {
+                await EnsureCustomerColumnsAsync();
+                var tenantId = _currentUserContext.TenantId;
+                var target = await _tenantContext.SalesTransactions
+                    .Include(t => t.Customer)
+                    .Include(t => t.Product)
+                    .FirstOrDefaultAsync(t => t.Id == id && t.TenantId == tenantId && !t.IsDeleted);
+
+                if (target == null)
+                {
+                    return NotFound(ApiResponse<object>.CreateFailure("Sales transaction not found.", "Not Found", HttpContext.TraceIdentifier));
+                }
+
+                // If target is a child transaction (e.g. Return or Damage), resolve its parent dispatch
+                var parent = target;
+                if (target.ParentTransactionId.HasValue)
+                {
+                    id = target.ParentTransactionId.Value;
+                    parent = await _tenantContext.SalesTransactions
+                        .Include(t => t.Customer)
+                        .Include(t => t.Product)
+                        .FirstOrDefaultAsync(t => t.Id == id && t.TenantId == tenantId && !t.IsDeleted);
+
+                    if (parent == null)
+                    {
+                        return NotFound(ApiResponse<object>.CreateFailure("Parent Sales Dispatch not found.", "Not Found", HttpContext.TraceIdentifier));
+                    }
+                }
+
+                var children = await _tenantContext.SalesTransactions
+                    .Include(t => t.Customer)
+                    .Include(t => t.Product)
+                    .Where(t => t.ParentTransactionId == id && t.TenantId == tenantId && !t.IsDeleted)
+                    .OrderBy(t => t.CreatedAt)
+                    .ToListAsync();
+
+                var usersDict = await _tenantContext.Users.ToDictionaryAsync(
+                    u => u.Id.ToString(), 
+                    u => !string.IsNullOrWhiteSpace(u.FirstName) ? $"{u.FirstName} {u.LastName}".Trim() : (u.Username ?? u.Email));
+
+                decimal returnedCases = children.Where(c => c.TransactionType == "Customer Return").Sum(c => Math.Abs(c.Cases));
+                decimal damagedCases = children.Where(c => c.TransactionType == "Damage" || c.TransactionType == "Damaged Goods").Sum(c => Math.Abs(c.Cases));
+                decimal originalCases = Math.Abs(parent.Cases);
+                decimal remainingCases = Math.Max(0, originalCases - (returnedCases + damagedCases));
+
+                var items = new List<(Guid id, DateTime date, DateTime createdAt, string transactionNumber, string transactionType, decimal cases, decimal totalAmount, string? paymentMethod, string status, string createdBy, bool isParent)>
+                {
+                    (
+                        parent.Id,
+                        parent.TransactionDate,
+                        parent.CreatedAt,
+                        parent.TransactionNumber,
+                        parent.TransactionType,
+                        Math.Abs(parent.Cases),
+                        parent.TotalAmount,
+                        parent.PaymentMethod,
+                        parent.Status,
+                        usersDict.TryGetValue(parent.CreatedBy, out var pUser) ? pUser : parent.CreatedBy,
+                        true
+                    )
+                };
+
+                foreach (var child in children)
+                {
+                    items.Add((
+                        child.Id,
+                        child.TransactionDate,
+                        child.CreatedAt,
+                        child.TransactionNumber,
+                        child.TransactionType,
+                        Math.Abs(child.Cases),
+                        child.TotalAmount,
+                        child.PaymentMethod ?? child.ReturnType,
+                        child.Status,
+                        usersDict.TryGetValue(child.CreatedBy, out var cUser) ? cUser : child.CreatedBy,
+                        false
+                    ));
+                }
+
+                var historyList = items
+                    .OrderByDescending(x => x.createdAt)
+                    .Select(x => new
+                    {
+                        id = x.id,
+                        date = x.date,
+                        createdAt = x.createdAt,
+                        transactionNumber = x.transactionNumber,
+                        transactionType = x.transactionType,
+                        cases = x.cases,
+                        totalAmount = x.totalAmount,
+                        paymentMethod = x.paymentMethod,
+                        status = x.status,
+                        createdBy = x.createdBy,
+                        isParent = x.isParent
+                    })
+                    .ToList();
+
+                return Success<object>(new
+                {
+                    parentDispatch = new
+                    {
+                        id = parent.Id,
+                        transactionNumber = parent.TransactionNumber,
+                        transactionDate = parent.TransactionDate,
+                        customerName = parent.Customer?.CustomerName ?? "Unknown Customer",
+                        productName = parent.Product?.Name ?? "Unknown Product",
+                        originalCases = originalCases,
+                        totalAmount = parent.TotalAmount,
+                        returnedCases = returnedCases,
+                        damagedCases = damagedCases,
+                        remainingCases = remainingCases
+                    },
+                    history = historyList
+                }, "Dispatch history retrieved successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<object>(ex.Message, "Failed to retrieve dispatch history.");
             }
         }
 
@@ -1520,6 +1739,9 @@ namespace Aquora.API.Controllers
         public Guid ProductId { get; set; }
         public string ProductName { get; set; } = string.Empty;
         public string ProductSku { get; set; } = string.Empty;
+
+        public Guid? ParentTransactionId { get; set; }
+        public int RelatedCount { get; set; }
         public decimal Cases { get; set; }
         public string TransactionType { get; set; } = string.Empty;
         public DateTime TransactionDate { get; set; }
@@ -1564,6 +1786,9 @@ namespace Aquora.API.Controllers
     {
         public Guid CustomerId { get; set; }
         public Guid ProductId { get; set; }
+        public Guid? ParentTransactionId { get; set; }
+        public Guid? CaseConfigurationId { get; set; }
+        public int UnitsPerCase { get; set; } = 24;
         public decimal Cases { get; set; }
         public string TransactionType { get; set; } = string.Empty;
         public DateTime TransactionDate { get; set; }
@@ -1588,6 +1813,8 @@ namespace Aquora.API.Controllers
         public decimal RefundAmount { get; set; }
         public decimal AdjustmentAmount { get; set; }
         public string? ReturnType { get; set; }
+        public string? ReturnCondition { get; set; }
+        public string? SettlementMethod { get; set; }
         public bool IsReplacementRequired { get; set; }
         public decimal ProductValue { get; set; }
         public decimal DamageCost { get; set; }

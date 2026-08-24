@@ -64,6 +64,7 @@ export const WaterTestReportFormPage: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = React.useRef(false);
   const [concurrencyToken, setConcurrencyToken] = useState<string | null>(null);
   const [showConflictModal, setShowConflictModal] = useState(false);
   
@@ -261,11 +262,16 @@ export const WaterTestReportFormPage: React.FC = () => {
   };
 
   const handleSave = async (submitStatus: 'DRAFT' | 'SUBMITTED') => {
+    if (isSavingRef.current || isSaving) {
+      return;
+    }
+
     if (!batchNumber.trim()) {
       toast.error('Batch Number is required');
       return;
     }
 
+    isSavingRef.current = true;
     setIsSaving(true);
     try {
       const allFormParameters = [...physicalChemicalParams, ...microParams];
@@ -319,13 +325,16 @@ export const WaterTestReportFormPage: React.FC = () => {
         navigate(basePath);
       }
     } catch (error: any) {
-      if (error?.response?.data?.code === 'CONCURRENCY_CONFLICT') {
+      const errCode = error?.response?.data?.code || error?.code;
+      const status = error?.response?.status;
+      if (errCode === 'CONCURRENCY_CONFLICT' || status === 409) {
         setShowConflictModal(true);
       } else {
         toast.error(error);
       }
     } finally {
       setIsSaving(false);
+      isSavingRef.current = false;
     }
   };
 

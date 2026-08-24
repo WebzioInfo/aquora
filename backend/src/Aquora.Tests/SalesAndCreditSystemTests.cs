@@ -77,6 +77,7 @@ namespace Aquora.Tests
             var mockPlatformContext = new Mock<IPlatformDbContext>();
             var mockDashboardHub = new Mock<Microsoft.AspNetCore.SignalR.IHubContext<Aquora.API.Hubs.DashboardHub>>();
             var mockLedgerService = new Mock<ILedgerService>();
+            var mockTenantProvider = new Mock<ITenantProvider>();
 
             var controller = new SalesController(
                 context,
@@ -84,7 +85,8 @@ namespace Aquora.Tests
                 mockInventoryMovementService.Object,
                 mockPlatformContext.Object,
                 mockDashboardHub.Object,
-                mockLedgerService.Object
+                mockLedgerService.Object,
+                mockTenantProvider.Object
             );
             controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
 
@@ -151,6 +153,7 @@ namespace Aquora.Tests
             var mockPlatformContext = new Mock<IPlatformDbContext>();
             var mockDashboardHub = new Mock<Microsoft.AspNetCore.SignalR.IHubContext<Aquora.API.Hubs.DashboardHub>>();
             var mockLedgerService = new Mock<ILedgerService>();
+            var mockTenantProvider = new Mock<ITenantProvider>();
 
             var controller = new SalesController(
                 context,
@@ -158,7 +161,8 @@ namespace Aquora.Tests
                 mockInventoryMovementService.Object,
                 mockPlatformContext.Object,
                 mockDashboardHub.Object,
-                mockLedgerService.Object
+                mockLedgerService.Object,
+                mockTenantProvider.Object
             );
             controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
 

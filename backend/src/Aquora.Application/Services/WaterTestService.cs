@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Aquora.Application.Interfaces;
 using Aquora.Application.Interfaces.Services;
 using Aquora.Application.DTOs.QC;
@@ -19,6 +20,7 @@ namespace Aquora.Application.Services
         private readonly ICurrentUserContext _currentUserContext;
         private readonly IQualityEvaluationService _evaluationService;
         private readonly IQCPdfCertificateService _pdfService;
+        private readonly ILogger<WaterTestService> _logger;
 
         private static readonly List<(string Name, string Category, string Unit, double? MinAccept, double? MaxAccept)> SeedParameters = new()
         {
@@ -47,7 +49,8 @@ namespace Aquora.Application.Services
             ITenantProvider tenantProvider,
             ICurrentUserContext currentUserContext,
             IQualityEvaluationService evaluationService,
-            IQCPdfCertificateService pdfService)
+            IQCPdfCertificateService pdfService,
+            ILogger<WaterTestService> logger)
         {
             _context = context;
             _platformContext = platformContext;
@@ -55,6 +58,7 @@ namespace Aquora.Application.Services
             _currentUserContext = currentUserContext;
             _evaluationService = evaluationService;
             _pdfService = pdfService;
+            _logger = logger;
         }
 
         private Guid GetTenantId() => _tenantProvider.TenantId;
@@ -314,18 +318,24 @@ namespace Aquora.Application.Services
 
             if (report == null) return null;
 
-            // Optimistic Concurrency Protection Verification
-            if (!string.IsNullOrWhiteSpace(request.ConcurrencyToken) && 
-                !string.IsNullOrWhiteSpace(report.ConcurrencyToken) && 
-                !string.Equals(request.ConcurrencyToken, report.ConcurrencyToken, StringComparison.Ordinal))
+            // Ensure DB report concurrency token is non-empty
+            if (string.IsNullOrWhiteSpace(report.ConcurrencyToken))
             {
-                throw new Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException("This report was updated by someone else. Reload the latest version before saving.");
+                report.ConcurrencyToken = Guid.NewGuid().ToString();
             }
 
-            if (!string.IsNullOrWhiteSpace(request.ConcurrencyToken))
+            // Optimistic Concurrency Protection Verification:
+            // Check if the frontend provided a concurrency token that differs from the DB's token
+            if (!string.IsNullOrWhiteSpace(request.ConcurrencyToken) && 
+                !string.Equals(request.ConcurrencyToken, report.ConcurrencyToken, StringComparison.Ordinal))
             {
-                _context.Entry(report).Property(r => r.ConcurrencyToken).OriginalValue = request.ConcurrencyToken;
+                _logger.LogWarning("[CONCURRENCY CONFLICT DETECTED] WaterTestReport {ReportId} update rejected. Incoming Token: '{RequestToken}', DB Token: '{DbToken}', User: '{UserId}'",
+                    id, request.ConcurrencyToken, report.ConcurrencyToken, currentUserId);
+
+                throw new Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException("This report was updated by another session or user. Please reload the latest version before saving.");
             }
+
+            var originalToken = report.ConcurrencyToken;
             report.ConcurrencyToken = Guid.NewGuid().ToString();
 
             // Audit Delta Snapshot
@@ -487,7 +497,17 @@ namespace Aquora.Application.Services
             await LogQCActionAsync(report.Id, report.Id.ToString().Substring(0, 8).ToUpper(), "REPORT_UPDATE", $"Water Test Report #{report.Id.ToString().Substring(0, 8).ToUpper()} updated. Changes: {changeDetails}");
 
             await CheckAndGenerateCAPAsAsync(report);
-            await _context.SaveChangesAsync();
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException ex)
+            {
+                _logger.LogError(ex, "[CONCURRENCY CONFLICT SAVE FAILURE] Report ID: {ReportId}, User ID: {UserId}, Original Token: '{OriginalToken}', DB Token: '{CurrentToken}'",
+                    id, currentUserId, originalToken, report.ConcurrencyToken);
+                throw;
+            }
 
             var userNames = await ResolveUserNamesAsync(new[] { report.CreatedBy });
             return MapToDto(report, userNames);
@@ -584,7 +604,7 @@ namespace Aquora.Application.Services
                 VerifiedBy = r.VerifiedBy,
                 Remarks = r.Remarks,
                 Attachments = r.Attachments,
-                ConcurrencyToken = string.IsNullOrWhiteSpace(r.ConcurrencyToken) ? r.Id.ToString() : r.ConcurrencyToken,
+                ConcurrencyToken = r.ConcurrencyToken ?? string.Empty,
                 CreatedAt = r.CreatedAt,
                 CreatedBy = r.CreatedBy,
                 CreatedByName = userNames.TryGetValue(r.CreatedBy, out var name) ? name : "System",

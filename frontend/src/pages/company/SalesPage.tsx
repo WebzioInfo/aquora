@@ -15,6 +15,7 @@ import type { SalesTransaction, CreateSalesTransactionRequest } from '../../serv
 import { productsService } from '../../services/products'
 import { customersService } from '../../services/customers'
 import { simpleAccountsService } from '../../services/simpleAccounts'
+import { caseConfigurationsService, type CaseConfiguration } from '../../services/caseConfigurations'
 import { useAuthStore } from '../../store/useAuthStore'
 import { generateERPDocumentPDF } from '../../utils/pdfTemplateEngine'
 import EnterpriseBadge from '../../components/ui/EnterpriseBadge'
@@ -54,6 +55,13 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
 
+  // Parent-child Linked Transaction state
+  const [parentDispatch, setParentDispatch] = useState<SalesTransaction | null>(null)
+
+  // Dispatch History Drawer state
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+  const [historyDispatch, setHistoryDispatch] = useState<SalesTransaction | null>(null)
+
   // Selected records (Full screen details layout when viewing)
   const [selectedTxn, setSelectedTxn] = useState<SalesTransaction | null>(null)
   const [isViewingDetails, setIsViewingDetails] = useState(false)
@@ -78,8 +86,13 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
   // Return specific fields
   const [formOriginalInvoice, setFormOriginalInvoice] = useState('')
   const [formReturnReason, setFormReturnReason] = useState('')
-  const [formReturnCondition, setFormReturnCondition] = useState('Good')
+  const [formReturnCondition, setFormReturnCondition] = useState('Good — Restock')
   const [formRefundMethod, setFormRefundMethod] = useState('Credit Note')
+
+  // Case Configuration & Settlement State
+  const [formCaseConfigId, setFormCaseConfigId] = useState('')
+  const [formSettlementMethod, setFormSettlementMethod] = useState('Deduct from Customer Credit')
+  const [formRefundType, setFormRefundType] = useState('Cash')
 
   // Damage specific fields
   const [formWarehouse, setFormWarehouse] = useState('Main Warehouse')
@@ -101,6 +114,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
   // Searchable customer dropdown UI state
   const [customerSearch, setCustomerSearch] = useState('')
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false)
+  const [showDetailedAccounting, setShowDetailedAccounting] = useState(false)
 
   // Queries
   const { data: txnsData, isLoading: isTxnsLoading } = useQuery({
@@ -122,6 +136,39 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     }
   })
   const products = productsData || []
+
+  // Fetch Case Configurations master
+  const { data: caseConfigsData } = useQuery({
+    queryKey: ['caseConfigurationsForSales'],
+    queryFn: async () => {
+      const res = await caseConfigurationsService.getAll(false)
+      return res.data || []
+    }
+  })
+  const caseConfigs = caseConfigsData || []
+
+  // Filter available case configurations for selected product
+  const availableCaseConfigsForSelectedProduct = useMemo(() => {
+    if (!formProductId) return []
+    return caseConfigs.filter(c => c.productId === formProductId && c.isActive)
+  }, [caseConfigs, formProductId])
+
+  const selectedCaseConfigInForm = useMemo(() => {
+    if (availableCaseConfigsForSelectedProduct.length === 0) return null
+    return availableCaseConfigsForSelectedProduct.find(c => c.id === formCaseConfigId) || availableCaseConfigsForSelectedProduct[0]
+  }, [availableCaseConfigsForSelectedProduct, formCaseConfigId])
+
+  const activeUnitsPerCase = selectedCaseConfigInForm ? selectedCaseConfigInForm.unitsPerCase : 24
+
+  const handleProductChangeInForm = (prodId: string) => {
+    setFormProductId(prodId)
+    const matchingConfigs = caseConfigs.filter(c => c.productId === prodId && c.isActive)
+    if (matchingConfigs.length > 0) {
+      setFormCaseConfigId(matchingConfigs[0].id)
+    } else {
+      setFormCaseConfigId('')
+    }
+  }
 
   // Fetch all active customers
   const { data: customersData, refetch: refetchCustomers } = useQuery({
@@ -154,6 +201,32 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       return res.data?.data
     }
   })
+
+  // Fetch Dispatch History for Drawer
+  const { data: historyRes, isLoading: isHistoryLoading } = useQuery({
+    queryKey: ['dispatchHistory', historyDispatch?.id],
+    queryFn: () => historyDispatch ? salesService.getDispatchHistory(historyDispatch.id) : null,
+    enabled: !!historyDispatch
+  })
+
+  const sortedHistoryItems = useMemo(() => {
+    if (!historyRes?.data?.history) return []
+    return [...historyRes.data.history].sort((a, b) => {
+      const timeA = new Date(a.createdAt || a.date).getTime()
+      const timeB = new Date(b.createdAt || b.date).getTime()
+      return timeB - timeA
+    })
+  }, [historyRes?.data?.history])
+
+  // Fetch Parent Dispatch History stats for modal validation
+  const { data: parentHistoryRes } = useQuery({
+    queryKey: ['dispatchHistoryForModal', parentDispatch?.id],
+    queryFn: () => parentDispatch ? salesService.getDispatchHistory(parentDispatch.id) : null,
+    enabled: !!parentDispatch
+  })
+
+  const parentHistoryInfo = parentHistoryRes?.data?.parentDispatch
+  const availableRemainingCases = parentHistoryInfo ? parentHistoryInfo.remainingCases : (parentDispatch ? Math.abs(parentDispatch.cases) : 0)
 
   // Quick Customer Creation navigation
   const handleQuickCreateCustomer = () => {
@@ -429,6 +502,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
   const resetForm = () => {
     setFormType('Sales Dispatch')
     setFormProductId('')
+    setFormCaseConfigId('')
     setFormCustomerId('')
     setFormCases('')
     setFormDate(new Date().toISOString().substring(0, 10))
@@ -443,8 +517,10 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     setFormCashBookId('')
     setFormOriginalInvoice('')
     setFormReturnReason('')
-    setFormReturnCondition('Good')
+    setFormReturnCondition('Good — Restock')
     setFormRefundMethod('Credit Note')
+    setFormSettlementMethod('Deduct from Customer Credit')
+    setFormRefundType('Cash')
     setFormWarehouse('Main Warehouse')
     setFormDamageType('Broken')
     setFormApprovedBy('')
@@ -461,13 +537,79 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       showToast('You do not have write permissions.', 'warning')
       return
     }
+    setParentDispatch(null)
+    setFormType('Sales Dispatch')
     resetForm()
+    if (products.length > 0) {
+      handleProductChangeInForm(products[0].id)
+    }
     setIsCreateOpen(true)
+  }
+
+  const handleOpenLinkedReturnDamage = (dispatch: SalesTransaction) => {
+    if (!canWrite) {
+      showToast('You do not have write permissions.', 'warning')
+      return
+    }
+    setParentDispatch(dispatch)
+    setFormType('Customer Return')
+    setFormProductId(dispatch.productId)
+    setFormCustomerId(dispatch.customerId)
+    const matchedCustomer = customers.find(c => c.id === dispatch.customerId)
+    setCustomerSearch(matchedCustomer ? matchedCustomer.customerName : dispatch.customerName || '')
+    setFormUnitPrice(dispatch.unitPrice?.toString() || '0')
+    setFormCases('')
+    setFormRemarks('')
+    setFormReturnReason('')
+    setFormReturnCondition('Good — Restock')
+    setFormSettlementMethod('Deduct from Customer Credit')
+
+    if (dispatch.metadataJson) {
+      try {
+        const meta = JSON.parse(dispatch.metadataJson)
+        if (meta.caseConfigurationId) {
+          setFormCaseConfigId(meta.caseConfigurationId)
+        }
+      } catch {}
+    }
+
+    setIsCreateOpen(true)
+  }
+
+  const handleOpenHistory = (dispatch: SalesTransaction) => {
+    setHistoryDispatch(dispatch)
+    setIsHistoryOpen(true)
   }
 
   const handleOpenView = (txn: SalesTransaction) => {
     setSelectedTxn(txn)
     setIsViewingDetails(true)
+  }
+
+  const handleOpenParentDispatch = async (childTxn: SalesTransaction) => {
+    if (!childTxn.parentTransactionId) return
+    try {
+      const res = await salesService.getTransaction(childTxn.parentTransactionId)
+      if (res.data) {
+        setSelectedTxn(res.data)
+        setIsViewingDetails(true)
+      }
+    } catch {
+      showToast('Could not load parent dispatch details.', 'error')
+    }
+  }
+
+  const handleOpenHistoryItemView = async (itemId: string) => {
+    try {
+      const res = await salesService.getTransaction(itemId)
+      if (res.data) {
+        setSelectedTxn(res.data)
+        setIsViewingDetails(true)
+        setIsHistoryOpen(false)
+      }
+    } catch {
+      showToast('Failed to load transaction details.', 'error')
+    }
   }
 
   const handleOpenEdit = (txn: SalesTransaction) => {
@@ -549,6 +691,13 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       return false
     }
 
+    if (parentDispatch && (formType === 'Customer Return' || formType === 'Damage')) {
+      if (casesNum > (availableRemainingCases + 0.0001)) {
+        showToast(`Cannot process ${casesNum} cases. Maximum remaining available cases on dispatch ${parentDispatch.transactionNumber} is ${availableRemainingCases} cases.`, 'error')
+        return false
+      }
+    }
+
     // Ensure payment register / bank account is set
     if (formType === 'Sales Dispatch') {
       if (['Bank', 'UPI', 'Cheque'].includes(formPaymentMethod) && !formBankAccountId) {
@@ -604,6 +753,11 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       returnReason: formReturnReason,
       returnCondition: formReturnCondition,
       refundMethod: formRefundMethod,
+      settlementMethod: formSettlementMethod,
+      refundType: formRefundType,
+      caseConfigurationId: formCaseConfigId,
+      unitsPerCase: activeUnitsPerCase,
+      totalUnits: (parseFloat(formCases) || 0) * activeUnitsPerCase,
       warehouse: formWarehouse,
       damageType: formDamageType,
       approvedBy: formApprovedBy,
@@ -614,15 +768,27 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       adjustmentReason: formAdjustmentReason
     }
 
+    let effectivePaymentMethod = formPaymentMethod
+    if (formType === 'Customer Return') {
+      if (formSettlementMethod === 'Deduct from Customer Credit') {
+        effectivePaymentMethod = 'Credit Note'
+      } else {
+        effectivePaymentMethod = formRefundType
+      }
+    }
+
     return {
-      customerId: formCustomerId || '00000000-0000-0000-0000-000000000000',
-      productId: formProductId,
+      customerId: parentDispatch ? parentDispatch.customerId : (formCustomerId || '00000000-0000-0000-0000-000000000000'),
+      productId: parentDispatch ? parentDispatch.productId : formProductId,
+      parentTransactionId: parentDispatch ? parentDispatch.id : undefined,
+      caseConfigurationId: formCaseConfigId || undefined,
+      unitsPerCase: activeUnitsPerCase,
       cases: finalCases,
       transactionType: formType,
       transactionDate: formDate,
       referenceNumber: formRef ? formRef.trim() : undefined,
       remarks: formRemarks ? formRemarks.trim() : undefined,
-      paymentMethod: formPaymentMethod,
+      paymentMethod: effectivePaymentMethod,
       bankAccountId: formBankAccountId || undefined,
       cashBookId: formCashBookId || undefined,
       unitPrice: up,
@@ -633,11 +799,13 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       igst: 0,
       metadataJson: JSON.stringify(meta),
       totalAmount: sub + tax,
-      amountReceived: formPaymentMethod === 'Credit' ? 0 : (sub + tax),
-      returnedAmount: formType === 'Customer Return' ? sub + tax : 0,
-      refundAmount: (formType === 'Customer Return' && formRefundMethod !== 'Credit Note') ? sub + tax : 0,
-      adjustmentAmount: (formType === 'Customer Return' && formRefundMethod === 'Credit Note') ? sub + tax : 0,
-      returnType: formType === 'Customer Return' ? formRefundMethod : undefined
+      amountReceived: effectivePaymentMethod === 'Credit' || effectivePaymentMethod === 'Credit Note' ? 0 : (sub + tax),
+      returnedAmount: formType === 'Customer Return' ? (parseFloat(formCases) || 0) * (parseFloat(formUnitPrice) || 0) : 0,
+      refundAmount: (formType === 'Customer Return' && formSettlementMethod === 'Refund') ? (parseFloat(formCases) || 0) * (parseFloat(formUnitPrice) || 0) : 0,
+      adjustmentAmount: (formType === 'Customer Return' && formSettlementMethod === 'Deduct from Customer Credit') ? (parseFloat(formCases) || 0) * (parseFloat(formUnitPrice) || 0) : 0,
+      returnType: formType === 'Customer Return' ? (formSettlementMethod === 'Refund' ? formRefundType : 'Credit Note') : undefined,
+      returnCondition: formReturnCondition,
+      settlementMethod: formSettlementMethod
     }
   }
 
@@ -677,20 +845,21 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       <PageContainer>
         <div className="bg-slate-50 min-h-screen pb-12">
           {/* Details header */}
-          <div className="bg-white border-b border-slate-200 px-8 py-5 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-            <div className="flex items-center gap-4">
+          <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-30 shadow-2xs">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsViewingDetails(false)}
-                className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-900 transition-all cursor-pointer"
+                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-all cursor-pointer"
+                title="Back to Sales Register"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                  <ShoppingCart className="w-6 h-6 text-blue-600" />
+                <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <ShoppingCart className="w-5 h-5 text-blue-600" />
                   {selectedTxn.transactionType} Register
                 </h1>
-                <span className="font-mono text-xs font-semibold text-slate-400 mt-1 block">
+                <span className="font-mono text-xs font-semibold text-slate-400 mt-0.5 block">
                   Document Reference: {selectedTxn.transactionNumber}
                 </span>
               </div>
@@ -698,7 +867,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleDownloadPDF(selectedTxn)}
-                className="h-[36px] px-4 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm shadow-blue-150/40"
+                className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
               >
                 <Printer className="w-3.5 h-3.5" />
                 Print / Export Invoice PDF
@@ -709,7 +878,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                     setIsViewingDetails(false);
                     handleOpenEdit(selectedTxn);
                   }}
-                  className="h-[36px] px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[12px] font-bold rounded-lg transition-all cursor-pointer"
+                  className="h-9 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
                 >
                   Edit Document
                 </button>
@@ -717,39 +886,39 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
             </div>
           </div>
 
-          <div className="max-w-7xl mx-auto px-8 mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main content pane */}
+          <div className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main content pane (70% / 30% split) */}
             <div className="lg:col-span-2 space-y-6">
 
               {/* Product Sold Section */}
-              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                <h3 className="text-[14px] font-extrabold text-slate-800 mb-4 flex items-center gap-2">
-                  <Package className="w-4 h-4 text-blue-600" />
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs">
+                <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <Package className="w-4.5 h-4.5 text-blue-600" />
                   Purchased Finished Goods
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider h-[32px]">
-                        <th className="py-2 px-3">Item Description</th>
-                        <th className="py-2 px-3 text-right">Quantity</th>
-                        <th className="py-2 px-3 text-right">Unit Price</th>
-                        <th className="py-2 px-3 text-right">Discount</th>
-                        <th className="py-2 px-3 text-right">Taxable Amt</th>
-                        <th className="py-2 px-3 text-right">Total Amt</th>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider h-9">
+                        <th className="py-2.5 px-4">Item Description</th>
+                        <th className="py-2.5 px-4 text-right">Quantity</th>
+                        <th className="py-2.5 px-4 text-right">Unit Price</th>
+                        <th className="py-2.5 px-4 text-right">Discount</th>
+                        <th className="py-2.5 px-4 text-right">Taxable Amt</th>
+                        <th className="py-2.5 px-4 text-right">Total Amt</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 text-[13px] text-slate-700">
-                      <tr className="h-[40px]">
-                        <td className="py-3 px-3 font-semibold text-slate-800">
+                    <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+                      <tr className="h-12">
+                        <td className="py-3 px-4 font-bold text-slate-900">
                           {selectedTxn.productName}
                           <span className="block text-[10px] text-slate-400 font-mono mt-0.5">{selectedTxn.productSku || 'NO_SKU_CODE'}</span>
                         </td>
-                        <td className="py-3 px-3 text-right font-mono font-bold">{Math.abs(selectedTxn.cases)} Cases</td>
-                        <td className="py-3 px-3 text-right font-mono">₹{(selectedTxn.unitPrice || 0).toLocaleString()}</td>
-                        <td className="py-3 px-3 text-right font-mono text-rose-500">₹{(selectedTxn.discountAmount || 0).toLocaleString()}</td>
-                        <td className="py-3 px-3 text-right font-mono">₹{sub.toLocaleString()}</td>
-                        <td className="py-3 px-3 text-right font-mono font-black text-slate-850">₹{total.toLocaleString()}</td>
+                        <td className="py-3 px-4 text-right font-mono font-bold">{Math.abs(selectedTxn.cases)} Cases</td>
+                        <td className="py-3 px-4 text-right font-mono">₹{(selectedTxn.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        <td className="py-3 px-4 text-right font-mono text-rose-600">₹{(selectedTxn.discountAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        <td className="py-3 px-4 text-right font-mono">₹{sub.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        <td className="py-3 px-4 text-right font-mono font-black text-slate-900">₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -757,122 +926,122 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
 
                 {/* Subsystem fields for categories */}
                 {selectedTxn.transactionType === 'Customer Return' && (
-                  <div className="mt-5 grid grid-cols-2 md:grid-cols-3 gap-4 border-t border-slate-100 pt-4 text-xs">
+                  <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4 border-t border-slate-100 pt-4 text-xs">
                     <div>
-                      <span className="text-slate-400 block mb-0.5">Condition:</span>
-                      <span className="font-bold text-slate-700">{viewMeta.returnCondition || 'Good'}</span>
+                      <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider mb-1">Condition</span>
+                      <span className="font-bold text-slate-800">{viewMeta.returnCondition || 'Good'}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block mb-0.5">Return Reason:</span>
-                      <span className="font-bold text-slate-700">{viewMeta.returnReason || 'N/A'}</span>
+                      <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider mb-1">Return Reason</span>
+                      <span className="font-bold text-slate-800">{viewMeta.returnReason || 'N/A'}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block mb-0.5">Refund Settlement:</span>
-                      <span className="font-bold text-slate-700">{viewMeta.refundMethod || 'Credit Note'}</span>
+                      <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider mb-1">Refund Settlement</span>
+                      <span className="font-bold text-slate-800">{viewMeta.refundMethod || 'Credit Note'}</span>
                     </div>
                   </div>
                 )}
 
                 {selectedTxn.transactionType === 'Damage' && (
-                  <div className="mt-5 grid grid-cols-2 md:grid-cols-3 gap-4 border-t border-slate-100 pt-4 text-xs">
+                  <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4 border-t border-slate-100 pt-4 text-xs">
                     <div>
-                      <span className="text-slate-400 block mb-0.5">Damage Reason:</span>
-                      <span className="font-bold text-slate-700">{selectedTxn.damageReason || 'N/A'}</span>
+                      <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider mb-1">Damage Reason</span>
+                      <span className="font-bold text-slate-800">{selectedTxn.damageReason || 'N/A'}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block mb-0.5">Approved By:</span>
-                      <span className="font-bold text-slate-700">{viewMeta.approvedBy || 'System Audit'}</span>
+                      <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider mb-1">Approved By</span>
+                      <span className="font-bold text-slate-800">{viewMeta.approvedBy || 'System Audit'}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block mb-0.5">Warehouse Location:</span>
-                      <span className="font-bold text-slate-700">{viewMeta.warehouse || 'Main Warehouse'}</span>
+                      <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider mb-1">Warehouse Location</span>
+                      <span className="font-bold text-slate-800">{viewMeta.warehouse || 'Main Warehouse'}</span>
                     </div>
                   </div>
                 )}
               </div>
 
               {/* Accounting double-entry register impact */}
-              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                <h3 className="text-[14px] font-extrabold text-slate-800 mb-4 flex items-center gap-2">
-                  <Landmark className="w-4 h-4 text-emerald-600" />
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs">
+                <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <Landmark className="w-4.5 h-4.5 text-emerald-600" />
                   Cryptographic Ledger Posting Impact
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider h-[32px]">
-                        <th className="py-2 px-3">Account Ledger</th>
-                        <th className="py-2 px-3 text-right">Debit (Dr)</th>
-                        <th className="py-2 px-3 text-right">Credit (Cr)</th>
-                        <th className="py-2 px-3">Transaction Narration</th>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider h-9">
+                        <th className="py-2.5 px-4">Account Ledger</th>
+                        <th className="py-2.5 px-4 text-right">Debit (Dr)</th>
+                        <th className="py-2.5 px-4 text-right">Credit (Cr)</th>
+                        <th className="py-2.5 px-4">Transaction Narration</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 text-[13px] text-slate-700 font-mono">
+                    <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
                       {selectedTxn.transactionType === 'Sales Dispatch' && (
                         <>
-                          <tr className="h-[38px]">
-                            <td className="py-3 px-3 font-semibold text-slate-800">{resolvedDebit}</td>
-                            <td className="py-3 px-3 text-right font-bold text-blue-600">₹{total.toLocaleString()}</td>
-                            <td className="py-3 px-3 text-right text-slate-300">—</td>
-                            <td className="py-3 px-3 text-slate-400 font-sans text-xs">Sales dispatch accounts receivable posting</td>
+                          <tr className="h-10">
+                            <td className="py-3 px-4 font-bold text-slate-900">{resolvedDebit}</td>
+                            <td className="py-3 px-4 text-right font-mono font-extrabold text-blue-600">₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-4 text-right text-slate-300 font-mono">—</td>
+                            <td className="py-3 px-4 text-slate-500 font-sans text-xs">Sales dispatch accounts receivable posting</td>
                           </tr>
-                          <tr className="h-[38px]">
-                            <td className="py-3 px-3 pl-8 text-slate-600 font-medium">Sales Revenue</td>
-                            <td className="py-3 px-3 text-right text-slate-300">—</td>
-                            <td className="py-3 px-3 text-right font-bold text-slate-800">₹{sub.toLocaleString()}</td>
-                            <td className="py-3 px-3 text-slate-400 font-sans text-xs">Finished goods income recognition</td>
+                          <tr className="h-10">
+                            <td className="py-3 px-4 pl-8 text-slate-700 font-medium">Sales Revenue</td>
+                            <td className="py-3 px-4 text-right text-slate-300 font-mono">—</td>
+                            <td className="py-3 px-4 text-right font-mono font-extrabold text-slate-900">₹{sub.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-4 text-slate-500 font-sans text-xs">Finished goods income recognition</td>
                           </tr>
                           {tax > 0 && (
-                            <tr className="h-[38px]">
-                              <td className="py-3 px-3 pl-8 text-slate-650">GST Output Liabilities</td>
-                              <td className="py-3 px-3 text-right text-slate-300">—</td>
-                              <td className="py-3 px-3 text-right font-bold text-slate-800">₹{tax.toLocaleString()}</td>
-                              <td className="py-3 px-3 text-slate-400 font-sans text-xs">Postings for statutory GST liabilities</td>
+                            <tr className="h-10">
+                              <td className="py-3 px-4 pl-8 text-slate-700 font-medium">GST Output Liabilities</td>
+                              <td className="py-3 px-4 text-right text-slate-300 font-mono">—</td>
+                              <td className="py-3 px-4 text-right font-mono font-extrabold text-slate-900">₹{tax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                              <td className="py-3 px-4 text-slate-500 font-sans text-xs">Postings for statutory GST liabilities</td>
                             </tr>
                           )}
-                          <tr className="h-[38px]">
-                            <td className="py-3 px-3 font-semibold text-slate-850">Cost of Goods Sold</td>
-                            <td className="py-3 px-3 text-right font-bold text-slate-800">₹{cost.toLocaleString()}</td>
-                            <td className="py-3 px-3 text-right text-slate-300">—</td>
-                            <td className="py-3 px-3 text-slate-400 font-sans text-xs">Asset cost conversion expense</td>
+                          <tr className="h-10">
+                            <td className="py-3 px-4 font-bold text-slate-900">Cost of Goods Sold</td>
+                            <td className="py-3 px-4 text-right font-mono font-extrabold text-slate-900">₹{cost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-4 text-right text-slate-300 font-mono">—</td>
+                            <td className="py-3 px-4 text-slate-500 font-sans text-xs">Asset cost conversion expense</td>
                           </tr>
-                          <tr className="h-[38px]">
-                            <td className="py-3 px-3 pl-8 text-slate-600">Finished Goods Inventory</td>
-                            <td className="py-3 px-3 text-right text-slate-300">—</td>
-                            <td className="py-3 px-3 text-right font-bold text-rose-500">₹{cost.toLocaleString()}</td>
-                            <td className="py-3 px-3 text-slate-400 font-sans text-xs">Stock reduction posting</td>
+                          <tr className="h-10">
+                            <td className="py-3 px-4 pl-8 text-slate-700 font-medium">Finished Goods Inventory</td>
+                            <td className="py-3 px-4 text-right text-slate-300 font-mono">—</td>
+                            <td className="py-3 px-4 text-right font-mono font-extrabold text-rose-600">₹{cost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-4 text-slate-500 font-sans text-xs">Stock reduction posting</td>
                           </tr>
                         </>
                       )}
                       {selectedTxn.transactionType === 'Customer Return' && (
                         <>
-                          <tr className="h-[38px]">
-                            <td className="py-3 px-3 font-semibold text-slate-850">Sales Return Note</td>
-                            <td className="py-3 px-3 text-right font-bold text-blue-600">₹{total.toLocaleString()}</td>
-                            <td className="py-3 px-3 text-right text-slate-300">—</td>
-                            <td className="py-3 px-3 text-slate-400 font-sans text-xs">Contra-income returns registration</td>
+                          <tr className="h-10">
+                            <td className="py-3 px-4 font-bold text-slate-900">Sales Return Note</td>
+                            <td className="py-3 px-4 text-right font-mono font-extrabold text-blue-600">₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-4 text-right text-slate-300 font-mono">—</td>
+                            <td className="py-3 px-4 text-slate-500 font-sans text-xs">Contra-income returns registration</td>
                           </tr>
-                          <tr className="h-[38px]">
-                            <td className="py-3 px-3 pl-8 text-slate-600">{resolvedDebit}</td>
-                            <td className="py-3 px-3 text-right text-slate-300">—</td>
-                            <td className="py-3 px-3 text-right font-bold text-slate-800">₹{total.toLocaleString()}</td>
-                            <td className="py-3 px-3 text-slate-400 font-sans text-xs">Customer return refund/credit settlement</td>
+                          <tr className="h-10">
+                            <td className="py-3 px-4 pl-8 text-slate-700 font-medium">{resolvedDebit}</td>
+                            <td className="py-3 px-4 text-right text-slate-300 font-mono">—</td>
+                            <td className="py-3 px-4 text-right font-mono font-extrabold text-slate-900">₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-4 text-slate-500 font-sans text-xs">Customer return refund/credit settlement</td>
                           </tr>
                         </>
                       )}
                       {selectedTxn.transactionType === 'Damage' && (
                         <>
-                          <tr className="h-[38px]">
-                            <td className="py-3 px-3 font-semibold text-slate-850">Inventory Loss Expense</td>
-                            <td className="py-3 px-3 text-right font-bold text-slate-800">₹{cost.toLocaleString()}</td>
-                            <td className="py-3 px-3 text-right text-slate-300">—</td>
-                            <td className="py-3 px-3 text-slate-400 font-sans text-xs">Unsellable damage loss allocation</td>
+                          <tr className="h-10">
+                            <td className="py-3 px-4 font-bold text-slate-900">Inventory Loss Expense</td>
+                            <td className="py-3 px-4 text-right font-mono font-extrabold text-slate-900">₹{cost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-4 text-right text-slate-300 font-mono">—</td>
+                            <td className="py-3 px-4 text-slate-500 font-sans text-xs">Unsellable damage loss allocation</td>
                           </tr>
-                          <tr className="h-[38px]">
-                            <td className="py-3 px-3 pl-8 text-slate-600">Finished Goods Inventory</td>
-                            <td className="py-3 px-3 text-right text-slate-300">—</td>
-                            <td className="py-3 px-3 text-right font-bold text-rose-500">₹{cost.toLocaleString()}</td>
-                            <td className="py-3 px-3 text-slate-400 font-sans text-xs">Reduction of stock asset values</td>
+                          <tr className="h-10">
+                            <td className="py-3 px-4 pl-8 text-slate-700 font-medium">Finished Goods Inventory</td>
+                            <td className="py-3 px-4 text-right text-slate-300 font-mono">—</td>
+                            <td className="py-3 px-4 text-right font-mono font-extrabold text-rose-600">₹{cost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-4 text-slate-500 font-sans text-xs">Reduction of stock asset values</td>
                           </tr>
                         </>
                       )}
@@ -882,59 +1051,59 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
               </div>
             </div>
 
-            {/* Sidebar metadata card */}
+            {/* Sidebar metadata column */}
             <div className="space-y-6">
 
-              {/* Customer and payments summaries */}
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2">
+              {/* Customer and payments summary */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4">
+                <h3 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-3">
                   Business Connection Summary
                 </h3>
-                <div className="space-y-3.5 text-xs text-slate-600">
-                  <div className="flex justify-between">
-                    <span className="font-semibold text-slate-400">Customer name:</span>
-                    <span className="font-bold text-slate-800">{selectedTxn.customerName || 'N/A (System Internal)'}</span>
+                <div className="space-y-3 text-xs text-slate-600">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-slate-500">Customer name:</span>
+                    <span className="font-bold text-slate-900">{selectedTxn.customerName || 'N/A (System Internal)'}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="font-semibold text-slate-400">Customer Code:</span>
-                    <span className="font-mono text-slate-800">{selectedTxn.customerCode || '—'}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-slate-500">Customer Code:</span>
+                    <span className="font-mono font-bold text-slate-800">{selectedTxn.customerCode || '—'}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="font-semibold text-slate-400">Payment Status:</span>
-                    <span className={`px-2 py-0.5 rounded font-bold ${selectedTxn.paymentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-slate-500">Payment Status:</span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${selectedTxn.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
                       }`}>{selectedTxn.paymentStatus || 'POSTED'}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="font-semibold text-slate-400">Payment Mode:</span>
-                    <span className="font-bold text-slate-700">{selectedTxn.paymentMethod || 'Credit'}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-slate-500">Payment Mode:</span>
+                    <span className="font-bold text-slate-800">{selectedTxn.paymentMethod || 'Credit'}</span>
                   </div>
                 </div>
               </div>
 
               {/* Subsystem status indicators */}
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2">
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4">
+                <h3 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-3">
                   System Posting Registry
                 </h3>
-                <div className="space-y-2.5 text-xs">
-                  <div className="flex items-center justify-between text-slate-650">
-                    <span>1. Inventory Subsystem Impact:</span>
-                    <span className="text-emerald-600 font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
+                <div className="space-y-3 text-xs">
+                  <div className="flex items-center justify-between text-slate-700">
+                    <span className="font-medium">1. Inventory Subsystem Impact</span>
+                    <span className="text-emerald-700 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full text-[11px] border border-emerald-200">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                       Adjusted
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-slate-650">
-                    <span>2. Customer Ledger Impact:</span>
-                    <span className="text-emerald-600 font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
+                  <div className="flex items-center justify-between text-slate-700">
+                    <span className="font-medium">2. Customer Ledger Impact</span>
+                    <span className="text-emerald-700 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full text-[11px] border border-emerald-200">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                       Adjusted
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-slate-650">
-                    <span>3. General Ledger double-entry:</span>
-                    <span className="text-emerald-600 font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
+                  <div className="flex items-center justify-between text-slate-700">
+                    <span className="font-medium">3. General Ledger double-entry</span>
+                    <span className="text-emerald-700 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full text-[11px] border border-emerald-200">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                       JV Posted
                     </span>
                   </div>
@@ -942,18 +1111,18 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
               </div>
 
               {/* System Audit Details */}
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2">
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4">
+                <h3 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-3">
                   Chronological Audit Log
                 </h3>
-                <div className="space-y-4 relative pl-4 border-l border-slate-100 text-xs">
+                <div className="space-y-4 relative pl-4 border-l-2 border-slate-200 text-xs">
                   <div className="relative">
-                    <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 bg-blue-600 rounded-full border border-white" />
-                    <span className="text-slate-450 block text-[10px]">
+                    <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 bg-blue-600 rounded-full border-2 border-white" />
+                    <span className="text-slate-400 block text-[11px] font-medium">
                       {new Date(selectedTxn.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
                     </span>
-                    <span className="font-bold text-slate-700 mt-0.5 block">Document Initialized & Posted</span>
-                    <span className="text-slate-400 block text-[11px] mt-0.5">Recorded by: {selectedTxn.createdByName}</span>
+                    <span className="font-bold text-slate-900 mt-1 block">Document Initialized & Posted</span>
+                    <span className="text-slate-500 block text-xs mt-0.5">Recorded by: <span className="font-semibold text-slate-700">{selectedTxn.createdByName}</span></span>
                   </div>
                 </div>
               </div>
@@ -1098,14 +1267,21 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                       {txn.productName}
                     </td>
                     <td className="py-3 px-4">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${txn.transactionType === 'Sales Dispatch'
-                        ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                        : txn.transactionType === 'Customer Return'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                          : 'bg-rose-50 text-rose-700 border border-rose-100'
-                        }`}>
-                        {txn.transactionType}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${txn.transactionType === 'Sales Dispatch'
+                          ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                          : txn.transactionType === 'Customer Return'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                            : 'bg-rose-50 text-rose-700 border border-rose-100'
+                          }`}>
+                          {txn.transactionType}
+                        </span>
+                        {txn.relatedCount && txn.relatedCount > 0 ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200/80">
+                            {txn.relatedCount} Related
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="py-3 px-4 text-right font-black tabular-nums text-slate-800">
                       {txn.cases.toLocaleString()}
@@ -1121,15 +1297,42 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                         <button
                           onClick={() => handleOpenView(txn)}
                           title="View Details"
-                          className="p-1.5 text-slate-400 hover:text-blue-650 hover:bg-slate-100 rounded transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-blue-650 hover:bg-slate-100 rounded transition-colors cursor-pointer"
                         >
                           <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        {txn.parentTransactionId && (
+                          <button
+                            onClick={() => handleOpenParentDispatch(txn)}
+                            title="View Original Sales Dispatch"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200/80 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                          >
+                            <ArrowLeft className="w-3 h-3 text-blue-600" />
+                            Original Dispatch
+                          </button>
+                        )}
+                        {txn.transactionType === 'Sales Dispatch' && canWrite && (
+                          <button
+                            onClick={() => handleOpenLinkedReturnDamage(txn)}
+                            title="Record Return or Damage for this Dispatch"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 rounded-lg text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
+                          >
+                            <ArrowUpDown className="w-3 h-3 text-amber-700" />
+                            Return / Damage
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleOpenHistory(txn)}
+                          title="View Transaction History"
+                          className="p-1.5 text-slate-400 hover:text-purple-650 hover:bg-slate-100 rounded transition-colors cursor-pointer"
+                        >
+                          <Calendar className="w-3.5 h-3.5" />
                         </button>
                         {canWrite && (
                           <button
                             onClick={() => handleOpenEdit(txn)}
                             title="Edit Transaction"
-                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors cursor-pointer"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
@@ -1138,7 +1341,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                           <button
                             onClick={() => handleOpenDelete(txn)}
                             title="Delete/Reverse"
-                            className="p-1.5 text-slate-400 hover:text-red-650 hover:bg-slate-100 rounded transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-red-650 hover:bg-slate-100 rounded transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1185,34 +1388,70 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
             <div className="flex justify-between items-center border-b border-slate-100 px-6 py-4">
               <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-blue-600" />
-                Record ERP Sales transaction
+                {parentDispatch ? 'Create Return / Damage (Linked)' : 'Record Sales Dispatch'}
               </h2>
-              <button onClick={() => setIsCreateOpen(false)} className="text-slate-400 hover:text-slate-650">
+              <button onClick={() => setIsCreateOpen(false)} className="text-slate-400 hover:text-slate-650 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleCreateSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+              {/* ORIGINAL DISPATCH SUMMARY CARD (LINKED MODE) */}
+              {parentDispatch && (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                    <span className="text-xs font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <Package className="w-4 h-4 text-blue-600" />
+                      ORIGINAL SALES DISPATCH
+                    </span>
+                    <span className="font-mono text-xs font-bold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full border border-blue-200">
+                      {parentDispatch.transactionNumber}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div>
+                      <span className="text-slate-400 font-semibold block">Customer:</span>
+                      <span className="font-bold text-slate-800 truncate block">{parentDispatch.customerName} 🔒</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-semibold block">Product:</span>
+                      <span className="font-bold text-slate-800 truncate block">{parentDispatch.productName} 🔒</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-semibold block">Dispatched:</span>
+                      <span className="font-black text-slate-900">{parentDispatch.cases} Cases</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-semibold block">Price / Case:</span>
+                      <span className="font-bold text-slate-800">₹{(parentDispatch.unitPrice || 0).toLocaleString()}</span>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs">
+                    <span className="text-slate-500 font-medium">Available to Return/Damage:</span>
+                    <span className="font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                      {availableRemainingCases} Cases Available
+                    </span>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Transaction Type */}
                 <div className="flex flex-col">
                   <PremiumLabel label="Transaction Type *" />
                   <select
                     value={formType}
-                    onChange={(e) => {
-                      setFormType(e.target.value)
-                      if (e.target.value === 'Stock Adjustment') {
-                        setFormCases('')
-                      }
-                    }}
-                    className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] bg-white rounded-lg focus:outline-none focus:border-blue-500 cursor-pointer"
+                    onChange={(e) => setFormType(e.target.value)}
+                    className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] bg-white rounded-lg focus:outline-none focus:border-blue-500 font-semibold cursor-pointer"
                   >
-                    <option value="Sales Dispatch">Sales Dispatch</option>
-                    <option value="Customer Return">Customer Return</option>
-                    <option value="Damage">Damaged Goods</option>
-                    <option value="Internal Consumption">Internal Consumption</option>
-                    <option value="Free Sample">Free Sample</option>
-                    <option value="Stock Adjustment">Stock Adjustment</option>
+                    {parentDispatch ? (
+                      <>
+                        <option value="Customer Return">Return</option>
+                        <option value="Damage">Damage</option>
+                      </>
+                    ) : (
+                      <option value="Sales Dispatch">Sales Dispatch</option>
+                    )}
                   </select>
                 </div>
 
@@ -1233,23 +1472,55 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                 <PremiumLabel label="Product *" />
                 <select
                   value={formProductId}
-                  onChange={(e) => setFormProductId(e.target.value)}
-                  className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] bg-white rounded-lg focus:outline-none focus:border-blue-500"
+                  onChange={(e) => handleProductChangeInForm(e.target.value)}
+                  className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] bg-white rounded-lg focus:outline-none focus:border-blue-500 font-medium cursor-pointer"
+                  required
                 >
                   <option value="">Select Finished Product...</option>
                   {products.map(p => (
                     <option key={p.id} value={p.id}>{p.name} {p.sku ? `(SKU: ${p.sku})` : ''}</option>
                   ))}
                 </select>
-
-                {/* Current Stock indicators */}
-                {selectedProductInForm && (
-                  <div className="mt-2.5 bg-blue-50/50 border border-blue-100 rounded-lg px-3 py-2 text-[11px] flex justify-between">
-                    <span className="font-semibold text-blue-800">Current Stock:</span>
-                    <span className="font-bold text-blue-800">{selectedProductInForm.currentStock.toLocaleString()} Cases</span>
-                  </div>
-                )}
               </div>
+
+              {/* Case Configuration Dropdown */}
+              <div className="flex flex-col">
+                <PremiumLabel label="Case Configuration *" />
+                <select
+                  value={formCaseConfigId}
+                  onChange={(e) => setFormCaseConfigId(e.target.value)}
+                  disabled={!formProductId}
+                  className={`w-full h-[40px] px-3.5 border border-slate-200 text-[14px] bg-white rounded-lg focus:outline-none focus:border-blue-500 font-medium ${!formProductId ? 'opacity-60 bg-slate-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  {!formProductId ? (
+                    <option value="">Select Product first...</option>
+                  ) : availableCaseConfigsForSelectedProduct.length === 0 ? (
+                    <option value="">Default — 24 Bottles / Case (Standard)</option>
+                  ) : (
+                    availableCaseConfigsForSelectedProduct.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.unitsPerCase} Bottles / Case
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              {/* Case Configuration Information Banner */}
+              {formProductId && (
+                <div className="p-3 bg-blue-50/80 border border-blue-200/80 rounded-xl text-xs flex items-center justify-between text-blue-900 shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <Package className="w-4 h-4 text-blue-600 shrink-0" />
+                    <div>
+                      <span className="font-extrabold block text-blue-950 uppercase text-[10px] tracking-wider">CASE CONFIGURATION</span>
+                      <span className="font-semibold text-blue-800">{activeUnitsPerCase} Bottles / Case</span>
+                    </div>
+                  </div>
+                  <div className="px-2.5 py-1 bg-white/90 border border-blue-200 rounded-md font-bold text-[11px] text-blue-700 shadow-2xs">
+                    1 Case = {activeUnitsPerCase} Bottles
+                  </div>
+                </div>
+              )}
 
               {/* CONDITIONAL FIELDSETS DEPENDING ON TRANSACTION TYPE */}
 
@@ -1267,7 +1538,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                           value={customerSearch}
                           onChange={(e) => { setCustomerSearch(e.target.value); setIsCustomerDropdownOpen(true); }}
                           onFocus={() => setIsCustomerDropdownOpen(true)}
-                          className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none"
+                          className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none font-medium"
                         />
                         {isCustomerDropdownOpen && (
                           <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
@@ -1276,7 +1547,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                                 key={c.id}
                                 type="button"
                                 onClick={() => { setFormCustomerId(c.id); setCustomerSearch(c.customerName); setIsCustomerDropdownOpen(false); }}
-                                className="w-full text-left py-2 px-3 hover:bg-slate-50 text-xs text-slate-700"
+                                className="w-full text-left py-2 px-3 hover:bg-slate-50 text-xs text-slate-700 font-medium"
                               >
                                 {c.customerName} ({c.customerCode})
                               </button>
@@ -1291,10 +1562,53 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                   <div className="grid grid-cols-2 gap-4">
                     <EnterpriseNumberInput label="Cases Quantity *" value={formCases} onChange={(e) => setFormCases(e.target.value)} placeholder="0" allowDecimals={false} />
                     <div className="flex flex-col">
-                      <PremiumLabel label="Unit Price (₹) *" />
-                      <input type="number" value={formUnitPrice} onChange={(e) => setFormUnitPrice(e.target.value)} placeholder={selectedProductInForm?.sellingPrice?.toString() || '0.00'} className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
+                      <PremiumLabel label="Price / Case (₹) *" />
+                      <input type="number" step="0.01" value={formUnitPrice} onChange={(e) => setFormUnitPrice(e.target.value)} placeholder={selectedProductInForm?.sellingPrice?.toString() || '0.00'} className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg font-semibold focus:outline-none focus:border-blue-500" />
                     </div>
                   </div>
+
+                  {/* Order Overview & Conversion Card */}
+                  {formProductId && (
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">ORDER OVERVIEW</div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-slate-700">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">Product</span>
+                          <span className="font-bold text-slate-900">{selectedProductInForm?.name || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">Configuration</span>
+                          <span className="font-bold text-slate-900">{activeUnitsPerCase} Bottles/Case</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">Cases</span>
+                          <span className="font-bold text-slate-900">{parseFloat(formCases) || 0}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">Total Bottles</span>
+                          <span className="font-extrabold text-blue-700 tabular-nums">{(parseFloat(formCases) || 0) * activeUnitsPerCase} Bottles</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Available Stock Indicator */}
+                  {selectedProductInForm && (
+                    <div className="p-3 bg-slate-100/80 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                      <div>
+                        <span className="text-[10px] font-extrabold uppercase text-slate-500 block">AVAILABLE STOCK</span>
+                        <span className="font-bold text-slate-800">{selectedProductInForm.currentStock.toLocaleString()} Cases ({ (selectedProductInForm.currentStock * activeUnitsPerCase).toLocaleString() } Bottles)</span>
+                      </div>
+                      {parseFloat(formCases) > 0 && (
+                        <div className="text-right">
+                          <span className="text-[10px] font-extrabold uppercase text-slate-500 block">AFTER DISPATCH</span>
+                          <span className={`font-extrabold ${selectedProductInForm.currentStock - parseFloat(formCases) < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
+                            {(selectedProductInForm.currentStock - parseFloat(formCases)).toLocaleString()} Cases
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col">
@@ -1359,7 +1673,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                     {['Bank', 'UPI', 'Cheque'].includes(formPaymentMethod) && (
                       <div className="flex flex-col">
                         <PremiumLabel label="Company Bank Account *" />
-                        <select value={formBankAccountId} onChange={(e) => setFormBankAccountId(e.target.value)} className="w-full h-[40px] border border-slate-200 rounded-lg text-sm bg-white">
+                        <select value={formBankAccountId} onChange={(e) => setFormBankAccountId(e.target.value)} className="w-full h-[40px] border border-slate-200 rounded-lg text-sm bg-white font-medium">
                           <option value="">Select Account...</option>
                           {banks.map(b => (
                             <option key={b.id} value={b.id}>{b.bankName} — {b.accountNumber}</option>
@@ -1372,7 +1686,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                     {formPaymentMethod === 'Cash' && (
                       <div className="flex flex-col">
                         <PremiumLabel label="Company Cash Book Register *" />
-                        <select value={formCashBookId} onChange={(e) => setFormCashBookId(e.target.value)} className="w-full h-[40px] border border-slate-200 rounded-lg text-sm bg-white">
+                        <select value={formCashBookId} onChange={(e) => setFormCashBookId(e.target.value)} className="w-full h-[40px] border border-slate-200 rounded-lg text-sm bg-white font-medium">
                           <option value="">Select Cash Register...</option>
                           {cashRegisters.map(c => (
                             <option key={c.id} value={c.id}>{c.name}</option>
@@ -1396,7 +1710,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                       value={customerSearch}
                       onChange={(e) => { setCustomerSearch(e.target.value); setIsCustomerDropdownOpen(true); }}
                       onFocus={() => setIsCustomerDropdownOpen(true)}
-                      className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none"
+                      className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none font-medium"
                     />
                     {isCustomerDropdownOpen && (
                       <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
@@ -1405,7 +1719,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                             key={c.id}
                             type="button"
                             onClick={() => { setFormCustomerId(c.id); setCustomerSearch(c.customerName); setIsCustomerDropdownOpen(false); }}
-                            className="w-full text-left py-2 px-3 hover:bg-slate-50 text-xs text-slate-700"
+                            className="w-full text-left py-2 px-3 hover:bg-slate-50 text-xs text-slate-700 font-medium"
                           >
                             {c.customerName}
                           </button>
@@ -1415,29 +1729,148 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
+                    <EnterpriseNumberInput label="Returned Cases *" value={formCases} onChange={(e) => setFormCases(e.target.value)} placeholder="0" allowDecimals={false} />
                     <div className="flex flex-col">
-                      <PremiumLabel label="Original Reference Invoice" />
-                      <input type="text" value={formOriginalInvoice} onChange={(e) => setFormOriginalInvoice(e.target.value)} placeholder="E.g., TXN-2026..." className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
+                      <PremiumLabel label="Return Price / Case (₹) *" />
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formUnitPrice}
+                        onChange={(e) => setFormUnitPrice(e.target.value)}
+                        placeholder={selectedProductInForm?.sellingPrice?.toString() || selectedProductInForm?.costPrice?.toString() || '0.00'}
+                        className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg focus:outline-none focus:border-blue-500 font-semibold"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Return Overview Card */}
+                  {formProductId && (
+                    <div className="p-3.5 bg-emerald-50/60 border border-emerald-200/90 rounded-xl space-y-2 text-xs">
+                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">RETURN OVERVIEW</div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-emerald-900">
+                        <div>
+                          <span className="text-[10px] text-emerald-700/80 block">Product</span>
+                          <span className="font-bold">{selectedProductInForm?.name || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-emerald-700/80 block">Case Configuration</span>
+                          <span className="font-bold">{activeUnitsPerCase} Bottles/Case</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-emerald-700/80 block">Returned Cases</span>
+                          <span className="font-bold">{parseFloat(formCases) || 0}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-emerald-700/80 block">Total Bottles</span>
+                          <span className="font-extrabold text-emerald-950 tabular-nums">{(parseFloat(formCases) || 0) * activeUnitsPerCase} Bottles</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Calculated Return Value Summary Banner */}
+                  <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between shadow-2xs">
+                    <div>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 block">TOTAL RETURN VALUE</span>
+                      <span className="text-[11px] font-semibold text-emerald-700">
+                        {parseFloat(formCases) || 0} Cases × ₹{(parseFloat(formUnitPrice) || 0).toFixed(2)} / Case
+                      </span>
+                    </div>
+                    <span className="text-lg font-black text-emerald-950 tabular-nums">
+                      ₹{((parseFloat(formCases) || 0) * (parseFloat(formUnitPrice) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+
+                  {/* Return Condition & Settlement Method */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Return Condition *" />
+                      <select
+                        value={formReturnCondition}
+                        onChange={(e) => setFormReturnCondition(e.target.value)}
+                        className="w-full h-[40px] px-3 border border-slate-200 text-sm bg-white rounded-lg font-medium"
+                      >
+                        <option value="Good — Restock">Good — Restock (Restores Inventory)</option>
+                        <option value="Damaged — Do Not Restock">Damaged — Do Not Restock (No Stock Increase)</option>
+                      </select>
                     </div>
                     <div className="flex flex-col">
-                      <PremiumLabel label="Return Condition" />
-                      <select value={formReturnCondition} onChange={(e) => setFormReturnCondition(e.target.value)} className="w-full h-[40px] px-3 border border-slate-200 text-sm bg-white rounded-lg">
-                        <option value="Good">Good (Restock Asset)</option>
-                        <option value="Damaged">Damaged / Rejected</option>
+                      <PremiumLabel label="Settlement Method *" />
+                      <select
+                        value={formSettlementMethod}
+                        onChange={(e) => setFormSettlementMethod(e.target.value)}
+                        className="w-full h-[40px] px-3 border border-slate-200 text-sm bg-white rounded-lg font-semibold"
+                      >
+                        <option value="Deduct from Customer Credit">Deduct from Customer Credit</option>
+                        <option value="Refund">Refund Customer</option>
                       </select>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <EnterpriseNumberInput label="Cases Returned *" value={formCases} onChange={(e) => setFormCases(e.target.value)} placeholder="0" allowDecimals={false} />
-                    <div className="flex flex-col">
-                      <PremiumLabel label="Refund Method *" />
-                      <select value={formRefundMethod} onChange={(e) => setFormRefundMethod(e.target.value)} className="w-full h-[40px] px-3 border border-slate-200 text-sm bg-white rounded-lg">
-                        <option value="Credit Note">Credit Note Note</option>
-                        <option value="Cash">Cash Refund</option>
-                        <option value="Bank">Bank Settlement</option>
-                        <option value="Replacement">Direct Replacement</option>
-                      </select>
+                  {/* Refund Method options if Refund selected */}
+                  {formSettlementMethod === 'Refund' && (
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                      <div className="flex flex-col">
+                        <PremiumLabel label="Refund Method *" />
+                        <div className="flex gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setFormRefundType('Cash')}
+                            className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${formRefundType === 'Cash' ? 'bg-blue-600 text-white border-blue-600 shadow' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                          >
+                            Cash Refund
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setFormRefundType('Bank')}
+                            className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${formRefundType === 'Bank' ? 'bg-blue-600 text-white border-blue-600 shadow' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                          >
+                            Bank Refund
+                          </button>
+                        </div>
+                      </div>
+
+                      {formRefundType === 'Cash' && (
+                        <div className="flex flex-col">
+                          <PremiumLabel label="Cash Account / Cash Book *" />
+                          <select value={formCashBookId} onChange={(e) => setFormCashBookId(e.target.value)} className="w-full h-[40px] border border-slate-200 rounded-lg text-sm bg-white font-medium">
+                            <option value="">Select Cash Register...</option>
+                            {cashRegisters.map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {formRefundType === 'Bank' && (
+                        <div className="flex flex-col">
+                          <PremiumLabel label="Bank Account *" />
+                          <select value={formBankAccountId} onChange={(e) => setFormBankAccountId(e.target.value)} className="w-full h-[40px] border border-slate-200 rounded-lg text-sm bg-white font-medium">
+                            <option value="">Select Bank Account...</option>
+                            {banks.map(b => (
+                              <option key={b.id} value={b.id}>{b.bankName} — {b.accountNumber}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Human-friendly Return Settlement Preview */}
+                  <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl space-y-2 text-xs text-blue-950">
+                    <div className="font-extrabold uppercase text-[10px] tracking-wider text-blue-800 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                      RETURN SETTLEMENT PREVIEW
+                    </div>
+                    <div className="space-y-1 pl-5 font-medium text-slate-700">
+                      <div>
+                        Inventory: <strong>{formReturnCondition.includes('Good') ? `+${parseFloat(formCases) || 0} Cases (${(parseFloat(formCases) || 0) * activeUnitsPerCase} Bottles) restocked to sellable stock` : `${parseFloat(formCases) || 0} Cases recorded as damaged (NO stock increase)`}</strong>
+                      </div>
+                      <div>
+                        Settlement: <strong>{formSettlementMethod === 'Deduct from Customer Credit' ? `₹${((parseFloat(formCases) || 0) * (parseFloat(formUnitPrice) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })} deducted/credited to customer ledger` : `₹${((parseFloat(formCases) || 0) * (parseFloat(formUnitPrice) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })} refunded via ${formRefundType === 'Cash' ? 'Cash Register' : 'Bank Account'}`}</strong>
+                      </div>
                     </div>
                   </div>
 
@@ -1588,25 +2021,96 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                 </div>
               )}
 
-              {/* LIVE GENERAL LEDGER ACCOUNTING IMPACT PREVIEW */}
+              {/* ACCOUNTING PREVIEW SECTION */}
               {accountingImpactPreview.length > 0 && (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
-                    <Landmark className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
-                    Live Accounting Double-Entry Preview
-                  </span>
-                  <div className="divide-y divide-slate-100 text-[12px] font-mono">
-                    {accountingImpactPreview.map((item, i) => (
-                      <div key={i} className="flex justify-between py-1.5">
-                        <span className={item.type === 'Credit' ? 'pl-6 text-slate-500' : 'font-semibold text-slate-800'}>
-                          {item.type === 'Credit' ? 'To ' : ''}{item.account}
-                        </span>
-                        <span className={`font-bold ${item.type === 'Credit' ? 'text-slate-500' : 'text-blue-650'}`}>
-                          ({item.type === 'Credit' ? 'Cr' : 'Dr'}) ₹{item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    ))}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12px] font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                      <Landmark className="w-4 h-4 text-blue-600" />
+                      Accounting Preview
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowDetailedAccounting(!showDetailedAccounting)}
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                    >
+                      Accounting Details {showDetailedAccounting ? '▲' : '▼'}
+                    </button>
                   </div>
+                  <p className="text-xs text-slate-500 font-medium">
+                    This shows how this transaction will affect your accounts when saved.
+                  </p>
+
+                  {/* Human-friendly explanation bullets */}
+                  <div className="bg-white border border-slate-200 rounded-lg p-3 space-y-1.5 text-xs">
+                    <div className="font-bold text-slate-800 text-[11px] uppercase tracking-wider mb-1">What happens when you save?</div>
+                    {formType === 'Customer Return' && (
+                      <>
+                        <div className="flex items-center gap-2 text-slate-700">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span><strong>{parseFloat(formCases) || 0} cases</strong> will be added back to inventory.</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-700">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span>Return value: <strong>₹{((parseFloat(formCases) || 0) * (parseFloat(formUnitPrice) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-700">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span>
+                            {formRefundMethod === 'Cash' ? '₹' + ((parseFloat(formCases) || 0) * (parseFloat(formUnitPrice) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 }) + ' will be refunded to customer in cash.' :
+                              formRefundMethod === 'Bank' ? '₹' + ((parseFloat(formCases) || 0) * (parseFloat(formUnitPrice) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 }) + ' will be refunded through bank account.' :
+                                '₹' + ((parseFloat(formCases) || 0) * (parseFloat(formUnitPrice) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 }) + ' will be credited to customer account.'}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    {formType === 'Sales Dispatch' && (
+                      <>
+                        <div className="flex items-center gap-2 text-slate-700">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span><strong>{parseFloat(formCases) || 0} cases</strong> will be deducted from inventory.</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-700">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span>Sales revenue: <strong>₹{(parseFloat(formCases) * (parseFloat(formUnitPrice) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
+                        </div>
+                      </>
+                    )}
+                    {formType !== 'Customer Return' && formType !== 'Sales Dispatch' && (
+                      <div className="flex items-center gap-2 text-slate-700">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span>Inventory adjustment recorded for <strong>{parseFloat(formCases) || 0} cases</strong>.</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Detailed double-entry table */}
+                  {showDetailedAccounting && (
+                    <div className="bg-white border border-slate-200 rounded-lg overflow-hidden mt-2">
+                      <table className="w-full text-left border-collapse text-xs font-mono">
+                        <thead>
+                          <tr className="bg-slate-100 border-b border-slate-200 text-[10px] font-bold text-slate-600 uppercase">
+                            <th className="py-1.5 px-3">Account</th>
+                            <th className="py-1.5 px-3 text-right">Debit</th>
+                            <th className="py-1.5 px-3 text-right">Credit</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-slate-700">
+                          {accountingImpactPreview.map((item, i) => (
+                            <tr key={i} className="hover:bg-slate-50">
+                              <td className="py-1.5 px-3 font-semibold">{item.account}</td>
+                              <td className="py-1.5 px-3 text-right font-bold text-blue-700">
+                                {item.type === 'Debit' ? `₹${item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '—'}
+                              </td>
+                              <td className="py-1.5 px-3 text-right font-bold text-slate-600">
+                                {item.type === 'Credit' ? `₹${item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1868,6 +2372,170 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                 className="w-[100px] h-11 border border-slate-200 text-slate-500 font-bold text-xs rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DISPATCH HISTORY MODAL */}
+      {isHistoryOpen && historyDispatch && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-center items-center p-4">
+          <div className="bg-white border border-slate-200 w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center border-b border-slate-100 px-6 py-4 bg-slate-50/50">
+              <div>
+                <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-purple-600" />
+                  Transaction History & Traceability
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5 font-mono">
+                  Dispatch Reference: {historyDispatch.transactionNumber}
+                </p>
+              </div>
+              <button onClick={() => setIsHistoryOpen(false)} className="text-slate-400 hover:text-slate-650 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* 1. ORIGINAL DISPATCH SUMMARY CARD */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                <div className="text-xs font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200/80 pb-2">
+                  <Package className="w-4 h-4 text-purple-600" />
+                  ORIGINAL SALES DISPATCH SUMMARY
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                  <div>
+                    <span className="text-slate-400 font-semibold block">Customer:</span>
+                    <span className="font-bold text-slate-800">{historyRes?.data?.parentDispatch?.customerName || historyDispatch.customerName}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-semibold block">Product:</span>
+                    <span className="font-bold text-slate-800">{historyRes?.data?.parentDispatch?.productName || historyDispatch.productName}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-semibold block">Original Quantity:</span>
+                    <span className="font-black text-slate-900">{Math.abs(historyRes?.data?.parentDispatch?.originalCases || historyDispatch.cases)} Cases</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-semibold block">Total Value:</span>
+                    <span className="font-bold text-slate-800">₹{(historyRes?.data?.parentDispatch?.totalAmount || historyDispatch.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. CHRONOLOGICAL TIMELINE SECTION */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  TRANSACTION TIMELINE
+                </h3>
+
+                {isHistoryLoading ? (
+                  <div className="py-12 flex justify-center items-center gap-2 text-xs text-slate-400">
+                    <div className="w-5 h-5 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin"></div>
+                    Loading dispatch timeline...
+                  </div>
+                ) : !historyRes?.data?.history || historyRes.data.history.length === 0 ? (
+                  <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-400">
+                    No returns or damages recorded for this dispatch.
+                  </div>
+                ) : (
+                  <div className="space-y-3 relative pl-4 border-l-2 border-slate-200 ml-2">
+                    {sortedHistoryItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className={`relative p-4 rounded-xl border transition-all ${
+                          item.isParent
+                            ? 'bg-blue-50/40 border-blue-200 shadow-2xs'
+                            : item.transactionType === 'Customer Return'
+                              ? 'bg-emerald-50/30 border-emerald-200'
+                              : 'bg-rose-50/30 border-rose-200'
+                        }`}
+                      >
+                        {/* Dot Connector */}
+                        <div className={`absolute -left-[23px] top-5 w-3 h-3 rounded-full border-2 bg-white ${
+                          item.isParent ? 'border-blue-600 bg-blue-600' :
+                          item.transactionType === 'Customer Return' ? 'border-emerald-600 bg-emerald-600' :
+                          'border-rose-600 bg-rose-600'
+                        }`} />
+
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/60 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                              item.isParent ? 'bg-blue-100 text-blue-800' :
+                              item.transactionType === 'Customer Return' ? 'bg-emerald-100 text-emerald-800' :
+                              'bg-rose-100 text-rose-800'
+                            }`}>
+                              {item.isParent ? 'ORIGINAL SALES DISPATCH' : item.transactionType}
+                            </span>
+                            <span className="font-mono text-slate-500 font-semibold">{item.transactionNumber}</span>
+                          </div>
+                          <div className="text-slate-500 text-[11px] font-medium">
+                            {new Date(item.createdAt || item.date).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' })}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-3 text-xs items-center">
+                          <div>
+                            <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">Quantity</span>
+                            <span className="font-extrabold text-slate-900">{item.cases} Cases</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">Amount</span>
+                            <span className="font-extrabold text-slate-900">₹{(item.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">Settlement</span>
+                            <span className="font-bold text-slate-700">{item.paymentMethod || 'Credit'}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">Created By</span>
+                            <span className="font-bold text-slate-700">{item.createdBy}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 3. SUMMARY METRICS CARD */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                <div className="text-xs font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200/80 pb-2">
+                  <Landmark className="w-4 h-4 text-purple-600" />
+                  SUMMARY BREAKDOWN
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl text-slate-900">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Original Dispatch</span>
+                    <span className="font-black text-base">{historyRes?.data?.parentDispatch?.originalCases ?? Math.abs(historyDispatch.cases)} Cases</span>
+                  </div>
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-950">
+                    <span className="text-[10px] font-bold text-emerald-700 uppercase block">Total Returned</span>
+                    <span className="font-black text-base">{historyRes?.data?.parentDispatch?.returnedCases || 0} Cases</span>
+                  </div>
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-950">
+                    <span className="text-[10px] font-bold text-rose-700 uppercase block">Total Damaged</span>
+                    <span className="font-black text-base">{historyRes?.data?.parentDispatch?.damagedCases || 0} Cases</span>
+                  </div>
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-950">
+                    <span className="text-[10px] font-bold text-blue-700 uppercase block">Remaining Available</span>
+                    <span className="font-black text-base">{historyRes?.data?.parentDispatch?.remainingCases ?? Math.abs(historyDispatch.cases)} Cases</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-100 flex justify-end bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => setIsHistoryOpen(false)}
+                className="px-6 h-9 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+              >
+                Close History
               </button>
             </div>
           </div>

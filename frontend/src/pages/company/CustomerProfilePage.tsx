@@ -432,7 +432,7 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider h-9">
                       <th className="py-2.5 px-4">Date</th>
-                      <th className="py-2.5 px-4">Invoice / Sale No.</th>
+                      <th className="py-2.5 px-4">Sales Type</th>
                       <th className="py-2.5 px-4">Product</th>
                       <th className="py-2.5 px-4 text-right">Quantity</th>
                       <th className="py-2.5 px-4 text-right">Subtotal</th>
@@ -453,13 +453,49 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
                       const paid = t.amountReceived !== undefined ? t.amountReceived : Math.max(0, total - outstanding)
                       const status = t.paymentStatus || (outstanding <= 0 ? 'Paid' : (paid > 0 ? 'Partially Paid' : 'Pending'))
 
+                      const rawType = (t.transactionType || 'Sales Dispatch').trim()
+                      const lowerType = rawType.toLowerCase()
+
+                      let badgeStyle = 'bg-slate-100 text-slate-700 border-slate-200'
+                      let dotStyle = 'bg-slate-400'
+
+                      if (lowerType.includes('dispatch') || lowerType === 'sales') {
+                        badgeStyle = 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        dotStyle = 'bg-emerald-500'
+                      } else if (lowerType.includes('return')) {
+                        badgeStyle = 'bg-rose-50 text-rose-700 border-rose-200'
+                        dotStyle = 'bg-rose-500'
+                      } else if (lowerType.includes('invoice')) {
+                        badgeStyle = 'bg-blue-50 text-blue-700 border-blue-200'
+                        dotStyle = 'bg-blue-500'
+                      } else if (lowerType.includes('credit')) {
+                        badgeStyle = 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                        dotStyle = 'bg-indigo-500'
+                      } else if (lowerType.includes('payment')) {
+                        badgeStyle = 'bg-amber-50 text-amber-700 border-amber-200'
+                        dotStyle = 'bg-amber-500'
+                      } else if (lowerType.includes('adjust') || lowerType.includes('damage')) {
+                        badgeStyle = 'bg-purple-50 text-purple-700 border-purple-200'
+                        dotStyle = 'bg-purple-500'
+                      }
+
                       return (
                         <tr key={t.id} className="hover:bg-slate-50/60 font-mono">
                           <td className="py-3 px-4 font-sans font-medium text-slate-600">
                             {formatDateOnly(t.transactionDate)}
                           </td>
-                          <td className="py-3 px-4 font-bold text-blue-600">
-                            {t.transactionNumber}
+                          <td className="py-3 px-4 font-sans">
+                            <div className="flex flex-col items-start gap-0.5">
+                              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold border ${badgeStyle}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${dotStyle}`} />
+                                <span>{rawType}</span>
+                              </span>
+                              {t.transactionNumber && (
+                                <span className="font-mono text-[11px] font-medium text-slate-500">
+                                  {t.transactionNumber}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3 px-4 font-sans font-semibold text-slate-800">
                             {t.productName}

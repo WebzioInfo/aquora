@@ -322,6 +322,10 @@ namespace Aquora.Persistence.Services
                                          ALTER TABLE ""{tenant.SchemaName}"".""BankLedgerEntries"" ADD COLUMN IF NOT EXISTS ""AuditNotes"" text NULL;
                                          ALTER TABLE ""{tenant.SchemaName}"".""Customers"" ADD COLUMN IF NOT EXISTS ""Price"" numeric NOT NULL DEFAULT 0;
                                          ALTER TABLE ""{tenant.SchemaName}"".""Customers"" ADD COLUMN IF NOT EXISTS ""Discount"" numeric NOT NULL DEFAULT 0;
+                                         ALTER TABLE ""{tenant.SchemaName}"".""CaseConfigurations"" ADD COLUMN IF NOT EXISTS ""ProductId"" uuid NULL;
+                                         ALTER TABLE ""{tenant.SchemaName}"".""CaseConfigurations"" ADD COLUMN IF NOT EXISTS ""UnitsPerCase"" integer NOT NULL DEFAULT 24;
+                                         ALTER TABLE ""{tenant.SchemaName}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""ParentTransactionId"" uuid NULL;
+                                         CREATE INDEX IF NOT EXISTS ""IX_SalesTransactions_ParentTransactionId"" ON ""{tenant.SchemaName}"".""SalesTransactions"" (""ParentTransactionId"");
                                          
                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""MonthlySalaries"" (
                                              ""Id"" uuid NOT NULL PRIMARY KEY,
