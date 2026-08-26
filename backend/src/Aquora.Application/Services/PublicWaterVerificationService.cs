@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Aquora.Application.DTOs.Public;
 using Aquora.Application.Interfaces;
 using Aquora.Application.Interfaces.Services;
+using Aquora.Domain.Entities;
 
 namespace Aquora.Application.Services
 {
@@ -51,17 +52,22 @@ namespace Aquora.Application.Services
                 var currentSchema = _tenantProvider.TenantSchemaName;
                 if (!string.IsNullOrWhiteSpace(currentSchema) && !currentSchema.Equals("public", StringComparison.OrdinalIgnoreCase))
                 {
-                    var result = await VerifyBatchInTenantScopeAsync(_tenantProvider.TenantId, currentSchema, normalizedBatch, batchNumber, cancellationToken);
-                    if (result != null)
+                    var preResolvedTenant = await _platformContext.Tenants.AsNoTracking()
+                        .FirstOrDefaultAsync(t => t.Id == _tenantProvider.TenantId && t.IsActive && !t.IsDeleted && t.IsBiodropsProduction, cancellationToken);
+                    if (preResolvedTenant != null)
                     {
-                        return result;
+                        var result = await VerifyBatchInTenantScopeAsync(preResolvedTenant, normalizedBatch, batchNumber, cancellationToken);
+                        if (result != null)
+                        {
+                            return result;
+                        }
                     }
                 }
 
-                // 2. If no tenant was pre-resolved or not found in pre-resolved tenant, search across active tenant database schemas
+                // 2. Search across active BioDrops production tenant schemas
                 var activeTenants = await _platformContext.Tenants
                     .AsNoTracking()
-                    .Where(t => t.IsActive && !t.IsDeleted && !string.IsNullOrWhiteSpace(t.SchemaName) && t.SchemaName != "public")
+                    .Where(t => t.IsActive && !t.IsDeleted && t.IsBiodropsProduction && !string.IsNullOrWhiteSpace(t.SchemaName) && t.SchemaName != "public")
                     .ToListAsync(cancellationToken);
 
                 bool anyProductionBatchFound = false;
@@ -70,7 +76,7 @@ namespace Aquora.Application.Services
                 {
                     try
                     {
-                        var tenantResult = await VerifyBatchInTenantScopeAsync(tenant.Id, tenant.SchemaName, normalizedBatch, batchNumber, cancellationToken);
+                        var tenantResult = await VerifyBatchInTenantScopeAsync(tenant, normalizedBatch, batchNumber, cancellationToken);
                         if (tenantResult != null)
                         {
                             if (tenantResult.Code == "REPORT_NOT_PUBLIC")
@@ -138,35 +144,57 @@ namespace Aquora.Application.Services
         }
 
         private async Task<PublicBatchVerificationResponseDto?> VerifyBatchInTenantScopeAsync(
-            Guid tenantId,
-            string schemaName,
+            Tenant platformTenant,
             string normalizedBatch,
             string originalBatchNumber,
             CancellationToken cancellationToken)
         {
+            if (platformTenant == null || !platformTenant.IsBiodropsProduction || !platformTenant.IsActive || platformTenant.IsDeleted)
+            {
+                return null;
+            }
+
             using var scope = _scopeFactory.CreateScope();
             var tenantProvider = scope.ServiceProvider.GetRequiredService<ITenantProvider>();
-            tenantProvider.SetTenantId(tenantId);
-            tenantProvider.SetTenantSchemaName(schemaName);
+            tenantProvider.SetTenantId(platformTenant.Id);
+            tenantProvider.SetTenantSchemaName(platformTenant.SchemaName);
 
             var dbContext = scope.ServiceProvider.GetRequiredService<ITenantDbContext>();
 
-            // 1. Query all active (non-deleted) reports associated with this batch number
-            var reports = await dbContext.WaterTestReports
+            var schemaName = platformTenant.SchemaName;
+
+            var rawBatch = normalizedBatch
+                .Replace("batch-", "", StringComparison.OrdinalIgnoreCase)
+                .Replace("b-", "", StringComparison.OrdinalIgnoreCase)
+                .Trim();
+
+            var batchVariants = new[] {
+                normalizedBatch,
+                rawBatch,
+                "b-" + rawBatch,
+                "batch-" + rawBatch
+            }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.ToLowerInvariant()).Distinct().ToList();
+
+            // 1. Query all active (non-deleted) reports associated with this batch number directly from tenant schema
+            var allActiveReports = await dbContext.WaterTestReports
+                .FromSqlRaw($"SELECT * FROM \"{schemaName}\".\"WaterTestReports\" WHERE \"IsDeleted\" = false AND \"IsActive\" = true")
                 .AsNoTracking()
-                .Include(r => r.Company)
-                .Include(r => r.Results)
-                    .ThenInclude(res => res.Parameter)
-                .Where(r => !r.IsDeleted && r.IsActive && r.BatchNumber.Trim().ToLower() == normalizedBatch)
+                .ToListAsync(cancellationToken);
+
+            var reports = allActiveReports
+                .Where(r => !string.IsNullOrWhiteSpace(r.BatchNumber) && batchVariants.Contains(r.BatchNumber.Trim().ToLowerInvariant()))
                 .OrderByDescending(r => r.SampleTime ?? r.CreatedAt)
                 .ThenByDescending(r => r.CreatedAt)
-                .ToListAsync(cancellationToken);
+                .ToList();
 
             if (!reports.Any())
             {
-                var productionBatchExists = await dbContext.ProductionBatches
+                var allProdBatches = await dbContext.ProductionBatches
+                    .FromSqlRaw($"SELECT * FROM \"{schemaName}\".\"ProductionBatches\" WHERE \"IsDeleted\" = false")
                     .AsNoTracking()
-                    .AnyAsync(b => !b.IsDeleted && b.BatchNumber.Trim().ToLower() == normalizedBatch, cancellationToken);
+                    .ToListAsync(cancellationToken);
+
+                var productionBatchExists = allProdBatches.Any(b => !string.IsNullOrWhiteSpace(b.BatchNumber) && batchVariants.Contains(b.BatchNumber.Trim().ToLowerInvariant()));
 
                 if (productionBatchExists)
                 {
@@ -204,13 +232,38 @@ namespace Aquora.Application.Services
 
             var report = eligibleReport;
 
-            var qcSettings = await dbContext.QCSettings
+            // Load results and parameters explicitly from tenant schema
+            var resultsList = await dbContext.WaterTestResults
+                .FromSqlRaw($"SELECT * FROM \"{schemaName}\".\"WaterTestResults\" WHERE \"ReportId\" = '{report.Id}'")
                 .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.TenantId == report.TenantId, cancellationToken);
+                .ToListAsync(cancellationToken);
 
-            var prodBatch = await dbContext.ProductionBatches
+            var paramsList = await dbContext.WaterTestParameters
+                .FromSqlRaw($"SELECT * FROM \"{schemaName}\".\"WaterTestParameters\"")
                 .AsNoTracking()
-                .FirstOrDefaultAsync(b => b.TenantId == report.TenantId && b.BatchNumber.Trim().ToLower() == normalizedBatch, cancellationToken);
+                .ToListAsync(cancellationToken);
+
+            var paramsDict = paramsList.ToDictionary(p => p.Id, p => p);
+            foreach (var res in resultsList)
+            {
+                if (paramsDict.TryGetValue(res.ParameterId, out var pObj))
+                {
+                    res.Parameter = pObj;
+                }
+            }
+            report.Results = resultsList;
+
+            var qcSettings = await dbContext.QCSettings
+                .FromSqlRaw($"SELECT * FROM \"{schemaName}\".\"QCSettings\" WHERE \"TenantId\" = '{report.TenantId}'")
+                .AsNoTracking()
+                .FirstOrDefaultAsync(cancellationToken);
+
+            var allProdBatchesForReport = await dbContext.ProductionBatches
+                .FromSqlRaw($"SELECT * FROM \"{schemaName}\".\"ProductionBatches\" WHERE \"TenantId\" = '{report.TenantId}' AND \"IsDeleted\" = false")
+                .AsNoTracking()
+                .ToListAsync(cancellationToken);
+
+            var prodBatch = allProdBatchesForReport.FirstOrDefault(b => !string.IsNullOrWhiteSpace(b.BatchNumber) && batchVariants.Contains(b.BatchNumber.Trim().ToLowerInvariant()));
 
             DateTime mfgDateVal = report.ProductionDate 
                 ?? report.SampleTime 
@@ -263,10 +316,9 @@ namespace Aquora.Application.Services
                 }
             }
 
-            var companyName = report.Company?.Name ?? "Aquora Water Bottling";
-            var labAddress = qcSettings != null && !string.IsNullOrWhiteSpace(qcSettings.LabAddress)
-                ? qcSettings.LabAddress
-                : null;
+            var companyAddress = !string.IsNullOrWhiteSpace(platformTenant.Address)
+                ? platformTenant.Address
+                : qcSettings?.LabAddress;
 
             var complianceType = qcSettings != null && !string.IsNullOrWhiteSpace(qcSettings.StandardComplianceType)
                 ? qcSettings.StandardComplianceType
@@ -281,9 +333,21 @@ namespace Aquora.Application.Services
                     BatchNumber = report.BatchNumber,
                     Manufacturer = new PublicManufacturerDto
                     {
-                        Name = companyName,
-                        Address = labAddress,
-                        Location = labAddress ?? report.Company?.TimeZone ?? "India"
+                        Id = platformTenant.Id,
+                        Name = platformTenant.Name,
+                        Code = platformTenant.Code,
+                        Subdomain = platformTenant.Subdomain,
+                        CustomDomain = platformTenant.CustomDomain,
+                        LogoUrl = platformTenant.LogoUrl,
+                        Address = companyAddress,
+                        Location = companyAddress ?? "India",
+                        LicenseNumber = platformTenant.LicenseNumber,
+                        GstNumber = platformTenant.GstNumber,
+                        PanNumber = platformTenant.PanNumber,
+                        Email = platformTenant.OwnerEmail,
+                        Phone = platformTenant.OwnerPhone,
+                        IsBiodropsProduction = platformTenant.IsBiodropsProduction,
+                        CreatedAt = platformTenant.CreatedAt
                     },
                     Manufacturing = new PublicManufacturingDto
                     {
@@ -296,7 +360,7 @@ namespace Aquora.Application.Services
                     },
                     Licenses = new PublicLicensesDto
                     {
-                        Fssai = null,
+                        Fssai = platformTenant.LicenseNumber,
                         Bis = complianceType
                     },
                     WaterQuality = new PublicWaterQualityDto
@@ -310,12 +374,10 @@ namespace Aquora.Application.Services
                     Report = new PublicReportDto
                     {
                         Available = true,
-                        PublicDownloadAvailable = false
+                        PublicDownloadAvailable = true
                     }
                 }
             };
         }
     }
 }
-
-

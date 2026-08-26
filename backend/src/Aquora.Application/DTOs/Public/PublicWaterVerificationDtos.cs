@@ -45,18 +45,6 @@ namespace Aquora.Application.DTOs.Public
         public PublicReportDto Report { get; set; } = new();
     }
 
-    public class PublicManufacturerDto
-    {
-        [JsonPropertyName("name")]
-        public string Name { get; set; } = string.Empty;
-
-        [JsonPropertyName("address")]
-        public string? Address { get; set; }
-
-        [JsonPropertyName("location")]
-        public string? Location { get; set; }
-    }
-
     public class PublicManufacturingDto
     {
         [JsonPropertyName("manufacturedDate")]

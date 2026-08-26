@@ -157,6 +157,13 @@ export const TenantDetailsDrawer: React.FC<TenantDetailsDrawerProps> = ({
                       </EnterpriseBadge>
                     </div>
 
+                    <div className="py-2.5 flex justify-between items-center">
+                      <span className="text-slate-500 font-medium">BioDrops Production</span>
+                      <EnterpriseBadge variant={tenant.isBiodropsProduction ? 'primary' : 'gray'}>
+                        {tenant.isBiodropsProduction ? 'Enabled (Active Manufacturer)' : 'Disabled'}
+                      </EnterpriseBadge>
+                    </div>
+
                     {tenant.ownerEmail && (
                       <div className="py-2.5 flex justify-between items-center">
                         <span className="text-slate-500 font-medium">Owner Email</span>

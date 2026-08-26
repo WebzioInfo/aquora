@@ -12,6 +12,7 @@ namespace Aquora.Domain.Entities
         public string Subdomain { get; set; }
         public string? CustomDomain { get; set; }
         public bool IsActive { get; set; } = true;
+        public bool IsBiodropsProduction { get; set; } = false;
 
         // Enterprise Company Details
         public string? OwnerName { get; set; }

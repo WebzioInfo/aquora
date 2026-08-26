@@ -48,6 +48,10 @@ namespace Aquora.Persistence.Context
                 .HasIndex(t => t.Code)
                 .IsUnique();
 
+            modelBuilder.Entity<Tenant>()
+                .Property(t => t.IsBiodropsProduction)
+                .HasDefaultValue(false);
+
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();

@@ -125,6 +125,10 @@ namespace Aquora.Persistence.Context
             modelBuilder.Entity<Tenant>()
                 .ToTable("Tenants", "public", t => t.ExcludeFromMigrations());
 
+            modelBuilder.Entity<Company>()
+                .Property(c => c.IsBiodropsProduction)
+                .HasDefaultValue(false);
+
             modelBuilder.Entity<User>()
                 .ToTable("Users", "public", t => t.ExcludeFromMigrations());
 
