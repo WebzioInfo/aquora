@@ -117,10 +117,10 @@ namespace Aquora.Persistence.Services
 
             var tenantIds = tenants.Select(t => t.Id).ToList();
 
-            // Fetch user counts per tenant
+            // Fetch active user counts per tenant (counting only active, non-deleted users)
             var userCounts = await _platformContext.Users
                 .AsNoTracking()
-                .Where(u => !u.IsDeleted && u.TenantId.HasValue && tenantIds.Contains(u.TenantId.Value))
+                .Where(u => !u.IsDeleted && u.IsActive && u.TenantId.HasValue && tenantIds.Contains(u.TenantId.Value))
                 .GroupBy(u => u.TenantId!.Value)
                 .Select(g => new { TenantId = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.TenantId, x => x.Count);
@@ -150,7 +150,7 @@ namespace Aquora.Persistence.Services
                 LogoUrl = t.LogoUrl,
                 Theme = t.Theme,
                 StorageUsedMb = t.StorageUsedMb,
-                ActiveUsersCount = userCounts.TryGetValue(t.Id, out var count) ? count : t.ActiveUsersCount,
+                ActiveUsersCount = userCounts.TryGetValue(t.Id, out var count) ? count : 0,
                 DatabaseStatus = null,
                 SslStatus = null,
                 ApiKey = null,

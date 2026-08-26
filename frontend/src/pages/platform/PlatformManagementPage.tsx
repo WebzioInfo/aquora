@@ -179,12 +179,14 @@ export const PlatformManagementPage: React.FC = () => {
       await api.post('/api/v1/platform/users', data)
     }
     queryClient.invalidateQueries({ queryKey: ['platformUsers'] })
+    queryClient.invalidateQueries({ queryKey: ['platformTenants'] })
   }
 
   const handleDeleteUser = async () => {
     if (!deletingUser) return
     await api.delete(`/api/v1/platform/users/${deletingUser.id}`)
     queryClient.invalidateQueries({ queryKey: ['platformUsers'] })
+    queryClient.invalidateQueries({ queryKey: ['platformTenants'] })
   }
 
   const handleBulkUserAction = async (action: string, targetValue?: string) => {
@@ -196,6 +198,7 @@ export const PlatformManagementPage: React.FC = () => {
     })
     setSelectedUserIds([])
     queryClient.invalidateQueries({ queryKey: ['platformUsers'] })
+    queryClient.invalidateQueries({ queryKey: ['platformTenants'] })
   }
 
   // IMPORT / EXPORT HANDLERS
