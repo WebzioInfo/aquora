@@ -28,7 +28,8 @@ export const TenantModal: React.FC<TenantModalProps> = ({
     panNumber: '',
     licenseNumber: '',
     subscriptionPlan: 'Starter',
-    status: 'Active'
+    status: 'Active',
+    isBiodropsProduction: false
   })
 
   const [loading, setLoading] = useState(false)
