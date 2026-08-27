@@ -8,7 +8,7 @@ namespace Aquora.API.Controllers
 {
     [ApiController]
     [Route("api/v1/qc/water-test")]
-    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "QC,CompanyAdmin,Admin,Owner")]
+    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "QC,CompanyAdmin,Accountant,Admin,Owner")]
     public class WaterTestController : ControllerBase
     {
         private readonly IWaterTestService _waterTestService;

@@ -37,8 +37,8 @@ export const ProductionSetupPage: React.FC = () => {
   const isOwner = userRoles.some((r: string) => ['owner', 'companyowner', 'platformowner'].includes(r)) || primaryRole === 'owner'
   const canManage = !isOwner && (
     !!user?.isPlatformAdmin ||
-    userRoles.some((r: string) => ['companyadmin', 'admin', 'superadmin', 'platformadmin'].includes(r)) ||
-    ['companyadmin', 'admin', 'superadmin', 'platformadmin'].includes(primaryRole)
+    userRoles.some((r: string) => ['companyadmin', 'accountant', 'admin', 'superadmin', 'platformadmin'].includes(r)) ||
+    ['companyadmin', 'accountant', 'admin', 'superadmin', 'platformadmin'].includes(primaryRole)
   )
 
   // ─── TAB 1: PRODUCTION LINES DATA & MUTATIONS ────────────────────────────────

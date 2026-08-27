@@ -609,7 +609,7 @@ namespace Aquora.Application.Services
             {
                 dashboard = "/hr/dashboard";
             }
-            else if (roles.Contains("CompanyAdmin"))
+            else if (roles.Contains("CompanyAdmin") || roles.Contains("Accountant"))
             {
                 dashboard = "/company/dashboard";
             }

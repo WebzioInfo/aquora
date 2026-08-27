@@ -5,6 +5,8 @@ namespace Aquora.Shared.Constants
         public const string PlatformOwner = "Platform Owner";
         public const string PlatformAdministrator = "Platform Administrator";
         public const string CompanyOwner = "Company Owner";
+        public const string CompanyAdmin = "CompanyAdmin";
+        public const string Accountant = "Accountant";
         public const string FactoryManager = "Factory Manager";
         public const string ProductionManager = "Production Manager";
         public const string InventoryManager = "Inventory Manager";

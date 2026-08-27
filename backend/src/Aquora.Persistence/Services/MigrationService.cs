@@ -490,7 +490,7 @@ namespace Aquora.Persistence.Services
                             }
 
                             // Map QC permissions to CompanyAdmin Role
-                            var adminRole = await tenantContext.Roles.FirstOrDefaultAsync(r => r.Code == "COMPANYADMIN");
+                            var adminRole = await tenantContext.Roles.FirstOrDefaultAsync(r => r.Code == "COMPANYADMIN" || r.Name == "CompanyAdmin");
                             if (adminRole != null)
                             {
                                 foreach (var pId in new[] { permQCRead.Id, permQCWrite.Id })
@@ -498,6 +498,32 @@ namespace Aquora.Persistence.Services
                                     if (!await tenantContext.RolePermissions.AnyAsync(rp => rp.RoleId == adminRole.Id && rp.PermissionId == pId))
                                     {
                                         tenantContext.RolePermissions.Add(new RolePermission { RoleId = adminRole.Id, PermissionId = pId, TenantId = tenant.Id });
+                                    }
+                                }
+                            }
+
+                            // Ensure Accountant Role exists and inherits exactly all permissions from CompanyAdmin
+                            var accountantRole = await tenantContext.Roles.FirstOrDefaultAsync(r => r.Code == "ACCOUNTANT" || r.Name == "Accountant");
+                            if (accountantRole == null)
+                            {
+                                _logger.LogInformation($"[REPAIR] Adding missing Accountant role to schema '{tenant.SchemaName}'...");
+                                accountantRole = new Role { Name = "Accountant", Code = "ACCOUNTANT", TenantId = tenant.Id };
+                                tenantContext.Roles.Add(accountantRole);
+                                await tenantContext.SaveChangesAsync();
+                            }
+
+                            if (adminRole != null && accountantRole != null)
+                            {
+                                var adminPermIds = await tenantContext.RolePermissions
+                                    .Where(rp => rp.RoleId == adminRole.Id)
+                                    .Select(rp => rp.PermissionId)
+                                    .ToListAsync();
+
+                                foreach (var pId in adminPermIds)
+                                {
+                                    if (!await tenantContext.RolePermissions.AnyAsync(rp => rp.RoleId == accountantRole.Id && rp.PermissionId == pId))
+                                    {
+                                        tenantContext.RolePermissions.Add(new RolePermission { RoleId = accountantRole.Id, PermissionId = pId, TenantId = tenant.Id });
                                     }
                                 }
                             }

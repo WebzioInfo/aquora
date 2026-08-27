@@ -1066,7 +1066,7 @@ export const CompanyDashboardPage: React.FC = () => {
   ) ?? false)
 
   const isCompanyAdmin = !isOwnerRole && (user?.roles?.some((role: string) =>
-    ['CompanyAdmin', 'SuperAdmin', 'PlatformAdmin'].includes(role)
+    ['CompanyAdmin', 'SuperAdmin', 'PlatformAdmin', 'Accountant'].includes(role)
   ) ?? false)
 
   // Fetch Products List
@@ -1238,7 +1238,7 @@ export const CompanyDashboardPage: React.FC = () => {
   }
 
   const canConfigureStations = user?.roles?.some((role: string) =>
-    ['CompanyAdmin', 'SuperAdmin', 'PlatformAdmin'].includes(role)
+    ['CompanyAdmin', 'SuperAdmin', 'PlatformAdmin', 'Accountant'].includes(role)
   ) ?? false
 
 
@@ -1688,7 +1688,18 @@ export const CompanyDashboardPage: React.FC = () => {
   })
 
   const roles = React.useMemo(() => {
-    const list = [...rawRoles]
+    let list = [...rawRoles]
+    // Filter out system-level Admin so it is NEVER present in the company admin role dropdown
+    list = list.filter((r: any) => {
+      const name = (r.name || '').trim().toLowerCase()
+      const code = (r.code || '').trim().toUpperCase()
+      return name !== 'admin' && code !== 'ADMIN'
+    })
+    // Ensure Accountant is present
+    if (!list.some((r: any) => (r.code && r.code.toUpperCase() === 'ACCOUNTANT') || (r.name && r.name.toLowerCase() === 'accountant'))) {
+      list.push({ id: 'role-accountant-default', code: 'ACCOUNTANT', name: 'Accountant' })
+    }
+    // Ensure Owner is present
     if (!list.some((r: any) => (r.code && r.code.toUpperCase() === 'OWNER') || (r.name && r.name.toLowerCase() === 'owner'))) {
       list.push({ id: 'role-owner-default', code: 'OWNER', name: 'Owner' })
     }
@@ -2116,6 +2127,8 @@ export const CompanyDashboardPage: React.FC = () => {
     }
     if (!addRoleCode) {
       errs.roleCode = 'Role is required.'
+    } else if (addRoleCode.toUpperCase() === 'ADMIN' || addRoleCode.toLowerCase() === 'admin') {
+      errs.roleCode = 'System Admin role cannot be created or assigned by Company Admin.'
     }
     if (!addPasswordOrPin) {
       errs.passwordOrPin = 'PIN is required.'
@@ -2155,6 +2168,8 @@ export const CompanyDashboardPage: React.FC = () => {
     }
     if (!editRoleCode) {
       errs.roleCode = 'Role is required.'
+    } else if (editRoleCode.toUpperCase() === 'ADMIN' || editRoleCode.toLowerCase() === 'admin') {
+      errs.roleCode = 'System Admin role cannot be assigned by Company Admin.'
     }
 
     if (!editCurrentSalary) {
@@ -2256,6 +2271,7 @@ export const CompanyDashboardPage: React.FC = () => {
       case 'PLATFORMADMIN':
         return 'danger'
       case 'COMPANYADMIN':
+      case 'ACCOUNTANT':
         return 'primary'
       case 'MANAGER':
         return 'info'
@@ -3142,7 +3158,7 @@ export const CompanyDashboardPage: React.FC = () => {
         render: (row: any) => {
           let badgeClass = "bg-slate-100 text-[#374151]"
           const code = row.roleCode.toUpperCase()
-          if (code === 'COMPANYADMIN') badgeClass = "bg-[#EFF4FF] text-[#1D4ED8]"
+          if (code === 'COMPANYADMIN' || code === 'ACCOUNTANT') badgeClass = "bg-[#EFF4FF] text-[#1D4ED8]"
           else if (code === 'OWNER') badgeClass = "bg-[#FEF3C7] text-[#92400E]"
           else if (code === 'OPERATOR') badgeClass = "bg-[#FEF3C7] text-[#B45309]"
           else if (code === 'SUPERVISOR') badgeClass = "bg-[#F3E8FF] text-[#6B21A8]"
@@ -3367,7 +3383,7 @@ export const CompanyDashboardPage: React.FC = () => {
                   {(() => {
                     let badgeClass = "bg-slate-100 text-[#374151]"
                     const code = selectedEmployeeForView.roleCode.toUpperCase()
-                    if (code === 'COMPANYADMIN') badgeClass = "bg-[#EFF4FF] text-[#1A56DB]"
+                    if (code === 'COMPANYADMIN' || code === 'ACCOUNTANT') badgeClass = "bg-[#EFF4FF] text-[#1A56DB]"
                     else if (code === 'OWNER') badgeClass = "bg-[#FEF3C7] text-[#92400E]"
                     else if (code === 'OPERATOR') badgeClass = "bg-[#FEF3C7] text-[#92400E]"
                     else if (code === 'SUPERVISOR') badgeClass = "bg-[#F3E8FF] text-[#6B21A8]"

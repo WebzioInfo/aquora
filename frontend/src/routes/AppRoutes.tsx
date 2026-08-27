@@ -89,7 +89,7 @@ export const getDefaultRouteForUser = (user: any): string => {
     if (roles.includes('Sales')) return '/sales/dashboard'
 
     if (roles.includes('Owner')) return '/company/dashboard'
-    if (roles.includes('CompanyAdmin')) return '/company/dashboard'
+    if (roles.includes('CompanyAdmin') || roles.includes('Accountant')) return '/company/dashboard'
     if (roles.includes('Manager')) return '/manager/dashboard'
     if (roles.includes('Supervisor')) return '/supervisor/dashboard'
     if (roles.includes('QC')) return '/qc/dashboard'
@@ -188,7 +188,7 @@ const CompanyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
   const roles = user.roles || []
   const hasAccess = roles.some(role =>
-    ['Owner', 'CompanyAdmin', 'GeneralManager', 'ProductionManager', 'InventoryManager', 'HRManager', 'Supervisor', 'Employee', 'Manager'].includes(role)
+    ['Owner', 'CompanyAdmin', 'Accountant', 'GeneralManager', 'ProductionManager', 'InventoryManager', 'HRManager', 'Supervisor', 'Employee', 'Manager'].includes(role)
   )
 
   if (!hasAccess && (roles.includes('Operator') || roles.some((r: string) => ['Store Keeper', 'StoreKeeper', 'STORE_KEEPER'].includes(r)) || roles.includes('Sales') || roles.includes('HR'))) {
@@ -256,7 +256,7 @@ const QCRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const roles = user.roles || []
   const hasAccess = roles.some(role =>
-    ['QC', 'CompanyAdmin', 'Admin'].includes(role)
+    ['QC', 'CompanyAdmin', 'Accountant', 'Admin'].includes(role)
   )
 
   if (!hasAccess) {

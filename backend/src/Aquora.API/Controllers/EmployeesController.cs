@@ -124,9 +124,21 @@ namespace Aquora.API.Controllers
                     return Failure<EmployeeDto>("Email is already registered.", "Validation Error");
                 }
 
+                // Enforce restriction: Company Admin cannot create or assign system Admin role
+                if (string.Equals(request.RoleCode?.Trim(), "Admin", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(request.RoleCode?.Trim(), "ADMIN", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(ApiResponse<EmployeeDto>.CreateFailure("Company administrators are not permitted to create or assign the system Admin role.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
                 // Check role existence inside tenant schema
                 var role = await _tenantContext.Roles
                     .FirstOrDefaultAsync(r => r.Code.ToUpper() == request.RoleCode.ToUpper() || r.Name.ToLower() == request.RoleCode.ToLower());
+
+                if (role != null && (role.Code.Equals("ADMIN", StringComparison.OrdinalIgnoreCase) || role.Name.Equals("Admin", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return BadRequest(ApiResponse<EmployeeDto>.CreateFailure("Company administrators are not permitted to create or assign the system Admin role.", "Validation Error", HttpContext.TraceIdentifier));
+                }
 
                 if (role == null && (request.RoleCode.Equals("OWNER", StringComparison.OrdinalIgnoreCase) || request.RoleCode.Equals("Owner", StringComparison.OrdinalIgnoreCase)))
                 {
@@ -141,6 +153,37 @@ namespace Aquora.API.Controllers
                     };
                     _tenantContext.Roles.Add(role);
                     await _tenantContext.SaveChangesAsync();
+                }
+
+                if (role == null && (request.RoleCode.Equals("ACCOUNTANT", StringComparison.OrdinalIgnoreCase) || request.RoleCode.Equals("Accountant", StringComparison.OrdinalIgnoreCase)))
+                {
+                    role = new Role
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Accountant",
+                        Code = "ACCOUNTANT",
+                        TenantId = tenantId,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "System"
+                    };
+                    _tenantContext.Roles.Add(role);
+                    await _tenantContext.SaveChangesAsync();
+
+                    var companyAdminRole = await _tenantContext.Roles.FirstOrDefaultAsync(r => r.Code.ToUpper() == "COMPANYADMIN" || r.Name.ToLower() == "companyadmin");
+                    if (companyAdminRole != null)
+                    {
+                        var adminPerms = await _tenantContext.RolePermissions.Where(rp => rp.RoleId == companyAdminRole.Id).ToListAsync();
+                        foreach (var ap in adminPerms)
+                        {
+                            _tenantContext.RolePermissions.Add(new RolePermission
+                            {
+                                RoleId = role.Id,
+                                PermissionId = ap.PermissionId,
+                                TenantId = tenantId
+                            });
+                        }
+                        await _tenantContext.SaveChangesAsync();
+                    }
                 }
 
                 if (role == null)
@@ -304,9 +347,52 @@ namespace Aquora.API.Controllers
                     return NotFound(ApiResponse<EmployeeDto>.CreateFailure("Employee not found.", "Not Found", HttpContext.TraceIdentifier));
                 }
 
+                // Enforce restriction: Company Admin cannot assign system Admin role
+                if (string.Equals(request.RoleCode?.Trim(), "Admin", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(request.RoleCode?.Trim(), "ADMIN", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(ApiResponse<EmployeeDto>.CreateFailure("Company administrators are not permitted to assign the system Admin role.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
                 // Check role
                 var role = await _tenantContext.Roles
                     .FirstOrDefaultAsync(r => r.Code.ToUpper() == request.RoleCode.ToUpper() || r.Name.ToLower() == request.RoleCode.ToLower());
+
+                if (role != null && (role.Code.Equals("ADMIN", StringComparison.OrdinalIgnoreCase) || role.Name.Equals("Admin", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return BadRequest(ApiResponse<EmployeeDto>.CreateFailure("Company administrators are not permitted to assign the system Admin role.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                if (role == null && (request.RoleCode.Equals("ACCOUNTANT", StringComparison.OrdinalIgnoreCase) || request.RoleCode.Equals("Accountant", StringComparison.OrdinalIgnoreCase)))
+                {
+                    role = new Role
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Accountant",
+                        Code = "ACCOUNTANT",
+                        TenantId = tenantId,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "System"
+                    };
+                    _tenantContext.Roles.Add(role);
+                    await _tenantContext.SaveChangesAsync();
+
+                    var companyAdminRole = await _tenantContext.Roles.FirstOrDefaultAsync(r => r.Code.ToUpper() == "COMPANYADMIN" || r.Name.ToLower() == "companyadmin");
+                    if (companyAdminRole != null)
+                    {
+                        var adminPerms = await _tenantContext.RolePermissions.Where(rp => rp.RoleId == companyAdminRole.Id).ToListAsync();
+                        foreach (var ap in adminPerms)
+                        {
+                            _tenantContext.RolePermissions.Add(new RolePermission
+                            {
+                                RoleId = role.Id,
+                                PermissionId = ap.PermissionId,
+                                TenantId = tenantId
+                            });
+                        }
+                        await _tenantContext.SaveChangesAsync();
+                    }
+                }
 
                 if (role == null)
                 {
@@ -500,9 +586,9 @@ namespace Aquora.API.Controllers
             try
             {
                 var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value.ToUpperInvariant()).ToList();
-                if (!roles.Contains("COMPANYADMIN"))
+                if (!roles.Contains("COMPANYADMIN") && !roles.Contains("ACCOUNTANT") && !roles.Contains("SUPERADMIN") && !roles.Contains("PLATFORMADMIN"))
                 {
-                    return StatusCode(403, ApiResponse<bool>.CreateFailure("Only Company Admin can reset employee password.", "Forbidden", HttpContext.TraceIdentifier));
+                    return StatusCode(403, ApiResponse<bool>.CreateFailure("Only Company Admin or Accountant can reset employee password.", "Forbidden", HttpContext.TraceIdentifier));
                 }
 
                 var tenantId = GetTenantId();
@@ -588,9 +674,9 @@ namespace Aquora.API.Controllers
             try
             {
                 var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value.ToUpperInvariant()).ToList();
-                if (!roles.Contains("COMPANYADMIN"))
+                if (!roles.Contains("COMPANYADMIN") && !roles.Contains("ACCOUNTANT") && !roles.Contains("SUPERADMIN") && !roles.Contains("PLATFORMADMIN"))
                 {
-                    return StatusCode(403, ApiResponse<bool>.CreateFailure("Only Company Admin can set the security PIN.", "Forbidden", HttpContext.TraceIdentifier));
+                    return StatusCode(403, ApiResponse<bool>.CreateFailure("Only Company Admin or Accountant can set the security PIN.", "Forbidden", HttpContext.TraceIdentifier));
                 }
 
                 var pin = request.ResolvedAdminPin;
@@ -673,9 +759,9 @@ namespace Aquora.API.Controllers
             try
             {
                 var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value.ToUpperInvariant()).ToList();
-                if (!roles.Contains("COMPANYADMIN"))
+                if (!roles.Contains("COMPANYADMIN") && !roles.Contains("ACCOUNTANT") && !roles.Contains("SUPERADMIN") && !roles.Contains("PLATFORMADMIN"))
                 {
-                    return StatusCode(403, ApiResponse<string>.CreateFailure("Only Company Admin can view employee passwords.", "Forbidden", HttpContext.TraceIdentifier));
+                    return StatusCode(403, ApiResponse<string>.CreateFailure("Only Company Admin or Accountant can view employee passwords.", "Forbidden", HttpContext.TraceIdentifier));
                 }
 
                 var tenantId = GetTenantId();
@@ -861,6 +947,7 @@ namespace Aquora.API.Controllers
         {
             try
             {
+                var tenantId = GetTenantId();
                 var hasOwner = await _tenantContext.Roles.AnyAsync(r => r.Code.ToUpper() == "OWNER" || r.Name.ToLower() == "owner");
                 if (!hasOwner)
                 {
@@ -869,14 +956,47 @@ namespace Aquora.API.Controllers
                         Id = Guid.NewGuid(),
                         Name = "Owner",
                         Code = "OWNER",
-                        TenantId = (await _tenantContext.Roles.Select(r => r.TenantId).FirstOrDefaultAsync()),
+                        TenantId = tenantId,
                         CreatedAt = DateTime.UtcNow,
                         CreatedBy = "System"
                     });
                     await _tenantContext.SaveChangesAsync();
                 }
 
+                var hasAccountant = await _tenantContext.Roles.AnyAsync(r => r.Code.ToUpper() == "ACCOUNTANT" || r.Name.ToLower() == "accountant");
+                if (!hasAccountant)
+                {
+                    var accountantRole = new Role
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Accountant",
+                        Code = "ACCOUNTANT",
+                        TenantId = tenantId,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "System"
+                    };
+                    _tenantContext.Roles.Add(accountantRole);
+                    await _tenantContext.SaveChangesAsync();
+
+                    var companyAdminRole = await _tenantContext.Roles.FirstOrDefaultAsync(r => r.Code.ToUpper() == "COMPANYADMIN" || r.Name.ToLower() == "companyadmin");
+                    if (companyAdminRole != null)
+                    {
+                        var adminPerms = await _tenantContext.RolePermissions.Where(rp => rp.RoleId == companyAdminRole.Id).ToListAsync();
+                        foreach (var ap in adminPerms)
+                        {
+                            _tenantContext.RolePermissions.Add(new RolePermission
+                            {
+                                RoleId = accountantRole.Id,
+                                PermissionId = ap.PermissionId,
+                                TenantId = tenantId
+                            });
+                        }
+                        await _tenantContext.SaveChangesAsync();
+                    }
+                }
+
                 var roles = await _tenantContext.Roles
+                    .Where(r => r.Code.ToUpper() != "ADMIN" && r.Name.ToLower() != "admin")
                     .OrderBy(r => r.Name)
                     .ToListAsync();
                 return Success(roles, "Roles loaded successfully.");
