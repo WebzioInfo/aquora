@@ -231,11 +231,11 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
               </div>
               <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
                 <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Assigned Route</span>
-                <div className="text-sm font-bold text-slate-800 mt-1 truncate">{customer.assignedRoute || 'None'}</div>
+                <div className="text-sm font-bold text-slate-800 mt-1 truncate">{customer.assignedRoute || 'Not assigned'}</div>
               </div>
               <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
                 <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Assigned Vehicle</span>
-                <div className="text-sm font-bold text-slate-800 mt-1 truncate">{customer.assignedVehicle || 'None'}</div>
+                <div className="text-sm font-bold text-slate-800 mt-1 truncate">{customer.assignedVehicle || 'Not assigned'}</div>
               </div>
             </div>
 
@@ -325,20 +325,28 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Assigned Vehicle Number</span>
+                    <span className="block font-semibold text-slate-800">{customer.assignedVehicle || 'Not assigned'}</span>
+                  </div>
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                     <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Assigned Driver</span>
-                    <span className="block font-semibold text-slate-800">{customer.assignedDriver || 'N/A'}</span>
+                    <span className="block font-semibold text-slate-800">{customer.assignedDriver || 'Not assigned'}</span>
+                  </div>
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Assigned Route</span>
+                    <span className="block font-semibold text-slate-800">{customer.assignedRoute || 'Not assigned'}</span>
                   </div>
                   <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                     <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Assigned Sales Exec</span>
-                    <span className="block font-semibold text-slate-800">{customer.assignedSalesExecutive || 'N/A'}</span>
+                    <span className="block font-semibold text-slate-800">{customer.assignedSalesExecutive || 'Not assigned'}</span>
                   </div>
                   <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                     <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Working Coverage Area</span>
-                    <span className="block font-semibold text-slate-800">{customer.workingArea || 'N/A'}</span>
+                    <span className="block font-semibold text-slate-800">{customer.workingArea || 'Not assigned'}</span>
                   </div>
                   <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                     <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Working Days</span>
-                    <span className="block font-semibold text-slate-800">{customer.workingDays || 'N/A'}</span>
+                    <span className="block font-semibold text-slate-800">{customer.workingDays || 'Not assigned'}</span>
                   </div>
                   {customer.customerType === 'Distributor' && (
                     <>

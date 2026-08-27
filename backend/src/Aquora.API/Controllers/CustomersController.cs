@@ -325,6 +325,101 @@ namespace Aquora.API.Controllers
             }
         }
 
+        [HttpPost("quick")]
+        public async Task<ActionResult<ApiResponse<CustomerDto>>> QuickCreateCustomer([FromBody] QuickCreateCustomerRequest request)
+        {
+            if (!IsAuthorizedToWrite())
+            {
+                return StatusCode(403, ApiResponse<CustomerDto>.CreateFailure("You do not have permission to perform this action.", "Forbidden", HttpContext.TraceIdentifier));
+            }
+
+            try
+            {
+                var tenantId = _currentUserContext.TenantId;
+
+                // Lookup dynamic company context to resolve CompanyId foreign key constraint
+                var company = await _tenantContext.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
+                if (company == null)
+                {
+                    return BadRequest(ApiResponse<CustomerDto>.CreateFailure("Tenant configurations are incomplete. Company is missing.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                // 1. Core validations
+                if (string.IsNullOrWhiteSpace(request.CustomerName))
+                {
+                    return BadRequest(ApiResponse<CustomerDto>.CreateFailure("Customer Name is required.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                if (string.IsNullOrWhiteSpace(request.Phone))
+                {
+                    return BadRequest(ApiResponse<CustomerDto>.CreateFailure("Phone number is required.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                var customerType = string.IsNullOrWhiteSpace(request.CustomerType) ? "Distributor" : request.CustomerType.Trim();
+                var paymentTerms = string.IsNullOrWhiteSpace(request.PaymentTerms) ? "COD" : request.PaymentTerms.Trim();
+
+                // 2. Duplicate checks
+                var phoneExists = await _tenantContext.Customers.AnyAsync(c => c.TenantId == tenantId && c.Phone == request.Phone.Trim() && !c.IsDeleted);
+                if (phoneExists)
+                {
+                    return BadRequest(ApiResponse<CustomerDto>.CreateFailure("A customer with this phone number already exists within this tenant.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                // 3. Generate unique Customer Code per tenant
+                var maxCustomer = await _tenantContext.Customers
+                    .IgnoreQueryFilters()
+                    .Where(c => c.TenantId == tenantId && c.CustomerCode.StartsWith("CUS-"))
+                    .OrderByDescending(c => c.CustomerCode)
+                    .FirstOrDefaultAsync();
+
+                int nextNumber = 1;
+                if (maxCustomer != null)
+                {
+                    var parts = maxCustomer.CustomerCode.Split('-');
+                    if (parts.Length == 2 && int.TryParse(parts[1], out int lastNum))
+                    {
+                        nextNumber = lastNum + 1;
+                    }
+                }
+                var generatedCustomerCode = $"CUS-{nextNumber:D5}";
+
+                // 4. Initialize Customer Entity cleanly without requiring full address fields
+                var customer = new Customer
+                {
+                    TenantId = tenantId,
+                    CompanyId = company.Id,
+                    CustomerCode = generatedCustomerCode,
+                    CustomerType = customerType,
+                    CustomerName = request.CustomerName.Trim(),
+                    Phone = request.Phone.Trim(),
+                    AddressLine1 = request.AddressLine1?.Trim() ?? string.Empty,
+                    City = request.City?.Trim() ?? string.Empty,
+                    District = string.Empty,
+                    State = string.Empty,
+                    Country = string.Empty,
+                    PinCode = string.Empty,
+                    PaymentTerms = paymentTerms,
+                    OpeningBalance = 0,
+                    BalanceType = "Zero",
+                    CreditLimit = 0,
+                    Status = "Active",
+                    IsActive = true,
+                    AssignedVehicle = string.IsNullOrWhiteSpace(request.AssignedVehicle) ? null : request.AssignedVehicle.Trim(),
+                    AssignedRoute = string.IsNullOrWhiteSpace(request.AssignedRoute) ? null : request.AssignedRoute.Trim()
+                };
+
+                _tenantContext.Customers.Add(customer);
+                await _tenantContext.SaveChangesAsync();
+
+                var dto = MapCustomerToDto(customer);
+                return CreatedAtAction(nameof(GetCustomerById), new { id = customer.Id }, ApiResponse<CustomerDto>.CreateSuccess(dto, "Customer created successfully."));
+            }
+            catch (Exception ex)
+            {
+                return Failure<CustomerDto>(ex.Message, "Failed to create customer.");
+            }
+        }
+
         [HttpPost]
         public async Task<ActionResult<ApiResponse<CustomerDto>>> CreateCustomer([FromBody] CreateCustomerRequest request)
         {
