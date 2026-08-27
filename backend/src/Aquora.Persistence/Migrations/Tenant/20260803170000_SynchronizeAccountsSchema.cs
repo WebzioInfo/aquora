@@ -10,11 +10,13 @@ namespace Aquora.Persistence.Migrations.Tenant
     [Migration("20260803170000_SynchronizeAccountsSchema")]
     public partial class SynchronizeAccountsSchema : Migration
     {
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            var schema = QuoteIdentifier(string.IsNullOrWhiteSpace(TenantSchemaResolver.CurrentSchemaName)
+            var schema = QuoteIdentifier(string.IsNullOrWhiteSpace(TenantSchemaResolver.ResolveRequiredSchema())
                 ? "public"
-                : TenantSchemaResolver.CurrentSchemaName);
+                : TenantSchemaResolver.ResolveRequiredSchema());
 
             migrationBuilder.Sql($@"
                 CREATE TABLE IF NOT EXISTS {schema}.""SimpleExpenses"" (
@@ -215,9 +217,9 @@ namespace Aquora.Persistence.Migrations.Tenant
             string principalColumn,
             string onDelete)
         {
-            var schema = QuoteLiteral(string.IsNullOrWhiteSpace(TenantSchemaResolver.CurrentSchemaName)
+            var schema = QuoteLiteral(string.IsNullOrWhiteSpace(TenantSchemaResolver.ResolveRequiredSchema())
                 ? "public"
-                : TenantSchemaResolver.CurrentSchemaName);
+                : TenantSchemaResolver.ResolveRequiredSchema());
 
             migrationBuilder.Sql($@"
                 DO $$
@@ -229,10 +231,10 @@ namespace Aquora.Persistence.Migrations.Tenant
                         WHERE c.conname = {QuoteLiteral(constraintName)}
                           AND n.nspname = {schema}
                     ) THEN
-                        ALTER TABLE {QuoteIdentifier(TenantSchemaResolver.CurrentSchemaName)}.""{table}""
+                        ALTER TABLE {QuoteIdentifier(TenantSchemaResolver.ResolveRequiredSchema())}.""{table}""
                         ADD CONSTRAINT ""{constraintName}""
                         FOREIGN KEY (""{column}"")
-                        REFERENCES {QuoteIdentifier(TenantSchemaResolver.CurrentSchemaName)}.""{principalTable}"" (""{principalColumn}"")
+                        REFERENCES {QuoteIdentifier(TenantSchemaResolver.ResolveRequiredSchema())}.""{principalTable}"" (""{principalColumn}"")
                         ON DELETE {onDelete};
                     END IF;
                 END $$;

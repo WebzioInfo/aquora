@@ -79,6 +79,7 @@ namespace Aquora.API.Controllers
                         Id = user.Id,
                         FullName = $"{user.FirstName} {user.LastName}".Trim(),
                         Username = user.Username ?? user.Email,
+                        Email = user.Email ?? string.Empty,
                         RoleName = resolvedRole,
                         RoleCode = matchingRole?.Code ?? resolvedRole.ToUpperInvariant().Replace(" ", "_"),
                         Department = user.Department ?? "Operations",
@@ -293,6 +294,7 @@ namespace Aquora.API.Controllers
                     Id = newUser.Id,
                     FullName = request.FullName.Trim(),
                     Username = newUser.Username,
+                    Email = newUser.Email,
                     RoleName = role.Name,
                     RoleCode = role.Code,
                     Department = newUser.Department,
@@ -347,6 +349,27 @@ namespace Aquora.API.Controllers
                     return NotFound(ApiResponse<EmployeeDto>.CreateFailure("Employee not found.", "Not Found", HttpContext.TraceIdentifier));
                 }
 
+                var usernameNormalized = request.Username.Trim().ToLowerInvariant();
+                var emailNormalized = request.Email.Trim().ToLowerInvariant();
+
+                // Unique username check globally across all tenants (excluding current user)
+                var usernameExists = await _platformContext.Users
+                    .AnyAsync(u => u.Id != id && u.Username != null && u.Username.ToLower() == usernameNormalized && !u.IsDeleted);
+
+                if (usernameExists)
+                {
+                    return Failure<EmployeeDto>("Username is already taken. Please choose another username.", "Validation Error");
+                }
+
+                // Globally unique email mapping check (excluding current user)
+                var emailExists = await _platformContext.Users
+                    .AnyAsync(u => u.Id != id && u.Email.ToLower() == emailNormalized && !u.IsDeleted);
+
+                if (emailExists)
+                {
+                    return Failure<EmployeeDto>("Email is already registered.", "Validation Error");
+                }
+
                 // Enforce restriction: Company Admin cannot assign system Admin role
                 if (string.Equals(request.RoleCode?.Trim(), "Admin", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(request.RoleCode?.Trim(), "ADMIN", StringComparison.OrdinalIgnoreCase))
@@ -361,6 +384,21 @@ namespace Aquora.API.Controllers
                 if (role != null && (role.Code.Equals("ADMIN", StringComparison.OrdinalIgnoreCase) || role.Name.Equals("Admin", StringComparison.OrdinalIgnoreCase)))
                 {
                     return BadRequest(ApiResponse<EmployeeDto>.CreateFailure("Company administrators are not permitted to assign the system Admin role.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                if (role == null && (request.RoleCode.Equals("OWNER", StringComparison.OrdinalIgnoreCase) || request.RoleCode.Equals("Owner", StringComparison.OrdinalIgnoreCase)))
+                {
+                    role = new Role
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Owner",
+                        Code = "OWNER",
+                        TenantId = tenantId,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "System"
+                    };
+                    _tenantContext.Roles.Add(role);
+                    await _tenantContext.SaveChangesAsync();
                 }
 
                 if (role == null && (request.RoleCode.Equals("ACCOUNTANT", StringComparison.OrdinalIgnoreCase) || request.RoleCode.Equals("Accountant", StringComparison.OrdinalIgnoreCase)))
@@ -399,18 +437,36 @@ namespace Aquora.API.Controllers
                     return Failure<EmployeeDto>($"Role Code '{request.RoleCode}' is invalid.", "Validation Error");
                 }
 
+                // If new PIN is provided, securely update both PasswordHash and PinHash
+                if (!string.IsNullOrWhiteSpace(request.Pin))
+                {
+                    var pinTrimmed = request.Pin.Trim();
+                    if (pinTrimmed.Length < 4)
+                    {
+                        return Failure<EmployeeDto>("PIN must be at least 4 digits.", "Validation Error");
+                    }
+                    var newHash = _passwordHasher.HashPassword(pinTrimmed);
+                    user.PinHash = newHash;
+                    user.PasswordHash = newHash;
+                }
+
                 // Capture old values before mutation
                 var oldValuesJson = System.Text.Json.JsonSerializer.Serialize(new {
                     user.FirstName,
                     user.LastName,
+                    user.Username,
+                    user.Email,
                     user.Department,
-                    user.IsActive
+                    user.IsActive,
+                    user.CurrentSalary
                 });
 
                 // Update details
                 var parts = request.FullName.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
                 user.FirstName = parts.Length > 0 ? parts[0] : string.Empty;
                 user.LastName = parts.Length > 1 ? parts[1] : string.Empty;
+                user.Username = request.Username.Trim();
+                user.Email = emailNormalized;
                 user.Department = request.Department ?? "Operations";
                 user.CurrentSalary = request.CurrentSalary;
                 user.RoleName = role.Name;
@@ -462,8 +518,11 @@ namespace Aquora.API.Controllers
                         NewValues = System.Text.Json.JsonSerializer.Serialize(new {
                             FirstName = user.FirstName,
                             LastName = user.LastName,
+                            Username = user.Username,
+                            Email = user.Email,
                             Department = user.Department,
                             IsActive = user.IsActive,
+                            CurrentSalary = user.CurrentSalary,
                             RoleName = role.Name,
                             RoleCode = role.Code
                         }),
@@ -485,6 +544,7 @@ namespace Aquora.API.Controllers
                     Id = user.Id,
                     FullName = $"{user.FirstName} {user.LastName}".Trim(),
                     Username = user.Username ?? user.Email,
+                    Email = user.Email ?? string.Empty,
                     RoleName = role.Name,
                     RoleCode = role.Code,
                     Department = user.Department,

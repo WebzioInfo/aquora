@@ -78,59 +78,40 @@ namespace Aquora.Application.Services
             {
                 double val = numericValue.Value;
 
-                if (nameLower == "ph")
+                double? minWarn = parameter.MinWarning;
+                double? minAcc = parameter.MinAcceptable;
+                double? maxAcc = parameter.MaxAcceptable;
+                double? maxWarn = parameter.MaxWarning;
+
+                // 1. Lower bound checks
+                if (minWarn.HasValue && val < minWarn.Value)
                 {
-                    if (val < 4.5 || val > 10.0) return "FAIL";
-                    if (val >= 6.0 && val <= 8.5) return "PASS";
+                    return "FAIL";
+                }
+                if (minWarn.HasValue && minAcc.HasValue && val >= minWarn.Value && val < minAcc.Value)
+                {
                     return "WARNING";
                 }
-
-                if (nameLower.Contains("tds") || nameLower.Contains("dissolved solids"))
+                if (!minWarn.HasValue && minAcc.HasValue && val < minAcc.Value)
                 {
-                    if (val > 800.0) return "FAIL";
-                    if (val >= 0 && val <= 500) return "PASS";
-                    return "WARNING";
-                }
-
-                if (nameLower.Contains("turbidity"))
-                {
-                    if (val > 3.0) return "FAIL";
-                    if (val >= 0 && val <= 1.0) return "PASS";
-                    return "WARNING";
-                }
-
-                if (nameLower.Contains("residual free chlorine") || nameLower.Contains("chlorine"))
-                {
-                    if (val > 0.2) return "FAIL";
-                    if (val >= 0 && val <= 0.2) return "PASS";
                     return "FAIL";
                 }
 
-                if (nameLower.Contains("alkalinity"))
+                // 2. Upper bound checks
+                if (maxWarn.HasValue && val > maxWarn.Value)
                 {
-                    if (val > 400) return "FAIL";
-                    if (val >= 0 && val <= 200) return "PASS";
+                    return "FAIL";
+                }
+                if (maxWarn.HasValue && maxAcc.HasValue && val > maxAcc.Value && val <= maxWarn.Value)
+                {
                     return "WARNING";
                 }
-
-                if (nameLower.Contains("chloride"))
+                if (!maxWarn.HasValue && maxAcc.HasValue && val > maxAcc.Value)
                 {
-                    if (val > 500) return "FAIL";
-                    if (val >= 0 && val <= 250) return "PASS";
-                    return "WARNING";
+                    return "FAIL";
                 }
 
-                if (nameLower.Contains("sulphate"))
-                {
-                    if (val > 300) return "FAIL";
-                    if (val >= 0 && val <= 200) return "PASS";
-                    return "WARNING";
-                }
-
-                // General fallback min/max bounds check
-                if (parameter.MinAcceptable.HasValue && val < parameter.MinAcceptable.Value) return "FAIL";
-                if (parameter.MaxAcceptable.HasValue && val > parameter.MaxAcceptable.Value) return "FAIL";
-
+                // 3. In acceptable bounds
                 return "PASS";
             }
 

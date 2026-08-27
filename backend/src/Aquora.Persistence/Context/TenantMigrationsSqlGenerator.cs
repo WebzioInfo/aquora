@@ -274,6 +274,17 @@ namespace Aquora.Persistence.Context
                     if (deleteData.Schema == "public" || string.IsNullOrEmpty(deleteData.Schema))
                         deleteData.Schema = schema;
                     break;
+
+                case SqlOperation sqlOp:
+                    if (!string.IsNullOrWhiteSpace(sqlOp.Sql))
+                    {
+                        sqlOp.Sql = System.Text.RegularExpressions.Regex.Replace(
+                            sqlOp.Sql,
+                            @"\b(ALTER\s+TABLE|UPDATE|INSERT\s+INTO|FROM|JOIN)\s+""(Companies|BankLedgerEntries|OperationsIssueAffectedMachines|OperationsIssues|RawMaterials|Products|Brands)""",
+                            $"$1 \"{schema}\".\"$2\"",
+                            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    }
+                    break;
             }
         }
     }

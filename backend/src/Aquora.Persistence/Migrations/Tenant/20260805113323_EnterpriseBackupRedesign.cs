@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Aquora.Persistence.Context;
 
 #nullable disable
 
@@ -7,12 +8,14 @@ namespace Aquora.Persistence.Migrations.Tenant
     /// <inheritdoc />
     public partial class EnterpriseBackupRedesign : Migration
     {
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
                 name: "Encryption",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories",
                 type: "text",
                 nullable: false,
@@ -20,7 +23,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "EngineVersion",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories",
                 type: "text",
                 nullable: false,
@@ -28,7 +31,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<int>(
                 name: "RestoreCount",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories",
                 type: "integer",
                 nullable: false,
@@ -36,7 +39,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<int>(
                 name: "TableCount",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories",
                 type: "integer",
                 nullable: false,
@@ -44,7 +47,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "TenantName",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories",
                 type: "text",
                 nullable: false,
@@ -52,7 +55,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "Version",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories",
                 type: "text",
                 nullable: false,
@@ -64,32 +67,32 @@ namespace Aquora.Persistence.Migrations.Tenant
         {
             migrationBuilder.DropColumn(
                 name: "Encryption",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories");
 
             migrationBuilder.DropColumn(
                 name: "EngineVersion",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories");
 
             migrationBuilder.DropColumn(
                 name: "RestoreCount",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories");
 
             migrationBuilder.DropColumn(
                 name: "TableCount",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories");
 
             migrationBuilder.DropColumn(
                 name: "TenantName",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories");
 
             migrationBuilder.DropColumn(
                 name: "Version",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories");
         }
     }

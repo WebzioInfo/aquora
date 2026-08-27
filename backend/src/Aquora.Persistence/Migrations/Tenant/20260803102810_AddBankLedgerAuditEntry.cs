@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Aquora.Persistence.Context;
 
 #nullable disable
 
@@ -8,12 +9,14 @@ namespace Aquora.Persistence.Migrations.Tenant
     /// <inheritdoc />
     public partial class AddBankLedgerAuditEntry : Migration
     {
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterColumn<string>(
                 name: "PaymentTerms",
-                schema: "public",
+                schema: _schema,
                 table: "Customers",
                 type: "text",
                 nullable: true,
@@ -22,7 +25,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateTable(
                 name: "BankLedgerAuditEntries",
-                schema: "public",
+                schema: _schema,
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -61,19 +64,19 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateIndex(
                 name: "IX_BankLedgerAuditEntries_BankLedgerEntryId",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerAuditEntries",
                 column: "BankLedgerEntryId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BankLedgerAuditEntries_CompanyId",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerAuditEntries",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BankLedgerAuditEntries_TenantId",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerAuditEntries",
                 column: "TenantId");
         }
@@ -83,11 +86,11 @@ namespace Aquora.Persistence.Migrations.Tenant
         {
             migrationBuilder.DropTable(
                 name: "BankLedgerAuditEntries",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.AlterColumn<string>(
                 name: "PaymentTerms",
-                schema: "public",
+                schema: _schema,
                 table: "Customers",
                 type: "text",
                 nullable: false,

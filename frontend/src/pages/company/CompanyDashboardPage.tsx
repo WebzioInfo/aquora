@@ -956,6 +956,9 @@ export const CompanyDashboardPage: React.FC = () => {
   // Edit Employee Form States
   const [editEmployeeId, setEditEmployeeId] = useState('')
   const [editFullName, setEditFullName] = useState('')
+  const [editUsername, setEditUsername] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editPin, setEditPin] = useState('')
   const [editRoleCode, setEditRoleCode] = useState('')
   const [editDepartment, setEditDepartment] = useState('Operations')
   const [editCurrentSalary, setEditCurrentSalary] = useState('')
@@ -1754,13 +1757,15 @@ export const CompanyDashboardPage: React.FC = () => {
       if (data.success) {
         showToast('Employee updated successfully.', 'success')
         queryClient.invalidateQueries({ queryKey: ['employeesList'] })
+        queryClient.refetchQueries({ queryKey: ['employeesList'] })
         setIsEditModalOpen(false)
+        setEditEmployeeErrors({})
       } else {
         showToast(data.message || 'Failed to update employee.', 'error')
       }
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.message || 'Error occurred.'
+      const msg = err.response?.data?.message || err.response?.data?.title || 'Error occurred.'
       showToast(msg, 'error')
     }
   })
@@ -2166,6 +2171,25 @@ export const CompanyDashboardPage: React.FC = () => {
     if (!editFullName.trim()) {
       errs.fullName = 'Please enter Employee Name.'
     }
+
+    if (!editUsername.trim()) {
+      errs.username = 'Please enter Username.'
+    } else if (editUsername.trim().length < 3) {
+      errs.username = 'Username must be at least 3 characters.'
+    }
+
+    if (!editEmail.trim()) {
+      errs.email = 'Please enter a valid email address.'
+    } else if (!editEmail.includes('@') || !editEmail.includes('.')) {
+      errs.email = 'Please enter a valid email address.'
+    }
+
+    if (editPin.trim()) {
+      if (editPin.trim().length !== 4 || !/^\d{4}$/.test(editPin.trim())) {
+        errs.pin = 'PIN must contain exactly 4 digits.'
+      }
+    }
+
     if (!editRoleCode) {
       errs.roleCode = 'Role is required.'
     } else if (editRoleCode.toUpperCase() === 'ADMIN' || editRoleCode.toLowerCase() === 'admin') {
@@ -2188,6 +2212,9 @@ export const CompanyDashboardPage: React.FC = () => {
       id: editEmployeeId,
       data: {
         fullName: editFullName.trim(),
+        username: editUsername.trim(),
+        email: editEmail.trim(),
+        pin: editPin.trim() ? editPin.trim() : undefined,
         roleCode: editRoleCode,
         department: editDepartment,
         currentSalary: Number(editCurrentSalary),
@@ -2220,8 +2247,11 @@ export const CompanyDashboardPage: React.FC = () => {
       id: employee.id,
       data: {
         fullName: employee.fullName,
+        username: employee.username,
+        email: employee.email,
         roleCode: employee.roleCode,
         department: employee.department,
+        currentSalary: employee.currentSalary ?? 0,
         isActive: !employee.isActive
       }
     })
@@ -2235,11 +2265,15 @@ export const CompanyDashboardPage: React.FC = () => {
 
   const openEditModal = (employee: any) => {
     setEditEmployeeId(employee.id)
-    setEditFullName(employee.fullName)
-    setEditRoleCode(employee.roleCode)
-    setEditDepartment(employee.department)
+    setEditFullName(employee.fullName || '')
+    setEditUsername(employee.username || '')
+    setEditEmail(employee.email || '')
+    setEditPin('')
+    setEditRoleCode(employee.roleCode || '')
+    setEditDepartment(employee.department || 'Operations')
     setEditCurrentSalary(employee.currentSalary ? employee.currentSalary.toString() : '0')
-    setEditIsActive(employee.isActive)
+    setEditIsActive(Boolean(employee.isActive))
+    setEditEmployeeErrors({})
     setIsEditModalOpen(true)
   }
 
@@ -2253,10 +2287,11 @@ export const CompanyDashboardPage: React.FC = () => {
 
   // Filters calculation
   const filteredEmployees = employees.filter(emp => {
-    const matchesSearch = emp.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.department.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesRole = roleFilter ? emp.roleCode.toUpperCase() === roleFilter.toUpperCase() : true
+    const matchesSearch = (emp.fullName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (emp.username || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (emp.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (emp.department || '').toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesRole = roleFilter ? (emp.roleCode || '').toUpperCase() === roleFilter.toUpperCase() : true
     const matchesStatus = statusFilter ? (statusFilter === 'active' ? emp.isActive : !emp.isActive) : true
     return matchesSearch && matchesRole && matchesStatus
   })
@@ -3464,12 +3499,20 @@ export const CompanyDashboardPage: React.FC = () => {
                 {/* Login Credentials Section */}
                 <div className="md:col-span-2 border-t border-[#E5E7EB] pt-4 mt-2">
                   <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-4 select-none">Login Credentials</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Username */}
                     <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[10px] p-[14px] flex flex-col gap-1.5">
                       <span className="text-[12px] font-medium text-[#6B7280] leading-none">Username</span>
-                      <span className="text-[15px] font-semibold text-[#111827] font-mono leading-tight">
+                      <span className="text-[14px] font-semibold text-[#111827] font-mono leading-tight truncate">
                         {selectedEmployeeForView.username}
+                      </span>
+                    </div>
+
+                    {/* Email */}
+                    <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[10px] p-[14px] flex flex-col gap-1.5">
+                      <span className="text-[12px] font-medium text-[#6B7280] leading-none">Email</span>
+                      <span className="text-[14px] font-semibold text-[#111827] font-mono leading-tight truncate" title={selectedEmployeeForView.email}>
+                        {selectedEmployeeForView.email || 'N/A'}
                       </span>
                     </div>
 
@@ -3739,8 +3782,42 @@ export const CompanyDashboardPage: React.FC = () => {
               label="Full Name *"
               value={editFullName}
               onChange={(e) => setEditFullName(e.target.value)}
+              placeholder="e.g. John Doe"
               error={editEmployeeErrors.fullName}
             />
+
+            <EnterpriseInput
+              label="Username *"
+              value={editUsername}
+              onChange={(e) => setEditUsername(e.target.value)}
+              placeholder="e.g. john_doe"
+              error={editEmployeeErrors.username}
+            />
+
+            <EnterpriseInput
+              label="Email *"
+              type="email"
+              value={editEmail}
+              onChange={(e) => setEditEmail(e.target.value)}
+              placeholder="e.g. john.doe@company.com"
+              error={editEmployeeErrors.email}
+            />
+
+            <div>
+              <EnterpriseInput
+                label="PIN (Optional)"
+                type="password"
+                maxLength={4}
+                value={editPin}
+                onChange={(e) => setEditPin(e.target.value)}
+                placeholder="Leave blank to keep existing PIN"
+                error={editEmployeeErrors.pin}
+              />
+              <p className="text-[11px] text-[#6B7280] mt-1 ml-0.5">
+                Leave blank to keep current PIN unchanged. Enter 4 digits to set a new PIN.
+              </p>
+            </div>
+
             <EnterpriseSelect
               label="Role *"
               value={editRoleCode}

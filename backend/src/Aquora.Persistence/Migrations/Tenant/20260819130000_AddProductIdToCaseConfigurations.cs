@@ -1,5 +1,6 @@
 using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Aquora.Persistence.Context;
 
 #nullable disable
 
@@ -8,12 +9,14 @@ namespace Aquora.Persistence.Migrations.Tenant
     /// <inheritdoc />
     public partial class AddProductIdToCaseConfigurations : Migration
     {
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<Guid>(
                 name: "ProductId",
-                schema: "public",
+                schema: _schema,
                 table: "CaseConfigurations",
                 type: "uuid",
                 nullable: false,
@@ -21,7 +24,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<int>(
                 name: "UnitsPerCase",
-                schema: "public",
+                schema: _schema,
                 table: "CaseConfigurations",
                 type: "integer",
                 nullable: false,
@@ -29,13 +32,13 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateIndex(
                 name: "IX_CaseConfigurations_ProductId",
-                schema: "public",
+                schema: _schema,
                 table: "CaseConfigurations",
                 column: "ProductId");
 
             migrationBuilder.AddForeignKey(
                 name: "FK_CaseConfigurations_Products_ProductId",
-                schema: "public",
+                schema: _schema,
                 table: "CaseConfigurations",
                 column: "ProductId",
                 principalSchema: "public",
@@ -49,22 +52,22 @@ namespace Aquora.Persistence.Migrations.Tenant
         {
             migrationBuilder.DropForeignKey(
                 name: "FK_CaseConfigurations_Products_ProductId",
-                schema: "public",
+                schema: _schema,
                 table: "CaseConfigurations");
 
             migrationBuilder.DropIndex(
                 name: "IX_CaseConfigurations_ProductId",
-                schema: "public",
+                schema: _schema,
                 table: "CaseConfigurations");
 
             migrationBuilder.DropColumn(
                 name: "ProductId",
-                schema: "public",
+                schema: _schema,
                 table: "CaseConfigurations");
 
             migrationBuilder.DropColumn(
                 name: "UnitsPerCase",
-                schema: "public",
+                schema: _schema,
                 table: "CaseConfigurations");
         }
     }

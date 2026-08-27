@@ -8,10 +8,12 @@ namespace Aquora.Persistence.Migrations.Tenant
     /// <inheritdoc />
     public partial class UpdateBrandEntity_V2 : Migration
     {
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            string _schema = TenantSchemaResolver.CurrentSchemaName ?? "public";
+            string _schema = TenantSchemaResolver.ResolveRequiredSchema();
 
             migrationBuilder.AlterColumn<string>(
                 name: "Name",
@@ -58,7 +60,7 @@ namespace Aquora.Persistence.Migrations.Tenant
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            string _schema = TenantSchemaResolver.CurrentSchemaName ?? "public";
+            string _schema = TenantSchemaResolver.ResolveRequiredSchema();
 
             migrationBuilder.DropIndex(
                 name: "IX_Brands_Code",

@@ -158,6 +158,8 @@ namespace Aquora.Tests
             var request = new UpdateEmployeeRequest
             {
                 FullName = "Existing User",
+                Username = "existing_user",
+                Email = "existing@test.com",
                 RoleCode = "ADMIN",
                 Department = "Operations",
                 CurrentSalary = 45000m,
@@ -172,6 +174,252 @@ namespace Aquora.Tests
             var apiResponse = Assert.IsType<ApiResponse<EmployeeDto>>(badRequestResult.Value);
             Assert.False(apiResponse.Success);
             Assert.Contains("not permitted to assign the system Admin role", apiResponse.Message);
+        }
+
+        [Fact]
+        public async Task UpdateEmployee_WithAllFieldsAndNewPin_ShouldUpdateAllFieldsAndPinHash()
+        {
+            var tenantId = Guid.NewGuid();
+            var (platformContext, tenantContext) = CreateMockContexts(tenantId);
+
+            var existingUser = new User
+            {
+                Id = Guid.NewGuid(),
+                Username = "old_username",
+                Email = "old_email@test.com",
+                FirstName = "Old",
+                LastName = "Name",
+                PasswordHash = "old_pin_hash",
+                PinHash = "old_pin_hash",
+                TenantId = tenantId,
+                RoleName = "Operator",
+                Department = "Operations",
+                CurrentSalary = 20000m,
+                IsActive = true
+            };
+            platformContext.Users.Add(existingUser);
+            await platformContext.SaveChangesAsync();
+
+            var supervisorRole = new Role { Id = Guid.NewGuid(), Name = "Supervisor", Code = "SUPERVISOR", TenantId = tenantId };
+            tenantContext.Roles.Add(supervisorRole);
+            await tenantContext.SaveChangesAsync();
+
+            var controller = CreateEmployeesController(platformContext, tenantContext, tenantId, "CompanyAdmin");
+
+            var request = new UpdateEmployeeRequest
+            {
+                FullName = "Johnathan NewDoe",
+                Username = "john_new",
+                Email = "john.new@company.com",
+                Pin = "9876",
+                RoleCode = "SUPERVISOR",
+                Department = "Logistics",
+                CurrentSalary = 35000m,
+                IsActive = true
+            };
+
+            // Act
+            var actionResult = await controller.UpdateEmployee(existingUser.Id, request);
+
+            // Assert
+            var okResult = Assert.IsType<ActionResult<ApiResponse<EmployeeDto>>>(actionResult);
+            var apiResponse = Assert.IsType<ApiResponse<EmployeeDto>>(((ObjectResult)okResult.Result!).Value);
+            Assert.True(apiResponse.Success);
+            Assert.Equal("Johnathan NewDoe", apiResponse.Data.FullName);
+            Assert.Equal("john_new", apiResponse.Data.Username);
+            Assert.Equal("john.new@company.com", apiResponse.Data.Email);
+            Assert.Equal("Supervisor", apiResponse.Data.RoleName);
+            Assert.Equal("SUPERVISOR", apiResponse.Data.RoleCode);
+            Assert.Equal("Logistics", apiResponse.Data.Department);
+            Assert.Equal(35000m, apiResponse.Data.CurrentSalary);
+            Assert.True(apiResponse.Data.IsActive);
+
+            // Verify persistence in PlatformContext
+            var dbUser = await platformContext.Users.FirstAsync(u => u.Id == existingUser.Id);
+            Assert.Equal("Johnathan", dbUser.FirstName);
+            Assert.Equal("NewDoe", dbUser.LastName);
+            Assert.Equal("john_new", dbUser.Username);
+            Assert.Equal("john.new@company.com", dbUser.Email);
+            Assert.Equal("mock_hashed", dbUser.PinHash);
+            Assert.Equal("mock_hashed", dbUser.PasswordHash);
+            Assert.Equal("Logistics", dbUser.Department);
+            Assert.Equal(35000m, dbUser.CurrentSalary);
+        }
+
+        [Fact]
+        public async Task UpdateEmployee_WithoutNewPin_ShouldPreserveExistingPinHash()
+        {
+            var tenantId = Guid.NewGuid();
+            var (platformContext, tenantContext) = CreateMockContexts(tenantId);
+
+            var existingUser = new User
+            {
+                Id = Guid.NewGuid(),
+                Username = "alice_dev",
+                Email = "alice@company.com",
+                FirstName = "Alice",
+                LastName = "Dev",
+                PasswordHash = "original_pin_hash_123",
+                PinHash = "original_pin_hash_123",
+                TenantId = tenantId,
+                RoleName = "Operator",
+                Department = "Engineering",
+                CurrentSalary = 50000m,
+                IsActive = true
+            };
+            platformContext.Users.Add(existingUser);
+            await platformContext.SaveChangesAsync();
+
+            var operatorRole = new Role { Id = Guid.NewGuid(), Name = "Operator", Code = "OPERATOR", TenantId = tenantId };
+            tenantContext.Roles.Add(operatorRole);
+            await tenantContext.SaveChangesAsync();
+
+            var controller = CreateEmployeesController(platformContext, tenantContext, tenantId, "CompanyAdmin");
+
+            var request = new UpdateEmployeeRequest
+            {
+                FullName = "Alice Dev Updated",
+                Username = "alice_dev",
+                Email = "alice@company.com",
+                Pin = null, // No new PIN provided
+                RoleCode = "OPERATOR",
+                Department = "Engineering",
+                CurrentSalary = 55000m,
+                IsActive = false
+            };
+
+            // Act
+            var actionResult = await controller.UpdateEmployee(existingUser.Id, request);
+
+            // Assert
+            var okResult = Assert.IsType<ActionResult<ApiResponse<EmployeeDto>>>(actionResult);
+            var apiResponse = Assert.IsType<ApiResponse<EmployeeDto>>(((ObjectResult)okResult.Result!).Value);
+            Assert.True(apiResponse.Success);
+
+            // Verify original PIN hash is preserved unchanged
+            var dbUser = await platformContext.Users.FirstAsync(u => u.Id == existingUser.Id);
+            Assert.Equal("original_pin_hash_123", dbUser.PinHash);
+            Assert.Equal("original_pin_hash_123", dbUser.PasswordHash);
+            Assert.False(dbUser.IsActive);
+            Assert.Equal(55000m, dbUser.CurrentSalary);
+        }
+
+        [Fact]
+        public async Task UpdateEmployee_WithDuplicateUsername_ShouldReturnValidationError()
+        {
+            var tenantId = Guid.NewGuid();
+            var (platformContext, tenantContext) = CreateMockContexts(tenantId);
+
+            var user1 = new User
+            {
+                Id = Guid.NewGuid(),
+                Username = "taken_username",
+                Email = "user1@company.com",
+                FirstName = "User",
+                LastName = "One",
+                PasswordHash = "hash123",
+                TenantId = tenantId,
+                RoleName = "Operator",
+                IsActive = true
+            };
+            var user2 = new User
+            {
+                Id = Guid.NewGuid(),
+                Username = "user2_username",
+                Email = "user2@company.com",
+                FirstName = "User",
+                LastName = "Two",
+                PasswordHash = "hash123",
+                TenantId = tenantId,
+                RoleName = "Operator",
+                IsActive = true
+            };
+            platformContext.Users.AddRange(user1, user2);
+            await platformContext.SaveChangesAsync();
+
+            var operatorRole = new Role { Id = Guid.NewGuid(), Name = "Operator", Code = "OPERATOR", TenantId = tenantId };
+            tenantContext.Roles.Add(operatorRole);
+            await tenantContext.SaveChangesAsync();
+
+            var controller = CreateEmployeesController(platformContext, tenantContext, tenantId, "CompanyAdmin");
+
+            var request = new UpdateEmployeeRequest
+            {
+                FullName = "User Two Renamed",
+                Username = "taken_username", // Duplicate of user1
+                Email = "user2_new@company.com",
+                RoleCode = "OPERATOR",
+                CurrentSalary = 30000m,
+                IsActive = true
+            };
+
+            // Act
+            var actionResult = await controller.UpdateEmployee(user2.Id, request);
+
+            // Assert
+            var okResult = Assert.IsType<ActionResult<ApiResponse<EmployeeDto>>>(actionResult);
+            var apiResponse = Assert.IsType<ApiResponse<EmployeeDto>>(((ObjectResult)okResult.Result!).Value);
+            Assert.False(apiResponse.Success);
+            Assert.Contains("Username is already taken", apiResponse.Message);
+        }
+
+        [Fact]
+        public async Task UpdateEmployee_WithDuplicateEmail_ShouldReturnValidationError()
+        {
+            var tenantId = Guid.NewGuid();
+            var (platformContext, tenantContext) = CreateMockContexts(tenantId);
+
+            var user1 = new User
+            {
+                Id = Guid.NewGuid(),
+                Username = "user1_username",
+                Email = "taken_email@company.com",
+                FirstName = "User",
+                LastName = "One",
+                PasswordHash = "hash123",
+                TenantId = tenantId,
+                RoleName = "Operator",
+                IsActive = true
+            };
+            var user2 = new User
+            {
+                Id = Guid.NewGuid(),
+                Username = "user2_username",
+                Email = "user2@company.com",
+                FirstName = "User",
+                LastName = "Two",
+                PasswordHash = "hash123",
+                TenantId = tenantId,
+                RoleName = "Operator",
+                IsActive = true
+            };
+            platformContext.Users.AddRange(user1, user2);
+            await platformContext.SaveChangesAsync();
+
+            var operatorRole = new Role { Id = Guid.NewGuid(), Name = "Operator", Code = "OPERATOR", TenantId = tenantId };
+            tenantContext.Roles.Add(operatorRole);
+            await tenantContext.SaveChangesAsync();
+
+            var controller = CreateEmployeesController(platformContext, tenantContext, tenantId, "CompanyAdmin");
+
+            var request = new UpdateEmployeeRequest
+            {
+                FullName = "User Two Renamed",
+                Username = "user2_unique",
+                Email = "taken_email@company.com", // Duplicate of user1
+                RoleCode = "OPERATOR",
+                CurrentSalary = 30000m,
+                IsActive = true
+            };
+
+            // Act
+            var actionResult = await controller.UpdateEmployee(user2.Id, request);
+
+            // Assert
+            var okResult = Assert.IsType<ActionResult<ApiResponse<EmployeeDto>>>(actionResult);
+            var apiResponse = Assert.IsType<ApiResponse<EmployeeDto>>(((ObjectResult)okResult.Result!).Value);
+            Assert.False(apiResponse.Success);
+            Assert.Contains("Email is already registered", apiResponse.Message);
         }
 
         [Fact]

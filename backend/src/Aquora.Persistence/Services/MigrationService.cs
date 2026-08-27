@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Aquora.Application.Interfaces;
+using Aquora.Application.Services;
 using Aquora.Domain.Entities;
 using Aquora.Persistence.Context;
 using Aquora.Shared.Constants;
@@ -530,6 +531,10 @@ namespace Aquora.Persistence.Services
                             
                             await tenantContext.SaveChangesAsync();
 
+                            // Ensure full canonical QC default parameters exist in this tenant's schema
+                            _logger.LogInformation($"[QC SEEDING] Ensuring default QC Water Test Parameters exist in schema '{tenant.SchemaName}'...");
+                            await QCDataSeeder.SeedQCDefaultParametersAsync(tenantContext, "MigrationService.Repair");
+
                             // Auto-repair invalid default dates (0001-01-01, default/empty values, etc.)
                             _logger.LogInformation($"[REPAIR-DATETIME] Repairing default/invalid timestamps in schema '{tenant.SchemaName}'...");
                             var schema = tenant.SchemaName;
@@ -678,14 +683,19 @@ namespace Aquora.Persistence.Services
                                                 ""Name"" text NOT NULL,
                                                 ""Category"" text NOT NULL,
                                                 ""Unit"" text NOT NULL,
+                                                ""MinWarning"" double precision NULL,
                                                 ""MinAcceptable"" double precision NULL,
                                                 ""MaxAcceptable"" double precision NULL,
+                                                ""MaxWarning"" double precision NULL,
                                                 ""IsActive"" boolean NOT NULL DEFAULT true,
                                                 ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                                 ""CreatedBy"" text NOT NULL,
                                                 ""UpdatedAt"" timestamp with time zone NULL,
                                                 ""UpdatedBy"" text NULL
                                             );
+
+                                            ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MinWarning"" double precision NULL;
+                                            ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MaxWarning"" double precision NULL;
 
                                             CREATE TABLE IF NOT EXISTS ""{schema}"".""WaterTestReports"" (
                                                 ""Id"" uuid NOT NULL PRIMARY KEY,

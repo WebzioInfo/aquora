@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Aquora.Persistence.Context;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
@@ -9,19 +10,21 @@ namespace Aquora.Persistence.Migrations.Tenant
     /// <inheritdoc />
     public partial class AddCompanyTimezoneAndFormats : Migration
     {
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<Guid>(
                 name: "CashBookId",
-                schema: "public",
+                schema: _schema,
                 table: "SimpleExpenses",
                 type: "uuid",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "DateFormat",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: false,
@@ -29,7 +32,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "TimeFormat",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: false,
@@ -37,7 +40,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "TimeZone",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: false,
@@ -45,7 +48,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "BankAccountId",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerEntries",
                 type: "uuid",
                 nullable: true,
@@ -54,21 +57,21 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<Guid>(
                 name: "CashBookId",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerEntries",
                 type: "uuid",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "LedgerAccountType",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerEntries",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<int>(
                 name: "LedgerSequence",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerEntries",
                 type: "integer",
                 nullable: false,
@@ -77,7 +80,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateTable(
                 name: "AssetHistories",
-                schema: "public",
+                schema: _schema,
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -103,7 +106,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateTable(
                 name: "CashBooks",
-                schema: "public",
+                schema: _schema,
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -140,7 +143,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateTable(
                 name: "SalaryPayments",
-                schema: "public",
+                schema: _schema,
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -195,7 +198,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateTable(
                 name: "Vendors",
-                schema: "public",
+                schema: _schema,
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -236,7 +239,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateTable(
                 name: "Purchases",
-                schema: "public",
+                schema: _schema,
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -315,7 +318,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateTable(
                 name: "PurchaseItems",
-                schema: "public",
+                schema: _schema,
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -349,7 +352,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateTable(
                 name: "PurchasePayments",
-                schema: "public",
+                schema: _schema,
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -390,7 +393,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateTable(
                 name: "PurchaseTimelineEvents",
-                schema: "public",
+                schema: _schema,
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -415,139 +418,139 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateIndex(
                 name: "IX_SimpleExpenses_CashBookId",
-                schema: "public",
+                schema: _schema,
                 table: "SimpleExpenses",
                 column: "CashBookId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BankLedgerEntries_CashBookId",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerEntries",
                 column: "CashBookId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BankLedgerEntries_LedgerAccountType",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerEntries",
                 column: "LedgerAccountType");
 
             migrationBuilder.CreateIndex(
                 name: "IX_AssetHistories_AssetId",
-                schema: "public",
+                schema: _schema,
                 table: "AssetHistories",
                 column: "AssetId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_CashBooks_CompanyId",
-                schema: "public",
+                schema: _schema,
                 table: "CashBooks",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_CashBooks_TenantId",
-                schema: "public",
+                schema: _schema,
                 table: "CashBooks",
                 column: "TenantId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PurchaseItems_PurchaseId",
-                schema: "public",
+                schema: _schema,
                 table: "PurchaseItems",
                 column: "PurchaseId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PurchaseItems_RawMaterialId",
-                schema: "public",
+                schema: _schema,
                 table: "PurchaseItems",
                 column: "RawMaterialId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PurchasePayments_BankAccountId",
-                schema: "public",
+                schema: _schema,
                 table: "PurchasePayments",
                 column: "BankAccountId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PurchasePayments_CashBookId",
-                schema: "public",
+                schema: _schema,
                 table: "PurchasePayments",
                 column: "CashBookId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PurchasePayments_PurchaseId",
-                schema: "public",
+                schema: _schema,
                 table: "PurchasePayments",
                 column: "PurchaseId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Purchases_AssetId",
-                schema: "public",
+                schema: _schema,
                 table: "Purchases",
                 column: "AssetId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Purchases_BankAccountId",
-                schema: "public",
+                schema: _schema,
                 table: "Purchases",
                 column: "BankAccountId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Purchases_CashBookId",
-                schema: "public",
+                schema: _schema,
                 table: "Purchases",
                 column: "CashBookId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Purchases_CompanyId",
-                schema: "public",
+                schema: _schema,
                 table: "Purchases",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Purchases_VendorId",
-                schema: "public",
+                schema: _schema,
                 table: "Purchases",
                 column: "VendorId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PurchaseTimelineEvents_PurchaseId",
-                schema: "public",
+                schema: _schema,
                 table: "PurchaseTimelineEvents",
                 column: "PurchaseId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SalaryPayments_CompanyId",
-                schema: "public",
+                schema: _schema,
                 table: "SalaryPayments",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SalaryPayments_EmployeeId",
-                schema: "public",
+                schema: _schema,
                 table: "SalaryPayments",
                 column: "EmployeeId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SalaryPayments_SalaryMonth",
-                schema: "public",
+                schema: _schema,
                 table: "SalaryPayments",
                 column: "SalaryMonth");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SalaryPayments_TenantId",
-                schema: "public",
+                schema: _schema,
                 table: "SalaryPayments",
                 column: "TenantId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Vendors_CompanyId",
-                schema: "public",
+                schema: _schema,
                 table: "Vendors",
                 column: "CompanyId");
 
             migrationBuilder.AddForeignKey(
                 name: "FK_BankLedgerEntries_CashBooks_CashBookId",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerEntries",
                 column: "CashBookId",
                 principalSchema: "public",
@@ -557,7 +560,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddForeignKey(
                 name: "FK_SimpleExpenses_CashBooks_CashBookId",
-                schema: "public",
+                schema: _schema,
                 table: "SimpleExpenses",
                 column: "CashBookId",
                 principalSchema: "public",
@@ -571,99 +574,99 @@ namespace Aquora.Persistence.Migrations.Tenant
         {
             migrationBuilder.DropForeignKey(
                 name: "FK_BankLedgerEntries_CashBooks_CashBookId",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerEntries");
 
             migrationBuilder.DropForeignKey(
                 name: "FK_SimpleExpenses_CashBooks_CashBookId",
-                schema: "public",
+                schema: _schema,
                 table: "SimpleExpenses");
 
             migrationBuilder.DropTable(
                 name: "AssetHistories",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropTable(
                 name: "PurchaseItems",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropTable(
                 name: "PurchasePayments",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropTable(
                 name: "PurchaseTimelineEvents",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropTable(
                 name: "SalaryPayments",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropTable(
                 name: "Purchases",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropTable(
                 name: "CashBooks",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropTable(
                 name: "Vendors",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropIndex(
                 name: "IX_SimpleExpenses_CashBookId",
-                schema: "public",
+                schema: _schema,
                 table: "SimpleExpenses");
 
             migrationBuilder.DropIndex(
                 name: "IX_BankLedgerEntries_CashBookId",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerEntries");
 
             migrationBuilder.DropIndex(
                 name: "IX_BankLedgerEntries_LedgerAccountType",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerEntries");
 
             migrationBuilder.DropColumn(
                 name: "CashBookId",
-                schema: "public",
+                schema: _schema,
                 table: "SimpleExpenses");
 
             migrationBuilder.DropColumn(
                 name: "DateFormat",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "TimeFormat",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "TimeZone",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "CashBookId",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerEntries");
 
             migrationBuilder.DropColumn(
                 name: "LedgerAccountType",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerEntries");
 
             migrationBuilder.DropColumn(
                 name: "LedgerSequence",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerEntries");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "BankAccountId",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerEntries",
                 type: "uuid",
                 nullable: false,

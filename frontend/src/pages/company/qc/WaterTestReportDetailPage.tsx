@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { 
   Beaker, 
@@ -63,12 +63,6 @@ export const WaterTestReportDetailPage: React.FC = () => {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [report, setReport] = useState<WaterTestReport | null>(null);
 
-  useEffect(() => {
-    if (id) {
-      fetchReportDetails(id);
-    }
-  }, [id]);
-
   const fetchReportDetails = async (reportId: string) => {
     setIsLoading(true);
     try {
@@ -80,6 +74,47 @@ export const WaterTestReportDetailPage: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (id) {
+      fetchReportDetails(id);
+    }
+  }, [id]);
+
+  const physicalChemicalResults = useMemo(() => {
+    if (!report?.results) return [];
+    return [...report.results.filter(r => r.parameterCategory === 'PHYSICAL' || r.parameterCategory === 'CHEMICAL')].sort((a, b) => {
+      const idxA = PHYSICAL_CHEMICAL_ORDER.findIndex(o => o.toLowerCase() === (a.parameterName || '').toLowerCase());
+      const idxB = PHYSICAL_CHEMICAL_ORDER.findIndex(o => o.toLowerCase() === (b.parameterName || '').toLowerCase());
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return (a.parameterName || '').localeCompare(b.parameterName || '');
+    });
+  }, [report?.results]);
+
+  const microResults = useMemo(() => {
+    if (!report?.results) return [];
+    return [...report.results.filter(r => r.parameterCategory === 'MICROBIOLOGY')].sort((a, b) => {
+      const idxA = MICROBIOLOGY_ORDER.findIndex(o => o.toLowerCase() === (a.parameterName || '').toLowerCase());
+      const idxB = MICROBIOLOGY_ORDER.findIndex(o => o.toLowerCase() === (b.parameterName || '').toLowerCase());
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return (a.parameterName || '').localeCompare(b.parameterName || '');
+    });
+  }, [report?.results]);
+
+  const overallQualityStatus = useMemo(() => {
+    if (!report) return 'DRAFT';
+    if (report.status === 'DRAFT') return 'DRAFT';
+    if (report.results && report.results.length > 0) {
+      if (report.results.some(r => r.qualityStatus === 'FAIL')) return 'FAIL';
+      if (report.results.some(r => r.qualityStatus === 'WARNING')) return 'WARNING';
+      return 'PASS';
+    }
+    return report.status;
+  }, [report]);
 
   const handleDownloadPdf = async () => {
     if (!id) return;
@@ -100,7 +135,10 @@ export const WaterTestReportDetailPage: React.FC = () => {
     }
   };
 
-  const getStatusBadge = (statusStr: string) => {
+  const getStatusBadge = (statusStr?: string | null) => {
+    if (!statusStr || statusStr === 'NOT_ENTERED' || statusStr === 'Not Entered' || statusStr === '—') {
+      return <span className="text-slate-400 font-medium text-xs italic">—</span>;
+    }
     switch (statusStr) {
       case 'PASS':
       case 'APPROVED':
@@ -118,6 +156,7 @@ export const WaterTestReportDetailPage: React.FC = () => {
     }
   };
 
+  // ALL HOOKS EXECUTED ABOVE - Early Returns below:
   if (isLoading) {
     return (
       <PageContainer>
@@ -140,24 +179,6 @@ export const WaterTestReportDetailPage: React.FC = () => {
       </PageContainer>
     );
   }
-
-  const physicalChemicalResults = [...(report.results?.filter(r => r.parameterCategory === 'PHYSICAL' || r.parameterCategory === 'CHEMICAL') || [])].sort((a, b) => {
-    const idxA = PHYSICAL_CHEMICAL_ORDER.findIndex(o => o.toLowerCase() === (a.parameterName || '').toLowerCase());
-    const idxB = PHYSICAL_CHEMICAL_ORDER.findIndex(o => o.toLowerCase() === (b.parameterName || '').toLowerCase());
-    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-    if (idxA !== -1) return -1;
-    if (idxB !== -1) return 1;
-    return (a.parameterName || '').localeCompare(b.parameterName || '');
-  });
-
-  const microResults = [...(report.results?.filter(r => r.parameterCategory === 'MICROBIOLOGY') || [])].sort((a, b) => {
-    const idxA = MICROBIOLOGY_ORDER.findIndex(o => o.toLowerCase() === (a.parameterName || '').toLowerCase());
-    const idxB = MICROBIOLOGY_ORDER.findIndex(o => o.toLowerCase() === (b.parameterName || '').toLowerCase());
-    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-    if (idxA !== -1) return -1;
-    if (idxB !== -1) return 1;
-    return (a.parameterName || '').localeCompare(b.parameterName || '');
-  });
 
   return (
     <PageContainer>
@@ -203,7 +224,7 @@ export const WaterTestReportDetailPage: React.FC = () => {
             <p className="text-sm text-slate-500 mt-1">Laboratory compliance certificate for 20L Bottled Water Production.</p>
           </div>
           <div className="flex items-center gap-3">
-            {getStatusBadge(report.status)}
+            {getStatusBadge(overallQualityStatus)}
           </div>
         </div>
 
@@ -268,7 +289,7 @@ export const WaterTestReportDetailPage: React.FC = () => {
                   <tr key={r.id} className="h-11">
                     <td className="py-3 px-4 font-medium text-slate-900">{r.parameterName}</td>
                     <td className="py-3 px-4 font-semibold text-slate-800">
-                      {r.stringValue || r.value || '—'}
+                      {r.stringValue ? r.stringValue : (r.value !== null && r.value !== undefined ? r.value : '—')}
                     </td>
                     <td className="py-3 px-4 text-slate-500 font-medium">{r.parameterUnit}</td>
                     <td className="py-3 px-4 text-right">{getStatusBadge(r.qualityStatus)}</td>
@@ -300,7 +321,7 @@ export const WaterTestReportDetailPage: React.FC = () => {
                   <tr key={r.id} className="h-11">
                     <td className="py-3 px-4 font-medium text-slate-900">{r.parameterName}</td>
                     <td className="py-3 px-4 font-semibold text-slate-800">
-                      {r.stringValue || r.value || '—'}
+                      {r.stringValue ? r.stringValue : (r.value !== null && r.value !== undefined ? r.value : '—')}
                     </td>
                     <td className="py-3 px-4 text-slate-500 font-medium">{r.parameterUnit}</td>
                     <td className="py-3 px-4 text-right">{getStatusBadge(r.qualityStatus)}</td>

@@ -32,8 +32,10 @@ namespace Aquora.Application.DTOs.QC
         public string Name { get; set; } = string.Empty;
         public string Category { get; set; } = string.Empty;
         public string Unit { get; set; } = string.Empty;
+        public double? MinWarning { get; set; }
         public double? MinAcceptable { get; set; }
         public double? MaxAcceptable { get; set; }
+        public double? MaxWarning { get; set; }
     }
 
     public class WaterTestResultDto

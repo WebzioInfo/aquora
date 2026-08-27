@@ -7,9 +7,11 @@ namespace Aquora.Persistence.Migrations.Tenant
 {
     public partial class FixBankAccountBalanceColumnTypes : Migration
     {
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            var targetSchema = TenantSchemaResolver.CurrentSchemaName;
+            var targetSchema = TenantSchemaResolver.ResolveRequiredSchema();
             var tableRef = !string.IsNullOrWhiteSpace(targetSchema) 
                 ? $"{QuoteIdentifier(targetSchema)}.\"BankAccounts\"" 
                 : "\"BankAccounts\"";
@@ -31,7 +33,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            var targetSchema = TenantSchemaResolver.CurrentSchemaName;
+            var targetSchema = TenantSchemaResolver.ResolveRequiredSchema();
             var tableRef = !string.IsNullOrWhiteSpace(targetSchema) 
                 ? $"{QuoteIdentifier(targetSchema)}.\"BankAccounts\"" 
                 : "\"BankAccounts\"";

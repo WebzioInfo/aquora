@@ -89,8 +89,15 @@ namespace Aquora.API.Controllers
         public async Task<IActionResult> CreateOrUpdateParameter([FromBody] WaterTestParameterDto request)
         {
             if (IsReadOnlyUser()) return StatusCode(403, "Owner role is read-only.");
-            var param = await _waterTestService.CreateOrUpdateParameterAsync(request);
-            return Ok(param);
+            try
+            {
+                var param = await _waterTestService.CreateOrUpdateParameterAsync(request);
+                return Ok(param);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         // Compliance & CAPA/NCR Endpoints

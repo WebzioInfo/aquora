@@ -32,7 +32,9 @@ namespace Aquora.Application.Services
             sb.AppendLine("th { background-color: #f1f5f9; font-weight: bold; color: #334155; text-transform: uppercase; font-size: 11px; }");
             sb.AppendLine(".badge { padding: 4px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; text-transform: uppercase; }");
             sb.AppendLine(".badge-pass { background-color: #dcfce7; color: #15803d; }");
+            sb.AppendLine(".badge-warning { background-color: #fef3c7; color: #b45309; }");
             sb.AppendLine(".badge-fail { background-color: #ffe4e6; color: #be123c; }");
+            sb.AppendLine(".badge-not-entered { background-color: #f1f5f9; color: #64748b; }");
             sb.AppendLine(".footer { margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid #e2e8f0; padding-top: 20px; }");
             sb.AppendLine(".sig-box { text-align: center; width: 200px; }");
             sb.AppendLine(".sig-line { border-top: 1px solid #94a3b8; margin-top: 40px; font-size: 12px; font-weight: bold; }");
@@ -60,12 +62,29 @@ namespace Aquora.Application.Services
 
             foreach (var r in report.Results)
             {
-                string statusBadgeClass = r.QualityStatus == "PASS" ? "badge-pass" : "badge-fail";
-                string valStr = r.StringValue ?? (r.Value.HasValue ? r.Value.Value.ToString() : "—");
-                string catStr = r.Parameter?.Category ?? "GENERAL";
-                string unitStr = r.Parameter?.Unit ?? "";
+                string statusBadgeClass = "badge-not-entered";
+                string statusLabel = "—";
+                if (r.QualityStatus == "PASS")
+                {
+                    statusBadgeClass = "badge-pass";
+                    statusLabel = "PASS";
+                }
+                else if (r.QualityStatus == "WARNING")
+                {
+                    statusBadgeClass = "badge-warning";
+                    statusLabel = "WARNING";
+                }
+                else if (r.QualityStatus == "FAIL")
+                {
+                    statusBadgeClass = "badge-fail";
+                    statusLabel = "FAIL";
+                }
 
-                sb.AppendLine($"<tr><td>{r.Parameter?.Name ?? "Parameter"}</td><td>{catStr}</td><td>{valStr}</td><td>{unitStr}</td><td><span class='badge {statusBadgeClass}'>{r.QualityStatus}</span></td></tr>");
+                string valStr = !string.IsNullOrWhiteSpace(r.StringValue) ? r.StringValue : (r.Value.HasValue ? r.Value.Value.ToString() : "—");
+                string catStr = r.Parameter?.Category ?? "GENERAL";
+                string unitStr = r.Parameter?.Unit ?? "—";
+
+                sb.AppendLine($"<tr><td>{r.Parameter?.Name ?? "Parameter"}</td><td>{catStr}</td><td>{valStr}</td><td>{unitStr}</td><td><span class='badge {statusBadgeClass}'>{statusLabel}</span></td></tr>");
             }
 
             sb.AppendLine("</tbody></table>");

@@ -129,6 +129,11 @@ namespace Aquora.Persistence.Context
                 .Property(c => c.IsBiodropsProduction)
                 .HasDefaultValue(false);
 
+            modelBuilder.Entity<Company>()
+                .HasIndex(c => new { c.TenantId })
+                .IsUnique()
+                .HasFilter(@"""IsDeleted"" = false");
+
             modelBuilder.Entity<User>()
                 .ToTable("Users", "public", t => t.ExcludeFromMigrations());
 

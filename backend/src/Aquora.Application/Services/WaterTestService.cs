@@ -22,27 +22,6 @@ namespace Aquora.Application.Services
         private readonly IQCPdfCertificateService _pdfService;
         private readonly ILogger<WaterTestService> _logger;
 
-        private static readonly List<(string Name, string Category, string Unit, double? MinAccept, double? MaxAccept)> SeedParameters = new()
-        {
-            ("pH", "PHYSICAL", "—", 6.0, 8.5),
-            ("TDS", "PHYSICAL", "mg/L", 0, 500),
-            ("Turbidity", "PHYSICAL", "NTU", 0, 1.0),
-            ("Sulphate", "CHEMICAL", "mg/L", 0, 200),
-            ("Colour", "PHYSICAL", "Descriptor", 0, 0),
-            ("Odour", "PHYSICAL", "Descriptor", 0, 0),
-            ("Taste", "PHYSICAL", "Descriptor", null, null),
-            ("Residual Free Chlorine", "CHEMICAL", "mg/L", null, 0.2),
-            ("Alkalinity", "CHEMICAL", "mg/L", 0, 200),
-            ("Chloride", "CHEMICAL", "mg/L", 0, 250),
-            ("E.coli", "MICROBIOLOGY", "CFU/100ml", 0, 0),
-            ("Coliform", "MICROBIOLOGY", "CFU/100ml", 0, 0),
-            ("Pseudomonas", "MICROBIOLOGY", "CFU/250ml", 0, 0),
-            ("Clostridia", "MICROBIOLOGY", "CFU/100ml", 0, 0),
-            ("Aerobic Microbial Count 22°C", "MICROBIOLOGY", "CFU/ml", 0, 100),
-            ("Aerobic Microbial Count 37°C", "MICROBIOLOGY", "CFU/ml", 0, 20),
-            ("Yeast & Mold", "MICROBIOLOGY", "CFU/100ml", 0, 0)
-        };
-
         public WaterTestService(
             ITenantDbContext context,
             IPlatformDbContext platformContext,
@@ -95,6 +74,22 @@ namespace Aquora.Application.Services
         {
             var activeParams = await _context.WaterTestParameters.Where(p => p.IsActive).ToListAsync();
 
+            // Self-repair safeguard: if parameters are missing from the tenant schema, auto-seed defaults
+            if (activeParams.Count < QCDefaultParameters.Catalog.Count)
+            {
+                var existingNames = new HashSet<string>(activeParams.Select(p => QCDefaultParameters.NormalizeKey(p.Name)));
+                bool anyMissing = QCDefaultParameters.Catalog.Any(def => !existingNames.Contains(QCDefaultParameters.NormalizeKey(def.Name)));
+                if (anyMissing)
+                {
+                    await QCDataSeeder.SeedQCDefaultParametersAsync(_context, "WaterTestService.GetWaterTestParametersAsync");
+                    activeParams = await _context.WaterTestParameters.Where(p => p.IsActive).ToListAsync();
+                }
+            }
+
+            var catalogOrderMap = QCDefaultParameters.Catalog
+                .Select((item, idx) => (Key: QCDefaultParameters.NormalizeKey(item.Name), Index: idx))
+                .ToDictionary(x => x.Key, x => x.Index);
+
             return activeParams
                 .GroupBy(p => p.Name.Trim(), StringComparer.OrdinalIgnoreCase)
                 .Select(g => g.First())
@@ -104,10 +99,16 @@ namespace Aquora.Application.Services
                     Name = p.Name,
                     Category = p.Category,
                     Unit = p.Unit,
+                    MinWarning = p.MinWarning,
                     MinAcceptable = p.MinAcceptable,
-                    MaxAcceptable = p.MaxAcceptable
+                    MaxAcceptable = p.MaxAcceptable,
+                    MaxWarning = p.MaxWarning
                 })
-                .OrderBy(p => p.Category)
+                .OrderBy(p => {
+                    var norm = QCDefaultParameters.NormalizeKey(p.Name);
+                    return catalogOrderMap.TryGetValue(norm, out var idx) ? idx : 999;
+                })
+                .ThenBy(p => p.Category)
                 .ThenBy(p => p.Name)
                 .ToList();
         }
@@ -252,35 +253,7 @@ namespace Aquora.Application.Services
             {
                 if (string.IsNullOrWhiteSpace(rReq.ParameterId)) continue;
 
-                var normalizedKey = NormalizeParameterKey(rReq.ParameterId);
-                if (!parameterMap.TryGetValue(normalizedKey, out var param))
-                {
-                    param = parameters.FirstOrDefault(p => p.Id.ToString().Equals(normalizedKey, StringComparison.OrdinalIgnoreCase) || p.Name.Equals(normalizedKey, StringComparison.OrdinalIgnoreCase));
-                }
-
-                if (param == null)
-                {
-                    param = new WaterTestParameter
-                    {
-                        Id = Guid.NewGuid(),
-                        Name = normalizedKey,
-                        Category = normalizedKey.Equals("e.coli", StringComparison.OrdinalIgnoreCase) || 
-                                   normalizedKey.Equals("coliform", StringComparison.OrdinalIgnoreCase) || 
-                                   normalizedKey.Equals("pseudomonas", StringComparison.OrdinalIgnoreCase) || 
-                                   normalizedKey.Equals("clostridia", StringComparison.OrdinalIgnoreCase) || 
-                                   normalizedKey.Equals("yeast & mold", StringComparison.OrdinalIgnoreCase) ||
-                                   normalizedKey.Contains("aerobic") || normalizedKey.Contains("amc") ? "MICROBIOLOGY" : "PHYSICAL",
-                        Unit = "—",
-                        IsActive = true,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = currentUserId
-                    };
-                    _context.WaterTestParameters.Add(param);
-                    parameters.Add(param);
-                    parameterMap[param.Name.Trim()] = param;
-                    parameterMap[param.Id.ToString()] = param;
-                }
-
+                var param = ResolveOrCreateParameter(rReq.ParameterId, parameters, parameterMap, currentUserId);
                 var qualityStatus = _evaluationService.EvaluateParameter(param, rReq.Value, rReq.StringValue);
 
                 report.Results.Add(new WaterTestResult
@@ -380,35 +353,7 @@ namespace Aquora.Application.Services
             {
                 if (string.IsNullOrWhiteSpace(rReq.ParameterId)) continue;
 
-                var normalizedKey = NormalizeParameterKey(rReq.ParameterId);
-                if (!parameterMap.TryGetValue(normalizedKey, out var param))
-                {
-                    param = parameters.FirstOrDefault(p => p.Id.ToString().Equals(normalizedKey, StringComparison.OrdinalIgnoreCase) || p.Name.Equals(normalizedKey, StringComparison.OrdinalIgnoreCase));
-                }
-
-                if (param == null)
-                {
-                    param = new WaterTestParameter
-                    {
-                        Id = Guid.NewGuid(),
-                        Name = normalizedKey,
-                        Category = normalizedKey.Equals("e.coli", StringComparison.OrdinalIgnoreCase) || 
-                                   normalizedKey.Equals("coliform", StringComparison.OrdinalIgnoreCase) || 
-                                   normalizedKey.Equals("pseudomonas", StringComparison.OrdinalIgnoreCase) || 
-                                   normalizedKey.Equals("clostridia", StringComparison.OrdinalIgnoreCase) || 
-                                   normalizedKey.Equals("yeast & mold", StringComparison.OrdinalIgnoreCase) ||
-                                   normalizedKey.Contains("aerobic") || normalizedKey.Contains("amc") ? "MICROBIOLOGY" : "PHYSICAL",
-                        Unit = "—",
-                        IsActive = true,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = currentUserId
-                    };
-                    _context.WaterTestParameters.Add(param);
-                    parameters.Add(param);
-                    parameterMap[param.Id.ToString()] = param;
-                    parameterMap[param.Name.Trim()] = param;
-                }
-
+                var param = ResolveOrCreateParameter(rReq.ParameterId, parameters, parameterMap, currentUserId);
                 deduplicatedResults[param.Id] = (param, rReq.Value, rReq.StringValue);
             }
 
@@ -670,8 +615,10 @@ namespace Aquora.Application.Services
             param.Name = request.Name;
             param.Category = request.Category;
             param.Unit = request.Unit;
+            param.MinWarning = request.MinWarning;
             param.MinAcceptable = request.MinAcceptable;
             param.MaxAcceptable = request.MaxAcceptable;
+            param.MaxWarning = request.MaxWarning;
             param.IsActive = true;
             param.UpdatedAt = DateTime.UtcNow;
             param.UpdatedBy = currentUserId;
@@ -684,8 +631,10 @@ namespace Aquora.Application.Services
                 Name = param.Name,
                 Category = param.Category,
                 Unit = param.Unit,
+                MinWarning = param.MinWarning,
                 MinAcceptable = param.MinAcceptable,
-                MaxAcceptable = param.MaxAcceptable
+                MaxAcceptable = param.MaxAcceptable,
+                MaxWarning = param.MaxWarning
             };
         }
 
@@ -916,6 +865,79 @@ namespace Aquora.Application.Services
             {
                 Console.WriteLine($"[QC AUDIT LOG ERROR]: {ex.Message}");
             }
+        }
+
+        private WaterTestParameter ResolveOrCreateParameter(
+            string rawKey,
+            List<WaterTestParameter> parameters,
+            Dictionary<string, WaterTestParameter> parameterMap,
+            string currentUserId)
+        {
+            var normalizedKey = NormalizeParameterKey(rawKey);
+            if (parameterMap.TryGetValue(normalizedKey, out var param))
+            {
+                return param;
+            }
+
+            param = parameters.FirstOrDefault(p =>
+                p.Id.ToString().Equals(normalizedKey, StringComparison.OrdinalIgnoreCase) ||
+                p.Name.Equals(normalizedKey, StringComparison.OrdinalIgnoreCase) ||
+                QCDefaultParameters.NormalizeKey(p.Name).Equals(QCDefaultParameters.NormalizeKey(normalizedKey), StringComparison.OrdinalIgnoreCase));
+
+            if (param != null)
+            {
+                parameterMap[normalizedKey] = param;
+                return param;
+            }
+
+            // Lookup canonical definition from catalog
+            var defaultDef = QCDefaultParameters.Catalog.FirstOrDefault(d =>
+                d.Name.Equals(normalizedKey, StringComparison.OrdinalIgnoreCase) ||
+                QCDefaultParameters.NormalizeKey(d.Name).Equals(QCDefaultParameters.NormalizeKey(normalizedKey), StringComparison.OrdinalIgnoreCase));
+
+            if (defaultDef != null)
+            {
+                param = new WaterTestParameter
+                {
+                    Id = Guid.NewGuid(),
+                    Name = defaultDef.Name,
+                    Category = defaultDef.Category,
+                    Unit = defaultDef.Unit,
+                    MinWarning = defaultDef.MinWarning,
+                    MinAcceptable = defaultDef.MinAcceptable,
+                    MaxAcceptable = defaultDef.MaxAcceptable,
+                    MaxWarning = defaultDef.MaxWarning,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = currentUserId
+                };
+            }
+            else
+            {
+                param = new WaterTestParameter
+                {
+                    Id = Guid.NewGuid(),
+                    Name = normalizedKey,
+                    Category = normalizedKey.Equals("e.coli", StringComparison.OrdinalIgnoreCase) ||
+                               normalizedKey.Equals("coliform", StringComparison.OrdinalIgnoreCase) ||
+                               normalizedKey.Equals("pseudomonas", StringComparison.OrdinalIgnoreCase) ||
+                               normalizedKey.Equals("clostridia", StringComparison.OrdinalIgnoreCase) ||
+                               normalizedKey.Equals("yeast & mold", StringComparison.OrdinalIgnoreCase) ||
+                               normalizedKey.Contains("aerobic") || normalizedKey.Contains("amc") ? "MICROBIOLOGY" : "PHYSICAL",
+                    Unit = "—",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = currentUserId
+                };
+            }
+
+            _context.WaterTestParameters.Add(param);
+            parameters.Add(param);
+            parameterMap[param.Name.Trim()] = param;
+            parameterMap[param.Id.ToString()] = param;
+            parameterMap[normalizedKey] = param;
+
+            return param;
         }
     }
 }

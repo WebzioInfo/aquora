@@ -9,8 +9,10 @@ namespace Aquora.Domain.Entities.QC
         public string Name { get; set; } = string.Empty;
         public string Category { get; set; } = string.Empty; // PHYSICAL, CHEMICAL, MICROBIOLOGY
         public string Unit { get; set; } = string.Empty;
+        public double? MinWarning { get; set; }
         public double? MinAcceptable { get; set; }
         public double? MaxAcceptable { get; set; }
+        public double? MaxWarning { get; set; }
         public bool IsActive { get; set; } = true;
 
         public virtual ICollection<WaterTestResult> Results { get; set; } = new List<WaterTestResult>();

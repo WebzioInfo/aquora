@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Aquora.Persistence.Context;
 
 #nullable disable
 
@@ -8,33 +9,35 @@ namespace Aquora.Persistence.Migrations.Tenant
     /// <inheritdoc />
     public partial class AddParentTransactionIdToSalesTransactions : Migration
     {
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<Guid>(
                 name: "ParentTransactionId",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions",
                 type: "uuid",
                 nullable: true);
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "FinalizedAt",
-                schema: "public",
+                schema: _schema,
                 table: "MonthlySalaries",
                 type: "timestamp with time zone",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "FinalizedBy",
-                schema: "public",
+                schema: _schema,
                 table: "MonthlySalaries",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<bool>(
                 name: "IsFinalized",
-                schema: "public",
+                schema: _schema,
                 table: "MonthlySalaries",
                 type: "boolean",
                 nullable: false,
@@ -42,7 +45,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<Guid>(
                 name: "ProductId",
-                schema: "public",
+                schema: _schema,
                 table: "CaseConfigurations",
                 type: "uuid",
                 nullable: false,
@@ -50,7 +53,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<int>(
                 name: "UnitsPerCase",
-                schema: "public",
+                schema: _schema,
                 table: "CaseConfigurations",
                 type: "integer",
                 nullable: false,
@@ -58,25 +61,25 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateIndex(
                 name: "IX_SalesTransactions_ParentTransactionId",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions",
                 column: "ParentTransactionId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_CaseConfigurations_ProductId",
-                schema: "public",
+                schema: _schema,
                 table: "CaseConfigurations",
                 column: "ProductId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_CaseConfigurations_TenantId_ProductId_IsDeleted_IsActive",
-                schema: "public",
+                schema: _schema,
                 table: "CaseConfigurations",
                 columns: new[] { "TenantId", "ProductId", "IsDeleted", "IsActive" });
 
             migrationBuilder.AddForeignKey(
                 name: "FK_CaseConfigurations_Products_ProductId",
-                schema: "public",
+                schema: _schema,
                 table: "CaseConfigurations",
                 column: "ProductId",
                 principalSchema: "public",
@@ -86,7 +89,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddForeignKey(
                 name: "FK_SalesTransactions_SalesTransactions_ParentTransactionId",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions",
                 column: "ParentTransactionId",
                 principalSchema: "public",
@@ -100,57 +103,57 @@ namespace Aquora.Persistence.Migrations.Tenant
         {
             migrationBuilder.DropForeignKey(
                 name: "FK_CaseConfigurations_Products_ProductId",
-                schema: "public",
+                schema: _schema,
                 table: "CaseConfigurations");
 
             migrationBuilder.DropForeignKey(
                 name: "FK_SalesTransactions_SalesTransactions_ParentTransactionId",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions");
 
             migrationBuilder.DropIndex(
                 name: "IX_SalesTransactions_ParentTransactionId",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions");
 
             migrationBuilder.DropIndex(
                 name: "IX_CaseConfigurations_ProductId",
-                schema: "public",
+                schema: _schema,
                 table: "CaseConfigurations");
 
             migrationBuilder.DropIndex(
                 name: "IX_CaseConfigurations_TenantId_ProductId_IsDeleted_IsActive",
-                schema: "public",
+                schema: _schema,
                 table: "CaseConfigurations");
 
             migrationBuilder.DropColumn(
                 name: "ParentTransactionId",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions");
 
             migrationBuilder.DropColumn(
                 name: "FinalizedAt",
-                schema: "public",
+                schema: _schema,
                 table: "MonthlySalaries");
 
             migrationBuilder.DropColumn(
                 name: "FinalizedBy",
-                schema: "public",
+                schema: _schema,
                 table: "MonthlySalaries");
 
             migrationBuilder.DropColumn(
                 name: "IsFinalized",
-                schema: "public",
+                schema: _schema,
                 table: "MonthlySalaries");
 
             migrationBuilder.DropColumn(
                 name: "ProductId",
-                schema: "public",
+                schema: _schema,
                 table: "CaseConfigurations");
 
             migrationBuilder.DropColumn(
                 name: "UnitsPerCase",
-                schema: "public",
+                schema: _schema,
                 table: "CaseConfigurations");
         }
     }

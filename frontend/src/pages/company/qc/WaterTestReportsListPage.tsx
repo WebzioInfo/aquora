@@ -128,7 +128,14 @@ export const WaterTestReportsListPage: React.FC = () => {
       id: 'status',
       header: 'Quality Status',
       accessorKey: 'status',
-      cell: (row: WaterTestReport) => getStatusBadge(row.status)
+      cell: (row: WaterTestReport) => {
+        let status = row.status === 'DRAFT' ? 'DRAFT' : 'PASS';
+        if (row.results && row.results.length > 0 && row.status !== 'DRAFT') {
+          if (row.results.some((r: any) => r.qualityStatus === 'FAIL')) status = 'FAIL';
+          else if (row.results.some((r: any) => r.qualityStatus === 'WARNING')) status = 'WARNING';
+        }
+        return getStatusBadge(status);
+      }
     },
     {
       id: 'actions',
