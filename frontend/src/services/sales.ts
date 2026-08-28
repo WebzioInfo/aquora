@@ -97,6 +97,18 @@ export interface CreateSalesTransactionRequest {
   damageReason?: string
 }
 
+export interface SalesTransactionTimelineEvent {
+  id: string
+  timestamp: string
+  eventType: string
+  title: string
+  actorName: string
+  actorRole?: string | null
+  status: string
+  description: string
+  metadata?: Record<string, any> | null
+}
+
 export const salesService = {
   getTransactions: async (
     page: number = 1,
@@ -124,6 +136,11 @@ export const salesService = {
 
   getTransaction: async (id: string) => {
     const res = await api.get<ApiResponse<SalesTransaction>>(`/api/v1/sales/${id}`)
+    return res.data
+  },
+
+  getTransactionTimeline: async (id: string) => {
+    const res = await api.get<ApiResponse<SalesTransactionTimelineEvent[]>>(`/api/v1/sales/${id}/timeline`)
     return res.data
   },
 

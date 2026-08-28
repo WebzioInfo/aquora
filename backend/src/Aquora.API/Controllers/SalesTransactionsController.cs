@@ -1543,6 +1543,331 @@ namespace Aquora.API.Controllers
             }
         }
 
+        [HttpGet("{id:guid}/timeline")]
+        public async Task<ActionResult<ApiResponse<List<SalesTransactionTimelineEventDto>>>> GetSalesTransactionTimeline(Guid id)
+        {
+            try
+            {
+                var tenantId = _currentUserContext.TenantId;
+                var txn = await _tenantContext.SalesTransactions
+                    .Include(t => t.Customer)
+                    .Include(t => t.Product)
+                    .FirstOrDefaultAsync(t => t.Id == id && t.TenantId == tenantId && !t.IsDeleted);
+
+                if (txn == null)
+                {
+                    return NotFound(ApiResponse<List<SalesTransactionTimelineEventDto>>.CreateFailure("Sales transaction not found.", "Not Found", HttpContext.TraceIdentifier));
+                }
+
+                // Resolve user mappings for friendly display names
+                var tenantUsers = await _tenantContext.Users
+                    .ToDictionaryAsync(
+                        u => u.Id.ToString(),
+                        u => !string.IsNullOrWhiteSpace(u.FirstName) ? $"{u.FirstName} {u.LastName}".Trim() : (u.Username ?? u.Email));
+
+                var platformUsers = await _platformContext.Users
+                    .ToDictionaryAsync(
+                        u => u.Id.ToString(),
+                        u => !string.IsNullOrWhiteSpace(u.FirstName) ? $"{u.FirstName} {u.LastName}".Trim() : (u.Username ?? u.Email));
+
+                string ResolveUserName(string? userId)
+                {
+                    if (string.IsNullOrWhiteSpace(userId)) return "System";
+                    if (tenantUsers.TryGetValue(userId, out var tName) && !string.IsNullOrWhiteSpace(tName)) return tName;
+                    if (platformUsers.TryGetValue(userId, out var pName) && !string.IsNullOrWhiteSpace(pName)) return pName;
+                    if (Guid.TryParse(userId, out _)) return "System";
+                    return userId;
+                }
+
+                var timeline = new List<SalesTransactionTimelineEventDto>();
+
+                // 1. Transaction Initialized & Created Event
+                var creatorName = ResolveUserName(txn.CreatedBy);
+                timeline.Add(new SalesTransactionTimelineEventDto
+                {
+                    Id = $"create-{txn.Id}",
+                    Timestamp = txn.CreatedAt,
+                    EventType = "CREATED",
+                    Title = "Document Initialized & Posted",
+                    ActorName = creatorName,
+                    Status = "Success",
+                    Description = $"{txn.TransactionType} document {txn.TransactionNumber} initialized for {Math.Abs(txn.Cases)} Cases of {txn.Product?.Name ?? "Product"} (Customer: {txn.Customer?.CustomerName ?? "System Internal"}). Total: ₹{txn.TotalAmount:N2}.",
+                    Metadata = new Dictionary<string, object?>
+                    {
+                        { "transactionNumber", txn.TransactionNumber },
+                        { "transactionType", txn.TransactionType },
+                        { "cases", Math.Abs(txn.Cases) },
+                        { "unitPrice", txn.UnitPrice },
+                        { "totalAmount", txn.TotalAmount },
+                        { "customerName", txn.Customer?.CustomerName },
+                        { "productName", txn.Product?.Name },
+                        { "paymentMethod", txn.PaymentMethod }
+                    }
+                });
+
+                // 2. Inventory Movement Events
+                var inventoryMovements = await _tenantContext.InventoryMovements
+                    .Include(m => m.Product)
+                    .Where(m => m.ReferenceType == "SalesTransaction" && m.ReferenceId == txn.Id && m.TenantId == tenantId && !m.IsDeleted)
+                    .OrderBy(m => m.CreatedAt)
+                    .ToListAsync();
+
+                foreach (var movement in inventoryMovements)
+                {
+                    var isDeduction = movement.Quantity < 0;
+                    timeline.Add(new SalesTransactionTimelineEventDto
+                    {
+                        Id = $"inv-{movement.Id}",
+                        Timestamp = movement.CreatedAt,
+                        EventType = "INVENTORY",
+                        Title = isDeduction ? "Inventory Stock Deducted" : "Inventory Stock Restored",
+                        ActorName = ResolveUserName(movement.CreatedBy),
+                        Status = "Success",
+                        Description = $"{Math.Abs(movement.Quantity)} Cases {(isDeduction ? "deducted from" : "restored to")} finished goods inventory for {movement.Product?.Name ?? txn.Product?.Name ?? "Product"}. (Balance after movement: {movement.BalanceAfter} Cases).",
+                        Metadata = new Dictionary<string, object?>
+                        {
+                            { "quantity", movement.Quantity },
+                            { "inventoryType", movement.InventoryType },
+                            { "balanceAfter", movement.BalanceAfter },
+                            { "notes", movement.Notes }
+                        }
+                    });
+                }
+
+                // If no direct movement entity is found but transaction changed physical cases
+                if (!inventoryMovements.Any() && txn.Cases != 0)
+                {
+                    var isDeduction = txn.TransactionType == "Sales Dispatch" || txn.TransactionType == "Damage" || txn.TransactionType == "Internal Consumption" || txn.TransactionType == "Free Sample";
+                    timeline.Add(new SalesTransactionTimelineEventDto
+                    {
+                        Id = $"inv-auto-{txn.Id}",
+                        Timestamp = txn.CreatedAt.AddSeconds(1),
+                        EventType = "INVENTORY",
+                        Title = isDeduction ? "Inventory Stock Deducted" : "Inventory Adjusted",
+                        ActorName = creatorName,
+                        Status = "Success",
+                        Description = $"{Math.Abs(txn.Cases)} Cases deducted from finished goods stock for {txn.Product?.Name ?? "Product"}.",
+                        Metadata = new Dictionary<string, object?>
+                        {
+                            { "cases", Math.Abs(txn.Cases) },
+                            { "productName", txn.Product?.Name }
+                        }
+                    });
+                }
+
+                // 3. Customer Ledger Posting Event
+                if (txn.Customer != null && txn.CustomerId != Guid.Empty)
+                {
+                    var isCredit = string.Equals(txn.PaymentMethod, "Credit", StringComparison.OrdinalIgnoreCase);
+                    var customerNarration = isCredit
+                        ? $"Accounts Receivable posted: ₹{txn.TotalAmount:N2} (Outstanding balance updated for {txn.Customer.CustomerName})."
+                        : $"Customer dispatch ledger updated: ₹{txn.TotalAmount:N2} via {txn.PaymentMethod ?? "Cash"}. Amount received: ₹{txn.AmountReceived:N2}.";
+
+                    timeline.Add(new SalesTransactionTimelineEventDto
+                    {
+                        Id = $"cust-ledger-{txn.Id}",
+                        Timestamp = txn.CreatedAt.AddSeconds(2),
+                        EventType = "CUSTOMER_LEDGER",
+                        Title = "Customer Ledger Updated",
+                        ActorName = creatorName,
+                        Status = "Success",
+                        Description = customerNarration,
+                        Metadata = new Dictionary<string, object?>
+                        {
+                            { "customerName", txn.Customer.CustomerName },
+                            { "totalAmount", txn.TotalAmount },
+                            { "amountReceived", txn.AmountReceived },
+                            { "outstandingAmount", txn.OutstandingAmount },
+                            { "paymentStatus", txn.PaymentStatus }
+                        }
+                    });
+                }
+
+                // 4. General Ledger Double-Entry (Journal Entries)
+                var journalEntries = await _tenantContext.JournalEntries
+                    .Include(j => j.Lines)
+                    .ThenInclude(l => l.Account)
+                    .Where(j => (j.ReferenceNumber == txn.TransactionNumber || j.SourceSalesTransactionId == txn.Id) && j.TenantId == tenantId)
+                    .OrderBy(j => j.CreatedAt)
+                    .ToListAsync();
+
+                foreach (var journal in journalEntries)
+                {
+                    var lineDetails = journal.Lines.Select(l => new
+                    {
+                        account = l.Account?.AccountName ?? "Account",
+                        dr = l.DebitAmount,
+                        cr = l.CreditAmount,
+                        narration = l.Description
+                    }).ToList();
+
+                    timeline.Add(new SalesTransactionTimelineEventDto
+                    {
+                        Id = $"gl-{journal.Id}",
+                        Timestamp = journal.CreatedAt,
+                        EventType = "GENERAL_LEDGER",
+                        Title = "General Ledger Posted",
+                        ActorName = ResolveUserName(journal.CreatedBy),
+                        Status = "Success",
+                        Description = $"Journal voucher #{journal.VoucherNumber} posted successfully with {journal.Lines.Count} double-entry lines ({journal.Remarks ?? journal.VoucherType}).",
+                        Metadata = new Dictionary<string, object?>
+                        {
+                            { "voucherNumber", journal.VoucherNumber },
+                            { "linesCount", journal.Lines.Count },
+                            { "lines", lineDetails }
+                        }
+                    });
+                }
+
+                // 5. Payment & Settlement Ledger Records (Bank/Cash)
+                var ledgerEntries = await _tenantContext.BankLedgerEntries
+                    .Include(b => b.BankAccount)
+                    .Include(b => b.CashBook)
+                    .Where(b => b.RelatedEntityId == txn.Id && b.RelatedEntityType == "SalesTransaction" && b.TenantId == tenantId)
+                    .OrderBy(b => b.CreatedAt)
+                    .ToListAsync();
+
+                foreach (var entry in ledgerEntries)
+                {
+                    var isDeposit = entry.Debit > 0;
+                    var amount = isDeposit ? entry.Debit : entry.Credit;
+                    var accountName = entry.BankAccount?.BankName ?? entry.CashBook?.Name ?? (entry.LedgerAccountType == "CashBook" ? "Cash Register" : "Bank Account");
+
+                    timeline.Add(new SalesTransactionTimelineEventDto
+                    {
+                        Id = $"ledger-{entry.Id}",
+                        Timestamp = entry.CreatedAt,
+                        EventType = "PAYMENT",
+                        Title = isDeposit ? "Payment Settlement Received" : "Refund Disbursed",
+                        ActorName = ResolveUserName(entry.CreatedBy),
+                        Status = "Success",
+                        Description = $"₹{amount:N2} {(isDeposit ? "received into" : "paid from")} {accountName}. Ref / UTR: {entry.ReferenceNumber}.",
+                        Metadata = new Dictionary<string, object?>
+                        {
+                            { "amount", amount },
+                            { "accountName", accountName },
+                            { "referenceNumber", entry.ReferenceNumber }
+                        }
+                    });
+                }
+
+                // 6. Audit Logs & Edit History
+                var auditLogs = await _tenantContext.AuditLogs
+                    .Where(a => a.TableName == "SalesTransactions" && a.PrimaryKey == txn.Id.ToString() && a.TenantId == tenantId)
+                    .OrderBy(a => a.Timestamp)
+                    .ToListAsync();
+
+                foreach (var audit in auditLogs)
+                {
+                    var actionName = audit.Action ?? "Modified";
+                    timeline.Add(new SalesTransactionTimelineEventDto
+                    {
+                        Id = $"audit-{audit.Id}",
+                        Timestamp = audit.Timestamp,
+                        EventType = "AUDIT",
+                        Title = actionName == "Update" ? "Transaction Edited" : $"Audit Event ({actionName})",
+                        ActorName = audit.UserEmail ?? ResolveUserName(audit.UserId),
+                        Status = "Edited",
+                        Description = audit.Reason ?? $"Transaction record {actionName.ToLower()} in system.",
+                        Metadata = new Dictionary<string, object?>
+                        {
+                            { "action", audit.Action },
+                            { "oldValues", audit.OldValues },
+                            { "newValues", audit.NewValues }
+                        }
+                    });
+                }
+
+                // If transaction has UpdatedAt and wasn't already covered by AuditLogs
+                if (txn.UpdatedAt.HasValue && (txn.UpdatedAt.Value - txn.CreatedAt).TotalSeconds > 10 && !auditLogs.Any(a => Math.Abs((a.Timestamp - txn.UpdatedAt.Value).TotalSeconds) < 5))
+                {
+                    timeline.Add(new SalesTransactionTimelineEventDto
+                    {
+                        Id = $"edit-{txn.Id}-{txn.UpdatedAt.Value.Ticks}",
+                        Timestamp = txn.UpdatedAt.Value,
+                        EventType = "EDITED",
+                        Title = "Transaction Edited & Re-Posted",
+                        ActorName = ResolveUserName(txn.UpdatedBy),
+                        Status = "Edited",
+                        Description = "Sales document was modified and financial/inventory postings were synchronized.",
+                        Metadata = new Dictionary<string, object?>
+                        {
+                            { "updatedAt", txn.UpdatedAt.Value },
+                            { "cases", Math.Abs(txn.Cases) },
+                            { "totalAmount", txn.TotalAmount }
+                        }
+                    });
+                }
+
+                // 7. Linked Child Transactions (Customer Returns / Damages)
+                var childTxns = await _tenantContext.SalesTransactions
+                    .Include(c => c.Product)
+                    .Where(c => c.ParentTransactionId == txn.Id && c.TenantId == tenantId && !c.IsDeleted)
+                    .OrderBy(c => c.CreatedAt)
+                    .ToListAsync();
+
+                foreach (var child in childTxns)
+                {
+                    var isReturn = child.TransactionType == "Customer Return";
+                    timeline.Add(new SalesTransactionTimelineEventDto
+                    {
+                        Id = $"child-{child.Id}",
+                        Timestamp = child.CreatedAt,
+                        EventType = isReturn ? "CHILD_RETURN" : "CHILD_DAMAGE",
+                        Title = isReturn ? "Customer Return Linked" : "Damage Logged",
+                        ActorName = ResolveUserName(child.CreatedBy),
+                        Status = "Info",
+                        Description = $"{child.TransactionType} {child.TransactionNumber} logged against this dispatch: {Math.Abs(child.Cases)} Cases (₹{child.TotalAmount:N2}). Status: {child.Status}.",
+                        Metadata = new Dictionary<string, object?>
+                        {
+                            { "childTransactionId", child.Id },
+                            { "transactionNumber", child.TransactionNumber },
+                            { "transactionType", child.TransactionType },
+                            { "cases", Math.Abs(child.Cases) },
+                            { "totalAmount", child.TotalAmount },
+                            { "status", child.Status }
+                        }
+                    });
+                }
+
+                // 8. Linked Parent Dispatch (if this transaction is a Return or Damage)
+                if (txn.ParentTransactionId.HasValue)
+                {
+                    var parentTxn = await _tenantContext.SalesTransactions
+                        .FirstOrDefaultAsync(p => p.Id == txn.ParentTransactionId.Value && p.TenantId == tenantId && !p.IsDeleted);
+
+                    if (parentTxn != null)
+                    {
+                        timeline.Add(new SalesTransactionTimelineEventDto
+                        {
+                            Id = $"parent-{parentTxn.Id}",
+                            Timestamp = txn.CreatedAt,
+                            EventType = "PARENT_LINK",
+                            Title = "Linked to Parent Sales Dispatch",
+                            ActorName = creatorName,
+                            Status = "Info",
+                            Description = $"Linked to original Sales Dispatch {parentTxn.TransactionNumber} ({Math.Abs(parentTxn.Cases)} Cases, ₹{parentTxn.TotalAmount:N2}).",
+                            Metadata = new Dictionary<string, object?>
+                            {
+                                { "parentTransactionId", parentTxn.Id },
+                                { "parentTransactionNumber", parentTxn.TransactionNumber },
+                                { "parentCases", Math.Abs(parentTxn.Cases) }
+                            }
+                        });
+                    }
+                }
+
+                // Sort timeline chronologically (Oldest to Newest)
+                var sortedTimeline = timeline.OrderBy(t => t.Timestamp).ToList();
+
+                return Success(sortedTimeline, "Transaction timeline retrieved successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<List<SalesTransactionTimelineEventDto>>(ex.Message, "Failed to retrieve transaction timeline.");
+            }
+        }
+
         private async Task<Account> ResolveAccountAsync(string name, string code, string groupName, string balanceType, Guid tenantId, Guid companyId)
         {
             var account = await _tenantContext.Accounts.FirstOrDefaultAsync(a => a.AccountName == name && a.TenantId == tenantId);
@@ -1829,8 +2154,19 @@ namespace Aquora.API.Controllers
         public decimal TotalDispatch { get; set; }
         public decimal MonthlyDispatch { get; set; }
     }
+
+    public class SalesTransactionTimelineEventDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public DateTime Timestamp { get; set; }
+        public string EventType { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string ActorName { get; set; } = string.Empty;
+        public string? ActorRole { get; set; }
+        public string Status { get; set; } = "Success";
+        public string Description { get; set; } = string.Empty;
+        public Dictionary<string, object?>? Metadata { get; set; }
+    }
 }
-
-
 
 

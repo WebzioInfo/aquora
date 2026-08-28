@@ -1,13 +1,12 @@
-import PageContainer from '../../components/ui/layout/PageContainer';
-import PageHeader from '../../components/ui/layout/PageHeader';
-import FilterBar from '../../components/ui/layout/FilterBar';
+import { PageContainer, PageHeader, FilterBar, SectionCard, StatusBadge } from '../../components/ui/layout';
 import React, { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Search, Plus, Eye, Edit2, Trash2, X, AlertTriangle,
   User as UserIcon, Calendar, ArrowUpDown, Filter, ChevronLeft, ChevronRight, CheckCircle2,
-  Package, ShoppingCart, Info, Phone, Tag, FileSpreadsheet, FileText, Landmark, Printer, Download, ArrowLeft, Send
+  Package, ShoppingCart, Info, Phone, Tag, FileSpreadsheet, FileText, Landmark, Printer, Download, ArrowLeft, Send,
+  Clock, RotateCcw, Loader2, History
 } from 'lucide-react'
 import { api } from '../../services/api'
 import { salesService } from '../../services/sales'
@@ -208,6 +207,31 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     queryFn: () => historyDispatch ? salesService.getDispatchHistory(historyDispatch.id) : null,
     enabled: !!historyDispatch
   })
+
+  const [isTimelineOldestFirst, setIsTimelineOldestFirst] = useState(true)
+
+  // Fetch detailed chronological lifecycle audit trail for the selected transaction
+  const {
+    data: txnTimelineRes,
+    isLoading: isTxnTimelineLoading,
+    isError: isTxnTimelineError,
+    refetch: refetchTxnTimeline,
+    isFetching: isTxnTimelineFetching
+  } = useQuery({
+    queryKey: ['salesTransactionTimeline', selectedTxn?.id],
+    queryFn: () => selectedTxn ? salesService.getTransactionTimeline(selectedTxn.id) : null,
+    enabled: isViewingDetails && !!selectedTxn?.id
+  })
+
+  const rawTimelineEvents = txnTimelineRes?.data || []
+
+  const sortedTimelineEvents = useMemo(() => {
+    return [...rawTimelineEvents].sort((a, b) => {
+      const timeA = new Date(a.timestamp).getTime()
+      const timeB = new Date(b.timestamp).getTime()
+      return isTimelineOldestFirst ? timeA - timeB : timeB - timeA
+    })
+  }, [rawTimelineEvents, isTimelineOldestFirst])
 
   const sortedHistoryItems = useMemo(() => {
     if (!historyRes?.data?.history) return []
@@ -833,41 +857,102 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
   }, [selectedTxn])
 
   if (isViewingDetails && selectedTxn) {
-    // Dynamic General Ledger View for the Sales Transaction details
-    const total = selectedTxn.totalAmount || (Math.abs(selectedTxn.cases) * (selectedTxn.unitPrice || 0))
-    const tax = selectedTxn.taxAmount || 0
+    // Dynamic General Ledger & Financial View for the Sales Transaction details
+    const total = selectedTxn.totalAmount ?? (Math.abs(selectedTxn.cases) * (selectedTxn.unitPrice || 0))
+    const tax = selectedTxn.taxAmount ?? 0
+    const cgst = selectedTxn.cgst ?? (tax > 0 ? tax / 2 : 0)
+    const sgst = selectedTxn.sgst ?? (tax > 0 ? tax / 2 : 0)
+    const igst = selectedTxn.igst ?? 0
+    const discount = selectedTxn.discountAmount ?? 0
     const sub = total - tax
-    const cost = Math.abs(selectedTxn.cases) * (selectedProductInForm?.costPrice || 15)
 
-    const resolvedDebit = selectedTxn.paymentMethod === 'Cash' ? 'Cash Account' : (selectedTxn.paymentMethod === 'BankAccount' ? 'Bank Account' : 'Accounts Receivable')
+    const matchedProduct = products.find(p => p.id === selectedTxn.productId)
+    const matchedCustomer = customers.find(c => c.id === selectedTxn.customerId)
+    const matchedCaseConfig = caseConfigs.find(c => c.id === viewMeta?.caseConfigurationId)
+    const unitsPerCase = viewMeta?.unitsPerCase || matchedCaseConfig?.unitsPerCase || 24
+    const totalUnits = viewMeta?.totalUnits || (Math.abs(selectedTxn.cases) * unitsPerCase)
+    const costPerCase = matchedProduct?.costPrice || matchedProduct?.unitCost || 15
+    const cost = Math.abs(selectedTxn.cases) * costPerCase
+
+    const resolvedDebit = selectedTxn.paymentMethod === 'Cash'
+      ? 'Cash Account'
+      : (['BankAccount', 'Bank', 'UPI', 'Cheque'].includes(selectedTxn.paymentMethod || '')
+        ? (selectedTxn.bankAccountName || 'Bank Account')
+        : 'Accounts Receivable')
+
+    const formattedDate = new Date(selectedTxn.transactionDate).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    })
+
+    const formattedDateTime = selectedTxn.createdAt
+      ? new Date(selectedTxn.createdAt).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        })
+      : formattedDate
+
+    const customerAddress = [
+      matchedCustomer?.addressLine1,
+      matchedCustomer?.addressLine2,
+      matchedCustomer?.city,
+      matchedCustomer?.state,
+      matchedCustomer?.pinCode
+    ].filter(Boolean).join(', ')
 
     return (
       <PageContainer>
-        <div className="bg-slate-50 min-h-screen pb-12">
-          {/* Details header */}
-          <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-30 shadow-2xs">
+        <div className="space-y-4 pb-12">
+          {/* Details Header */}
+          <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm px-4 py-3 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsViewingDetails(false)}
                 className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-all cursor-pointer"
                 title="Back to Sales Register"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-4 h-4" />
               </button>
               <div>
-                <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <ShoppingCart className="w-5 h-5 text-blue-600" />
-                  {selectedTxn.transactionType} Register
-                </h1>
-                <span className="font-mono text-xs font-semibold text-slate-400 mt-0.5 block">
-                  Document Reference: {selectedTxn.transactionNumber}
-                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-[16px] font-black text-slate-900 leading-tight tracking-tight flex items-center gap-1.5">
+                    <ShoppingCart className="w-4 h-4 text-blue-600" />
+                    {selectedTxn.transactionType} Register
+                  </h1>
+                  <StatusBadge
+                    status={
+                      selectedTxn.paymentStatus === 'Paid'
+                        ? 'active'
+                        : selectedTxn.paymentStatus === 'Pending'
+                        ? 'pending'
+                        : 'info'
+                    }
+                    label={selectedTxn.paymentStatus || 'POSTED'}
+                    size="sm"
+                  />
+                  {selectedTxn.status && selectedTxn.status !== 'Active' && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                      {selectedTxn.status}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 text-[11px] text-slate-500 font-medium mt-0.5 flex-wrap">
+                  <span className="font-mono">Document Reference: <strong className="text-slate-700">{selectedTxn.transactionNumber}</strong></span>
+                  {selectedTxn.referenceNumber && (
+                    <span>• Ref / PO: <strong className="text-slate-700">{selectedTxn.referenceNumber}</strong></span>
+                  )}
+                </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ml-auto">
               <button
                 onClick={() => handleDownloadPDF(selectedTxn)}
-                className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
               >
                 <Printer className="w-3.5 h-3.5" />
                 Print / Export Invoice PDF
@@ -878,256 +963,625 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                     setIsViewingDetails(false);
                     handleOpenEdit(selectedTxn);
                   }}
-                  className="h-9 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                  className="h-[32px] px-3 bg-white hover:bg-slate-50 text-slate-700 text-[12px] font-bold border border-[#E5E7EB] rounded-lg transition-all cursor-pointer shadow-sm flex items-center gap-1.5"
                 >
+                  <Edit2 className="w-3.5 h-3.5" />
                   Edit Document
                 </button>
               )}
             </div>
           </div>
 
-          <div className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main content pane (70% / 30% split) */}
-            <div className="lg:col-span-2 space-y-6">
+          {/* Transaction Summary Bar */}
+          <div className="bg-white border border-[#E5E7EB] rounded-xl p-3.5 shadow-sm">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 text-left">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Transaction Date</span>
+                <span className="text-[12px] font-bold text-slate-800 truncate block">{formattedDate}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Document Reference</span>
+                <span className="text-[12px] font-mono font-bold text-slate-800 truncate block">{selectedTxn.transactionNumber}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Customer</span>
+                <span className="text-[12px] font-bold text-slate-800 truncate block" title={selectedTxn.customerName}>
+                  {selectedTxn.customerName || 'System Internal'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Customer Code</span>
+                <span className="text-[12px] font-mono font-bold text-slate-800 truncate block">
+                  {selectedTxn.customerCode || matchedCustomer?.customerCode || '—'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Payment Mode</span>
+                <span className="text-[12px] font-bold text-slate-800 truncate block">{selectedTxn.paymentMethod || 'Credit'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Recorded By</span>
+                <span className="text-[12px] font-bold text-slate-800 truncate block">{selectedTxn.createdByName || 'System'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Transaction Status</span>
+                <span className="text-[12px] font-bold text-emerald-700 truncate flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  {selectedTxn.status || 'Posted'}
+                </span>
+              </div>
+            </div>
+          </div>
 
-              {/* Product Sold Section */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs">
-                <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-                  <Package className="w-4.5 h-4.5 text-blue-600" />
-                  Purchased Finished Goods
-                </h3>
+          {/* Main 2-Column ERP Content Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+            {/* LEFT COLUMN: 8 COLS */}
+            <div className="lg:col-span-8 space-y-4">
+              {/* 1. PURCHASED FINISHED GOODS */}
+              <SectionCard title="Purchased Finished Goods" noPadding compact>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider h-9">
-                        <th className="py-2.5 px-4">Item Description</th>
-                        <th className="py-2.5 px-4 text-right">Quantity</th>
-                        <th className="py-2.5 px-4 text-right">Unit Price</th>
-                        <th className="py-2.5 px-4 text-right">Discount</th>
-                        <th className="py-2.5 px-4 text-right">Taxable Amt</th>
-                        <th className="py-2.5 px-4 text-right">Total Amt</th>
+                      <tr className="bg-[#F8FAFC] border-b border-[#E5E7EB] text-[10px] font-bold text-slate-500 uppercase tracking-wider h-8">
+                        <th className="py-2 px-3.5">Item Description</th>
+                        <th className="py-2 px-3">SKU</th>
+                        <th className="py-2 px-3 text-right">Quantity</th>
+                        <th className="py-2 px-3 text-right">Unit Price</th>
+                        <th className="py-2 px-3 text-right">Discount</th>
+                        <th className="py-2 px-3 text-right">Taxable Amt</th>
+                        <th className="py-2 px-3.5 text-right">Total Amt</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                      <tr className="h-12">
-                        <td className="py-3 px-4 font-bold text-slate-900">
+                      <tr className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-2 px-3.5 font-bold text-slate-900">
                           {selectedTxn.productName}
-                          <span className="block text-[10px] text-slate-400 font-mono mt-0.5">{selectedTxn.productSku || 'NO_SKU_CODE'}</span>
                         </td>
-                        <td className="py-3 px-4 text-right font-mono font-bold">{Math.abs(selectedTxn.cases)} Cases</td>
-                        <td className="py-3 px-4 text-right font-mono">₹{(selectedTxn.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        <td className="py-3 px-4 text-right font-mono text-rose-600">₹{(selectedTxn.discountAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        <td className="py-3 px-4 text-right font-mono">₹{sub.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        <td className="py-3 px-4 text-right font-mono font-black text-slate-900">₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        <td className="py-2 px-3 font-mono text-[11px] text-slate-500">
+                          {selectedTxn.productSku || matchedProduct?.sku || 'NO_SKU_CODE'}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                          {Math.abs(selectedTxn.cases)} Cases
+                          {totalUnits > 0 && (
+                            <span className="block text-[10px] font-normal text-slate-400">{totalUnits} Units</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono whitespace-nowrap">
+                          ₹{(selectedTxn.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono text-rose-600 whitespace-nowrap">
+                          ₹{(selectedTxn.discountAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono whitespace-nowrap">
+                          ₹{sub.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-2 px-3.5 text-right font-mono font-black text-slate-900 whitespace-nowrap">
+                          ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
 
-                {/* Subsystem fields for categories */}
+                {/* Subsystem fields for categories (Return / Damage) */}
                 {selectedTxn.transactionType === 'Customer Return' && (
-                  <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4 border-t border-slate-100 pt-4 text-xs">
+                  <div className="bg-slate-50/70 border-t border-[#E5E7EB] px-3.5 py-2 grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
                     <div>
-                      <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider mb-1">Condition</span>
-                      <span className="font-bold text-slate-800">{viewMeta.returnCondition || 'Good'}</span>
+                      <span className="text-slate-400 block text-[10px] font-bold uppercase tracking-wider mb-0.5">Condition</span>
+                      <span className="font-bold text-slate-800">{viewMeta.returnCondition || 'Good — Restock'}</span>
                     </div>
+                    {viewMeta.returnReason && (
+                      <div>
+                        <span className="text-slate-400 block text-[10px] font-bold uppercase tracking-wider mb-0.5">Return Reason</span>
+                        <span className="font-bold text-slate-800">{viewMeta.returnReason}</span>
+                      </div>
+                    )}
                     <div>
-                      <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider mb-1">Return Reason</span>
-                      <span className="font-bold text-slate-800">{viewMeta.returnReason || 'N/A'}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider mb-1">Refund Settlement</span>
-                      <span className="font-bold text-slate-800">{viewMeta.refundMethod || 'Credit Note'}</span>
+                      <span className="text-slate-400 block text-[10px] font-bold uppercase tracking-wider mb-0.5">Refund Settlement</span>
+                      <span className="font-bold text-slate-800">{viewMeta.refundMethod || viewMeta.settlementMethod || 'Credit Note'}</span>
                     </div>
                   </div>
                 )}
 
                 {selectedTxn.transactionType === 'Damage' && (
-                  <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4 border-t border-slate-100 pt-4 text-xs">
+                  <div className="bg-slate-50/70 border-t border-[#E5E7EB] px-3.5 py-2 grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
                     <div>
-                      <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider mb-1">Damage Reason</span>
-                      <span className="font-bold text-slate-800">{selectedTxn.damageReason || 'N/A'}</span>
+                      <span className="text-slate-400 block text-[10px] font-bold uppercase tracking-wider mb-0.5">Damage Reason</span>
+                      <span className="font-bold text-slate-800">{selectedTxn.damageReason || viewMeta.damageType || 'Physical Damage'}</span>
                     </div>
+                    {viewMeta.approvedBy && (
+                      <div>
+                        <span className="text-slate-400 block text-[10px] font-bold uppercase tracking-wider mb-0.5">Approved By</span>
+                        <span className="font-bold text-slate-800">{viewMeta.approvedBy}</span>
+                      </div>
+                    )}
                     <div>
-                      <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider mb-1">Approved By</span>
-                      <span className="font-bold text-slate-800">{viewMeta.approvedBy || 'System Audit'}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider mb-1">Warehouse Location</span>
+                      <span className="text-slate-400 block text-[10px] font-bold uppercase tracking-wider mb-0.5">Warehouse</span>
                       <span className="font-bold text-slate-800">{viewMeta.warehouse || 'Main Warehouse'}</span>
                     </div>
                   </div>
                 )}
-              </div>
+              </SectionCard>
 
-              {/* Accounting double-entry register impact */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs">
-                <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-                  <Landmark className="w-4.5 h-4.5 text-emerald-600" />
-                  Cryptographic Ledger Posting Impact
-                </h3>
+              {/* 2. ACCOUNTING & LEDGER IMPACT */}
+              <SectionCard title="Accounting & Ledger Impact" noPadding compact>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider h-9">
-                        <th className="py-2.5 px-4">Account Ledger</th>
-                        <th className="py-2.5 px-4 text-right">Debit (Dr)</th>
-                        <th className="py-2.5 px-4 text-right">Credit (Cr)</th>
-                        <th className="py-2.5 px-4">Transaction Narration</th>
+                      <tr className="bg-[#F8FAFC] border-b border-[#E5E7EB] text-[10px] font-bold text-slate-500 uppercase tracking-wider h-8">
+                        <th className="py-2 px-3.5">Account Ledger</th>
+                        <th className="py-2 px-3 text-right">Debit (Dr)</th>
+                        <th className="py-2 px-3 text-right">Credit (Cr)</th>
+                        <th className="py-2 px-3.5">Transaction Narration</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
                       {selectedTxn.transactionType === 'Sales Dispatch' && (
                         <>
-                          <tr className="h-10">
-                            <td className="py-3 px-4 font-bold text-slate-900">{resolvedDebit}</td>
-                            <td className="py-3 px-4 text-right font-mono font-extrabold text-blue-600">₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                            <td className="py-3 px-4 text-right text-slate-300 font-mono">—</td>
-                            <td className="py-3 px-4 text-slate-500 font-sans text-xs">Sales dispatch accounts receivable posting</td>
+                          <tr className="hover:bg-slate-50/50">
+                            <td className="py-1.5 px-3.5 font-bold text-slate-900">{resolvedDebit}</td>
+                            <td className="py-1.5 px-3 text-right font-mono font-bold text-blue-600">₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-1.5 px-3 text-right text-slate-300 font-mono">—</td>
+                            <td className="py-1.5 px-3.5 text-slate-500 text-[11px]">Sales dispatch accounts receivable posting</td>
                           </tr>
-                          <tr className="h-10">
-                            <td className="py-3 px-4 pl-8 text-slate-700 font-medium">Sales Revenue</td>
-                            <td className="py-3 px-4 text-right text-slate-300 font-mono">—</td>
-                            <td className="py-3 px-4 text-right font-mono font-extrabold text-slate-900">₹{sub.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                            <td className="py-3 px-4 text-slate-500 font-sans text-xs">Finished goods income recognition</td>
+                          <tr className="hover:bg-slate-50/50">
+                            <td className="py-1.5 px-3.5 pl-7 text-slate-700 font-medium">Sales Revenue</td>
+                            <td className="py-1.5 px-3 text-right text-slate-300 font-mono">—</td>
+                            <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">₹{sub.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-1.5 px-3.5 text-slate-500 text-[11px]">Finished goods income recognition</td>
                           </tr>
                           {tax > 0 && (
-                            <tr className="h-10">
-                              <td className="py-3 px-4 pl-8 text-slate-700 font-medium">GST Output Liabilities</td>
-                              <td className="py-3 px-4 text-right text-slate-300 font-mono">—</td>
-                              <td className="py-3 px-4 text-right font-mono font-extrabold text-slate-900">₹{tax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                              <td className="py-3 px-4 text-slate-500 font-sans text-xs">Postings for statutory GST liabilities</td>
+                            <tr className="hover:bg-slate-50/50">
+                              <td className="py-1.5 px-3.5 pl-7 text-slate-700 font-medium">GST Output Liabilities</td>
+                              <td className="py-1.5 px-3 text-right text-slate-300 font-mono">—</td>
+                              <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">₹{tax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                              <td className="py-1.5 px-3.5 text-slate-500 text-[11px]">Postings for statutory GST liabilities</td>
                             </tr>
                           )}
-                          <tr className="h-10">
-                            <td className="py-3 px-4 font-bold text-slate-900">Cost of Goods Sold</td>
-                            <td className="py-3 px-4 text-right font-mono font-extrabold text-slate-900">₹{cost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                            <td className="py-3 px-4 text-right text-slate-300 font-mono">—</td>
-                            <td className="py-3 px-4 text-slate-500 font-sans text-xs">Asset cost conversion expense</td>
+                          <tr className="hover:bg-slate-50/50">
+                            <td className="py-1.5 px-3.5 font-bold text-slate-900">Cost of Goods Sold</td>
+                            <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">₹{cost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-1.5 px-3 text-right text-slate-300 font-mono">—</td>
+                            <td className="py-1.5 px-3.5 text-slate-500 text-[11px]">Asset cost conversion expense</td>
                           </tr>
-                          <tr className="h-10">
-                            <td className="py-3 px-4 pl-8 text-slate-700 font-medium">Finished Goods Inventory</td>
-                            <td className="py-3 px-4 text-right text-slate-300 font-mono">—</td>
-                            <td className="py-3 px-4 text-right font-mono font-extrabold text-rose-600">₹{cost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                            <td className="py-3 px-4 text-slate-500 font-sans text-xs">Stock reduction posting</td>
+                          <tr className="hover:bg-slate-50/50">
+                            <td className="py-1.5 px-3.5 pl-7 text-slate-700 font-medium">Finished Goods Inventory</td>
+                            <td className="py-1.5 px-3 text-right text-slate-300 font-mono">—</td>
+                            <td className="py-1.5 px-3 text-right font-mono font-bold text-rose-600">₹{cost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-1.5 px-3.5 text-slate-500 text-[11px]">Stock reduction posting</td>
                           </tr>
                         </>
                       )}
                       {selectedTxn.transactionType === 'Customer Return' && (
                         <>
-                          <tr className="h-10">
-                            <td className="py-3 px-4 font-bold text-slate-900">Sales Return Note</td>
-                            <td className="py-3 px-4 text-right font-mono font-extrabold text-blue-600">₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                            <td className="py-3 px-4 text-right text-slate-300 font-mono">—</td>
-                            <td className="py-3 px-4 text-slate-500 font-sans text-xs">Contra-income returns registration</td>
+                          <tr className="hover:bg-slate-50/50">
+                            <td className="py-1.5 px-3.5 font-bold text-slate-900">Sales Return Note</td>
+                            <td className="py-1.5 px-3 text-right font-mono font-bold text-blue-600">₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-1.5 px-3 text-right text-slate-300 font-mono">—</td>
+                            <td className="py-1.5 px-3.5 text-slate-500 text-[11px]">Contra-income returns registration</td>
                           </tr>
-                          <tr className="h-10">
-                            <td className="py-3 px-4 pl-8 text-slate-700 font-medium">{resolvedDebit}</td>
-                            <td className="py-3 px-4 text-right text-slate-300 font-mono">—</td>
-                            <td className="py-3 px-4 text-right font-mono font-extrabold text-slate-900">₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                            <td className="py-3 px-4 text-slate-500 font-sans text-xs">Customer return refund/credit settlement</td>
+                          <tr className="hover:bg-slate-50/50">
+                            <td className="py-1.5 px-3.5 pl-7 text-slate-700 font-medium">{resolvedDebit}</td>
+                            <td className="py-1.5 px-3 text-right text-slate-300 font-mono">—</td>
+                            <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-1.5 px-3.5 text-slate-500 text-[11px]">Customer return refund/credit settlement</td>
                           </tr>
                         </>
                       )}
                       {selectedTxn.transactionType === 'Damage' && (
                         <>
-                          <tr className="h-10">
-                            <td className="py-3 px-4 font-bold text-slate-900">Inventory Loss Expense</td>
-                            <td className="py-3 px-4 text-right font-mono font-extrabold text-slate-900">₹{cost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                            <td className="py-3 px-4 text-right text-slate-300 font-mono">—</td>
-                            <td className="py-3 px-4 text-slate-500 font-sans text-xs">Unsellable damage loss allocation</td>
+                          <tr className="hover:bg-slate-50/50">
+                            <td className="py-1.5 px-3.5 font-bold text-slate-900">Inventory Loss Expense</td>
+                            <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">₹{cost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-1.5 px-3 text-right text-slate-300 font-mono">—</td>
+                            <td className="py-1.5 px-3.5 text-slate-500 text-[11px]">Unsellable damage loss allocation</td>
                           </tr>
-                          <tr className="h-10">
-                            <td className="py-3 px-4 pl-8 text-slate-700 font-medium">Finished Goods Inventory</td>
-                            <td className="py-3 px-4 text-right text-slate-300 font-mono">—</td>
-                            <td className="py-3 px-4 text-right font-mono font-extrabold text-rose-600">₹{cost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                            <td className="py-3 px-4 text-slate-500 font-sans text-xs">Reduction of stock asset values</td>
+                          <tr className="hover:bg-slate-50/50">
+                            <td className="py-1.5 px-3.5 pl-7 text-slate-700 font-medium">Finished Goods Inventory</td>
+                            <td className="py-1.5 px-3 text-right text-slate-300 font-mono">—</td>
+                            <td className="py-1.5 px-3 text-right font-mono font-bold text-rose-600">₹{cost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-1.5 px-3.5 text-slate-500 text-[11px]">Reduction of stock asset values</td>
                           </tr>
                         </>
                       )}
                     </tbody>
                   </table>
                 </div>
-              </div>
+              </SectionCard>
+
+              {/* 3. INVENTORY & LOGISTICS IMPACT */}
+              <SectionCard title="Inventory & Logistics Impact" compact>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Product</span>
+                    <span className="font-bold text-slate-900 truncate block">{selectedTxn.productName}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Dispatched Quantity</span>
+                    <span className="font-mono font-bold text-slate-900 block">{Math.abs(selectedTxn.cases)} Cases</span>
+                    {totalUnits > 0 && <span className="text-[10px] text-slate-500 block">{totalUnits} Units</span>}
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Stock Deducted</span>
+                    <span className="font-mono font-bold text-rose-600 block">-{Math.abs(selectedTxn.cases)} Cases</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Available Stock</span>
+                    <span className="font-mono font-bold text-slate-900 block">
+                      {matchedProduct?.currentStock !== undefined ? `${matchedProduct.currentStock} Cases` : '—'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Warehouse Location</span>
+                    <span className="font-medium text-slate-800 block">{viewMeta.warehouse || 'Main Warehouse'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Case Configuration</span>
+                    <span className="font-medium text-slate-800 block">{unitsPerCase} Units / Case</span>
+                  </div>
+                  {viewMeta.batchNumber && (
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Batch Number</span>
+                      <span className="font-mono font-bold text-slate-800 block">{viewMeta.batchNumber}</span>
+                    </div>
+                  )}
+                  {selectedTxn.referenceNumber && (
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Reference / PO</span>
+                      <span className="font-mono font-bold text-slate-800 block">{selectedTxn.referenceNumber}</span>
+                    </div>
+                  )}
+                </div>
+              </SectionCard>
             </div>
 
-            {/* Sidebar metadata column */}
-            <div className="space-y-6">
+            {/* RIGHT COLUMN: 4 COLS */}
+            <div className="lg:col-span-4 space-y-4">
+              {/* 1. BILLING / TOTALS BREAKDOWN */}
+              <SectionCard title="Billing Breakdown" compact>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between items-center text-slate-600">
+                    <span>Subtotal:</span>
+                    <span className="font-mono font-semibold text-slate-800">₹{sub.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  {discount > 0 && (
+                    <div className="flex justify-between items-center text-rose-600">
+                      <span>Discount:</span>
+                      <span className="font-mono font-semibold">-₹{discount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center text-slate-600">
+                    <span>Taxable Amount:</span>
+                    <span className="font-mono font-semibold text-slate-800">₹{sub.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  {tax > 0 && (
+                    <>
+                      <div className="flex justify-between items-center text-slate-600">
+                        <span>CGST (9%):</span>
+                        <span className="font-mono font-semibold text-slate-800">₹{cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-600">
+                        <span>SGST (9%):</span>
+                        <span className="font-mono font-semibold text-slate-800">₹{sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    </>
+                  )}
+                  {igst > 0 && (
+                    <div className="flex justify-between items-center text-slate-600">
+                      <span>IGST:</span>
+                      <span className="font-mono font-semibold text-slate-800">₹{igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                  <div className="border-t border-[#E5E7EB] pt-1.5 mt-0.5 flex justify-between items-center">
+                    <span className="text-[13px] font-bold text-slate-900">Grand Total:</span>
+                    <span className="text-[13px] font-black text-slate-900 font-mono">₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  {selectedTxn.amountReceived !== undefined && (
+                    <div className="flex justify-between items-center text-[11px] text-slate-500 pt-0.5">
+                      <span>Amount Paid:</span>
+                      <span className="font-mono font-semibold text-emerald-700">₹{(selectedTxn.amountReceived || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                  {selectedTxn.outstandingAmount !== undefined && selectedTxn.outstandingAmount > 0 && (
+                    <div className="flex justify-between items-center text-[11px] text-slate-500">
+                      <span>Amount Due:</span>
+                      <span className="font-mono font-bold text-amber-700">₹{selectedTxn.outstandingAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                </div>
+              </SectionCard>
 
-              {/* Customer and payments summary */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4">
-                <h3 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-3">
-                  Business Connection Summary
-                </h3>
-                <div className="space-y-3 text-xs text-slate-600">
+              {/* 2. CUSTOMER DETAILS */}
+              <SectionCard title="Customer Details" compact>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-[11px] font-bold text-slate-500 shrink-0">Name:</span>
+                    <span className="font-bold text-slate-900 text-right">{selectedTxn.customerName || 'N/A (System Internal)'}</span>
+                  </div>
+                  {(selectedTxn.customerCode || matchedCustomer?.customerCode) && (
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-[11px] font-bold text-slate-500 shrink-0">Code:</span>
+                      <span className="font-mono font-bold text-slate-800">{selectedTxn.customerCode || matchedCustomer?.customerCode}</span>
+                    </div>
+                  )}
+                  {matchedCustomer?.customerType && (
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-[11px] font-bold text-slate-500 shrink-0">Type:</span>
+                      <span className="font-semibold text-slate-800">{matchedCustomer.customerType}</span>
+                    </div>
+                  )}
+                  {matchedCustomer?.contactPerson && (
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-[11px] font-bold text-slate-500 shrink-0">Contact:</span>
+                      <span className="font-medium text-slate-800">{matchedCustomer.contactPerson}</span>
+                    </div>
+                  )}
+                  {matchedCustomer?.phone && (
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-[11px] font-bold text-slate-500 shrink-0">Phone:</span>
+                      <span className="font-mono font-medium text-slate-800">{matchedCustomer.phone}</span>
+                    </div>
+                  )}
+                  {matchedCustomer?.email && (
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-[11px] font-bold text-slate-500 shrink-0">Email:</span>
+                      <span className="font-medium text-slate-800 truncate">{matchedCustomer.email}</span>
+                    </div>
+                  )}
+                  {matchedCustomer?.gstNumber && (
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-[11px] font-bold text-slate-500 shrink-0">GSTIN:</span>
+                      <span className="font-mono font-bold text-slate-800">{matchedCustomer.gstNumber}</span>
+                    </div>
+                  )}
+                  {customerAddress && (
+                    <div className="pt-1 border-t border-slate-100">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Address</span>
+                      <p className="text-[11px] text-slate-700 leading-snug">{customerAddress}</p>
+                    </div>
+                  )}
+                </div>
+              </SectionCard>
+
+              {/* 3. PAYMENT INFORMATION */}
+              <SectionCard title="Payment Information" compact>
+                <div className="space-y-1.5 text-xs">
                   <div className="flex justify-between items-center">
-                    <span className="font-semibold text-slate-500">Customer name:</span>
-                    <span className="font-bold text-slate-900">{selectedTxn.customerName || 'N/A (System Internal)'}</span>
+                    <span className="text-[11px] font-bold text-slate-500">Payment Status:</span>
+                    <StatusBadge
+                      status={
+                        selectedTxn.paymentStatus === 'Paid'
+                          ? 'active'
+                          : selectedTxn.paymentStatus === 'Pending'
+                          ? 'pending'
+                          : 'info'
+                      }
+                      label={selectedTxn.paymentStatus || 'POSTED'}
+                      size="sm"
+                    />
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="font-semibold text-slate-500">Customer Code:</span>
-                    <span className="font-mono font-bold text-slate-800">{selectedTxn.customerCode || '—'}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold text-slate-500">Payment Status:</span>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${selectedTxn.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
-                      }`}>{selectedTxn.paymentStatus || 'POSTED'}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold text-slate-500">Payment Mode:</span>
+                    <span className="text-[11px] font-bold text-slate-500">Payment Mode:</span>
                     <span className="font-bold text-slate-800">{selectedTxn.paymentMethod || 'Credit'}</span>
                   </div>
+                  {selectedTxn.bankAccountName && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-[11px] font-bold text-slate-500">Bank Account:</span>
+                      <span className="font-semibold text-slate-800">{selectedTxn.bankAccountName}</span>
+                    </div>
+                  )}
+                  {selectedTxn.cashBookName && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-[11px] font-bold text-slate-500">Cash Register:</span>
+                      <span className="font-semibold text-slate-800">{selectedTxn.cashBookName}</span>
+                    </div>
+                  )}
+                  {selectedTxn.referenceNumber && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-[11px] font-bold text-slate-500">Payment Ref:</span>
+                      <span className="font-mono font-medium text-slate-800">{selectedTxn.referenceNumber}</span>
+                    </div>
+                  )}
                 </div>
-              </div>
+              </SectionCard>
 
-              {/* Subsystem status indicators */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4">
-                <h3 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-3">
-                  System Posting Registry
-                </h3>
-                <div className="space-y-3 text-xs">
+              {/* 4. SYSTEM POSTING STATUS REGISTRY */}
+              <SectionCard title="System Posting Registry" compact>
+                <div className="space-y-1.5 text-xs">
                   <div className="flex items-center justify-between text-slate-700">
-                    <span className="font-medium">1. Inventory Subsystem Impact</span>
-                    <span className="text-emerald-700 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full text-[11px] border border-emerald-200">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-[11px] font-medium">1. Inventory Subsystem</span>
+                    <span className="text-emerald-700 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full text-[10px] border border-emerald-200">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                       Adjusted
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-slate-700">
-                    <span className="font-medium">2. Customer Ledger Impact</span>
-                    <span className="text-emerald-700 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full text-[11px] border border-emerald-200">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-[11px] font-medium">2. Customer Ledger</span>
+                    <span className="text-emerald-700 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full text-[10px] border border-emerald-200">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                       Adjusted
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-slate-700">
-                    <span className="font-medium">3. General Ledger double-entry</span>
-                    <span className="text-emerald-700 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full text-[11px] border border-emerald-200">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-[11px] font-medium">3. General Ledger</span>
+                    <span className="text-emerald-700 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full text-[10px] border border-emerald-200">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                       JV Posted
                     </span>
                   </div>
                 </div>
-              </div>
-
-              {/* System Audit Details */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4">
-                <h3 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-3">
-                  Chronological Audit Log
-                </h3>
-                <div className="space-y-4 relative pl-4 border-l-2 border-slate-200 text-xs">
-                  <div className="relative">
-                    <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 bg-blue-600 rounded-full border-2 border-white" />
-                    <span className="text-slate-400 block text-[11px] font-medium">
-                      {new Date(selectedTxn.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
-                    </span>
-                    <span className="font-bold text-slate-900 mt-1 block">Document Initialized & Posted</span>
-                    <span className="text-slate-500 block text-xs mt-0.5">Recorded by: <span className="font-semibold text-slate-700">{selectedTxn.createdByName}</span></span>
-                  </div>
-                </div>
-              </div>
+              </SectionCard>
             </div>
           </div>
+
+          {/* DEDICATED TRANSACTION HISTORY & AUDIT TRAIL */}
+          <SectionCard
+            title="Transaction History"
+            compact
+            description={`Chronological lifecycle audit trail for document #${selectedTxn.transactionNumber}`}
+            actions={
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                  {sortedTimelineEvents.length} {sortedTimelineEvents.length === 1 ? 'Event' : 'Events'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsTimelineOldestFirst(!isTimelineOldestFirst)}
+                  className="h-[28px] px-2.5 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-semibold border border-[#E5E7EB] rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                  title="Toggle Chronological Order"
+                >
+                  <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                  {isTimelineOldestFirst ? 'Oldest First ↓' : 'Newest First ↑'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => refetchTxnTimeline()}
+                  disabled={isTxnTimelineFetching}
+                  className="h-[28px] px-2 bg-white hover:bg-slate-50 text-slate-600 text-[11px] font-medium border border-[#E5E7EB] rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-2xs disabled:opacity-50"
+                  title="Refresh Audit Trail"
+                >
+                  <RotateCcw className={`w-3 h-3 ${isTxnTimelineFetching ? 'animate-spin text-blue-600' : ''}`} />
+                </button>
+              </div>
+            }
+          >
+            {isTxnTimelineLoading ? (
+              <div className="py-6 flex items-center justify-center gap-2 text-slate-500 text-xs">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                <span>Loading transaction audit history...</span>
+              </div>
+            ) : isTxnTimelineError ? (
+              <div className="py-5 text-center space-y-1.5">
+                <p className="text-xs text-rose-600 font-medium">Unable to load transaction history.</p>
+                <button
+                  type="button"
+                  onClick={() => refetchTxnTimeline()}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-bold underline cursor-pointer"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : sortedTimelineEvents.length === 0 ? (
+              <div className="py-5 text-center text-xs text-slate-400 italic">
+                No transaction history available.
+              </div>
+            ) : (
+              <div className="relative pl-6 space-y-3.5 border-l-2 border-slate-200 ml-3.5 my-1">
+                {sortedTimelineEvents.map((evt) => {
+                  const evtDate = new Date(evt.timestamp)
+                  const formattedEvtDate = evtDate.toLocaleDateString('en-IN', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                  })
+                  const formattedEvtTime = evtDate.toLocaleTimeString('en-IN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                  })
+
+                  // Determine Icon & Color
+                  let iconElement = <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
+                  let dotBg = 'bg-blue-50 border-blue-200 text-blue-600'
+                  let badgeVariant: 'success' | 'active' | 'pending' | 'info' | 'warning' = 'info'
+
+                  if (evt.eventType === 'CREATED') {
+                    iconElement = <FileText className="w-3.5 h-3.5 text-blue-600" />
+                    dotBg = 'bg-blue-50 border-blue-200 text-blue-600'
+                    badgeVariant = 'info'
+                  } else if (evt.eventType === 'INVENTORY') {
+                    iconElement = <Package className="w-3.5 h-3.5 text-emerald-600" />
+                    dotBg = 'bg-emerald-50 border-emerald-200 text-emerald-600'
+                    badgeVariant = 'success'
+                  } else if (evt.eventType === 'CUSTOMER_LEDGER') {
+                    iconElement = <UserIcon className="w-3.5 h-3.5 text-purple-600" />
+                    dotBg = 'bg-purple-50 border-purple-200 text-purple-600'
+                    badgeVariant = 'active'
+                  } else if (evt.eventType === 'GENERAL_LEDGER') {
+                    iconElement = <Landmark className="w-3.5 h-3.5 text-indigo-600" />
+                    dotBg = 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                    badgeVariant = 'active'
+                  } else if (evt.eventType === 'PAYMENT') {
+                    iconElement = <Landmark className="w-3.5 h-3.5 text-emerald-600" />
+                    dotBg = 'bg-emerald-50 border-emerald-200 text-emerald-600'
+                    badgeVariant = 'success'
+                  } else if (evt.eventType === 'EDITED' || evt.eventType === 'AUDIT') {
+                    iconElement = <Edit2 className="w-3.5 h-3.5 text-amber-600" />
+                    dotBg = 'bg-amber-50 border-amber-200 text-amber-600'
+                    badgeVariant = 'warning'
+                  } else if (evt.eventType === 'CHILD_RETURN' || evt.eventType === 'CHILD_DAMAGE') {
+                    iconElement = <ArrowUpDown className="w-3.5 h-3.5 text-rose-600" />
+                    dotBg = 'bg-rose-50 border-rose-200 text-rose-600'
+                    badgeVariant = 'warning'
+                  }
+
+                  return (
+                    <div key={evt.id} className="relative group">
+                      {/* Timeline Node Icon */}
+                      <div className={`absolute -left-[35px] top-0.5 w-6 h-6 rounded-full border flex items-center justify-center ${dotBg} shadow-2xs`}>
+                        {iconElement}
+                      </div>
+
+                      {/* Event Content Box */}
+                      <div className="bg-white border border-[#E5E7EB] hover:border-slate-300 rounded-lg p-2.5 px-3 shadow-2xs transition-all text-xs space-y-1">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-slate-900 text-[12px]">{evt.title}</span>
+                            <StatusBadge
+                              status={badgeVariant}
+                              label={evt.status || 'Posted'}
+                              size="sm"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
+                            <Clock className="w-3 h-3 text-slate-400" />
+                            <span>{formattedEvtDate}, {formattedEvtTime}</span>
+                          </div>
+                        </div>
+
+                        <p className="text-slate-600 text-[11px] leading-relaxed">
+                          {evt.description}
+                        </p>
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100 text-[11px] text-slate-500">
+                          <div>
+                            Recorded by: <strong className="text-slate-700 font-semibold">{evt.actorName || 'System'}</strong>
+                            {evt.actorRole && <span className="text-slate-400 ml-1">({evt.actorRole})</span>}
+                          </div>
+
+                          {/* Metadata chips */}
+                          {evt.metadata && (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {evt.metadata.voucherNumber && (
+                                <span className="font-mono text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100 font-semibold">
+                                  Voucher: #{evt.metadata.voucherNumber}
+                                </span>
+                              )}
+                              {evt.metadata.referenceNumber && (
+                                <span className="font-mono text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200 font-semibold">
+                                  Ref: {evt.metadata.referenceNumber}
+                                </span>
+                              )}
+                              {evt.metadata.balanceAfter !== undefined && (
+                                <span className="font-mono text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-100 font-semibold">
+                                  Stock: {evt.metadata.balanceAfter} Cases
+                                </span>
+                              )}
+                              {evt.metadata.linesCount && (
+                                <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium">
+                                  {evt.metadata.linesCount} GL Lines
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </SectionCard>
         </div>
       </PageContainer>
     )
