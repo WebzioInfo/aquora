@@ -1868,6 +1868,322 @@ namespace Aquora.API.Controllers
             }
         }
 
+        [HttpPost("{id:guid}/collect")]
+        public async Task<ActionResult<ApiResponse<SalesTransactionDto>>> CollectPayment(Guid id, [FromBody] CollectSalesPaymentRequest request)
+        {
+            if (!IsAuthorizedToWrite())
+            {
+                return Unauthorized(ApiResponse<SalesTransactionDto>.CreateFailure("You do not have permission to perform payment collections.", "Unauthorized", HttpContext.TraceIdentifier));
+            }
+
+            if (request == null || request.Amount <= 0)
+            {
+                return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Collection amount must be greater than zero.", "Validation Error", HttpContext.TraceIdentifier));
+            }
+
+            var dbContext = _tenantContext as DbContext;
+            if (dbContext == null)
+            {
+                return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Database context is invalid.", "Infrastructure Error", HttpContext.TraceIdentifier));
+            }
+
+            using var dbTransaction = await dbContext.Database.BeginTransactionAsync();
+            try
+            {
+                var tenantId = _currentUserContext.TenantId;
+                var currentUserId = _currentUserContext.UserId ?? "System";
+                var userEmail = _currentUserContext.Email ?? "system@aquzio.com";
+
+                // Load authoritative Sales Transaction
+                var txn = await _tenantContext.SalesTransactions
+                    .Include(t => t.Customer)
+                    .Include(t => t.Product)
+                    .FirstOrDefaultAsync(t => t.Id == id && t.TenantId == tenantId && !t.IsDeleted);
+
+                if (txn == null)
+                {
+                    return NotFound(ApiResponse<SalesTransactionDto>.CreateFailure("Sales transaction not found.", "Not Found", HttpContext.TraceIdentifier));
+                }
+
+                // Authoritative balance calculation
+                decimal saleTotal = txn.TotalAmount;
+                decimal currentReceived = txn.AmountReceived;
+                decimal actualOutstanding = txn.OutstandingAmount > 0 
+                    ? txn.OutstandingAmount 
+                    : Math.Max(0m, saleTotal - currentReceived);
+
+                if (actualOutstanding <= 0)
+                {
+                    return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("This credit transaction has already been fully settled (₹0.00 outstanding balance).", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                if (request.Amount > (actualOutstanding + 0.0001m))
+                {
+                    return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure(
+                        $"Collection amount (₹{request.Amount:N2}) exceeds the current outstanding balance of ₹{actualOutstanding:N2}. Outstanding balance may have changed. Please refresh and try again.",
+                        "Validation Error",
+                        HttpContext.TraceIdentifier));
+                }
+
+                var company = await _tenantContext.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
+                if (company == null)
+                {
+                    return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Company profile not found.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                var paymentMethod = string.IsNullOrWhiteSpace(request.PaymentMethod) ? "Cash" : request.PaymentMethod.Trim();
+                var isBank = IsBankPaymentMethod(paymentMethod);
+                var isCash = paymentMethod.Equals("Cash", StringComparison.OrdinalIgnoreCase);
+
+                if (!isCash && !isBank)
+                {
+                    return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Please select a valid payment method (Cash, Bank Transfer, UPI, Cheque).", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                if (isBank && (!request.BankAccountId.HasValue || request.BankAccountId.Value == Guid.Empty))
+                {
+                    var defaultBank = await _tenantContext.BankAccounts.FirstOrDefaultAsync(b => b.TenantId == tenantId && !b.IsDeleted);
+                    if (defaultBank != null) request.BankAccountId = defaultBank.Id;
+                    else return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("A Bank Account is required to receive electronic/bank payments.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                if (isCash && (!request.CashBookId.HasValue || request.CashBookId.Value == Guid.Empty))
+                {
+                    var defaultCash = await _tenantContext.CashBooks.FirstOrDefaultAsync(c => c.TenantId == tenantId && !c.IsDeleted);
+                    if (defaultCash != null) request.CashBookId = defaultCash.Id;
+                    else return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("A Cash Register is required to receive cash payments.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                var paymentRef = string.IsNullOrWhiteSpace(request.ReferenceNumber) 
+                    ? $"COL-{DateTime.UtcNow:yyyyMMdd}-{new Random().Next(1000, 9999)}" 
+                    : request.ReferenceNumber.Trim();
+
+                var paymentDate = request.PaymentDate.HasValue && request.PaymentDate.Value != default 
+                    ? request.PaymentDate.Value.ToUniversalTime() 
+                    : DateTime.UtcNow;
+
+                // 1. Update Sales Transaction
+                txn.AmountReceived += request.Amount;
+                txn.OutstandingAmount = Math.Max(0m, saleTotal - txn.AmountReceived);
+                txn.PaymentStatus = txn.OutstandingAmount <= 0 ? "Paid" : "Partially Paid";
+                txn.UpdatedAt = DateTime.UtcNow;
+                txn.UpdatedBy = currentUserId;
+
+                _tenantContext.SalesTransactions.Update(txn);
+
+                // 2. Update Customer Balance and append to Customer Ledger
+                if (txn.Customer != null)
+                {
+                    txn.Customer.OutstandingPlaceholder = Math.Max(0m, txn.Customer.OutstandingPlaceholder - request.Amount);
+                    AppendCustomerLedgerEntry(
+                        txn.Customer, 
+                        "Credit Sale Collection", 
+                        paymentRef, 
+                        0m, 
+                        request.Amount, 
+                        txn.Customer.OutstandingPlaceholder);
+
+                    _tenantContext.Customers.Update(txn.Customer);
+                }
+
+                // 3. Post General Ledger Double-Entry (Receipt Voucher)
+                var arAccount = await ResolveAccountAsync("Accounts Receivable", "1200", "Assets", "Dr", tenantId, company.Id);
+                Account receivedAccount;
+
+                if (isBank)
+                {
+                    receivedAccount = await ResolveAccountAsync("Bank Account", "1002", "Assets", "Dr", tenantId, company.Id);
+                }
+                else
+                {
+                    receivedAccount = await ResolveAccountAsync("Cash", "1001", "Assets", "Dr", tenantId, company.Id);
+                }
+
+                var journalLines = new List<(Account account, decimal debit, decimal credit, string description)>
+                {
+                    (receivedAccount, request.Amount, 0m, $"Credit sales collection for {txn.TransactionNumber} - {txn.Customer?.CustomerName ?? "Customer"}"),
+                    (arAccount, 0m, request.Amount, $"Settlement of Accounts Receivable for {txn.TransactionNumber}")
+                };
+
+                await CreateJournalEntryAsync(
+                    tenantId, 
+                    company.Id, 
+                    "Receipt Voucher", 
+                    $"Collection for {txn.TransactionNumber}: ₹{request.Amount:N2} via {paymentMethod}", 
+                    paymentRef, 
+                    journalLines, 
+                    currentUserId);
+
+                // 4. Post Bank Ledger / Cash Register Transaction
+                var ledgerDescription = $"Credit sale payment collected for {txn.TransactionNumber} from {txn.Customer?.CustomerName ?? "Customer"}" +
+                    (!string.IsNullOrWhiteSpace(request.Notes) ? $" (Notes: {request.Notes})" : "");
+
+                if (isBank && request.BankAccountId.HasValue)
+                {
+                    await _ledgerService.RecordTransactionAsync(
+                        request.BankAccountId.Value,
+                        paymentDate,
+                        paymentRef,
+                        "Sales Collection",
+                        ledgerDescription,
+                        0m,
+                        request.Amount,
+                        txn.Id,
+                        "SalesTransaction");
+                }
+                else if (isCash && request.CashBookId.HasValue)
+                {
+                    await _ledgerService.RecordCashTransactionAsync(
+                        request.CashBookId.Value,
+                        paymentDate,
+                        paymentRef,
+                        "Sales Collection",
+                        ledgerDescription,
+                        0m,
+                        request.Amount,
+                        txn.Id,
+                        "SalesTransaction");
+                }
+
+                // 5. Add Audit Log
+                _tenantContext.AuditLogs.Add(new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    UserId = currentUserId,
+                    UserEmail = userEmail,
+                    Action = "Payment Collected",
+                    TableName = "SalesTransactions",
+                    PrimaryKey = txn.Id.ToString(),
+                    Reason = $"Collected ₹{request.Amount:N2} via {paymentMethod} (Ref: {paymentRef}). Outstanding remaining: ₹{txn.OutstandingAmount:N2}.",
+                    Timestamp = DateTime.UtcNow
+                });
+
+                await _tenantContext.SaveChangesAsync();
+                await dbTransaction.CommitAsync();
+
+                // 6. SignalR Broadcast
+                await NotifyDashboardAsync("SalesPaymentCollected", new
+                {
+                    transactionId = txn.Id,
+                    transactionNumber = txn.TransactionNumber,
+                    amount = request.Amount,
+                    remainingBalance = txn.OutstandingAmount,
+                    paymentStatus = txn.PaymentStatus
+                });
+
+                // 7. Return refreshed SalesTransactionDto
+                var creatorUser = await _platformContext.Users.FirstOrDefaultAsync(u => u.Id.ToString() == txn.CreatedBy);
+                var createdByName = creatorUser != null ? $"{creatorUser.FirstName} {creatorUser.LastName}" : "System";
+
+                var dto = new SalesTransactionDto
+                {
+                    Id = txn.Id,
+                    TransactionNumber = txn.TransactionNumber,
+                    CustomerId = txn.CustomerId,
+                    CustomerName = txn.Customer?.CustomerName ?? "Unknown Customer",
+                    CustomerCode = txn.Customer?.CustomerCode ?? string.Empty,
+                    ProductId = txn.ProductId,
+                    ProductName = txn.Product?.Name ?? "Unknown Product",
+                    ProductSku = txn.Product?.SKU ?? string.Empty,
+                    ParentTransactionId = txn.ParentTransactionId,
+                    Cases = txn.Cases,
+                    TransactionType = txn.TransactionType,
+                    TransactionDate = txn.TransactionDate,
+                    ReferenceNumber = txn.ReferenceNumber,
+                    Remarks = txn.Remarks,
+                    Status = txn.Status,
+                    PaymentMethod = txn.PaymentMethod,
+                    BankAccountId = txn.BankAccountId,
+                    CashBookId = txn.CashBookId,
+                    UnitPrice = txn.UnitPrice,
+                    DiscountAmount = txn.DiscountAmount,
+                    TaxAmount = txn.TaxAmount,
+                    CGST = txn.CGST,
+                    SGST = txn.SGST,
+                    IGST = txn.IGST,
+                    MetadataJson = txn.MetadataJson,
+                    TotalAmount = txn.TotalAmount,
+                    AmountReceived = txn.AmountReceived,
+                    OutstandingAmount = txn.OutstandingAmount,
+                    PaymentStatus = txn.PaymentStatus,
+                    ReturnedAmount = txn.ReturnedAmount,
+                    RefundAmount = txn.RefundAmount,
+                    AdjustmentAmount = txn.AdjustmentAmount,
+                    ReturnType = txn.ReturnType,
+                    IsReplacementRequired = txn.IsReplacementRequired,
+                    ProductValue = txn.ProductValue,
+                    DamageCost = txn.DamageCost,
+                    DamageReason = txn.DamageReason,
+                    CreatedBy = txn.CreatedBy,
+                    CreatedByName = createdByName,
+                    CreatedAt = txn.CreatedAt,
+                    UpdatedAt = txn.UpdatedAt
+                };
+
+                return Success(dto, $"Payment of ₹{request.Amount:N2} collected successfully for {txn.TransactionNumber}.");
+            }
+            catch (Exception ex)
+            {
+                await dbTransaction.RollbackAsync();
+                return Failure<SalesTransactionDto>(ex.Message, "Failed to collect sales payment.");
+            }
+        }
+
+        [HttpGet("{id:guid}/payments")]
+        public async Task<ActionResult<ApiResponse<List<SalesPaymentRecordDto>>>> GetSalesPayments(Guid id)
+        {
+            try
+            {
+                var tenantId = _currentUserContext.TenantId;
+                var txn = await _tenantContext.SalesTransactions
+                    .FirstOrDefaultAsync(t => t.Id == id && t.TenantId == tenantId && !t.IsDeleted);
+
+                if (txn == null)
+                {
+                    return NotFound(ApiResponse<List<SalesPaymentRecordDto>>.CreateFailure("Sales transaction not found.", "Not Found", HttpContext.TraceIdentifier));
+                }
+
+                var entries = await _tenantContext.BankLedgerEntries
+                    .Include(b => b.BankAccount)
+                    .Include(b => b.CashBook)
+                    .Where(b => b.RelatedEntityId == id && b.RelatedEntityType == "SalesTransaction" && b.TenantId == tenantId)
+                    .OrderByDescending(b => b.TransactionDate)
+                    .ThenByDescending(b => b.CreatedAt)
+                    .ToListAsync();
+
+                var creatorIds = entries
+                    .Select(e => e.CreatedBy)
+                    .Where(cb => !string.IsNullOrEmpty(cb) && Guid.TryParse(cb, out _))
+                    .Select(Guid.Parse)
+                    .Distinct()
+                    .ToList();
+
+                var usersDict = await _platformContext.Users
+                    .Where(u => creatorIds.Contains(u.Id))
+                    .ToDictionaryAsync(u => u.Id.ToString(), u => $"{u.FirstName} {u.LastName}");
+
+                var records = entries.Select(e => new SalesPaymentRecordDto
+                {
+                    Id = e.Id,
+                    Date = e.TransactionDate,
+                    CreatedAt = e.CreatedAt,
+                    Amount = e.Debit > 0 ? e.Debit : (e.Credit > 0 ? e.Credit : 0m),
+                    PaymentMethod = e.LedgerAccountType == "CashBook" || e.CashBookId.HasValue ? "Cash" : "Bank Transfer",
+                    ReferenceNumber = e.ReferenceNumber,
+                    Description = e.Description,
+                    AccountName = e.BankAccount?.BankName ?? e.CashBook?.Name ?? (e.LedgerAccountType == "CashBook" ? "Cash Register" : "Bank Account"),
+                    CollectedBy = usersDict.TryGetValue(e.CreatedBy, out var uName) ? uName : (string.IsNullOrWhiteSpace(e.CreatedBy) ? "System" : e.CreatedBy)
+                }).ToList();
+
+                return Success(records, "Payment records retrieved successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<List<SalesPaymentRecordDto>>(ex.Message, "Failed to retrieve sales payment records.");
+            }
+        }
+
         private async Task<Account> ResolveAccountAsync(string name, string code, string groupName, string balanceType, Guid tenantId, Guid companyId)
         {
             var account = await _tenantContext.Accounts.FirstOrDefaultAsync(a => a.AccountName == name && a.TenantId == tenantId);
@@ -2166,6 +2482,30 @@ namespace Aquora.API.Controllers
         public string Status { get; set; } = "Success";
         public string Description { get; set; } = string.Empty;
         public Dictionary<string, object?>? Metadata { get; set; }
+    }
+
+    public class CollectSalesPaymentRequest
+    {
+        public decimal Amount { get; set; }
+        public string PaymentMethod { get; set; } = "Cash";
+        public Guid? BankAccountId { get; set; }
+        public Guid? CashBookId { get; set; }
+        public string? ReferenceNumber { get; set; }
+        public string? Notes { get; set; }
+        public DateTime? PaymentDate { get; set; }
+    }
+
+    public class SalesPaymentRecordDto
+    {
+        public Guid Id { get; set; }
+        public DateTime Date { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public decimal Amount { get; set; }
+        public string PaymentMethod { get; set; } = string.Empty;
+        public string ReferenceNumber { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string AccountName { get; set; } = string.Empty;
+        public string CollectedBy { get; set; } = string.Empty;
     }
 }
 

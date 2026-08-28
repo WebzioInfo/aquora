@@ -6,11 +6,11 @@ import {
   Search, Plus, Eye, Edit2, Trash2, X, AlertTriangle,
   User as UserIcon, Calendar, ArrowUpDown, Filter, ChevronLeft, ChevronRight, CheckCircle2,
   Package, ShoppingCart, Info, Phone, Tag, FileSpreadsheet, FileText, Landmark, Printer, Download, ArrowLeft, Send,
-  Clock, RotateCcw, Loader2, History
+  Clock, RotateCcw, Loader2, History, Coins
 } from 'lucide-react'
 import { api } from '../../services/api'
 import { salesService } from '../../services/sales'
-import type { SalesTransaction, CreateSalesTransactionRequest } from '../../services/sales'
+import type { SalesTransaction, CreateSalesTransactionRequest, CollectSalesPaymentRequest, SalesPaymentRecord } from '../../services/sales'
 import { productsService } from '../../services/products'
 import { customersService } from '../../services/customers'
 import { simpleAccountsService } from '../../services/simpleAccounts'
@@ -251,6 +251,116 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
 
   const parentHistoryInfo = parentHistoryRes?.data?.parentDispatch
   const availableRemainingCases = parentHistoryInfo ? parentHistoryInfo.remainingCases : (parentDispatch ? Math.abs(parentDispatch.cases) : 0)
+
+  // Fetch payment records for selected transaction in detail view
+  const {
+    data: txnPaymentsRes,
+    refetch: refetchTxnPayments
+  } = useQuery({
+    queryKey: ['salesTransactionPayments', selectedTxn?.id],
+    queryFn: () => selectedTxn ? salesService.getPayments(selectedTxn.id) : null,
+    enabled: isViewingDetails && !!selectedTxn?.id
+  })
+  const txnPayments = txnPaymentsRes?.data || []
+
+  // Collect Payment Modal State
+  const [isCollectModalOpen, setIsCollectModalOpen] = useState(false)
+  const [collectTxn, setCollectTxn] = useState<SalesTransaction | null>(null)
+  const [collectAmount, setCollectAmount] = useState<number | ''>('')
+  const [collectPaymentMethod, setCollectPaymentMethod] = useState('Cash')
+  const [collectBankAccountId, setCollectBankAccountId] = useState('')
+  const [collectCashBookId, setCollectCashBookId] = useState('')
+  const [collectRef, setCollectRef] = useState('')
+  const [collectNotes, setCollectNotes] = useState('')
+  const [collectDate, setCollectDate] = useState(() => new Date().toISOString().split('T')[0])
+
+  const handleOpenCollectModal = (txn: SalesTransaction) => {
+    if (!canWrite) {
+      showToast('You do not have permission to collect payments.', 'warning')
+      return
+    }
+    const currentOutstanding = txn.outstandingAmount !== undefined && txn.outstandingAmount > 0
+      ? txn.outstandingAmount
+      : Math.max(0, (txn.totalAmount || 0) - (txn.amountReceived || 0))
+
+    if (currentOutstanding <= 0) {
+      showToast('This transaction has already been fully paid.', 'info')
+      return
+    }
+
+    setCollectTxn(txn)
+    setCollectAmount(currentOutstanding)
+    setCollectPaymentMethod('Cash')
+    if (cashRegisters.length > 0) {
+      setCollectCashBookId(cashRegisters[0].id)
+    }
+    if (banks.length > 0) {
+      setCollectBankAccountId(banks[0].id)
+    }
+    setCollectRef('')
+    setCollectNotes('')
+    setCollectDate(new Date().toISOString().split('T')[0])
+    setIsCollectModalOpen(true)
+  }
+
+  const collectPaymentMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: CollectSalesPaymentRequest }) =>
+      salesService.collectPayment({ id, data }),
+    onSuccess: (res, variables) => {
+      showToast(`₹${variables.data.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} collected successfully.`, 'success')
+      setIsCollectModalOpen(false)
+      setCollectTxn(null)
+
+      if (selectedTxn && selectedTxn.id === variables.id && res.data) {
+        setSelectedTxn(res.data)
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['salesTransactionsList'] })
+      queryClient.invalidateQueries({ queryKey: ['salesTransactionTimeline', variables.id] })
+      queryClient.invalidateQueries({ queryKey: ['salesTransactionPayments', variables.id] })
+      queryClient.invalidateQueries({ queryKey: ['salesDashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['activeCustomersForSales'] })
+      queryClient.invalidateQueries({ queryKey: ['bankAccountsDropdown'] })
+      queryClient.invalidateQueries({ queryKey: ['cashBooksDropdown'] })
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || err.message || 'Failed to collect payment.'
+      showToast(msg, 'error')
+    }
+  })
+
+  const handleConfirmCollect = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!collectTxn) return
+
+    const numAmount = typeof collectAmount === 'number' ? collectAmount : parseFloat(collectAmount)
+    if (isNaN(numAmount) || numAmount <= 0) {
+      showToast('Collection amount must be greater than zero.', 'error')
+      return
+    }
+
+    const currentOutstanding = collectTxn.outstandingAmount !== undefined && collectTxn.outstandingAmount > 0
+      ? collectTxn.outstandingAmount
+      : Math.max(0, (collectTxn.totalAmount || 0) - (collectTxn.amountReceived || 0))
+
+    if (numAmount > currentOutstanding + 0.001) {
+      showToast(`Collection amount cannot exceed the outstanding balance of ₹${currentOutstanding.toFixed(2)}.`, 'error')
+      return
+    }
+
+    collectPaymentMutation.mutate({
+      id: collectTxn.id,
+      data: {
+        amount: numAmount,
+        paymentMethod: collectPaymentMethod,
+        bankAccountId: ['Bank', 'BankAccount', 'UPI', 'Cheque'].includes(collectPaymentMethod) ? collectBankAccountId || null : null,
+        cashBookId: collectPaymentMethod === 'Cash' ? collectCashBookId || null : null,
+        referenceNumber: collectRef.trim() || undefined,
+        notes: collectNotes.trim() || undefined,
+        paymentDate: collectDate ? new Date(collectDate).toISOString() : new Date().toISOString()
+      }
+    })
+  }
 
   // Quick Customer Creation navigation
   const handleQuickCreateCustomer = () => {
@@ -1344,17 +1454,32 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
               </SectionCard>
 
               {/* 3. PAYMENT INFORMATION */}
-              <SectionCard title="Payment Information" compact>
-                <div className="space-y-1.5 text-xs">
+              <SectionCard
+                title="Payment Information"
+                compact
+                actions={
+                  canWrite && (selectedTxn.outstandingAmount ?? Math.max(0, (selectedTxn.totalAmount || total) - (selectedTxn.amountReceived || 0))) > 0 && selectedTxn.status !== 'Cancelled' ? (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenCollectModal(selectedTxn)}
+                      className="h-[24px] px-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-md transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                    >
+                      <Coins className="w-3 h-3" />
+                      Collect Amount
+                    </button>
+                  ) : null
+                }
+              >
+                <div className="space-y-2 text-xs">
                   <div className="flex justify-between items-center">
                     <span className="text-[11px] font-bold text-slate-500">Payment Status:</span>
                     <StatusBadge
                       status={
-                        selectedTxn.paymentStatus === 'Paid'
+                        (selectedTxn.outstandingAmount !== undefined && selectedTxn.outstandingAmount <= 0) || selectedTxn.paymentStatus === 'Paid'
                           ? 'active'
                           : selectedTxn.paymentStatus === 'Pending'
                           ? 'pending'
-                          : 'info'
+                          : 'warning'
                       }
                       label={selectedTxn.paymentStatus || 'POSTED'}
                       size="sm"
@@ -1363,6 +1488,20 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                   <div className="flex justify-between items-center">
                     <span className="text-[11px] font-bold text-slate-500">Payment Mode:</span>
                     <span className="font-bold text-slate-800">{selectedTxn.paymentMethod || 'Credit'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[11px] font-bold text-slate-500">Original Amount:</span>
+                    <span className="font-mono font-semibold text-slate-800">₹{(selectedTxn.totalAmount || total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[11px] font-bold text-slate-500">Amount Collected:</span>
+                    <span className="font-mono font-bold text-emerald-700">₹{(selectedTxn.amountReceived || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[11px] font-bold text-slate-500">Outstanding Balance:</span>
+                    <span className={`font-mono font-bold ${(selectedTxn.outstandingAmount ?? Math.max(0, (selectedTxn.totalAmount || total) - (selectedTxn.amountReceived || 0))) > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                      ₹{(selectedTxn.outstandingAmount ?? Math.max(0, (selectedTxn.totalAmount || total) - (selectedTxn.amountReceived || 0))).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
                   </div>
                   {selectedTxn.bankAccountName && (
                     <div className="flex justify-between items-center">
@@ -1380,6 +1519,46 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                     <div className="flex justify-between items-center">
                       <span className="text-[11px] font-bold text-slate-500">Payment Ref:</span>
                       <span className="font-mono font-medium text-slate-800">{selectedTxn.referenceNumber}</span>
+                    </div>
+                  )}
+
+                  {/* Payment Collection History Sub-block */}
+                  {txnPayments.length > 0 && (
+                    <div className="pt-2 mt-2 border-t border-slate-100 space-y-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Collection Records ({txnPayments.length})</span>
+                      <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-0.5">
+                        {txnPayments.map((p) => (
+                          <div key={p.id} className="bg-slate-50 rounded-lg p-2 border border-slate-200/60 text-[11px] space-y-0.5">
+                            <div className="flex justify-between items-center">
+                              <span className="font-mono font-bold text-emerald-700">₹{p.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                              <span className="text-[10px] text-slate-400">{new Date(p.date || p.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-slate-500 text-[10px]">
+                              <span>Via: <strong className="text-slate-700">{p.paymentMethod}</strong> ({p.accountName})</span>
+                              {p.referenceNumber && <span className="font-mono">Ref: {p.referenceNumber}</span>}
+                            </div>
+                            {p.collectedBy && (
+                              <div className="text-[10px] text-slate-400">
+                                Collected by: <span className="text-slate-600 font-medium">{p.collectedBy}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Prominent Action Button if outstanding balance exists */}
+                  {canWrite && (selectedTxn.outstandingAmount ?? Math.max(0, (selectedTxn.totalAmount || total) - (selectedTxn.amountReceived || 0))) > 0 && selectedTxn.status !== 'Cancelled' && (
+                    <div className="pt-2 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenCollectModal(selectedTxn)}
+                        className="w-full h-[32px] bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                      >
+                        <Coins className="w-3.5 h-3.5" />
+                        Collect Outstanding (₹{(selectedTxn.outstandingAmount ?? Math.max(0, (selectedTxn.totalAmount || total) - (selectedTxn.amountReceived || 0))).toLocaleString('en-IN', { minimumFractionDigits: 2 })})
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1755,6 +1934,16 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
+                        {canWrite && (txn.outstandingAmount ?? Math.max(0, (txn.totalAmount || 0) - (txn.amountReceived || 0))) > 0 && txn.status !== 'Cancelled' && (
+                          <button
+                            onClick={() => handleOpenCollectModal(txn)}
+                            title={`Collect Outstanding Balance (₹${(txn.outstandingAmount ?? Math.max(0, (txn.totalAmount || 0) - (txn.amountReceived || 0))).toFixed(2)})`}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
+                          >
+                            <Coins className="w-3 h-3 text-emerald-600" />
+                            Collect
+                          </button>
+                        )}
                         {txn.parentTransactionId && (
                           <button
                             onClick={() => handleOpenParentDispatch(txn)}
@@ -2992,6 +3181,221 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                 Close History
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* COLLECT PAYMENT MODAL */}
+      {isCollectModalOpen && collectTxn && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center p-4">
+          <div className="bg-white border border-slate-200 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="flex justify-between items-center px-5 py-4 border-b border-slate-100 bg-slate-50/80">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-700">
+                  <Coins className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">Collect Credit Amount</h3>
+                  <p className="text-[11px] text-slate-500 font-mono">
+                    {collectTxn.transactionNumber} • {collectTxn.customerName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!collectPaymentMutation.isPending) {
+                    setIsCollectModalOpen(false)
+                    setCollectTxn(null)
+                  }
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content & Form */}
+            <form onSubmit={handleConfirmCollect} className="p-5 space-y-4">
+              {/* Transaction Summary Card */}
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/80 space-y-2 text-xs">
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-white p-2 rounded-lg border border-slate-200/60 shadow-2xs">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Original</span>
+                    <span className="font-mono font-bold text-slate-800">
+                      ₹{(collectTxn.totalAmount || (collectTxn.cases * (collectTxn.unitPrice || 0))).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="bg-white p-2 rounded-lg border border-slate-200/60 shadow-2xs">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Collected</span>
+                    <span className="font-mono font-bold text-emerald-600">
+                      ₹{(collectTxn.amountReceived || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="bg-white p-2 rounded-lg border border-amber-200/80 bg-amber-50/30 shadow-2xs">
+                    <span className="text-[10px] font-bold uppercase text-amber-700 block mb-0.5">Outstanding</span>
+                    <span className="font-mono font-black text-amber-800">
+                      ₹{(collectTxn.outstandingAmount ?? Math.max(0, (collectTxn.totalAmount || (collectTxn.cases * (collectTxn.unitPrice || 0))) - (collectTxn.amountReceived || 0))).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Input Fields */}
+              <div className="space-y-3">
+                {/* Collection Amount */}
+                <div className="flex flex-col">
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-[12px] font-bold text-slate-700">Collection Amount (₹) *</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const bal = collectTxn.outstandingAmount ?? Math.max(0, (collectTxn.totalAmount || (collectTxn.cases * (collectTxn.unitPrice || 0))) - (collectTxn.amountReceived || 0))
+                        setCollectAmount(bal)
+                      }}
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer underline"
+                    >
+                      Collect Full Balance
+                    </button>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max={collectTxn.outstandingAmount ?? Math.max(0, (collectTxn.totalAmount || (collectTxn.cases * (collectTxn.unitPrice || 0))) - (collectTxn.amountReceived || 0))}
+                    value={collectAmount}
+                    onChange={(e) => setCollectAmount(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
+                    placeholder="Enter amount to collect..."
+                    required
+                    className="w-full h-[38px] px-3.5 border border-slate-300 text-sm font-mono font-bold text-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                  {typeof collectAmount === 'number' && collectAmount > (collectTxn.outstandingAmount ?? Math.max(0, (collectTxn.totalAmount || (collectTxn.cases * (collectTxn.unitPrice || 0))) - (collectTxn.amountReceived || 0))) && (
+                    <span className="text-[11px] text-rose-600 font-semibold mt-1">
+                      Amount cannot exceed outstanding balance of ₹{(collectTxn.outstandingAmount ?? Math.max(0, (collectTxn.totalAmount || (collectTxn.cases * (collectTxn.unitPrice || 0))) - (collectTxn.amountReceived || 0))).toFixed(2)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Payment Method & Date */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col">
+                    <label className="text-[12px] font-bold text-slate-700 mb-1">Payment Method *</label>
+                    <select
+                      value={collectPaymentMethod}
+                      onChange={(e) => setCollectPaymentMethod(e.target.value)}
+                      className="w-full h-[36px] px-3 border border-slate-300 text-xs font-semibold bg-white rounded-lg focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="Cash">Cash</option>
+                      <option value="Bank">Bank Transfer</option>
+                      <option value="UPI">UPI</option>
+                      <option value="Cheque">Cheque</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className="text-[12px] font-bold text-slate-700 mb-1">Collection Date</label>
+                    <input
+                      type="date"
+                      value={collectDate}
+                      onChange={(e) => setCollectDate(e.target.value)}
+                      className="w-full h-[36px] px-3 border border-slate-300 text-xs font-semibold bg-white rounded-lg focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Account Selection based on Payment Method */}
+                {collectPaymentMethod === 'Cash' ? (
+                  <div className="flex flex-col">
+                    <label className="text-[12px] font-bold text-slate-700 mb-1">Deposit To Cash Register *</label>
+                    <select
+                      value={collectCashBookId}
+                      onChange={(e) => setCollectCashBookId(e.target.value)}
+                      className="w-full h-[36px] px-3 border border-slate-300 text-xs font-medium bg-white rounded-lg focus:outline-none focus:border-blue-500"
+                    >
+                      {cashRegisters.length === 0 && <option value="">Default Main Cash Register</option>}
+                      {cashRegisters.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} (Current: ₹{c.currentBalance.toLocaleString('en-IN')})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="flex flex-col">
+                    <label className="text-[12px] font-bold text-slate-700 mb-1">Deposit To Bank Account *</label>
+                    <select
+                      value={collectBankAccountId}
+                      onChange={(e) => setCollectBankAccountId(e.target.value)}
+                      className="w-full h-[36px] px-3 border border-slate-300 text-xs font-medium bg-white rounded-lg focus:outline-none focus:border-blue-500"
+                    >
+                      {banks.length === 0 && <option value="">Default Company Bank Account</option>}
+                      {banks.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.bankName} - {b.accountNumber} (Balance: ₹{b.currentBalance.toLocaleString('en-IN')})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Reference Number & Notes */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col">
+                    <label className="text-[12px] font-bold text-slate-700 mb-1">Payment Ref / UTR / Cheque #</label>
+                    <input
+                      type="text"
+                      value={collectRef}
+                      onChange={(e) => setCollectRef(e.target.value)}
+                      placeholder="e.g. UTR-98213892..."
+                      className="w-full h-[36px] px-3 border border-slate-300 text-xs rounded-lg focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[12px] font-bold text-slate-700 mb-1">Notes / Remarks</label>
+                    <input
+                      type="text"
+                      value={collectNotes}
+                      onChange={(e) => setCollectNotes(e.target.value)}
+                      placeholder="e.g. Partial collection..."
+                      className="w-full h-[36px] px-3 border border-slate-300 text-xs rounded-lg focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="submit"
+                  disabled={collectPaymentMutation.isPending || !collectAmount || (typeof collectAmount === 'number' && collectAmount <= 0)}
+                  className="flex-1 h-[38px] bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {collectPaymentMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Collecting Payment...
+                    </>
+                  ) : (
+                    <>
+                      <Coins className="w-4 h-4" />
+                      Collect ₹{(typeof collectAmount === 'number' ? collectAmount : parseFloat(collectAmount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  disabled={collectPaymentMutation.isPending}
+                  onClick={() => {
+                    setIsCollectModalOpen(false)
+                    setCollectTxn(null)
+                  }}
+                  className="w-[80px] h-[38px] border border-slate-200 text-slate-600 font-bold text-xs rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

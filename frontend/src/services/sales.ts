@@ -109,6 +109,28 @@ export interface SalesTransactionTimelineEvent {
   metadata?: Record<string, any> | null
 }
 
+export interface CollectSalesPaymentRequest {
+  amount: number
+  paymentMethod: string
+  bankAccountId?: string | null
+  cashBookId?: string | null
+  referenceNumber?: string
+  notes?: string
+  paymentDate?: string
+}
+
+export interface SalesPaymentRecord {
+  id: string
+  date: string
+  createdAt: string
+  amount: number
+  paymentMethod: string
+  referenceNumber: string
+  description: string
+  accountName: string
+  collectedBy: string
+}
+
 export const salesService = {
   getTransactions: async (
     page: number = 1,
@@ -141,6 +163,16 @@ export const salesService = {
 
   getTransactionTimeline: async (id: string) => {
     const res = await api.get<ApiResponse<SalesTransactionTimelineEvent[]>>(`/api/v1/sales/${id}/timeline`)
+    return res.data
+  },
+
+  getPayments: async (id: string) => {
+    const res = await api.get<ApiResponse<SalesPaymentRecord[]>>(`/api/v1/sales/${id}/payments`)
+    return res.data
+  },
+
+  collectPayment: async ({ id, data }: { id: string; data: CollectSalesPaymentRequest }) => {
+    const res = await api.post<ApiResponse<SalesTransaction>>(`/api/v1/sales/${id}/collect`, data)
     return res.data
   },
 
