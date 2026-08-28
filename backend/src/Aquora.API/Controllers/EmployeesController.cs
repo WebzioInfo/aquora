@@ -60,10 +60,44 @@ namespace Aquora.API.Controllers
             try
             {
                 var tenantId = GetTenantId();
-                var users = await _platformContext.Users
+                var usersRaw = await _platformContext.Users
+                    .AsNoTracking()
                     .Where(u => u.TenantId == tenantId && !u.IsDeleted)
                     .OrderByDescending(u => u.CreatedAt)
+                    .Select(u => new
+                    {
+                        u.Id,
+                        u.FirstName,
+                        u.LastName,
+                        u.Username,
+                        u.Email,
+                        u.RoleName,
+                        u.Department,
+                        u.CurrentSalary,
+                        u.IsActive,
+                        u.CreatedAt,
+                        u.LastLoginAt,
+                        u.IsPlatformAdmin,
+                        u.TenantId
+                    })
                     .ToListAsync();
+
+                var users = usersRaw.Select(u => new User
+                {
+                    Id = u.Id,
+                    FirstName = u.FirstName,
+                    LastName = u.LastName,
+                    Username = u.Username,
+                    Email = u.Email,
+                    RoleName = u.RoleName,
+                    Department = u.Department,
+                    CurrentSalary = u.CurrentSalary,
+                    IsActive = u.IsActive,
+                    CreatedAt = u.CreatedAt,
+                    LastLoginAt = u.LastLoginAt,
+                    IsPlatformAdmin = u.IsPlatformAdmin,
+                    TenantId = u.TenantId
+                }).ToList();
 
                 var roles = await _tenantContext.Roles.ToListAsync();
                 var roleMap = await _roleResolver.ResolveUsersRolesAsync(users, tenantId);
@@ -197,7 +231,7 @@ namespace Aquora.API.Controllers
                 var firstName = parts.Length > 0 ? parts[0] : string.Empty;
                 var lastName = parts.Length > 1 ? parts[1] : string.Empty;
 
-                // Password/PIN hashing
+                // Secure one-way password/PIN hashing
                 var hash = _passwordHasher.HashPassword(request.PasswordOrPin);
 
                 var newUser = new User
@@ -437,7 +471,7 @@ namespace Aquora.API.Controllers
                     return Failure<EmployeeDto>($"Role Code '{request.RoleCode}' is invalid.", "Validation Error");
                 }
 
-                // If new PIN is provided, securely update both PasswordHash and PinHash
+                // If new PIN is provided, securely update one-way password/PIN hash
                 if (!string.IsNullOrWhiteSpace(request.Pin))
                 {
                     var pinTrimmed = request.Pin.Trim();
@@ -661,8 +695,13 @@ namespace Aquora.API.Controllers
 
                 if (!VerifySecurityPin(tenantId, adminPin))
                 {
-                    await LogSecurityAuditAsync(tenantId, "InvalidPin", request.EmployeeId.ToString(), "Invalid Admin PIN attempt during password reset.");
+                    await LogSecurityAuditAsync(tenantId, "InvalidPin", request.EmployeeId.ToString(), "Invalid Admin PIN attempt during employee password reset.");
                     return BadRequest(ApiResponse<bool>.CreateFailure("Invalid admin PIN.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                if (string.IsNullOrWhiteSpace(request.PasswordOrPin) || request.PasswordOrPin.Trim().Length < 8)
+                {
+                    return BadRequest(ApiResponse<bool>.CreateFailure("New password must be at least 8 characters.", "Validation Error", HttpContext.TraceIdentifier));
                 }
 
                 var user = await _platformContext.Users
@@ -670,26 +709,29 @@ namespace Aquora.API.Controllers
 
                 if (user == null)
                 {
-                    return NotFound(ApiResponse<bool>.CreateFailure("Employee not found.", "Not Found", HttpContext.TraceIdentifier));
+                    return NotFound(ApiResponse<bool>.CreateFailure("Employee not found in your organization.", "Not Found", HttpContext.TraceIdentifier));
                 }
 
                 var oldValuesJson = System.Text.Json.JsonSerializer.Serialize(new {
-                    user.PasswordHash,
-                    user.PinHash
+                    user.Username,
+                    user.Email,
+                    user.Department
                 });
 
-                var hash = _passwordHasher.HashPassword(request.PasswordOrPin);
+                // Secure one-way hash computation
+                var hash = _passwordHasher.HashPassword(request.PasswordOrPin.Trim());
                 user.PasswordHash = hash;
                 user.PinHash = hash;
 
-                var encryptedPassword = EncryptPassword(request.PasswordOrPin);
-                var secrets = GetEmployeeSecrets(tenantId);
-                secrets[user.Id] = encryptedPassword;
-                SaveEmployeeSecrets(tenantId, secrets);
+                // Invalidate existing sessions / refresh tokens
+                user.TokenVersion++;
+                user.RefreshToken = null;
+                user.RefreshTokenExpiryTime = null;
 
                 await _platformContext.SaveChangesAsync();
 
-                await LogSecurityAuditAsync(tenantId, "UpdatePassword", user.Id.ToString(), $"Updated employee password for: {user.Username ?? user.Email}");
+                // Safe audit event with no credentials or secrets logged
+                await LogSecurityAuditAsync(tenantId, "ResetPassword", user.Id.ToString(), $"Employee password reset by administrator for: {user.Username ?? user.Email}");
 
                 try
                 {
@@ -704,12 +746,12 @@ namespace Aquora.API.Controllers
                         PrimaryKey = user.Id.ToString(),
                         OldValues = oldValuesJson,
                         NewValues = System.Text.Json.JsonSerializer.Serialize(new {
-                            PasswordHash = hash,
-                            PinHash = hash
+                            Action = "PasswordReset",
+                            Timestamp = DateTime.UtcNow
                         }),
                         Timestamp = DateTime.UtcNow,
                         IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
-                        Reason = "Password/PIN reset",
+                        Reason = "Employee password reset",
                         Module = "User Management"
                     };
                     _platformContext.PlatformAuditLogs.Add(auditLog);
@@ -720,7 +762,7 @@ namespace Aquora.API.Controllers
                     Console.WriteLine($"[AUDIT LOG FAILURE - NON-BLOCKING]: Failed to write employee reset password platform audit: {ex.Message}");
                 }
 
-                return Success(true, "Password and PIN reset successfully.");
+                return Success(true, "Employee password updated successfully.");
             }
             catch (Exception ex)
             {
@@ -813,49 +855,6 @@ namespace Aquora.API.Controllers
             }
         }
 
-        [HttpPost("reveal-password")]
-        public async Task<ActionResult<ApiResponse<string>>> RevealPassword([FromBody] RevealPasswordRequest request)
-        {
-            try
-            {
-                var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value.ToUpperInvariant()).ToList();
-                if (!roles.Contains("COMPANYADMIN") && !roles.Contains("ACCOUNTANT") && !roles.Contains("SUPERADMIN") && !roles.Contains("PLATFORMADMIN"))
-                {
-                    return StatusCode(403, ApiResponse<string>.CreateFailure("Only Company Admin or Accountant can view employee passwords.", "Forbidden", HttpContext.TraceIdentifier));
-                }
-
-                var tenantId = GetTenantId();
-                var adminPin = request.ResolvedAdminPin;
-
-                if (string.IsNullOrWhiteSpace(adminPin))
-                {
-                    return BadRequest(ApiResponse<string>.CreateFailure("Admin PIN is required.", "Validation Error", HttpContext.TraceIdentifier));
-                }
-
-                if (!VerifySecurityPin(tenantId, adminPin))
-                {
-                    await LogSecurityAuditAsync(tenantId, "InvalidPin", request.EmployeeId.ToString(), "Invalid Admin PIN attempt during password view.");
-                    return BadRequest(ApiResponse<string>.CreateFailure("Invalid admin PIN.", "Validation Error", HttpContext.TraceIdentifier));
-                }
-
-                var secrets = GetEmployeeSecrets(tenantId);
-                if (!secrets.TryGetValue(request.EmployeeId, out var encryptedPassword))
-                {
-                    return NotFound(ApiResponse<string>.CreateFailure("Encrypted password not found for this employee.", "Not Found", HttpContext.TraceIdentifier));
-                }
-
-                var decrypted = DecryptPassword(encryptedPassword);
-
-                await LogSecurityAuditAsync(tenantId, "ViewPassword", request.EmployeeId.ToString(), "Viewed employee password.");
-
-                return Success(decrypted, "Password decrypted successfully.");
-            }
-            catch (Exception ex)
-            {
-                return Failure<string>(ex.Message, "Failed to reveal password.");
-            }
-        }
-
         private string GetSecurityPinFilePath(Guid tenantId)
         {
             var dir = System.IO.Path.Combine(AppContext.BaseDirectory, "settings");
@@ -864,16 +863,6 @@ namespace Aquora.API.Controllers
                 System.IO.Directory.CreateDirectory(dir);
             }
             return System.IO.Path.Combine(dir, $"security-settings-{tenantId}.json");
-        }
-
-        private string GetEmployeeSecretsFilePath(Guid tenantId)
-        {
-            var dir = System.IO.Path.Combine(AppContext.BaseDirectory, "settings");
-            if (!System.IO.Directory.Exists(dir))
-            {
-                System.IO.Directory.CreateDirectory(dir);
-            }
-            return System.IO.Path.Combine(dir, $"employee-secrets-{tenantId}.json");
         }
 
         private string? GetSecurityPinHash(Guid tenantId)
@@ -915,58 +904,6 @@ namespace Aquora.API.Controllers
             var path = GetSecurityPinFilePath(tenantId);
             var dict = new Dictionary<string, string> { { "SecretPinHash", pinHash } };
             var json = System.Text.Json.JsonSerializer.Serialize(dict);
-            System.IO.File.WriteAllText(path, json);
-        }
-
-        private static readonly byte[] AesKey = System.Text.Encoding.UTF8.GetBytes("AquoraSuperSecretKeyPlaceholder123").Take(32).ToArray();
-        private static readonly byte[] AesIv = System.Text.Encoding.UTF8.GetBytes("AquoraIVPlh12345").Take(16).ToArray();
-
-        private string EncryptPassword(string plainText)
-        {
-            using var aes = System.Security.Cryptography.Aes.Create();
-            aes.Key = AesKey;
-            aes.IV = AesIv;
-            using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
-            using var ms = new System.IO.MemoryStream();
-            using (var cs = new System.Security.Cryptography.CryptoStream(ms, encryptor, System.Security.Cryptography.CryptoStreamMode.Write))
-            using (var sw = new System.IO.StreamWriter(cs))
-            {
-                sw.Write(plainText);
-            }
-            return Convert.ToBase64String(ms.ToArray());
-        }
-
-        private string DecryptPassword(string cipherText)
-        {
-            using var aes = System.Security.Cryptography.Aes.Create();
-            aes.Key = AesKey;
-            aes.IV = AesIv;
-            using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
-            using var ms = new System.IO.MemoryStream(Convert.FromBase64String(cipherText));
-            using var cs = new System.Security.Cryptography.CryptoStream(ms, decryptor, System.Security.Cryptography.CryptoStreamMode.Read);
-            using var sr = new System.IO.StreamReader(cs);
-            return sr.ReadToEnd();
-        }
-
-        private Dictionary<Guid, string> GetEmployeeSecrets(Guid tenantId)
-        {
-            var path = GetEmployeeSecretsFilePath(tenantId);
-            if (!System.IO.File.Exists(path)) return new Dictionary<Guid, string>();
-            try
-            {
-                var json = System.IO.File.ReadAllText(path);
-                return System.Text.Json.JsonSerializer.Deserialize<Dictionary<Guid, string>>(json) ?? new Dictionary<Guid, string>();
-            }
-            catch
-            {
-                return new Dictionary<Guid, string>();
-            }
-        }
-
-        private void SaveEmployeeSecrets(Guid tenantId, Dictionary<Guid, string> secrets)
-        {
-            var path = GetEmployeeSecretsFilePath(tenantId);
-            var json = System.Text.Json.JsonSerializer.Serialize(secrets);
             System.IO.File.WriteAllText(path, json);
         }
 

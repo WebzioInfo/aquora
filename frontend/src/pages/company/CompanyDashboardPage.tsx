@@ -19,7 +19,7 @@ import { salesService } from '../../services/sales'
 import { ProductionShiftsManager } from './ProductionShiftsManager'
 import {
   Factory, ShieldCheck, Wrench, CheckCircle,
-  ArrowUpRight, ArrowDownRight, CloudSun, Play, Search, Plus, Eye, Key, Trash2, Edit2, ToggleLeft, ToggleRight,
+  ArrowUpRight, ArrowDownRight, CloudSun, Play, Search, Plus, Eye, EyeOff, Key, Trash2, Edit2, ToggleLeft, ToggleRight,
   Pause, ExternalLink, Clock, Users, TrendingUp, Package, Settings, X,
   AlertTriangle, Activity, ChevronDown, Droplets, Beaker, Truck, Receipt,
   ClipboardCheck, FileText, UserCheck, BarChart3, Zap, Box, Shield, Calendar
@@ -979,9 +979,6 @@ export const CompanyDashboardPage: React.FC = () => {
   // PIN Verification and custom credential protection states
   const [isPinVerifyModalOpen, setIsPinVerifyModalOpen] = useState(false)
   const [pinVerifyValue, setPinVerifyValue] = useState('')
-  const [pinVerifyAction, setPinVerifyAction] = useState<'view' | 'change'>('view')
-  const [decryptedPassword, setDecryptedPassword] = useState<string | null>(null)
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false)
   const [isPinVerifying, setIsPinVerifying] = useState(false)
   const [verifiedPinForChange, setVerifiedPinForChange] = useState('')
 
@@ -990,6 +987,9 @@ export const CompanyDashboardPage: React.FC = () => {
   const [newPasswordVal, setNewPasswordVal] = useState('')
   const [confirmPasswordVal, setConfirmPasswordVal] = useState('')
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false)
+  const [isGeneratingPassword, setIsGeneratingPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   // Production lines state
   const [productionTab, setProductionTab] = useState<'batches' | 'lines'>('batches')
@@ -1287,48 +1287,69 @@ export const CompanyDashboardPage: React.FC = () => {
     }
     setIsPinVerifying(true)
     try {
-      if (pinVerifyAction === 'view') {
-        const response = await api.post('/api/v1/employees/reveal-password', {
-          employeeId: selectedEmployeeForView.id,
-          adminPin: pinVerifyValue,
-          pin: pinVerifyValue
-        })
-        if (response.data.success) {
-          setDecryptedPassword(response.data.data)
-          setIsPasswordVisible(true)
-          showToast('Password decrypted successfully.', 'success')
-          setIsPinVerifyModalOpen(false)
-          setPinVerifyValue('')
-
-          // Auto hide after 30 seconds
-          setTimeout(() => {
-            setIsPasswordVisible(false)
-            setDecryptedPassword(null)
-          }, 30000)
-        } else {
-          showToast(response.data.message || 'Invalid admin PIN.', 'error')
-        }
+      const response = await api.post('/api/v1/employees/security-pin/verify', {
+        adminPin: pinVerifyValue,
+        pin: pinVerifyValue
+      })
+      if (response.data.success && response.data.data === true) {
+        setVerifiedPinForChange(pinVerifyValue)
+        setIsPinVerifyModalOpen(false)
+        setPinVerifyValue('')
+        setNewPasswordVal('')
+        setConfirmPasswordVal('')
+        setShowNewPassword(false)
+        setShowConfirmPassword(false)
+        setIsChangePasswordModalOpen(true)
       } else {
-        const response = await api.post('/api/v1/employees/security-pin/verify', {
-          adminPin: pinVerifyValue,
-          pin: pinVerifyValue
-        })
-        if (response.data.success && response.data.data === true) {
-          setVerifiedPinForChange(pinVerifyValue)
-          setIsPinVerifyModalOpen(false)
-          setPinVerifyValue('')
-          setNewPasswordVal('')
-          setConfirmPasswordVal('')
-          setIsChangePasswordModalOpen(true)
-        } else {
-          showToast(response.data.message || 'Invalid admin PIN.', 'error')
-        }
+        showToast(response.data.message || 'Invalid admin PIN.', 'error')
       }
     } catch (err: any) {
       const msg = err.response?.data?.errors?.[0] || err.response?.data?.message || 'Invalid admin PIN.'
       showToast(msg, 'error')
     } finally {
       setIsPinVerifying(false)
+    }
+  }
+
+  const handleGenerateStrongPassword = () => {
+    setIsGeneratingPassword(true)
+    try {
+      const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+      const lowercase = 'abcdefghijklmnopqrstuvwxyz'
+      const numbers = '0123456789'
+      const symbols = '!@#$%^&*()_+-='
+      const allChars = uppercase + lowercase + numbers + symbols
+
+      const getRandomChar = (str: string) => {
+        const array = new Uint32Array(1)
+        crypto.getRandomValues(array)
+        return str[array[0] % str.length]
+      }
+
+      let pass = getRandomChar(uppercase) + getRandomChar(lowercase) + getRandomChar(numbers) + getRandomChar(symbols)
+
+      for (let i = 0; i < 10; i++) {
+        pass += getRandomChar(allChars)
+      }
+
+      const passArray = pass.split('')
+      for (let i = passArray.length - 1; i > 0; i--) {
+        const randArr = new Uint32Array(1)
+        crypto.getRandomValues(randArr)
+        const j = randArr[0] % (i + 1)
+        const temp = passArray[i]
+        passArray[i] = passArray[j]
+        passArray[j] = temp
+      }
+      const finalPass = passArray.join('')
+
+      setNewPasswordVal(finalPass)
+      setConfirmPasswordVal(finalPass)
+      setShowNewPassword(true)
+      setShowConfirmPassword(true)
+      showToast('Strong password generated.', 'success')
+    } finally {
+      setTimeout(() => setIsGeneratingPassword(false), 200)
     }
   }
 
@@ -1351,10 +1372,11 @@ export const CompanyDashboardPage: React.FC = () => {
       const response = await api.put('/api/v1/employees/reset-password', {
         employeeId: selectedEmployeeForView.id,
         passwordOrPin: newPasswordVal,
-        pin: verifiedPinForChange
+        pin: verifiedPinForChange,
+        adminPin: verifiedPinForChange
       })
       if (response.data.success) {
-        showToast('Password updated successfully.', 'success')
+        showToast('Employee password updated successfully.', 'success')
         setIsChangePasswordModalOpen(false)
         setVerifiedPinForChange('')
         setNewPasswordVal('')
@@ -1363,7 +1385,7 @@ export const CompanyDashboardPage: React.FC = () => {
         showToast(response.data.message || 'Failed to update password.', 'error')
       }
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Failed to update password.'
+      const msg = err.response?.data?.errors?.[0] || err.response?.data?.message || 'Failed to update password.'
       showToast(msg, 'error')
     } finally {
       setIsUpdatingPassword(false)
@@ -3516,63 +3538,23 @@ export const CompanyDashboardPage: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Password */}
-                    <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[10px] p-[14px] flex flex-col gap-1.5">
-                      <span className="text-[12px] font-medium text-[#6B7280] leading-none">Password</span>
-                      <div className="flex items-center justify-between gap-2 h-7">
-                        <span className="text-[15px] font-semibold text-[#111827] font-mono leading-tight">
-                          {isPasswordVisible && decryptedPassword ? decryptedPassword : '••••••••••'}
-                        </span>
-                        {isPasswordVisible && decryptedPassword && (
-                          <div className="flex gap-2 shrink-0">
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(decryptedPassword);
-                                showToast('Password copied to clipboard.', 'success');
-                              }}
-                              className="px-2.5 py-1 text-xs font-semibold text-[#2563EB] hover:bg-[#EFF4FF] rounded-[8px] cursor-pointer transition-colors"
-                            >
-                              Copy
-                            </button>
-                            <button
-                              onClick={() => {
-                                setIsPasswordVisible(false);
-                                setDecryptedPassword(null);
-                              }}
-                              className="px-2.5 py-1 text-xs font-semibold text-[#6B7280] hover:bg-[#F3F4F6] rounded-[8px] cursor-pointer transition-colors"
-                            >
-                              Hide
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Admin Actions */}
+                    {/* Security & Password Reset Action */}
                     {isCompanyAdmin && (
-                      <div className="md:col-span-2 flex gap-3 mt-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPinVerifyAction('view');
-                            setPinVerifyValue('');
-                            setIsPinVerifyModalOpen(true);
-                          }}
-                          className="px-4 py-2 text-xs font-semibold bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-[8px] cursor-pointer transition-colors flex-1"
-                        >
-                          View Password
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPinVerifyAction('change');
-                            setPinVerifyValue('');
-                            setIsPinVerifyModalOpen(true);
-                          }}
-                          className="px-4 py-2 text-xs font-semibold border border-[#D1D5DB] text-[#374151] hover:bg-[#F9FAFB] rounded-[8px] cursor-pointer transition-colors flex-1"
-                        >
-                          Change Password
-                        </button>
+                      <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[10px] p-[14px] flex flex-col justify-between gap-1.5">
+                        <span className="text-[12px] font-medium text-[#6B7280] leading-none">Security</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[13px] text-slate-600 font-medium">Password</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPinVerifyValue('');
+                              setIsPinVerifyModalOpen(true);
+                            }}
+                            className="px-3.5 py-1.5 text-xs font-semibold bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-[8px] cursor-pointer transition-colors"
+                          >
+                            Change Password
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -3633,47 +3615,59 @@ export const CompanyDashboardPage: React.FC = () => {
         >
           <form onSubmit={handleUpdatePasswordSubmit} className="flex flex-col gap-4">
             <p className="text-[11px] text-[#6B7280]">
-              Enter a new secure password for the employee account. Minimum 8 characters required.
+              Set a new secure password for <strong className="text-slate-800">{selectedEmployeeForView?.fullName ?? 'this employee'}</strong>. Minimum 8 characters required.
             </p>
-            <EnterpriseInput
-              label="New Password"
-              type="password"
-              placeholder="Enter new password"
-              value={newPasswordVal}
-              onChange={(e) => setNewPasswordVal(e.target.value)}
-              required
-            />
-            <EnterpriseInput
-              label="Confirm Password"
-              type="password"
-              placeholder="Confirm new password"
-              value={confirmPasswordVal}
-              onChange={(e) => setConfirmPasswordVal(e.target.value)}
-              required
-            />
-            <div className="flex justify-between items-center mt-4">
+            <div className="relative">
+              <EnterpriseInput
+                label="New Password *"
+                type={showNewPassword ? 'text' : 'password'}
+                placeholder="Enter new password"
+                value={newPasswordVal}
+                onChange={(e) => setNewPasswordVal(e.target.value)}
+                required
+              />
               <button
                 type="button"
-                onClick={() => {
-                  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
-                  let pass = ''
-                  for (let i = 0; i < 12; i++) {
-                    pass += chars.charAt(Math.floor(Math.random() * chars.length))
-                  }
-                  setNewPasswordVal(pass)
-                  setConfirmPasswordVal(pass)
-                  showToast('Secure password generated.', 'success')
-                }}
-                className="px-3 py-1.5 text-xs font-semibold text-[#2563EB] hover:bg-[#EFF4FF] rounded-[8px] cursor-pointer transition-colors"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                className="absolute right-3 top-8 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                title={showNewPassword ? 'Hide password' : 'Show password'}
               >
-                Generate Password
+                {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <div className="relative">
+              <EnterpriseInput
+                label="Confirm Password *"
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="Confirm new password"
+                value={confirmPasswordVal}
+                onChange={(e) => setConfirmPasswordVal(e.target.value)}
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-8 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                title={showConfirmPassword ? 'Hide password' : 'Show password'}
+              >
+                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <div className="flex justify-between items-center mt-3 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={handleGenerateStrongPassword}
+                disabled={isGeneratingPassword}
+                className="px-3 py-1.5 text-xs font-semibold text-[#2563EB] hover:bg-[#EFF4FF] disabled:opacity-50 rounded-[8px] cursor-pointer transition-colors"
+              >
+                {isGeneratingPassword ? 'Generating...' : 'Generate Password'}
               </button>
               <div className="flex gap-2">
                 <EnterpriseButton type="button" onClick={() => setIsChangePasswordModalOpen(false)} variant="secondary">
                   Cancel
                 </EnterpriseButton>
-                <EnterpriseButton type="submit" loading={isUpdatingPassword}>
-                  Update Password
+                <EnterpriseButton type="submit" loading={isUpdatingPassword} disabled={isUpdatingPassword}>
+                  {isUpdatingPassword ? 'Updating Password...' : 'Update Password'}
                 </EnterpriseButton>
               </div>
             </div>

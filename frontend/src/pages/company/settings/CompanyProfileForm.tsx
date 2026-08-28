@@ -133,21 +133,21 @@ export const CompanyProfileForm: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            {/* <div className="flex items-center gap-3">
               <Layers className="w-4 h-4 text-slate-400 shrink-0" />
               <div>
                 <span className="block text-[10px] text-slate-400 font-medium">TENANT ID</span>
                 <span className="block font-mono text-slate-700 select-all">{profile?.tenantId || 'N/A'}</span>
               </div>
-            </div>
+            </div> */}
 
-            <div className="flex items-center gap-3">
+            {/* <div className="flex items-center gap-3">
               <Database className="w-4 h-4 text-slate-400 shrink-0" />
               <div>
                 <span className="block text-[10px] text-slate-400 font-medium">SCHEMA NAME</span>
                 <span className="block font-mono text-slate-700">{profile?.schemaName || 'public'}</span>
               </div>
-            </div>
+            </div> */}
 
             <div className="flex items-center gap-3">
               <ShieldCheck className="w-4 h-4 text-slate-400 shrink-0" />
