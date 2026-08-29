@@ -1,4 +1,4 @@
-import { api } from '../api';
+import { api, getDeduplicated } from '../api';
 
 export interface WaterTestParameter {
     id: string;
@@ -17,6 +17,10 @@ export interface WaterTestResult {
     parameterName: string;
     parameterCategory: string;
     parameterUnit: string;
+    minWarning?: number | null;
+    minAcceptable?: number | null;
+    maxAcceptable?: number | null;
+    maxWarning?: number | null;
     value?: number | null;
     stringValue?: string | null;
     isPass: boolean;
@@ -145,7 +149,7 @@ export const waterTestApi = {
     getDashboard: () => api.get<WaterTestDashboard>('/api/v1/qc/water-test/dashboard'),
     
     getReports: (params: { pageNumber?: number; pageSize?: number; search?: string; type?: string; status?: string; startDate?: string; endDate?: string }) => 
-        api.get<PagedResult<WaterTestReport>>('/api/v1/qc/water-test/reports', { params }),
+        getDeduplicated<PagedResult<WaterTestReport>>('/api/v1/qc/water-test/reports', { params }),
     
     getReportById: (id: string) => api.get<WaterTestReport>(`/api/v1/qc/water-test/reports/${id}`),
     

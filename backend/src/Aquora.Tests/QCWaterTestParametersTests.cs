@@ -568,5 +568,201 @@ namespace Aquora.Tests
             Assert.Equal(200, flexibleCreated.MinWarning);
             Assert.Equal(100, flexibleCreated.MinAcceptable);
         }
+
+        [Fact]
+        public async Task WaterTestService_GetWaterTestReports_ShouldHandleNullFieldsAndPaginationGracefully()
+        {
+            var tenantId = Guid.NewGuid();
+            var companyId = Guid.NewGuid();
+            using var tenantContext = CreateInMemoryTenantContext(tenantId);
+            using var platformContext = new PlatformDbContext(new DbContextOptionsBuilder<PlatformDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+
+            var company = new Company
+            {
+                Id = companyId,
+                TenantId = tenantId,
+                Name = "Aqua Test Co",
+                Code = "ATC",
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = "System"
+            };
+            tenantContext.Companies.Add(company);
+
+            // Add report with null/empty fields
+            var report1 = new WaterTestReport
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                BatchNumber = "BATCH-2026-001",
+                SampleNumber = "SMPL-001",
+                ReportType = "DAILY",
+                Status = "PASS",
+                SampleTime = DateTime.UtcNow.AddHours(-2),
+                TestedBy = "Analyst John",
+                CreatedBy = "UserA",
+                CreatedAt = DateTime.UtcNow.AddHours(-2),
+                IsDeleted = false
+            };
+
+            var report2 = new WaterTestReport
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                BatchNumber = "BATCH-2026-002",
+                SampleNumber = null,
+                ReportType = "WEEKLY",
+                Status = "WARNING",
+                SampleTime = DateTime.UtcNow.AddHours(-1),
+                TestedBy = null,
+                CreatedBy = "", // empty string creator
+                CreatedAt = DateTime.UtcNow.AddHours(-1),
+                IsDeleted = false
+            };
+
+            tenantContext.WaterTestReports.AddRange(report1, report2);
+            await tenantContext.SaveChangesAsync();
+
+            var mockTenantProvider = new Mock<ITenantProvider>();
+            mockTenantProvider.Setup(p => p.TenantId).Returns(tenantId);
+            mockTenantProvider.Setup(p => p.TenantSchemaName).Returns("tenant_test");
+
+            var mockCurrentUser = new Mock<ICurrentUserContext>();
+            mockCurrentUser.Setup(c => c.TenantId).Returns(tenantId);
+            mockCurrentUser.Setup(c => c.UserId).Returns("UserA");
+
+            var service = new WaterTestService(
+                tenantContext,
+                platformContext,
+                mockTenantProvider.Object,
+                mockCurrentUser.Object,
+                new QualityEvaluationService(),
+                new Mock<IQCPdfCertificateService>().Object,
+                new Mock<ILogger<WaterTestService>>().Object
+            );
+
+            // 1. Zero filters query
+            var result = await service.GetWaterTestReportsAsync(1, 10, null, null, null, null, null);
+            Assert.NotNull(result);
+            Assert.Equal(2, result.TotalCount);
+            Assert.Equal(2, result.Items.Count);
+
+            // 2. Boundary safety (pageNumber = 0, pageSize = -5)
+            var boundedResult = await service.GetWaterTestReportsAsync(0, -5, null, null, null, null, null);
+            Assert.NotNull(boundedResult);
+            Assert.Equal(2, boundedResult.TotalCount);
+
+            // 3. Search filter by Batch
+            var searchResult = await service.GetWaterTestReportsAsync(1, 10, "BATCH-2026-001", null, null, null, null);
+            Assert.Single(searchResult.Items);
+            Assert.Equal("BATCH-2026-001", searchResult.Items[0].BatchNumber);
+
+            // 4. Report Type filter
+            var typeResult = await service.GetWaterTestReportsAsync(1, 10, null, "WEEKLY", null, null, null);
+            Assert.Single(typeResult.Items);
+            Assert.Equal("BATCH-2026-002", typeResult.Items[0].BatchNumber);
+
+            // 5. Status filter
+            var statusResult = await service.GetWaterTestReportsAsync(1, 10, null, null, "PASS", null, null);
+            Assert.Single(statusResult.Items);
+            Assert.Equal("BATCH-2026-001", statusResult.Items[0].BatchNumber);
+        }
+
+        [Fact]
+        public async Task QCPdfCertificateService_ShouldGenerateValidPdfBinaryWithPdfSignature()
+        {
+            var pdfService = new QCPdfCertificateService();
+            var report = new WaterTestReport
+            {
+                Id = Guid.NewGuid(),
+                BatchNumber = "BATCH-2026-099",
+                SampleNumber = "F201F54D",
+                ReportType = "DAILY",
+                Status = "PASS",
+                SampleTime = DateTime.UtcNow,
+                TestedBy = "Senior Chemist John Doe",
+                VerifiedBy = "Quality Assurance Manager Jane Smith",
+                Remarks = "Water quality meets all BIS IS 14543 parameters with zero microbiological growth.",
+                Results = new List<WaterTestResult>
+                {
+                    new WaterTestResult
+                    {
+                        Id = Guid.NewGuid(),
+                        Value = 7.15,
+                        IsPass = true,
+                        QualityStatus = "PASS",
+                        Parameter = new WaterTestParameter
+                        {
+                            Id = Guid.NewGuid(),
+                            Name = "pH",
+                            Category = "CHEMICAL",
+                            Unit = "—",
+                            MinAcceptable = 6.5,
+                            MaxAcceptable = 8.5
+                        }
+                    },
+                    new WaterTestResult
+                    {
+                        Id = Guid.NewGuid(),
+                        Value = 42.5,
+                        IsPass = true,
+                        QualityStatus = "PASS",
+                        Parameter = new WaterTestParameter
+                        {
+                            Id = Guid.NewGuid(),
+                            Name = "TDS",
+                            Category = "PHYSICAL",
+                            Unit = "ppm",
+                            MaxAcceptable = 500
+                        }
+                    },
+                    new WaterTestResult
+                    {
+                        Id = Guid.NewGuid(),
+                        StringValue = "Absent",
+                        IsPass = true,
+                        QualityStatus = "PASS",
+                        Parameter = new WaterTestParameter
+                        {
+                            Id = Guid.NewGuid(),
+                            Name = "E.coli",
+                            Category = "MICROBIOLOGY",
+                            Unit = "MPN/100ml"
+                        }
+                    },
+                    new WaterTestResult
+                    {
+                        Id = Guid.NewGuid(),
+                        StringValue = "0",
+                        IsPass = true,
+                        QualityStatus = "PASS",
+                        Parameter = new WaterTestParameter
+                        {
+                            Id = Guid.NewGuid(),
+                            Name = "Aerobic Microbial Count 22°C",
+                            Category = "MICROBIOLOGY",
+                            Unit = "CFU/ml"
+                        }
+                    }
+                }
+            };
+
+            var pdfBytes = await pdfService.GenerateCertificatePdfAsync(report, "AQUZIO PURIFIED WATER CO.");
+
+            Assert.NotNull(pdfBytes);
+            Assert.True(pdfBytes.Length > 200, "PDF byte array must contain substantial binary data.");
+
+            string pdfString = System.Text.Encoding.ASCII.GetString(pdfBytes);
+
+            // Phase 3 Acceptance: Verify PDF magic bytes signature '%PDF-'
+            Assert.StartsWith("%PDF-", pdfString);
+            Assert.Contains("%%EOF", pdfString);
+            Assert.Contains("/Type /Catalog", pdfString);
+            Assert.Contains("WATER TEST REPORT", pdfString);
+            Assert.Contains("F201F54D", pdfString);
+            Assert.Contains("pH", pdfString);
+            Assert.Contains("TDS", pdfString);
+        }
     }
 }

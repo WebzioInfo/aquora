@@ -368,11 +368,27 @@ namespace Aquora.Persistence.Services
                                          ALTER TABLE ""{tenant.SchemaName}"".""SalaryPayments"" ADD COLUMN IF NOT EXISTS ""PaymentType"" text NOT NULL DEFAULT 'Salary Settlement';
                                          ALTER TABLE ""{tenant.SchemaName}"".""SalaryPayments"" ADD COLUMN IF NOT EXISTS ""Amount"" numeric NOT NULL DEFAULT 0.0;
                                          UPDATE ""{tenant.SchemaName}"".""SalaryPayments"" SET ""Amount"" = ""NetSalary"" WHERE (""Amount"" IS NULL OR ""Amount"" = 0.0) AND ""NetSalary"" > 0.0;
-                                         ALTER TABLE ""{tenant.SchemaName}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""ConcurrencyToken"" text NULL;
-                                         UPDATE ""{tenant.SchemaName}"".""WaterTestReports"" SET ""ConcurrencyToken"" = md5(random()::text || clock_timestamp()::text) WHERE ""ConcurrencyToken"" IS NULL OR ""ConcurrencyToken"" = '';
-                                         ALTER TABLE ""{tenant.SchemaName}"".""WaterTestReports"" ALTER COLUMN ""ConcurrencyToken"" SET NOT NULL;
-                                         ALTER TABLE ""{tenant.SchemaName}"".""WaterTestReports"" ALTER COLUMN ""ConcurrencyToken"" SET DEFAULT md5(random()::text || clock_timestamp()::text);
-                                         UPDATE ""{tenant.SchemaName}"".""BankLedgerEntries"" SET ""EventType"" = 'CREATED' WHERE ""EventType"" IS NULL OR ""EventType"" = '';
+                                          ALTER TABLE ""{tenant.SchemaName}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""ConcurrencyToken"" text NULL;
+                                          UPDATE ""{tenant.SchemaName}"".""WaterTestReports"" SET ""ConcurrencyToken"" = md5(random()::text || clock_timestamp()::text) WHERE ""ConcurrencyToken"" IS NULL OR ""ConcurrencyToken"" = '';
+                                          ALTER TABLE ""{tenant.SchemaName}"".""WaterTestReports"" ALTER COLUMN ""ConcurrencyToken"" SET NOT NULL;
+                                          ALTER TABLE ""{tenant.SchemaName}"".""WaterTestReports"" ALTER COLUMN ""ConcurrencyToken"" SET DEFAULT md5(random()::text || clock_timestamp()::text);
+                                          ALTER TABLE ""{tenant.SchemaName}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""CreatedByIP"" text NULL;
+                                          ALTER TABLE ""{tenant.SchemaName}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""UpdatedByIP"" text NULL;
+                                          ALTER TABLE ""{tenant.SchemaName}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""DeletedAt"" timestamp with time zone NULL;
+                                          ALTER TABLE ""{tenant.SchemaName}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""DeletedBy"" text NULL;
+
+                                          ALTER TABLE ""{tenant.SchemaName}"".""WaterTestResults"" ADD COLUMN IF NOT EXISTS ""CreatedByIP"" text NULL;
+                                          ALTER TABLE ""{tenant.SchemaName}"".""WaterTestResults"" ADD COLUMN IF NOT EXISTS ""UpdatedByIP"" text NULL;
+                                          ALTER TABLE ""{tenant.SchemaName}"".""WaterTestResults"" ADD COLUMN IF NOT EXISTS ""QualityStatus"" text NOT NULL DEFAULT 'PASS';
+
+                                          ALTER TABLE ""{tenant.SchemaName}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MinWarning"" double precision NULL;
+                                          ALTER TABLE ""{tenant.SchemaName}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MaxWarning"" double precision NULL;
+                                          ALTER TABLE ""{tenant.SchemaName}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MinAcceptable"" double precision NULL;
+                                          ALTER TABLE ""{tenant.SchemaName}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MaxAcceptable"" double precision NULL;
+                                          ALTER TABLE ""{tenant.SchemaName}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""CreatedByIP"" text NULL;
+                                          ALTER TABLE ""{tenant.SchemaName}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""UpdatedByIP"" text NULL;
+
+                                          UPDATE ""{tenant.SchemaName}"".""BankLedgerEntries"" SET ""EventType"" = 'CREATED' WHERE ""EventType"" IS NULL OR ""EventType"" = '';
 
                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""OperationsIssueAffectedMachines"" (
                                              ""Id"" uuid NOT NULL PRIMARY KEY,
@@ -691,11 +707,17 @@ namespace Aquora.Persistence.Services
                                                 ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                                 ""CreatedBy"" text NOT NULL,
                                                 ""UpdatedAt"" timestamp with time zone NULL,
-                                                ""UpdatedBy"" text NULL
+                                                ""UpdatedBy"" text NULL,
+                                                ""CreatedByIP"" text NULL,
+                                                ""UpdatedByIP"" text NULL
                                             );
 
                                             ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MinWarning"" double precision NULL;
                                             ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MaxWarning"" double precision NULL;
+                                            ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MinAcceptable"" double precision NULL;
+                                            ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MaxAcceptable"" double precision NULL;
+                                            ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""CreatedByIP"" text NULL;
+                                            ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""UpdatedByIP"" text NULL;
 
                                             CREATE TABLE IF NOT EXISTS ""{schema}"".""WaterTestReports"" (
                                                 ""Id"" uuid NOT NULL PRIMARY KEY,
@@ -719,9 +741,15 @@ namespace Aquora.Persistence.Services
                                                 ""CreatedBy"" text NOT NULL,
                                                 ""UpdatedAt"" timestamp with time zone NULL,
                                                 ""UpdatedBy"" text NULL,
+                                                ""CreatedByIP"" text NULL,
+                                                ""UpdatedByIP"" text NULL,
                                                 ""DeletedAt"" timestamp with time zone NULL,
                                                 ""DeletedBy"" text NULL
                                             );
+
+                                            ALTER TABLE ""{schema}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""ConcurrencyToken"" text NULL;
+                                            ALTER TABLE ""{schema}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""CreatedByIP"" text NULL;
+                                            ALTER TABLE ""{schema}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""UpdatedByIP"" text NULL;
 
                                             CREATE TABLE IF NOT EXISTS ""{schema}"".""WaterTestResults"" (
                                                 ""Id"" uuid NOT NULL PRIMARY KEY,
@@ -735,6 +763,8 @@ namespace Aquora.Persistence.Services
                                                 ""CreatedBy"" text NOT NULL,
                                                 ""UpdatedAt"" timestamp with time zone NULL,
                                                 ""UpdatedBy"" text NULL,
+                                                ""CreatedByIP"" text NULL,
+                                                ""UpdatedByIP"" text NULL,
                                                 CONSTRAINT fk_report FOREIGN KEY (""ReportId"") REFERENCES ""{schema}"".""WaterTestReports"" (""Id"") ON DELETE CASCADE,
                                                 CONSTRAINT fk_parameter FOREIGN KEY (""ParameterId"") REFERENCES ""{schema}"".""WaterTestParameters"" (""Id"") ON DELETE RESTRICT
                                             );

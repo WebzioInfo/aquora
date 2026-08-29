@@ -144,7 +144,7 @@ namespace Aquora.API.Controllers
         public async Task<IActionResult> DownloadReportPdf(Guid id)
         {
             var pdfBytes = await _waterTestService.GenerateReportPdfAsync(id);
-            return File(pdfBytes, "application/pdf", $"QC_Certificate_{id.ToString()[..8].ToUpper()}.pdf");
+            return File(pdfBytes, "application/pdf", $"Water_Test_Report_{id.ToString()[..8].ToUpper()}.pdf");
         }
     }
 }

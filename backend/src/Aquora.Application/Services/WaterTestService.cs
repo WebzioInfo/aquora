@@ -48,23 +48,140 @@ namespace Aquora.Application.Services
             return company?.Id ?? Guid.Empty;
         }
 
-        private async Task<Dictionary<string, string>> ResolveUserNamesAsync(IEnumerable<string> userIds)
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _schemaCheckedTenants = new(StringComparer.OrdinalIgnoreCase);
+
+        private async Task EnsureQCSchemaAsync()
+        {
+            var schema = _tenantProvider.TenantSchemaName;
+            if (string.IsNullOrWhiteSpace(schema) || schema.Equals("public", StringComparison.OrdinalIgnoreCase)) return;
+
+            if (_schemaCheckedTenants.TryGetValue(schema, out var checkedOk) && checkedOk)
+            {
+                return;
+            }
+
+            try
+            {
+                var sql = $@"
+                    CREATE TABLE IF NOT EXISTS ""{schema}"".""WaterTestParameters"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""Name"" text NOT NULL,
+                        ""Category"" text NOT NULL,
+                        ""Unit"" text NOT NULL,
+                        ""MinWarning"" double precision NULL,
+                        ""MinAcceptable"" double precision NULL,
+                        ""MaxAcceptable"" double precision NULL,
+                        ""MaxWarning"" double precision NULL,
+                        ""IsActive"" boolean NOT NULL DEFAULT true,
+                        ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                        ""UpdatedAt"" timestamp with time zone NULL,
+                        ""UpdatedBy"" text NULL,
+                        ""CreatedByIP"" text NULL,
+                        ""UpdatedByIP"" text NULL
+                    );
+
+                    ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MinWarning"" double precision NULL;
+                    ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MaxWarning"" double precision NULL;
+                    ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MinAcceptable"" double precision NULL;
+                    ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MaxAcceptable"" double precision NULL;
+                    ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""CreatedByIP"" text NULL;
+                    ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""UpdatedByIP"" text NULL;
+
+                    CREATE TABLE IF NOT EXISTS ""{schema}"".""WaterTestReports"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""TenantId"" uuid NOT NULL,
+                        ""CompanyId"" uuid NOT NULL,
+                        ""BatchNumber"" text NOT NULL,
+                        ""SampleNumber"" text NULL,
+                        ""ProductionDate"" timestamp with time zone NULL,
+                        ""ReportType"" text NOT NULL DEFAULT 'DAILY',
+                        ""Status"" text NOT NULL DEFAULT 'DRAFT',
+                        ""SampleTime"" timestamp with time zone NULL,
+                        ""TestedBy"" text NULL,
+                        ""CollectedBy"" text NULL,
+                        ""VerifiedBy"" text NULL,
+                        ""Remarks"" text NULL,
+                        ""Attachments"" text NULL,
+                        ""ConcurrencyToken"" text NOT NULL DEFAULT md5(random()::text || clock_timestamp()::text),
+                        ""IsActive"" boolean NOT NULL DEFAULT true,
+                        ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                        ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                        ""UpdatedAt"" timestamp with time zone NULL,
+                        ""UpdatedBy"" text NULL,
+                        ""CreatedByIP"" text NULL,
+                        ""UpdatedByIP"" text NULL,
+                        ""DeletedAt"" timestamp with time zone NULL,
+                        ""DeletedBy"" text NULL
+                    );
+
+                    ALTER TABLE ""{schema}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""ConcurrencyToken"" text NULL;
+                    ALTER TABLE ""{schema}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""CreatedByIP"" text NULL;
+                    ALTER TABLE ""{schema}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""UpdatedByIP"" text NULL;
+                    ALTER TABLE ""{schema}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""DeletedAt"" timestamp with time zone NULL;
+                    ALTER TABLE ""{schema}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""DeletedBy"" text NULL;
+
+                    CREATE TABLE IF NOT EXISTS ""{schema}"".""WaterTestResults"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""ReportId"" uuid NOT NULL,
+                        ""ParameterId"" uuid NOT NULL,
+                        ""Value"" double precision NULL,
+                        ""StringValue"" text NULL,
+                        ""IsPass"" boolean NOT NULL DEFAULT true,
+                        ""QualityStatus"" text NOT NULL DEFAULT 'PASS',
+                        ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                        ""UpdatedAt"" timestamp with time zone NULL,
+                        ""UpdatedBy"" text NULL,
+                        ""CreatedByIP"" text NULL,
+                        ""UpdatedByIP"" text NULL
+                    );
+
+                    ALTER TABLE ""{schema}"".""WaterTestResults"" ADD COLUMN IF NOT EXISTS ""CreatedByIP"" text NULL;
+                    ALTER TABLE ""{schema}"".""WaterTestResults"" ADD COLUMN IF NOT EXISTS ""UpdatedByIP"" text NULL;
+                    ALTER TABLE ""{schema}"".""WaterTestResults"" ADD COLUMN IF NOT EXISTS ""QualityStatus"" text NOT NULL DEFAULT 'PASS';
+                ";
+
+                if (_context is DbContext dbContext)
+                {
+                    await dbContext.Database.ExecuteSqlRawAsync(sql);
+                }
+
+                _schemaCheckedTenants[schema] = true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to self-repair QC schema columns for schema '{Schema}'", schema);
+            }
+        }
+
+        private async Task<Dictionary<string, string>> ResolveUserNamesAsync(IEnumerable<string?> userIds)
         {
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var distinctIds = userIds.Where(id => !string.IsNullOrWhiteSpace(id) && Guid.TryParse(id, out _))
-                                     .Select(Guid.Parse)
-                                     .Distinct()
-                                     .ToList();
-            if (!distinctIds.Any()) return map;
-
-            var users = await _platformContext.Users
-                .Where(u => distinctIds.Contains(u.Id))
-                .Select(u => new { u.Id, u.FirstName, u.LastName })
-                .ToListAsync();
-
-            foreach (var u in users)
+            try
             {
-                map[u.Id.ToString()] = $"{u.FirstName} {u.LastName}".Trim();
+                var distinctIds = userIds
+                    .Where(id => !string.IsNullOrWhiteSpace(id) && Guid.TryParse(id, out _))
+                    .Select(id => Guid.Parse(id!))
+                    .Distinct()
+                    .ToList();
+                if (!distinctIds.Any()) return map;
+
+                var users = await _platformContext.Users
+                    .Where(u => distinctIds.Contains(u.Id))
+                    .Select(u => new { u.Id, u.FirstName, u.LastName })
+                    .ToListAsync();
+
+                foreach (var u in users)
+                {
+                    var fullName = $"{u.FirstName} {u.LastName}".Trim();
+                    map[u.Id.ToString()] = string.IsNullOrWhiteSpace(fullName) ? "System User" : fullName;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to resolve user names for water test reports.");
             }
 
             return map;
@@ -72,6 +189,7 @@ namespace Aquora.Application.Services
 
         public async Task<List<WaterTestParameterDto>> GetWaterTestParametersAsync()
         {
+            await EnsureQCSchemaAsync();
             var activeParams = await _context.WaterTestParameters.Where(p => p.IsActive).ToListAsync();
 
             // Self-repair safeguard: if parameters are missing from the tenant schema, auto-seed defaults
@@ -122,8 +240,13 @@ namespace Aquora.Application.Services
             DateTime? startDate,
             DateTime? endDate)
         {
+            await EnsureQCSchemaAsync();
             var tenantId = GetTenantId();
+            pageNumber = Math.Max(1, pageNumber);
+            pageSize = pageSize <= 0 ? 15 : Math.Min(100, pageSize);
+
             var query = _context.WaterTestReports
+                .AsNoTracking()
                 .Include(r => r.Results)
                     .ThenInclude(res => res.Parameter)
                 .Where(r => r.TenantId == tenantId && !r.IsDeleted)
@@ -132,15 +255,17 @@ namespace Aquora.Application.Services
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var s = search.Trim().ToLower();
-                query = query.Where(r => r.BatchNumber.ToLower().Contains(s) || (r.SampleNumber != null && r.SampleNumber.ToLower().Contains(s)));
+                query = query.Where(r => (r.BatchNumber != null && r.BatchNumber.ToLower().Contains(s)) 
+                                      || (r.SampleNumber != null && r.SampleNumber.ToLower().Contains(s))
+                                      || (r.TestedBy != null && r.TestedBy.ToLower().Contains(s)));
             }
 
-            if (!string.IsNullOrWhiteSpace(type))
+            if (!string.IsNullOrWhiteSpace(type) && !type.Equals("all", StringComparison.OrdinalIgnoreCase))
             {
                 query = query.Where(r => r.ReportType == type);
             }
 
-            if (!string.IsNullOrWhiteSpace(status))
+            if (!string.IsNullOrWhiteSpace(status) && !status.Equals("all", StringComparison.OrdinalIgnoreCase))
             {
                 query = query.Where(r => r.Status == status);
             }
@@ -157,13 +282,17 @@ namespace Aquora.Application.Services
 
             var totalCount = await query.CountAsync();
             var items = await query
-                .OrderByDescending(r => r.SampleTime)
+                .OrderByDescending(r => r.SampleTime ?? r.CreatedAt)
                 .ThenByDescending(r => r.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 
-            var userIds = items.Select(r => r.CreatedBy).Distinct().ToList();
+            var userIds = items
+                .Select(r => r.CreatedBy)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct()
+                .ToList();
             var userNames = await ResolveUserNamesAsync(userIds);
 
             var dtos = items.Select(r => MapToDto(r, userNames)).ToList();
@@ -173,6 +302,7 @@ namespace Aquora.Application.Services
 
         public async Task<WaterTestReportDto?> GetWaterTestReportByIdAsync(Guid id)
         {
+            await EnsureQCSchemaAsync();
             var tenantId = GetTenantId();
             var report = await _context.WaterTestReports
                 .Include(r => r.Results)
@@ -212,6 +342,7 @@ namespace Aquora.Application.Services
 
         public async Task<WaterTestReportDto> CreateWaterTestReportAsync(CreateWaterTestReportRequest request)
         {
+            await EnsureQCSchemaAsync();
             var tenantId = GetTenantId();
             var companyId = await GetCompanyIdAsync();
             var currentUserId = _currentUserContext.UserId ?? "System";
@@ -281,6 +412,7 @@ namespace Aquora.Application.Services
 
         public async Task<WaterTestReportDto?> UpdateWaterTestReportAsync(Guid id, CreateWaterTestReportRequest request)
         {
+            await EnsureQCSchemaAsync();
             var tenantId = GetTenantId();
             var currentUserId = _currentUserContext.UserId ?? "System";
 
@@ -474,6 +606,7 @@ namespace Aquora.Application.Services
 
         public async Task<WaterTestDashboardDto> GetWaterTestDashboardAsync()
         {
+            await EnsureQCSchemaAsync();
             var tenantId = GetTenantId();
             var reports = await _context.WaterTestReports
                 .Include(r => r.Results)
@@ -521,12 +654,13 @@ namespace Aquora.Application.Services
         private string ResolveReportStatus(WaterTestReport r)
         {
             if (r.Status == "DRAFT") return "PENDING";
-            if (!r.Results.Any()) return "PASS";
+            var results = r.Results ?? new List<WaterTestResult>();
+            if (!results.Any()) return "PASS";
             
-            bool hasFail = r.Results.Any(res => res.QualityStatus == "FAIL");
+            bool hasFail = results.Any(res => res.QualityStatus == "FAIL");
             if (hasFail) return "FAIL";
 
-            bool hasWarning = r.Results.Any(res => res.QualityStatus == "WARNING");
+            bool hasWarning = results.Any(res => res.QualityStatus == "WARNING");
             if (hasWarning) return "WARNING";
 
             return "PASS";
@@ -537,12 +671,12 @@ namespace Aquora.Application.Services
             return new WaterTestReportDto
             {
                 Id = r.Id,
-                ReportNumber = r.Id.ToString().Substring(0, 8).ToUpper(),
-                BatchNumber = r.BatchNumber,
+                ReportNumber = r.Id.ToString().Length >= 8 ? r.Id.ToString().Substring(0, 8).ToUpper() : r.Id.ToString().ToUpper(),
+                BatchNumber = r.BatchNumber ?? string.Empty,
                 SampleNumber = r.SampleNumber,
                 ProductionDate = r.ProductionDate,
-                ReportType = r.ReportType,
-                Status = r.Status,
+                ReportType = r.ReportType ?? "DAILY",
+                Status = r.Status ?? "DRAFT",
                 SampleTime = r.SampleTime,
                 TestedBy = r.TestedBy,
                 CollectedBy = r.CollectedBy,
@@ -551,19 +685,23 @@ namespace Aquora.Application.Services
                 Attachments = r.Attachments,
                 ConcurrencyToken = r.ConcurrencyToken ?? string.Empty,
                 CreatedAt = r.CreatedAt,
-                CreatedBy = r.CreatedBy,
-                CreatedByName = userNames.TryGetValue(r.CreatedBy, out var name) ? name : "System",
-                Results = r.Results.Select(res => new WaterTestResultDto
+                CreatedBy = r.CreatedBy ?? string.Empty,
+                CreatedByName = !string.IsNullOrEmpty(r.CreatedBy) && userNames.TryGetValue(r.CreatedBy, out var name) ? name : "System",
+                Results = (r.Results ?? new List<WaterTestResult>()).Select(res => new WaterTestResultDto
                 {
                     Id = res.Id,
                     ParameterId = res.ParameterId,
                     ParameterName = res.Parameter?.Name ?? "Unknown",
                     ParameterCategory = res.Parameter?.Category ?? "Unknown",
                     ParameterUnit = res.Parameter?.Unit ?? "—",
+                    MinWarning = res.Parameter?.MinWarning,
+                    MinAcceptable = res.Parameter?.MinAcceptable,
+                    MaxAcceptable = res.Parameter?.MaxAcceptable,
+                    MaxWarning = res.Parameter?.MaxWarning,
                     Value = res.Value,
                     StringValue = res.StringValue,
                     IsPass = res.IsPass,
-                    QualityStatus = res.QualityStatus
+                    QualityStatus = res.QualityStatus ?? "PASS"
                 }).ToList()
             };
         }
