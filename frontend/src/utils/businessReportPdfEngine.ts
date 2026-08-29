@@ -1,5 +1,9 @@
 import { jsPDF } from 'jspdf'
 import type { BusinessReportDto } from '../services/api/reports'
+import {
+  drawCompanyPdfHeader,
+  drawCompanyPdfContinuationHeader
+} from './companyPdfHeader'
 
 export const generateBusinessReportPDF = (report: BusinessReportDto): jsPDF => {
   const pdf = new jsPDF({
@@ -86,85 +90,36 @@ export const generateBusinessReportPDF = (report: BusinessReportDto): jsPDF => {
 
   // Running Page Header (Pages 2+)
   const drawRunningHeader = (sectionTitle?: string) => {
-    const compName = (report.company.displayName || report.company.name || 'AQUZIO ENTERPRISE').toUpperCase()
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(8.5)
-    pdf.setTextColor(C_DARK[0], C_DARK[1], C_DARK[2])
-    pdf.text(compName, margin, topMargin + 3)
-
-    pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(8)
-    pdf.setTextColor(C_PRIMARY[0], C_PRIMARY[1], C_PRIMARY[2])
-    textRight(`BUSINESS PERFORMANCE REPORT • ${report.period.formattedRange}`, rightMarginX, topMargin + 3)
-
-    // Divider Line
-    pdf.setDrawColor(C_LINE[0], C_LINE[1], C_LINE[2])
-    pdf.setLineWidth(0.35)
-    pdf.line(margin, topMargin + 6, rightMarginX, topMargin + 6)
-
-    return topMargin + 12
+    return drawCompanyPdfContinuationHeader(pdf, {
+      company: report.company,
+      docTitle: 'BUSINESS PERFORMANCE REPORT',
+      metaText: report.period.formattedRange,
+      startX: margin,
+      startY: topMargin + 2,
+      rightMarginX
+    })
   }
 
   // Cover / First Page Header
   const drawCoverHeader = () => {
-    const compName = (report.company.displayName || report.company.name || 'AQUZIO ENTERPRISE').toUpperCase()
+    const headerRes = drawCompanyPdfHeader(pdf, {
+      company: report.company,
+      docTitle: 'BUSINESS REPORT',
+      docDate: `Period: ${report.period.formattedRange}`,
+      metaLines: [
+        `Generated: ${report.period.generatedAtLocal}`,
+        ...(report.company?.gstNumber ? [`GSTIN: ${report.company.gstNumber}`] : [])
+      ],
+      startX: margin,
+      startY: y,
+      contentWidth,
+      rightMarginX,
+      titleColor: [37, 99, 235], // Blue-600
+      maxAddressWidth: 105,
+      showDivider: true
+    })
 
-    // 1. Company Brand Title
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(15)
-    pdf.setTextColor(C_DARK[0], C_DARK[1], C_DARK[2])
-    pdf.text(compName, margin, y + 4)
-
-    // 2. Company Metadata (Address, Contacts, GST)
-    const addressParts: string[] = []
-    if (report.company.address && report.company.address.trim() && !['null', 'undefined'].includes(report.company.address.toLowerCase())) {
-      addressParts.push(report.company.address.trim())
-    }
-    if (report.company.phone && !['null', 'undefined'].includes(report.company.phone.toLowerCase())) {
-      addressParts.push(`Tel: ${report.company.phone}`)
-    }
-    if (report.company.email && !['null', 'undefined'].includes(report.company.email.toLowerCase())) {
-      addressParts.push(`Email: ${report.company.email}`)
-    }
-    if (report.company.gstNumber && !['null', 'undefined'].includes(report.company.gstNumber.toLowerCase())) {
-      addressParts.push(`GSTIN: ${report.company.gstNumber}`)
-    }
-
-    let nextY = y + 9
-    if (addressParts.length > 0) {
-      pdf.setFont('helvetica', 'normal')
-      pdf.setFontSize(8)
-      pdf.setTextColor(C_MUTED[0], C_MUTED[1], C_MUTED[2])
-      const addrLine = addressParts.slice(0, 2).join('  •  ')
-      const splitAddr = pdf.splitTextToSize(addrLine, 115)
-      pdf.text(splitAddr[0], margin, nextY)
-      nextY += 4.5
-    }
-
-    // 3. Document Title on Right
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(13)
-    pdf.setTextColor(C_PRIMARY[0], C_PRIMARY[1], C_PRIMARY[2])
-    textRight('BUSINESS REPORT', rightMarginX, y + 4)
-
-    // 4. Report Period & Generated Date on Right
-    pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(8.5)
-    pdf.setTextColor(C_BODY[0], C_BODY[1], C_BODY[2])
-    textRight(`Period: ${report.period.formattedRange}`, rightMarginX, y + 9)
-
-    pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(7.5)
-    pdf.setTextColor(C_MUTED[0], C_MUTED[1], C_MUTED[2])
-    textRight(`Generated on: ${report.period.generatedAtLocal}`, rightMarginX, y + 13.5)
-
-    // 5. Solid Horizontal Divider Line
-    const dividerY = Math.max(nextY + 3, y + 16)
-    pdf.setDrawColor(C_LINE[0], C_LINE[1], C_LINE[2])
-    pdf.setLineWidth(0.4)
-    pdf.line(margin, dividerY, rightMarginX, dividerY)
-
-    y = dividerY + 6
+    y = headerRes.nextY + 1
   }
 
   // Smart Page Break Helper

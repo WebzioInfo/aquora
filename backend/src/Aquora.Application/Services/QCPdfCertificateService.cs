@@ -29,19 +29,19 @@ namespace Aquora.Application.Services
             "Aerobic Microbial Count 22°C", "Aerobic Microbial Count 37°C", "Yeast & Mold"
         };
 
-        public Task<byte[]> GenerateCertificatePdfAsync(WaterTestReport report, string companyName)
+        public Task<byte[]> GenerateCertificatePdfAsync(WaterTestReport report, string companyName, string companyAddress = "")
         {
-            var pdfBytes = BuildPdfBinary(report, companyName);
+            var pdfBytes = BuildPdfBinary(report, companyName, companyAddress);
             return Task.FromResult(pdfBytes);
         }
 
-        public string GenerateCertificateHtml(WaterTestReport report, string companyName)
+        public string GenerateCertificateHtml(WaterTestReport report, string companyName, string companyAddress = "")
         {
             // Retained for backward compatibility
             return $"<!DOCTYPE html><html><body><h1>Water Test Report {report.Id} - {companyName}</h1></body></html>";
         }
 
-        private byte[] BuildPdfBinary(WaterTestReport report, string companyName)
+        private byte[] BuildPdfBinary(WaterTestReport report, string companyName, string companyAddress = "")
         {
             var pages = new List<string>();
             var currentPageStream = new StringBuilder();
@@ -55,6 +55,7 @@ namespace Aquora.Application.Services
                 : (report.CreatedAt.ToString("dd MMM yyyy", CultureInfo.InvariantCulture));
 
             string safeCompanyName = SanitizeText(string.IsNullOrWhiteSpace(companyName) ? "AQUZIO ENTERPRISE" : companyName.ToUpperInvariant());
+            string safeCompanyAddress = SanitizeText(companyAddress ?? string.Empty);
 
             // Helper to add page break
             void PageBreak()
@@ -71,7 +72,7 @@ namespace Aquora.Application.Services
             }
 
             // 1. PAGE 1 HEADER
-            DrawHeader(currentPageStream, safeCompanyName, reportNo, reportDate, ref y);
+            DrawHeader(currentPageStream, safeCompanyName, safeCompanyAddress, reportNo, reportDate, ref y);
 
             // 2. REPORT INFORMATION BLOCK
             DrawReportInfoGrid(currentPageStream, report, reportNo, reportDate, ref y);
@@ -138,7 +139,7 @@ namespace Aquora.Application.Services
             .ToList();
         }
 
-        private void DrawHeader(StringBuilder stream, string companyName, string reportNo, string reportDate, ref double y)
+        private void DrawHeader(StringBuilder stream, string companyName, string companyAddress, string reportNo, string reportDate, ref double y)
         {
             // Company Name
             DrawText(stream, companyName, Margin, y, "F2", 14, 0.06, 0.09, 0.16); // 15,23,42
@@ -147,7 +148,15 @@ namespace Aquora.Application.Services
             DrawText(stream, "WATER TEST REPORT", PageWidth - Margin, y, "F2", 12, 0.12, 0.23, 0.54, "right"); // 30,58,138
             y -= 13;
 
-            DrawText(stream, "Quality Control & Water Testing Laboratory", Margin, y, "F1", 8.5, 0.39, 0.45, 0.55);
+            // Company Address (if present) or Laboratory Subtitle
+            if (!string.IsNullOrWhiteSpace(companyAddress) && !companyAddress.Equals("null", StringComparison.OrdinalIgnoreCase))
+            {
+                DrawText(stream, companyAddress, Margin, y, "F1", 8.5, 0.39, 0.45, 0.55);
+            }
+            else
+            {
+                DrawText(stream, "Quality Control & Water Testing Laboratory", Margin, y, "F1", 8.5, 0.39, 0.45, 0.55);
+            }
             DrawText(stream, $"Report No: {reportNo}", PageWidth - Margin, y, "F2", 8.5, 0.06, 0.09, 0.16, "right");
             y -= 11;
 

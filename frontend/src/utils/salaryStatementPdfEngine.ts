@@ -1,5 +1,10 @@
 import { jsPDF } from 'jspdf'
 import type { EmployeeSalaryStatementReport } from '../services/payroll'
+import {
+  drawCompanyPdfHeader,
+  drawCompanyPdfContinuationHeader
+} from './companyPdfHeader'
+import type { PDFCompanyProfile } from './companyPdfHeader'
 
 /**
  * Robust monetary amount formatter.
@@ -106,6 +111,20 @@ export const generateSalarySlipPDF = (data: EmployeeSalaryStatementReport): jsPD
     pdf.text(text, centerX - (textWidth / 2), currentY)
   }
 
+  let y = topMargin
+  let pageCount = 1
+
+  const drawContinuationHeader = () => {
+    y = drawCompanyPdfContinuationHeader(pdf, {
+      company: data.company,
+      docTitle: 'SALARY SLIP',
+      docNumber: `${data.employee.fullName} (${formatMonth(data.currentStatement.salaryMonth)})`,
+      startX: margin,
+      startY: 10,
+      rightMarginX
+    })
+  }
+
   const checkPageBreak = (neededHeight: number): boolean => {
     if (y + neededHeight > pageHeight - bottomMargin) {
       pdf.addPage()
@@ -116,99 +135,25 @@ export const generateSalarySlipPDF = (data: EmployeeSalaryStatementReport): jsPD
     return false
   }
 
-  let y = topMargin
-  let pageCount = 1
-
-  const drawContinuationHeader = () => {
-    y = topMargin
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(9.5)
-    pdf.setTextColor(C_DARK[0], C_DARK[1], C_DARK[2])
-    const compName = (data.company.displayName || data.company.name || 'Aquora Enterprise').toUpperCase()
-    pdf.text(compName, margin, y)
-
-    pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(8)
-    pdf.setTextColor(C_MUTED[0], C_MUTED[1], C_MUTED[2])
-    textRight(`Salary Slip — ${data.employee.fullName} (${formatMonth(data.currentStatement.salaryMonth)})`, rightMarginX, y)
-    y += 3
-
-    pdf.setDrawColor(C_BORDER[0], C_BORDER[1], C_BORDER[2])
-    pdf.setLineWidth(0.3)
-    pdf.line(margin, y, rightMarginX, y)
-    y += 6
-  }
-
   // ==========================================
-  // 1. COMPANY HEADER & DOCUMENT TITLE
+  // 1. GLOBAL STANDARD COMPANY HEADER (PAGE 1)
   // ==========================================
-  const headerTop = y
+  const headerRes = drawCompanyPdfHeader(pdf, {
+    company: data.company,
+    docTitle: 'SALARY SLIP',
+    docNumber: formatMonth(data.currentStatement.salaryMonth).toUpperCase(),
+    docDate: `Generated: ${formatDate(new Date())}`,
+    metaLines: data.company?.gstNumber ? [`GSTIN: ${data.company.gstNumber}`] : [],
+    startX: margin,
+    startY: y,
+    contentWidth,
+    rightMarginX,
+    titleColor: [30, 58, 138],
+    maxAddressWidth: 105,
+    showDivider: true
+  })
 
-  // Left: Company Info
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(16)
-  pdf.setTextColor(C_DARK[0], C_DARK[1], C_DARK[2])
-  const compName = (data.company.displayName || data.company.name || 'Aquora Enterprise').toUpperCase()
-  pdf.text(compName, margin, y + 4.5)
-
-  pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(8.5)
-  pdf.setTextColor(C_MUTED[0], C_MUTED[1], C_MUTED[2])
-
-  let companyY = y + 9.5
-  if (data.company.address && !['null', 'undefined', 'n/a'].includes(data.company.address.toLowerCase().trim())) {
-    const addressLines = pdf.splitTextToSize(data.company.address, 100)
-    pdf.text(addressLines, margin, companyY)
-    companyY += addressLines.length * 3.8
-  }
-
-  const contactList: string[] = []
-  if (data.company.phone && !['null', 'undefined', 'n/a'].includes(data.company.phone.toLowerCase().trim())) {
-    contactList.push(`Phone: ${data.company.phone}`)
-  }
-  if (data.company.email && !['null', 'undefined', 'n/a'].includes(data.company.email.toLowerCase().trim())) {
-    contactList.push(`Email: ${data.company.email}`)
-  }
-  if (contactList.length > 0) {
-    pdf.text(contactList.join('   |   '), margin, companyY)
-    companyY += 3.8
-  }
-
-  if (data.company.gstNumber && !['null', 'undefined', 'n/a'].includes(data.company.gstNumber.toLowerCase().trim())) {
-    pdf.text(`GSTIN: ${data.company.gstNumber}`, margin, companyY)
-    companyY += 3.8
-  }
-
-  // Right: Document Title & Meta
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(15)
-  pdf.setTextColor(C_NAVY[0], C_NAVY[1], C_NAVY[2])
-  textRight('SALARY SLIP', rightMarginX, headerTop + 4)
-
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(9.5)
-  pdf.setTextColor(C_DARK[0], C_DARK[1], C_DARK[2])
-  textRight(formatMonth(data.currentStatement.salaryMonth).toUpperCase(), rightMarginX, headerTop + 8.5)
-
-  let rightY = headerTop + 14
-  pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(8)
-  pdf.setTextColor(C_MUTED[0], C_MUTED[1], C_MUTED[2])
-
-  pdf.text('Document No:', rightMarginX - 52, rightY)
-  textRight(data.currentStatement.salaryNo || 'SAL-SLIP', rightMarginX, rightY)
-  rightY += 4
-
-  pdf.text('Generated Date:', rightMarginX - 52, rightY)
-  textRight(formatDate(new Date()), rightMarginX, rightY)
-  rightY += 4
-
-  y = Math.max(companyY, rightY) + 3
-
-  // Divider line
-  pdf.setDrawColor(C_BORDER[0], C_BORDER[1], C_BORDER[2])
-  pdf.setLineWidth(0.4)
-  pdf.line(margin, y, rightMarginX, y)
+  y = headerRes.nextY
   y += 5
 
   // ==========================================
@@ -656,23 +601,14 @@ export const generateSalaryHistoryPDF = (data: EmployeeSalaryStatementReport): j
   let pageCount = 1
 
   const drawHeader = () => {
-    y = topMargin
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(10)
-    pdf.setTextColor(C_DARK[0], C_DARK[1], C_DARK[2])
-    const compName = (data.company.displayName || data.company.name || 'Aquora Enterprise').toUpperCase()
-    pdf.text(compName, margin, y)
-
-    pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(8)
-    pdf.setTextColor(C_MUTED[0], C_MUTED[1], C_MUTED[2])
-    textRight(`Complete Salary History — ${data.employee.fullName}`, rightMarginX, y)
-    y += 3
-
-    pdf.setDrawColor(C_BORDER[0], C_BORDER[1], C_BORDER[2])
-    pdf.setLineWidth(0.3)
-    pdf.line(margin, y, rightMarginX, y)
-    y += 6
+    y = drawCompanyPdfContinuationHeader(pdf, {
+      company: data.company,
+      docTitle: 'EMPLOYEE SALARY HISTORY',
+      docNumber: data.employee.fullName,
+      startX: margin,
+      startY: 10,
+      rightMarginX
+    })
   }
 
   const checkPageBreak = (neededHeight: number): boolean => {
@@ -685,17 +621,25 @@ export const generateSalaryHistoryPDF = (data: EmployeeSalaryStatementReport): j
     return false
   }
 
-  // Cover Top
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(16)
-  pdf.setTextColor(C_DARK[0], C_DARK[1], C_DARK[2])
-  pdf.text((data.company.displayName || data.company.name || 'Aquora Enterprise').toUpperCase(), margin, y + 4.5)
+  // ==========================================
+  // 1. GLOBAL STANDARD COMPANY HEADER (PAGE 1)
+  // ==========================================
+  const headerRes = drawCompanyPdfHeader(pdf, {
+    company: data.company,
+    docTitle: 'SALARY HISTORY',
+    docNumber: data.employee.fullName,
+    docDate: `Generated: ${formatDate(new Date())}`,
+    metaLines: [`Total Periods: ${data.monthlyHistory?.length || 0}`],
+    startX: margin,
+    startY: y,
+    contentWidth,
+    rightMarginX,
+    titleColor: [30, 58, 138],
+    maxAddressWidth: 105,
+    showDivider: true
+  })
 
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(14)
-  pdf.setTextColor(C_NAVY[0], C_NAVY[1], C_NAVY[2])
-  textRight('EMPLOYEE SALARY HISTORY', rightMarginX, y + 4.5)
-  y += 10
+  y = headerRes.nextY
 
   // Employee Identity Block
   pdf.setFillColor(C_BG_LIGHT[0], C_BG_LIGHT[1], C_BG_LIGHT[2])

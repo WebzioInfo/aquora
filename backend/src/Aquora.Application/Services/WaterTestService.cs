@@ -920,12 +920,19 @@ namespace Aquora.Application.Services
             if (report == null) throw new InvalidOperationException("Report not found.");
 
             var company = await _context.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
-            string companyName = company?.Name ?? "Aquora Enterprise";
+            var tenant = tenantId != Guid.Empty
+                ? await _platformContext.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId)
+                : null;
+
+            string companyName = !string.IsNullOrWhiteSpace(company?.Name) && company.Name != "Company"
+                ? company.Name
+                : (tenant?.Name ?? "Aquora Enterprise");
+            string companyAddress = tenant?.Address ?? string.Empty;
 
             await LogQCActionAsync(report.Id, report.Id.ToString().Substring(0, 8).ToUpper(), "PDF_EXPORT", $"Generated PDF Certificate of Analysis for Report #{report.Id.ToString().Substring(0, 8).ToUpper()}");
             await _context.SaveChangesAsync();
 
-            return await _pdfService.GenerateCertificatePdfAsync(report, companyName);
+            return await _pdfService.GenerateCertificatePdfAsync(report, companyName, companyAddress);
         }
 
         private async Task CheckAndGenerateCAPAsAsync(WaterTestReport report)

@@ -748,7 +748,7 @@ namespace Aquora.Tests
                 }
             };
 
-            var pdfBytes = await pdfService.GenerateCertificatePdfAsync(report, "AQUZIO PURIFIED WATER CO.");
+            var pdfBytes = await pdfService.GenerateCertificatePdfAsync(report, "AQUZIO PURIFIED WATER CO.", "Industrial Area, Kalamassery, Kochi, Kerala - 682022");
 
             Assert.NotNull(pdfBytes);
             Assert.True(pdfBytes.Length > 200, "PDF byte array must contain substantial binary data.");
@@ -761,6 +761,8 @@ namespace Aquora.Tests
             Assert.Contains("/Type /Catalog", pdfString);
             Assert.Contains("WATER TEST REPORT", pdfString);
             Assert.Contains("F201F54D", pdfString);
+            Assert.Contains("AQUZIO PURIFIED WATER CO.", pdfString);
+            Assert.Contains("Industrial Area, Kalamassery, Kochi, Kerala - 682022", pdfString);
             Assert.Contains("pH", pdfString);
             Assert.Contains("TDS", pdfString);
         }

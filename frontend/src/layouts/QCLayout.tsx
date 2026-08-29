@@ -41,6 +41,22 @@ export const QCLayout: React.FC = () => {
             dateFormat: data.dateFormat || 'dd MMM yyyy',
             timeFormat: data.timeFormat || '12h'
           })
+          try {
+            localStorage.setItem('aquzio_company_profile', JSON.stringify({
+              name: data.name,
+              displayName: data.displayName || data.name,
+              email: data.email,
+              phone: data.phone,
+              gstNumber: data.gstNumber,
+              address: data.address,
+              city: data.city,
+              state: data.state,
+              country: data.country,
+              pincode: data.pincode || data.postalCode,
+              logoUrl: data.logoUrl,
+              currency: data.currency
+            }))
+          } catch {}
         }
       } catch (err) {
         console.error('Failed to prefetch company settings:', err)

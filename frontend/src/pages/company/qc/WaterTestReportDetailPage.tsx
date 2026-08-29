@@ -29,6 +29,8 @@ import { waterTestApi } from '../../../services/api/waterTest';
 import type { WaterTestReport } from '../../../services/api/waterTest';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { generateWaterTestReportPDF } from '../../../utils/waterTestPdfEngine';
+import { fetchGlobalCompanyProfileAsync } from '../../../utils/companyPdfHeader';
+import type { PDFCompanyProfile } from '../../../utils/companyPdfHeader';
 
 const PHYSICAL_CHEMICAL_ORDER = [
   'pH',
@@ -65,11 +67,24 @@ export const WaterTestReportDetailPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [report, setReport] = useState<WaterTestReport | null>(null);
+  const [companyProfile, setCompanyProfile] = useState<PDFCompanyProfile | null>(null);
+
+  useEffect(() => {
+    fetchGlobalCompanyProfileAsync().then(profile => setCompanyProfile(profile));
+  }, []);
 
   const companyInfo = useMemo(() => ({
-    name: user?.companyName || user?.tenantName || 'AQUZIO ENTERPRISE',
-    displayName: user?.companyName || user?.tenantName || 'AQUZIO ENTERPRISE'
-  }), [user?.companyName, user?.tenantName]);
+    name: companyProfile?.name || user?.companyName || user?.tenantName || 'AQUZIO ENTERPRISE',
+    displayName: companyProfile?.displayName || user?.companyName || user?.tenantName || 'AQUZIO ENTERPRISE',
+    address: companyProfile?.address,
+    city: companyProfile?.city,
+    state: companyProfile?.state,
+    country: companyProfile?.country,
+    pincode: companyProfile?.pincode,
+    phone: companyProfile?.phone,
+    email: companyProfile?.email,
+    gstNumber: companyProfile?.gstNumber
+  }), [companyProfile, user?.companyName, user?.tenantName]);
 
   const fetchReportDetails = async (reportId: string) => {
     setIsLoading(true);

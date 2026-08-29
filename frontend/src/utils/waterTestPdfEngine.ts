@@ -1,21 +1,14 @@
 import { jsPDF } from 'jspdf'
 import type { WaterTestReport } from '../services/api/waterTest'
-
-export interface WaterTestCompanyInfo {
-  name?: string
-  displayName?: string
-  address?: string
-  city?: string
-  state?: string
-  country?: string
-  pincode?: string
-  phone?: string
-  email?: string
-}
+import {
+  drawCompanyPdfHeader,
+  drawCompanyPdfContinuationHeader
+} from './companyPdfHeader'
+import type { PDFCompanyProfile } from './companyPdfHeader'
 
 export interface WaterTestPdfOptions {
   report: WaterTestReport
-  company?: WaterTestCompanyInfo | null
+  company?: PDFCompanyProfile | null
 }
 
 const PHYSICAL_CHEMICAL_ORDER = [
@@ -187,50 +180,21 @@ export const generateWaterTestReportPDF = (options: WaterTestPdfOptions): jsPDF 
   const overallStatus = resolveOverallStatus()
   const reportNumber = report.reportNumber || report.id.substring(0, 8).toUpperCase()
   const reportDate = formatDateStr(report.sampleTime || report.createdAt || new Date())
-
-  // Dynamic Company Header Data
   const companyName = (company?.displayName || company?.name || 'AQUZIO ENTERPRISE').toUpperCase()
-  const addressParts: string[] = []
-  if (company?.address && company.address.trim() && !['null', 'undefined'].includes(company.address.toLowerCase())) {
-    addressParts.push(company.address.trim())
-  }
-  if (company?.city && company.city.trim() && !['null', 'undefined'].includes(company.city.toLowerCase())) {
-    addressParts.push(company.city.trim())
-  }
-  if (company?.state && company.state.trim() && !['null', 'undefined'].includes(company.state.toLowerCase())) {
-    addressParts.push(company.state.trim())
-  }
-  if (company?.pincode && company.pincode.trim() && !['null', 'undefined'].includes(company.pincode.toLowerCase())) {
-    addressParts.push(company.pincode.trim())
-  }
-  if (company?.country && company.country.trim() && !['null', 'undefined'].includes(company.country.toLowerCase())) {
-    addressParts.push(company.country.trim())
-  }
-  const cleanAddress = addressParts.join(', ')
 
   let y = topMargin
   let pageCount = 1
 
   // Continuation Header Function
   const drawContinuationHeader = () => {
-    pdf.setFillColor(C_BG_LIGHT[0], C_BG_LIGHT[1], C_BG_LIGHT[2])
-    pdf.rect(0, 0, pageWidth, 12, 'F')
-
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(8)
-    pdf.setTextColor(C_NAVY[0], C_NAVY[1], C_NAVY[2])
-    pdf.text(companyName, margin, 8)
-
-    pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(8)
-    pdf.setTextColor(C_MUTED[0], C_MUTED[1], C_MUTED[2])
-    textRight(`WATER TEST REPORT — ${reportNumber}`, rightMarginX, 8)
-
-    pdf.setDrawColor(C_BORDER[0], C_BORDER[1], C_BORDER[2])
-    pdf.setLineWidth(0.3)
-    pdf.line(margin, 12, rightMarginX, 12)
-
-    y = 18
+    y = drawCompanyPdfContinuationHeader(pdf, {
+      company,
+      docTitle: 'WATER TEST REPORT',
+      docNumber: reportNumber,
+      startX: margin,
+      startY: 10,
+      rightMarginX
+    })
   }
 
   const checkPageBreak = (neededHeight: number): boolean => {
@@ -244,47 +208,23 @@ export const generateWaterTestReportPDF = (options: WaterTestPdfOptions): jsPDF 
   }
 
   // ==========================================
-  // 1. MAIN HEADER (PAGE 1)
+  // 1. GLOBAL STANDARD COMPANY HEADER (PAGE 1)
   // ==========================================
-  // Left side: Company Name + Address
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(13)
-  pdf.setTextColor(C_DARK[0], C_DARK[1], C_DARK[2])
-  pdf.text(companyName, margin, y + 4)
+  const headerRes = drawCompanyPdfHeader(pdf, {
+    company,
+    docTitle: 'WATER TEST REPORT',
+    docNumber: `Report No: ${reportNumber}`,
+    docDate: `Date: ${reportDate}`,
+    startX: margin,
+    startY: y,
+    contentWidth,
+    rightMarginX,
+    titleColor: [30, 58, 138],
+    maxAddressWidth: 105,
+    showDivider: true
+  })
 
-  let headerLeftY = y + 8.5
-  if (cleanAddress) {
-    pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(8)
-    pdf.setTextColor(C_MUTED[0], C_MUTED[1], C_MUTED[2])
-    const addrLines = pdf.splitTextToSize(cleanAddress, 105)
-    pdf.text(addrLines, margin, headerLeftY)
-    headerLeftY += (addrLines.length * 3.8)
-  }
-
-  // Right side: Document Title & Metadata
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(12)
-  pdf.setTextColor(C_NAVY[0], C_NAVY[1], C_NAVY[2])
-  textRight('WATER TEST REPORT', rightMarginX, y + 4)
-
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(8.5)
-  pdf.setTextColor(C_DARK[0], C_DARK[1], C_DARK[2])
-  textRight(`Report No: ${reportNumber}`, rightMarginX, y + 9)
-
-  pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(8)
-  pdf.setTextColor(C_MUTED[0], C_MUTED[1], C_MUTED[2])
-  textRight(`Date: ${reportDate}`, rightMarginX, y + 13.5)
-
-  y = Math.max(headerLeftY, y + 16) + 2
-
-  // Thin clean divider line
-  pdf.setDrawColor(C_BORDER_DARK[0], C_BORDER_DARK[1], C_BORDER_DARK[2])
-  pdf.setLineWidth(0.4)
-  pdf.line(margin, y, rightMarginX, y)
-  y += 5
+  y = headerRes.nextY
 
   // ==========================================
   // 2. SECTION 1: REPORT & SAMPLE INFORMATION
