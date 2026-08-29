@@ -10,7 +10,7 @@ import { setCompanyPrefs } from '../utils/dateFormatter'
 import {
   LayoutDashboard, Factory, Package, TrendingUp, Users, Truck,
   Settings, ChevronRight, Play, Plus, X, Layers, Workflow, CalendarClock, Sliders,
-  Droplet, Droplets, Boxes, Tag, ShoppingCart, PieChart, IdCard, Beaker, Database, AlertTriangle
+  Droplet, Droplets, Boxes, Tag, ShoppingCart, PieChart, IdCard, Beaker, Database, AlertTriangle, BarChart3
 } from 'lucide-react'
 import EnterpriseSidebar from '../components/ui/EnterpriseSidebar'
 import EnterpriseTopbar from '../components/ui/EnterpriseTopbar'
@@ -191,6 +191,7 @@ export const CompanyLayout: React.FC = () => {
       ]
     },
     { label: 'Water Test Reports', path: '/company/qc/water-test', icon: <Droplets className="w-5 h-5" /> },
+    { label: 'Reports', path: '/company/reports', icon: <BarChart3 className="w-5 h-5" /> },
     // { label: 'Business Intelligence', path: '/company/business-finance', icon: <TrendingUp className="w-5 h-5" /> },
     { label: 'Customers', path: '/company/customers', icon: <Users className="w-5 h-5" /> },
     { label: 'Employees', path: '/company/employees', icon: <IdCard className="w-5 h-5" /> },

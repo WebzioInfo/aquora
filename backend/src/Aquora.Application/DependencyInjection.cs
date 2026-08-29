@@ -44,6 +44,7 @@ namespace Aquora.Application
             services.AddSingleton<IPlatformBackupJobManager, PlatformBackupJobManager>();
             services.AddScoped<IPlatformBackupEngine, PlatformBackupEngine>();
             services.AddScoped<IPlatformBackupService, PlatformBackupService>();
+            services.AddScoped<IReportService, ReportService>();
 
             return services;
         }

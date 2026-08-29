@@ -61,6 +61,7 @@ const OperationsIssuesListPage = React.lazy(() => import('../pages/company/opera
 const OperationsIssueDetailPage = React.lazy(() => import('../pages/company/operations/OperationsIssueDetailPage'))
 const OperatorQuickReportPage = React.lazy(() => import('../pages/company/operations/OperatorQuickReportPage'))
 const OperationsIssueFormPage = React.lazy(() => import('../pages/company/operations/OperationsIssueFormPage'))
+const ReportsPage = React.lazy(() => import('../pages/company/ReportsPage'))
 
 export const getDefaultRouteForUser = (user: any): string => {
   const getRoute = () => {
@@ -605,6 +606,8 @@ export const AppRoutes: React.FC = () => {
           <Route path="operations-issues/new" element={<OperationsIssueFormPage />} />
           <Route path="operations-issues/:id" element={<OperationsIssueDetailPage />} />
           <Route path="operations-issues/:id/edit" element={<OperationsIssueFormPage />} />
+          {/* Reports Module */}
+          <Route path="reports" element={<ReportsPage />} />
           {/* Water Test Reports */}
           <Route path="qc/water-test" element={<WaterTestReportsListPage />} />
           <Route path="qc/water-test/new" element={<WaterTestReportFormPage />} />
