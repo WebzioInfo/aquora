@@ -203,6 +203,14 @@ export const ReportsPage: React.FC = () => {
     return `${curr}${Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   }
 
+  const formatPersonName = (name: string | undefined | null): string => {
+    if (!name || ['null', 'undefined', '00000000-0000-0000-0000-000000000000'].includes(name.trim().toLowerCase())) return '—'
+    const trimmed = name.trim()
+    const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)
+    if (isGuid) return '—'
+    return trimmed
+  }
+
   const presetsList = [
     { id: 'today', label: 'Today' },
     { id: 'yesterday', label: 'Yesterday' },
@@ -819,7 +827,7 @@ export const ReportsPage: React.FC = () => {
                               <td className="py-3 px-3 font-bold text-slate-900">{b.batchNumber}</td>
                               <td className="py-3 px-3 text-slate-700">{b.product || 'Standard Water'}</td>
                               <td className="py-3 px-3 text-slate-600">{b.productionLine} • {b.shift}</td>
-                              <td className="py-3 px-3 text-slate-600">{b.operatorName || '—'}</td>
+                              <td className="py-3 px-3 text-slate-600">{formatPersonName(b.operatorName)}</td>
                               <td className="py-3 px-3 text-right font-medium text-slate-600">{formatNum(b.targetQuantity)}</td>
                               <td className="py-3 px-3 text-right font-bold text-slate-900">{formatNum(b.producedQuantity)}</td>
                               <td className={`py-3 px-3 text-right font-semibold ${b.variance >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
@@ -963,7 +971,7 @@ export const ReportsPage: React.FC = () => {
                             <td className="py-3 px-3 text-slate-600">{d.productName}</td>
                             <td className="py-3 px-3 text-right font-bold text-slate-900">{formatNum(d.quantity)}</td>
                             <td className="py-3 px-3 font-mono text-slate-700">{d.vehicleNumber || '—'}</td>
-                            <td className="py-3 px-3 text-slate-600">{d.driverOrLoadedBy || '—'}</td>
+                            <td className="py-3 px-3 text-slate-600">{formatPersonName(d.driverOrLoadedBy)}</td>
                             <td className="py-3 px-3 text-right">
                               <EnterpriseBadge variant={d.sourceModule.includes('20L') ? 'info' : 'primary'}>
                                 {d.sourceModule}

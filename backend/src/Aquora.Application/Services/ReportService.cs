@@ -118,6 +118,51 @@ namespace Aquora.Application.Services
                 return utc.Add(userOffset);
             }
 
+            // 1.5. Resolve Employee/User/Driver Names for the tenant
+            var tenantUsers = await _platformContext.Users
+                .AsNoTracking()
+                .Where(u => u.TenantId == tenantId && !u.IsDeleted)
+                .Select(u => new
+                {
+                    u.Id,
+                    u.FirstName,
+                    u.LastName,
+                    u.Username,
+                    u.Email
+                })
+                .ToListAsync();
+
+            var userMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var u in tenantUsers)
+            {
+                var fullName = $"{u.FirstName} {u.LastName}".Trim();
+                if (string.IsNullOrWhiteSpace(fullName))
+                {
+                    fullName = !string.IsNullOrWhiteSpace(u.Username) ? u.Username : (u.Email ?? "Staff");
+                }
+                userMap[u.Id.ToString()] = fullName;
+                if (!string.IsNullOrWhiteSpace(u.Username)) userMap[u.Username] = fullName;
+                if (!string.IsNullOrWhiteSpace(u.Email)) userMap[u.Email] = fullName;
+            }
+
+            string ResolvePersonName(string? identifier, string fallback = "—")
+            {
+                if (string.IsNullOrWhiteSpace(identifier) || identifier == "null" || identifier == "undefined")
+                    return fallback;
+
+                var trimmed = identifier.Trim();
+                if (userMap.TryGetValue(trimmed, out var resolvedName) && !string.IsNullOrWhiteSpace(resolvedName))
+                    return resolvedName;
+
+                // If identifier is a GUID that didn't resolve to a known user, return fallback so no raw UUID leaks
+                if (Guid.TryParse(trimmed, out _))
+                {
+                    return fallback;
+                }
+
+                return trimmed;
+            }
+
             // 2. Fetch Company & Tenant Info dynamically
             var company = await _tenantContext.Companies
                 .AsNoTracking()
@@ -216,7 +261,7 @@ namespace Aquora.Application.Services
                 Product = b.Product,
                 ProductionLine = b.ProductionLine?.Name ?? "Line 1",
                 Shift = b.Shift,
-                OperatorName = b.OperatorName,
+                OperatorName = ResolvePersonName(b.OperatorName ?? b.CreatedBy, "Operator"),
                 StartedAt = ToLocal(b.StartedAt),
                 CompletedAt = b.CompletedAt.HasValue ? ToLocal(b.CompletedAt.Value) : null,
                 Status = b.Status,
@@ -232,7 +277,7 @@ namespace Aquora.Application.Services
                 Shift = e.Shift,
                 ProductionLine = e.ProductionLine?.Name ?? "Line 1",
                 ProductName = e.Product?.Name ?? "Standard Water",
-                OperatorName = e.OperatorName,
+                OperatorName = ResolvePersonName(e.OperatorName ?? e.CreatedBy, "Operator"),
                 CasesProduced = e.CasesProduced,
                 PreformUsage = e.PreformUsage,
                 PreformWastage = e.PreformWastage,
@@ -261,30 +306,16 @@ namespace Aquora.Application.Services
             }
             if (!string.IsNullOrWhiteSpace(request.Status))
             {
-                salesTxnQuery = salesTxnQuery.Where(s => s.Status == request.Status);
+                salesTxnQuery = salesTxnQuery.Where(s => s.Status == request.Status || s.PaymentStatus == request.Status);
             }
 
             var allTxns = await salesTxnQuery
                 .OrderByDescending(s => s.TransactionDate)
-                .ThenByDescending(s => s.CreatedAt)
                 .ToListAsync();
 
-            // Categorize transactions
-            var salesList = allTxns.Where(t => 
-                t.TransactionType.Equals("Sales Dispatch", StringComparison.OrdinalIgnoreCase) ||
-                t.TransactionType.Equals("Sale", StringComparison.OrdinalIgnoreCase) ||
-                (t.TransactionType.Contains("Sales", StringComparison.OrdinalIgnoreCase) && !t.TransactionType.Contains("Return", StringComparison.OrdinalIgnoreCase) && !t.TransactionType.Contains("Damage", StringComparison.OrdinalIgnoreCase))
-            ).ToList();
-
-            var returnsList = allTxns.Where(t => 
-                t.TransactionType.Equals("Customer Return", StringComparison.OrdinalIgnoreCase) ||
-                t.TransactionType.Contains("Return", StringComparison.OrdinalIgnoreCase)
-            ).ToList();
-
-            var damagesList = allTxns.Where(t => 
-                t.TransactionType.Equals("Damage", StringComparison.OrdinalIgnoreCase) ||
-                t.TransactionType.Contains("Damage", StringComparison.OrdinalIgnoreCase)
-            ).ToList();
+            var salesList = allTxns.Where(s => s.TransactionType.Contains("Dispatch") || s.TransactionType.Contains("Sale") || string.IsNullOrWhiteSpace(s.TransactionType)).ToList();
+            var returnsList = allTxns.Where(s => s.TransactionType.Contains("Return")).ToList();
+            var damagesList = allTxns.Where(s => s.TransactionType.Contains("Damage")).ToList();
 
             // A. Sales Section
             report.Sales.TotalQuantity = salesList.Sum(s => s.Cases);
@@ -301,10 +332,10 @@ namespace Aquora.Application.Services
                 Id = s.Id,
                 TransactionNumber = s.TransactionNumber,
                 TransactionDate = ToLocal(s.TransactionDate != default ? s.TransactionDate : s.CreatedAt),
-                CustomerName = s.Customer?.CustomerName ?? "Unknown Customer",
-                ProductName = s.Product?.Name ?? "Standard Water",
+                CustomerName = s.Customer?.CustomerName ?? "Direct Sale",
+                ProductName = s.Product?.Name ?? "Water Bottle",
                 Cases = s.Cases,
-                UnitPrice = s.UnitPrice,
+                UnitPrice = s.UnitPrice > 0 ? s.UnitPrice : (s.Product?.SellingPrice ?? 0),
                 DiscountAmount = s.DiscountAmount,
                 TaxAmount = s.TaxAmount,
                 TotalAmount = s.TotalAmount > 0 ? s.TotalAmount : (s.Cases * s.UnitPrice),
@@ -321,6 +352,10 @@ namespace Aquora.Application.Services
 
             foreach (var s in salesList)
             {
+                var assignedDriver = !string.IsNullOrWhiteSpace(s.Customer?.AssignedDriver)
+                    ? s.Customer.AssignedDriver
+                    : s.CreatedBy;
+
                 dispatchItems.Add(new DispatchItemDto
                 {
                     Id = s.Id,
@@ -330,7 +365,7 @@ namespace Aquora.Application.Services
                     ProductName = s.Product?.Name ?? "Water Bottle",
                     Quantity = s.Cases,
                     VehicleNumber = s.ReferenceNumber ?? "—",
-                    DriverOrLoadedBy = s.CreatedBy,
+                    DriverOrLoadedBy = ResolvePersonName(assignedDriver, "—"),
                     Status = s.Status,
                     ReferenceNumber = s.ReferenceNumber,
                     SourceModule = "Sales Dispatch"
@@ -354,6 +389,10 @@ namespace Aquora.Application.Services
             {
                 foreach (var loading in visit.Loadings)
                 {
+                    var rawDriver = !string.IsNullOrWhiteSpace(loading.LoadedBy)
+                        ? loading.LoadedBy
+                        : (!string.IsNullOrWhiteSpace(visit.DriverName) ? visit.DriverName : visit.Distributor?.AssignedDriver);
+
                     dispatchItems.Add(new DispatchItemDto
                     {
                         Id = loading.Id,
@@ -363,7 +402,7 @@ namespace Aquora.Application.Services
                         ProductName = loading.Product?.Name ?? "20L Jar",
                         Quantity = loading.QuantityLoaded,
                         VehicleNumber = !string.IsNullOrWhiteSpace(visit.VehicleNumber) ? visit.VehicleNumber : (loading.VehicleNumber ?? "—"),
-                        DriverOrLoadedBy = !string.IsNullOrWhiteSpace(loading.LoadedBy) ? loading.LoadedBy : visit.DriverName,
+                        DriverOrLoadedBy = ResolvePersonName(rawDriver, "—"),
                         Status = visit.Status,
                         ReferenceNumber = loading.BatchNumber,
                         SourceModule = "20L Loading"
@@ -513,7 +552,7 @@ namespace Aquora.Application.Services
                 MachineName = i.MachineName,
                 DowntimeMinutes = i.DowntimeMinutes ?? 0,
                 ReportedAt = ToLocal(i.ReportedAt),
-                ReportedByName = i.ReportedByName,
+                ReportedByName = ResolvePersonName(i.ReportedByName ?? i.CreatedBy, "Staff"),
                 ResolvedAt = i.ResolvedAt.HasValue ? ToLocal(i.ResolvedAt.Value) : null
             }).ToList();
 
@@ -708,7 +747,7 @@ namespace Aquora.Application.Services
                 SampleSource = w.ReportType,
                 BatchNumber = w.BatchNumber,
                 OverallStatus = w.Status,
-                TestedBy = w.TestedBy ?? w.CreatedBy
+                TestedBy = ResolvePersonName(w.TestedBy ?? w.CreatedBy, "Chemist")
             }).ToList();
 
             // 10. EXECUTIVE SUMMARY TOP-LEVEL TOTALS
