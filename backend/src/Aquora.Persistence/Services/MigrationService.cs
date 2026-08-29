@@ -390,6 +390,188 @@ namespace Aquora.Persistence.Services
 
                                           UPDATE ""{tenant.SchemaName}"".""BankLedgerEntries"" SET ""EventType"" = 'CREATED' WHERE ""EventType"" IS NULL OR ""EventType"" = '';
 
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""AssetCode"" text NOT NULL DEFAULT '';
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""AssetTag"" text NOT NULL DEFAULT '';
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""AssetType"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""ModelNumber"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""Manufacturer"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""Description"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""SupplierName"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""PurchaseInvoiceNumber"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""PurchaseOrderNumber"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""TaxAmount"" numeric NOT NULL DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""FreightCost"" numeric NOT NULL DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""InstallationCost"" numeric NOT NULL DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""OtherCapitalizedCost"" numeric NOT NULL DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""TotalCapitalizedCost"" numeric NOT NULL DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DepreciationMethod"" text NOT NULL DEFAULT 'StraightLine';
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""UsefulLifeYears"" numeric NOT NULL DEFAULT 5;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""ResidualValue"" numeric NOT NULL DEFAULT 0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DepreciationStartDate"" timestamp with time zone NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DepreciationFrequency"" text NOT NULL DEFAULT 'Yearly';
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DepreciationRate"" numeric NOT NULL DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""AccumulatedDepreciation"" numeric NOT NULL DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""Department"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""AssignedEmployeeName"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""AssignedDate"" timestamp with time zone NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""Condition"" text NOT NULL DEFAULT 'Good';
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""WarrantyStartDate"" timestamp with time zone NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""WarrantyEndDate"" timestamp with time zone NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""WarrantyProvider"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""WarrantyNumber"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""WarrantyNotes"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""LastMaintenanceDate"" timestamp with time zone NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""NextMaintenanceDate"" timestamp with time zone NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""TotalMaintenanceCost"" numeric NOT NULL DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DisposalDate"" timestamp with time zone NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DisposalMethod"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DisposalReason"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""SaleValue"" numeric NOT NULL DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DisposalCost"" numeric NOT NULL DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""BuyerParty"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DisposalRefNo"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DisposedBy"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""Notes"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""PhotoUrl"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DocumentUrl"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""CreatedBy"" text NOT NULL DEFAULT 'System';
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""UpdatedAt"" timestamp with time zone NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""UpdatedBy"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""CreatedByIP"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""UpdatedByIP"" text NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""IsDeleted"" boolean NOT NULL DEFAULT false;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DeletedAt"" timestamp with time zone NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DeletedBy"" text NULL;
+
+                                           -- DATA REPAIR: Backfill NULL or empty AssetCode deterministically
+                                           WITH numbered_null_assets AS (
+                                               SELECT ""Id"", ROW_NUMBER() OVER (ORDER BY ""CreatedAt"" ASC, ""Id"" ASC) as rn
+                                               FROM ""{tenant.SchemaName}"".""Assets""
+                                               WHERE ""AssetCode"" IS NULL OR ""AssetCode"" = ''
+                                           )
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" a
+                                           SET ""AssetCode"" = 'AST-' || TO_CHAR(COALESCE(a.""CreatedAt"", CURRENT_TIMESTAMP), 'YYYY') || '-' || LPAD(numbered_null_assets.rn::text, 5, '0')
+                                           FROM numbered_null_assets
+                                           WHERE a.""Id"" = numbered_null_assets.""Id"";
+
+                                           UPDATE ""{tenant.SchemaName}"".""Assets""
+                                           SET ""AssetCode"" = 'AST-' || SUBSTRING(""Id""::text, 1, 8)
+                                           WHERE ""AssetCode"" IS NULL OR ""AssetCode"" = '';
+
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""AssetTag"" = 'TAG-' || ""AssetCode"" WHERE ""AssetTag"" IS NULL OR ""AssetTag"" = '';
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""AssetName"" = 'Asset ' || ""AssetCode"" WHERE ""AssetName"" IS NULL OR ""AssetName"" = '';
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""AssetCategory"" = 'Other' WHERE ""AssetCategory"" IS NULL OR ""AssetCategory"" = '';
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""PurchaseDate"" = CURRENT_TIMESTAMP WHERE ""PurchaseDate"" IS NULL;
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""PurchasePrice"" = 0.0 WHERE ""PurchasePrice"" IS NULL;
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""TaxAmount"" = 0.0 WHERE ""TaxAmount"" IS NULL;
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""FreightCost"" = 0.0 WHERE ""FreightCost"" IS NULL;
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""InstallationCost"" = 0.0 WHERE ""InstallationCost"" IS NULL;
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""OtherCapitalizedCost"" = 0.0 WHERE ""OtherCapitalizedCost"" IS NULL;
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""TotalCapitalizedCost"" = COALESCE(""PurchasePrice"", 0.0) WHERE ""TotalCapitalizedCost"" IS NULL OR ""TotalCapitalizedCost"" = 0.0;
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""DepreciationMethod"" = 'StraightLine' WHERE ""DepreciationMethod"" IS NULL OR ""DepreciationMethod"" = '';
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""UsefulLifeYears"" = 5 WHERE ""UsefulLifeYears"" IS NULL OR ""UsefulLifeYears"" <= 0;
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""ResidualValue"" = 0.0 WHERE ""ResidualValue"" IS NULL;
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""DepreciationFrequency"" = 'Yearly' WHERE ""DepreciationFrequency"" IS NULL OR ""DepreciationFrequency"" = '';
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""DepreciationRate"" = 0.0 WHERE ""DepreciationRate"" IS NULL;
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""AccumulatedDepreciation"" = 0.0 WHERE ""AccumulatedDepreciation"" IS NULL;
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""CurrentValue"" = COALESCE(""TotalCapitalizedCost"", ""PurchasePrice"", 0.0) WHERE ""CurrentValue"" IS NULL;
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""CurrentStatus"" = 'Active' WHERE ""CurrentStatus"" IS NULL OR ""CurrentStatus"" = '';
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""Condition"" = 'Good' WHERE ""Condition"" IS NULL OR ""Condition"" = '';
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""TotalMaintenanceCost"" = 0.0 WHERE ""TotalMaintenanceCost"" IS NULL;
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""SaleValue"" = 0.0 WHERE ""SaleValue"" IS NULL;
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""DisposalCost"" = 0.0 WHERE ""DisposalCost"" IS NULL;
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""CreatedAt"" = CURRENT_TIMESTAMP WHERE ""CreatedAt"" IS NULL;
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""CreatedBy"" = 'System' WHERE ""CreatedBy"" IS NULL OR ""CreatedBy"" = '';
+                                           UPDATE ""{tenant.SchemaName}"".""Assets"" SET ""IsDeleted"" = false WHERE ""IsDeleted"" IS NULL;
+
+                                           -- Enforce NOT NULL and Defaults
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""AssetCode"" SET DEFAULT '';
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""AssetCode"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""AssetTag"" SET DEFAULT '';
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""AssetTag"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""AssetName"" SET DEFAULT '';
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""AssetName"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""AssetCategory"" SET DEFAULT 'Other';
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""AssetCategory"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""PurchaseDate"" SET DEFAULT CURRENT_TIMESTAMP;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""PurchaseDate"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""PurchasePrice"" SET DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""PurchasePrice"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""TaxAmount"" SET DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""TaxAmount"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""FreightCost"" SET DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""FreightCost"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""InstallationCost"" SET DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""InstallationCost"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""OtherCapitalizedCost"" SET DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""OtherCapitalizedCost"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""TotalCapitalizedCost"" SET DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""TotalCapitalizedCost"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""DepreciationMethod"" SET DEFAULT 'StraightLine';
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""DepreciationMethod"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""UsefulLifeYears"" SET DEFAULT 5;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""UsefulLifeYears"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""ResidualValue"" SET DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""ResidualValue"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""DepreciationFrequency"" SET DEFAULT 'Yearly';
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""DepreciationFrequency"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""DepreciationRate"" SET DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""DepreciationRate"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""AccumulatedDepreciation"" SET DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""AccumulatedDepreciation"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""CurrentValue"" SET DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""CurrentValue"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""CurrentStatus"" SET DEFAULT 'Active';
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""CurrentStatus"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""Condition"" SET DEFAULT 'Good';
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""Condition"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""TotalMaintenanceCost"" SET DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""TotalMaintenanceCost"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""SaleValue"" SET DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""SaleValue"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""DisposalCost"" SET DEFAULT 0.0;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""DisposalCost"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""CreatedAt"" SET DEFAULT CURRENT_TIMESTAMP;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""CreatedAt"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""CreatedBy"" SET DEFAULT 'System';
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""CreatedBy"" SET NOT NULL;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""IsDeleted"" SET DEFAULT false;
+                                           ALTER TABLE ""{tenant.SchemaName}"".""Assets"" ALTER COLUMN ""IsDeleted"" SET NOT NULL;
+
+                                           CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""AssetMaintenanceRecords"" (
+                                               ""Id"" uuid NOT NULL PRIMARY KEY,
+                                               ""TenantId"" uuid NOT NULL,
+                                               ""CompanyId"" uuid NOT NULL,
+                                               ""AssetId"" uuid NOT NULL,
+                                               ""MaintenanceType"" text NOT NULL DEFAULT 'Preventive',
+                                               ""MaintenanceDate"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                               ""ServiceProvider"" text NOT NULL DEFAULT '',
+                                               ""Description"" text NOT NULL DEFAULT '',
+                                               ""PartsCost"" numeric NOT NULL DEFAULT 0.0,
+                                               ""LabourCost"" numeric NOT NULL DEFAULT 0.0,
+                                               ""OtherCost"" numeric NOT NULL DEFAULT 0.0,
+                                               ""TotalCost"" numeric NOT NULL DEFAULT 0.0,
+                                               ""NextMaintenanceDate"" timestamp with time zone NULL,
+                                               ""IsWarrantyClaim"" boolean NOT NULL DEFAULT false,
+                                               ""TechnicianName"" text NULL,
+                                               ""Notes"" text NULL,
+                                               ""AttachmentUrl"" text NULL,
+                                               ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                               ""CreatedBy"" text NOT NULL DEFAULT 'System'
+                                           );
+
+                                           CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""AssetHistories"" (
+                                               ""Id"" uuid NOT NULL PRIMARY KEY,
+                                               ""AssetId"" uuid NOT NULL,
+                                               ""Date"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                               ""Action"" text NOT NULL DEFAULT '',
+                                               ""PerformedBy"" text NOT NULL DEFAULT '',
+                                               ""PreviousValue"" text NULL,
+                                               ""NewValue"" text NULL,
+                                               ""Remarks"" text NULL
+                                           );
+
                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""OperationsIssueAffectedMachines"" (
                                              ""Id"" uuid NOT NULL PRIMARY KEY,
                                              ""IssueId"" uuid NOT NULL,

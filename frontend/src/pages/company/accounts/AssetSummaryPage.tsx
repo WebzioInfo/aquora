@@ -212,12 +212,23 @@ export const AssetSummaryPage: React.FC = () => {
   }
 
   // 1. Queries
-  const { data: pagedAssets, isLoading: isAssetsLoading } = useQuery({
+  const {
+    data: pagedAssets,
+    isLoading: isAssetsLoading,
+    isError: isAssetsError,
+    error: assetsError,
+    refetch: refetchAssets
+  } = useQuery({
     queryKey: ['assetsList', pageNumber, search, categoryFilter, statusFilter, conditionFilter, locationFilter, departmentFilter],
     queryFn: () => assetService.getAssets(pageNumber, 50, search, categoryFilter, statusFilter, conditionFilter, locationFilter, departmentFilter)
   })
 
-  const { data: kpis, isLoading: isKpisLoading } = useQuery({
+  const {
+    data: kpis,
+    isLoading: isKpisLoading,
+    isError: isKpisError,
+    refetch: refetchKpis
+  } = useQuery({
     queryKey: ['assetKpis'],
     queryFn: () => assetService.getKpis()
   })
@@ -644,7 +655,37 @@ export const AssetSummaryPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {assetsList.length === 0 ? (
+                {isAssetsLoading ? (
+                  <tr>
+                    <td colSpan={10} className="p-12 text-center text-slate-400">
+                      <EnterpriseLoading label="Loading asset register..." />
+                    </td>
+                  </tr>
+                ) : isAssetsError ? (
+                  <tr>
+                    <td colSpan={10} className="p-12 text-center">
+                      <div className="max-w-md mx-auto space-y-3">
+                        <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-100 shadow-sm">
+                          <AlertTriangle className="w-6 h-6" />
+                        </div>
+                        <p className="font-bold text-slate-800 text-sm">Unable to load assets.</p>
+                        <p className="text-xs text-slate-500">
+                          {(assetsError as any)?.response?.data?.message || (assetsError as any)?.message || 'An error occurred while loading the asset list. Please try again.'}
+                        </p>
+                        <EnterpriseButton
+                          onClick={() => {
+                            refetchAssets()
+                            refetchKpis()
+                          }}
+                          variant="primary"
+                          className="mt-2"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Retry
+                        </EnterpriseButton>
+                      </div>
+                    </td>
+                  </tr>
+                ) : assetsList.length === 0 ? (
                   <tr>
                     <td colSpan={10} className="p-12 text-center text-slate-400">
                       <Cpu className="w-10 h-10 mx-auto text-slate-300 mb-2" />

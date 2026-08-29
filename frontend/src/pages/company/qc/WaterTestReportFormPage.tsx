@@ -118,9 +118,18 @@ export const WaterTestReportFormPage: React.FC = () => {
 
         const mapped: Record<string, { value?: string; stringValue?: string }> = {};
         r.results.forEach(res => {
+          let strVal = res.stringValue || '';
+          const valStr = res.value !== null && res.value !== undefined ? res.value.toString() : '';
+          const pName = (res.parameterName || '').toLowerCase();
+          if (valStr !== '' && (!strVal || strVal === '')) {
+            if (pName.includes('aerobic') || pName.includes('amc')) {
+              strVal = 'Enter Count';
+            }
+          }
+
           const resData = {
-            value: res.value !== null && res.value !== undefined ? res.value.toString() : '',
-            stringValue: res.stringValue || ''
+            value: valStr,
+            stringValue: strVal
           };
 
           if (res.parameterId) {
@@ -141,17 +150,19 @@ export const WaterTestReportFormPage: React.FC = () => {
   };
 
   const getParamResult = (param: WaterTestParameter) => {
-    return results[param.id] || results[param.name] || results[param.name.toLowerCase().trim()];
+    return results[param.id] || results[param.name] || results[param.name?.toLowerCase().trim()];
   };
 
-  const handleResultChange = (param: WaterTestParameter, field: 'value' | 'stringValue', val: string) => {
-    const existing = getParamResult(param) || {};
-    const updated = {
-      ...existing,
-      [field]: val
-    };
-
+  const updateParamResult = (
+    param: WaterTestParameter,
+    updates: { value?: string; stringValue?: string }
+  ) => {
     setResults(prev => {
+      const existing = prev[param.id] || prev[param.name] || prev[param.name?.toLowerCase().trim()] || {};
+      const updated = {
+        ...existing,
+        ...updates
+      };
       const next = { ...prev };
       if (param.id) next[param.id] = updated;
       if (param.name) {
@@ -160,6 +171,10 @@ export const WaterTestReportFormPage: React.FC = () => {
       }
       return next;
     });
+  };
+
+  const handleResultChange = (param: WaterTestParameter, field: 'value' | 'stringValue', val: string) => {
+    updateParamResult(param, { [field]: val });
   };
 
   // Group and sort Physical & Chemical parameters from database
@@ -283,15 +298,25 @@ export const WaterTestReportFormPage: React.FC = () => {
   };
 
   const renderParameterInput = (param: WaterTestParameter) => {
-    const pName = param.name.toLowerCase();
+    const pName = (param.name || '').toLowerCase();
     const paramRes = getParamResult(param);
 
-    if (['colour', 'odour', 'taste'].includes(pName)) {
+    if (['colour', 'color', 'odour', 'odor', 'taste'].includes(pName)) {
+      const currentStr = paramRes?.stringValue || '';
+      let selectValue = '';
+      if (currentStr) {
+        const lower = currentStr.toLowerCase().trim();
+        if (lower === 'agreeable' || lower === 'unobjectionable') selectValue = 'Agreeable';
+        else if (lower === 'not agreeable' || lower === 'objectionable') selectValue = 'Not Agreeable';
+        else selectValue = currentStr;
+      }
+
       return (
         <select
+          id={`param-select-${param.id}`}
           className="w-full h-9 px-3 rounded-md border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm bg-white"
-          value={paramRes?.stringValue || ''}
-          onChange={(e) => handleResultChange(param, 'stringValue', e.target.value)}
+          value={selectValue}
+          onChange={(e) => updateParamResult(param, { stringValue: e.target.value })}
         >
           <option value="">-- Select Result --</option>
           <option value="Agreeable">Agreeable</option>
@@ -304,16 +329,27 @@ export const WaterTestReportFormPage: React.FC = () => {
       const isAmc = pName.includes('aerobic') || pName.includes('amc');
       const currentStr = paramRes?.stringValue || '';
 
+      let selectValue = '';
+      if (currentStr) {
+        const lower = currentStr.toLowerCase().trim();
+        if (lower === 'absent') selectValue = 'Absent';
+        else if (lower === 'present') selectValue = 'Present';
+        else if (lower === 'enter count') selectValue = 'Enter Count';
+        else selectValue = currentStr;
+      }
+
       return (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <select
+            id={`micro-select-${param.id}`}
             className="h-9 px-3 rounded-md border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm bg-white min-w-[140px]"
-            value={currentStr}
+            value={selectValue}
             onChange={(e) => {
               const strVal = e.target.value;
-              handleResultChange(param, 'stringValue', strVal);
-              if (strVal !== 'Enter Count') {
-                handleResultChange(param, 'value', '');
+              if (strVal === 'Enter Count') {
+                updateParamResult(param, { stringValue: strVal });
+              } else {
+                updateParamResult(param, { stringValue: strVal, value: '' });
               }
             }}
           >
@@ -323,16 +359,17 @@ export const WaterTestReportFormPage: React.FC = () => {
             {isAmc && <option value="Enter Count">Enter Count</option>}
           </select>
 
-          {isAmc && currentStr === 'Enter Count' && (
+          {isAmc && selectValue === 'Enter Count' && (
             <div className="flex items-center gap-2 animate-in fade-in duration-150">
               <input
+                id={`micro-count-${param.id}`}
                 type="number"
                 min="0"
                 step="1"
                 placeholder="Count"
                 className="w-24 h-9 px-3 rounded-md border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm bg-white"
                 value={paramRes?.value || ''}
-                onChange={(e) => handleResultChange(param, 'value', e.target.value)}
+                onChange={(e) => updateParamResult(param, { value: e.target.value })}
               />
               <span className="text-xs font-semibold text-slate-500">CFU/ml</span>
             </div>
@@ -344,12 +381,13 @@ export const WaterTestReportFormPage: React.FC = () => {
     return (
       <div className="relative">
         <input
+          id={`param-input-${param.id}`}
           type="number"
           step="any"
           placeholder="Enter numeric value..."
           className="w-full h-9 px-3 rounded-md border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm bg-white"
           value={paramRes?.value || ''}
-          onChange={(e) => handleResultChange(param, 'value', e.target.value)}
+          onChange={(e) => updateParamResult(param, { value: e.target.value })}
         />
         {param.unit && param.unit !== '—' && (
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 pointer-events-none">

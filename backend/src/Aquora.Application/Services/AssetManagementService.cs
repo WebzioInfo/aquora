@@ -27,6 +27,290 @@ namespace Aquora.Application.Services
             _userProvider = userProvider;
         }
 
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _schemaCheckedTenants = new(StringComparer.OrdinalIgnoreCase);
+
+        private Guid GetTenantId()
+        {
+            if (_tenantProvider.TenantId != Guid.Empty) return _tenantProvider.TenantId;
+            if (_userProvider.TenantId != Guid.Empty) return _userProvider.TenantId;
+            return Guid.Empty;
+        }
+
+        private async Task EnsureAssetSchemaAsync()
+        {
+            var schema = _tenantProvider.TenantSchemaName;
+            if (string.IsNullOrWhiteSpace(schema)) schema = "public";
+
+            if (_schemaCheckedTenants.TryGetValue(schema, out var checkedOk) && checkedOk)
+            {
+                return;
+            }
+
+            try
+            {
+                var sql = $@"
+                    CREATE TABLE IF NOT EXISTS ""{schema}"".""Assets"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""TenantId"" uuid NOT NULL,
+                        ""CompanyId"" uuid NOT NULL,
+                        ""AssetCode"" text NOT NULL DEFAULT '',
+                        ""AssetTag"" text NOT NULL DEFAULT '',
+                        ""AssetName"" text NOT NULL DEFAULT '',
+                        ""AssetCategory"" text NOT NULL DEFAULT 'Other',
+                        ""AssetType"" text NULL,
+                        ""SerialNumber"" text NULL,
+                        ""ModelNumber"" text NULL,
+                        ""Manufacturer"" text NULL,
+                        ""Description"" text NULL,
+                        ""PurchaseDate"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        ""PurchasePrice"" numeric NOT NULL DEFAULT 0.0,
+                        ""SupplierId"" uuid NULL,
+                        ""SupplierName"" text NULL,
+                        ""PurchaseInvoiceNumber"" text NULL,
+                        ""PurchaseOrderNumber"" text NULL,
+                        ""TaxAmount"" numeric NOT NULL DEFAULT 0.0,
+                        ""FreightCost"" numeric NOT NULL DEFAULT 0.0,
+                        ""InstallationCost"" numeric NOT NULL DEFAULT 0.0,
+                        ""OtherCapitalizedCost"" numeric NOT NULL DEFAULT 0.0,
+                        ""TotalCapitalizedCost"" numeric NOT NULL DEFAULT 0.0,
+                        ""DepreciationMethod"" text NOT NULL DEFAULT 'StraightLine',
+                        ""UsefulLifeYears"" numeric NOT NULL DEFAULT 5,
+                        ""ResidualValue"" numeric NOT NULL DEFAULT 0,
+                        ""DepreciationStartDate"" timestamp with time zone NULL,
+                        ""DepreciationFrequency"" text NOT NULL DEFAULT 'Yearly',
+                        ""DepreciationRate"" numeric NOT NULL DEFAULT 0.0,
+                        ""AccumulatedDepreciation"" numeric NOT NULL DEFAULT 0.0,
+                        ""CurrentValue"" numeric NOT NULL DEFAULT 0.0,
+                        ""Location"" text NULL,
+                        ""Department"" text NULL,
+                        ""AssignedEmployeeId"" uuid NULL,
+                        ""AssignedEmployeeName"" text NULL,
+                        ""AssignedDate"" timestamp with time zone NULL,
+                        ""CurrentStatus"" text NOT NULL DEFAULT 'Active',
+                        ""Condition"" text NOT NULL DEFAULT 'Good',
+                        ""WarrantyDetails"" text NULL,
+                        ""WarrantyStartDate"" timestamp with time zone NULL,
+                        ""WarrantyEndDate"" timestamp with time zone NULL,
+                        ""WarrantyProvider"" text NULL,
+                        ""WarrantyNumber"" text NULL,
+                        ""WarrantyNotes"" text NULL,
+                        ""LastMaintenanceDate"" timestamp with time zone NULL,
+                        ""NextMaintenanceDate"" timestamp with time zone NULL,
+                        ""TotalMaintenanceCost"" numeric NOT NULL DEFAULT 0.0,
+                        ""DisposalDate"" timestamp with time zone NULL,
+                        ""DisposalMethod"" text NULL,
+                        ""DisposalReason"" text NULL,
+                        ""SaleValue"" numeric NOT NULL DEFAULT 0.0,
+                        ""DisposalCost"" numeric NOT NULL DEFAULT 0.0,
+                        ""BuyerParty"" text NULL,
+                        ""DisposalRefNo"" text NULL,
+                        ""DisposedBy"" text NULL,
+                        ""Notes"" text NULL,
+                        ""PhotoUrl"" text NULL,
+                        ""DocumentUrl"" text NULL,
+                        ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                        ""UpdatedAt"" timestamp with time zone NULL,
+                        ""UpdatedBy"" text NULL,
+                        ""CreatedByIP"" text NULL,
+                        ""UpdatedByIP"" text NULL,
+                        ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                        ""DeletedAt"" timestamp with time zone NULL,
+                        ""DeletedBy"" text NULL
+                    );
+
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""AssetCode"" text NOT NULL DEFAULT '';
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""AssetTag"" text NOT NULL DEFAULT '';
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""AssetType"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""ModelNumber"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""Manufacturer"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""Description"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""SupplierName"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""PurchaseInvoiceNumber"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""PurchaseOrderNumber"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""TaxAmount"" numeric NOT NULL DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""FreightCost"" numeric NOT NULL DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""InstallationCost"" numeric NOT NULL DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""OtherCapitalizedCost"" numeric NOT NULL DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""TotalCapitalizedCost"" numeric NOT NULL DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DepreciationMethod"" text NOT NULL DEFAULT 'StraightLine';
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""UsefulLifeYears"" numeric NOT NULL DEFAULT 5;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""ResidualValue"" numeric NOT NULL DEFAULT 0;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DepreciationStartDate"" timestamp with time zone NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DepreciationFrequency"" text NOT NULL DEFAULT 'Yearly';
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DepreciationRate"" numeric NOT NULL DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""AccumulatedDepreciation"" numeric NOT NULL DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""Department"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""AssignedEmployeeName"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""AssignedDate"" timestamp with time zone NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""Condition"" text NOT NULL DEFAULT 'Good';
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""WarrantyStartDate"" timestamp with time zone NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""WarrantyEndDate"" timestamp with time zone NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""WarrantyProvider"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""WarrantyNumber"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""WarrantyNotes"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""LastMaintenanceDate"" timestamp with time zone NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""NextMaintenanceDate"" timestamp with time zone NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""TotalMaintenanceCost"" numeric NOT NULL DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DisposalDate"" timestamp with time zone NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DisposalMethod"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DisposalReason"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""SaleValue"" numeric NOT NULL DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DisposalCost"" numeric NOT NULL DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""BuyerParty"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DisposalRefNo"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DisposedBy"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""Notes"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""PhotoUrl"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DocumentUrl"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""CreatedBy"" text NOT NULL DEFAULT 'System';
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""UpdatedAt"" timestamp with time zone NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""UpdatedBy"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""CreatedByIP"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""UpdatedByIP"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""IsDeleted"" boolean NOT NULL DEFAULT false;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DeletedAt"" timestamp with time zone NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DeletedBy"" text NULL;
+
+                    -- DATA REPAIR: Backfill NULL or empty AssetCode deterministically
+                    WITH numbered_null_assets AS (
+                        SELECT ""Id"", ROW_NUMBER() OVER (ORDER BY ""CreatedAt"" ASC, ""Id"" ASC) as rn
+                        FROM ""{schema}"".""Assets""
+                        WHERE ""AssetCode"" IS NULL OR ""AssetCode"" = ''
+                    )
+                    UPDATE ""{schema}"".""Assets"" a
+                    SET ""AssetCode"" = 'AST-' || TO_CHAR(COALESCE(a.""CreatedAt"", CURRENT_TIMESTAMP), 'YYYY') || '-' || LPAD(numbered_null_assets.rn::text, 5, '0')
+                    FROM numbered_null_assets
+                    WHERE a.""Id"" = numbered_null_assets.""Id"";
+
+                    UPDATE ""{schema}"".""Assets""
+                    SET ""AssetCode"" = 'AST-' || SUBSTRING(""Id""::text, 1, 8)
+                    WHERE ""AssetCode"" IS NULL OR ""AssetCode"" = '';
+
+                    UPDATE ""{schema}"".""Assets"" SET ""AssetTag"" = 'TAG-' || ""AssetCode"" WHERE ""AssetTag"" IS NULL OR ""AssetTag"" = '';
+                    UPDATE ""{schema}"".""Assets"" SET ""AssetName"" = 'Asset ' || ""AssetCode"" WHERE ""AssetName"" IS NULL OR ""AssetName"" = '';
+                    UPDATE ""{schema}"".""Assets"" SET ""AssetCategory"" = 'Other' WHERE ""AssetCategory"" IS NULL OR ""AssetCategory"" = '';
+                    UPDATE ""{schema}"".""Assets"" SET ""PurchaseDate"" = CURRENT_TIMESTAMP WHERE ""PurchaseDate"" IS NULL;
+                    UPDATE ""{schema}"".""Assets"" SET ""PurchasePrice"" = 0.0 WHERE ""PurchasePrice"" IS NULL;
+                    UPDATE ""{schema}"".""Assets"" SET ""TaxAmount"" = 0.0 WHERE ""TaxAmount"" IS NULL;
+                    UPDATE ""{schema}"".""Assets"" SET ""FreightCost"" = 0.0 WHERE ""FreightCost"" IS NULL;
+                    UPDATE ""{schema}"".""Assets"" SET ""InstallationCost"" = 0.0 WHERE ""InstallationCost"" IS NULL;
+                    UPDATE ""{schema}"".""Assets"" SET ""OtherCapitalizedCost"" = 0.0 WHERE ""OtherCapitalizedCost"" IS NULL;
+                    UPDATE ""{schema}"".""Assets"" SET ""TotalCapitalizedCost"" = COALESCE(""PurchasePrice"", 0.0) WHERE ""TotalCapitalizedCost"" IS NULL OR ""TotalCapitalizedCost"" = 0.0;
+                    UPDATE ""{schema}"".""Assets"" SET ""DepreciationMethod"" = 'StraightLine' WHERE ""DepreciationMethod"" IS NULL OR ""DepreciationMethod"" = '';
+                    UPDATE ""{schema}"".""Assets"" SET ""UsefulLifeYears"" = 5 WHERE ""UsefulLifeYears"" IS NULL OR ""UsefulLifeYears"" <= 0;
+                    UPDATE ""{schema}"".""Assets"" SET ""ResidualValue"" = 0.0 WHERE ""ResidualValue"" IS NULL;
+                    UPDATE ""{schema}"".""Assets"" SET ""DepreciationFrequency"" = 'Yearly' WHERE ""DepreciationFrequency"" IS NULL OR ""DepreciationFrequency"" = '';
+                    UPDATE ""{schema}"".""Assets"" SET ""DepreciationRate"" = 0.0 WHERE ""DepreciationRate"" IS NULL;
+                    UPDATE ""{schema}"".""Assets"" SET ""AccumulatedDepreciation"" = 0.0 WHERE ""AccumulatedDepreciation"" IS NULL;
+                    UPDATE ""{schema}"".""Assets"" SET ""CurrentValue"" = COALESCE(""TotalCapitalizedCost"", ""PurchasePrice"", 0.0) WHERE ""CurrentValue"" IS NULL;
+                    UPDATE ""{schema}"".""Assets"" SET ""CurrentStatus"" = 'Active' WHERE ""CurrentStatus"" IS NULL OR ""CurrentStatus"" = '';
+                    UPDATE ""{schema}"".""Assets"" SET ""Condition"" = 'Good' WHERE ""Condition"" IS NULL OR ""Condition"" = '';
+                    UPDATE ""{schema}"".""Assets"" SET ""TotalMaintenanceCost"" = 0.0 WHERE ""TotalMaintenanceCost"" IS NULL;
+                    UPDATE ""{schema}"".""Assets"" SET ""SaleValue"" = 0.0 WHERE ""SaleValue"" IS NULL;
+                    UPDATE ""{schema}"".""Assets"" SET ""DisposalCost"" = 0.0 WHERE ""DisposalCost"" IS NULL;
+                    UPDATE ""{schema}"".""Assets"" SET ""CreatedAt"" = CURRENT_TIMESTAMP WHERE ""CreatedAt"" IS NULL;
+                    UPDATE ""{schema}"".""Assets"" SET ""CreatedBy"" = 'System' WHERE ""CreatedBy"" IS NULL OR ""CreatedBy"" = '';
+                    UPDATE ""{schema}"".""Assets"" SET ""IsDeleted"" = false WHERE ""IsDeleted"" IS NULL;
+
+                    -- Enforce NOT NULL and Defaults
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""AssetCode"" SET DEFAULT '';
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""AssetCode"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""AssetTag"" SET DEFAULT '';
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""AssetTag"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""AssetName"" SET DEFAULT '';
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""AssetName"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""AssetCategory"" SET DEFAULT 'Other';
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""AssetCategory"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""PurchaseDate"" SET DEFAULT CURRENT_TIMESTAMP;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""PurchaseDate"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""PurchasePrice"" SET DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""PurchasePrice"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""TaxAmount"" SET DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""TaxAmount"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""FreightCost"" SET DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""FreightCost"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""InstallationCost"" SET DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""InstallationCost"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""OtherCapitalizedCost"" SET DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""OtherCapitalizedCost"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""TotalCapitalizedCost"" SET DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""TotalCapitalizedCost"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""DepreciationMethod"" SET DEFAULT 'StraightLine';
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""DepreciationMethod"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""UsefulLifeYears"" SET DEFAULT 5;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""UsefulLifeYears"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""ResidualValue"" SET DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""ResidualValue"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""DepreciationFrequency"" SET DEFAULT 'Yearly';
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""DepreciationFrequency"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""DepreciationRate"" SET DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""DepreciationRate"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""AccumulatedDepreciation"" SET DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""AccumulatedDepreciation"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""CurrentValue"" SET DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""CurrentValue"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""CurrentStatus"" SET DEFAULT 'Active';
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""CurrentStatus"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""Condition"" SET DEFAULT 'Good';
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""Condition"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""TotalMaintenanceCost"" SET DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""TotalMaintenanceCost"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""SaleValue"" SET DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""SaleValue"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""DisposalCost"" SET DEFAULT 0.0;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""DisposalCost"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""CreatedAt"" SET DEFAULT CURRENT_TIMESTAMP;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""CreatedAt"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""CreatedBy"" SET DEFAULT 'System';
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""CreatedBy"" SET NOT NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""IsDeleted"" SET DEFAULT false;
+                    ALTER TABLE ""{schema}"".""Assets"" ALTER COLUMN ""IsDeleted"" SET NOT NULL;
+
+                    CREATE TABLE IF NOT EXISTS ""{schema}"".""AssetMaintenanceRecords"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""TenantId"" uuid NOT NULL,
+                        ""CompanyId"" uuid NOT NULL,
+                        ""AssetId"" uuid NOT NULL,
+                        ""MaintenanceType"" text NOT NULL DEFAULT 'Preventive',
+                        ""MaintenanceDate"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        ""ServiceProvider"" text NOT NULL DEFAULT '',
+                        ""Description"" text NOT NULL DEFAULT '',
+                        ""PartsCost"" numeric NOT NULL DEFAULT 0.0,
+                        ""LabourCost"" numeric NOT NULL DEFAULT 0.0,
+                        ""OtherCost"" numeric NOT NULL DEFAULT 0.0,
+                        ""TotalCost"" numeric NOT NULL DEFAULT 0.0,
+                        ""NextMaintenanceDate"" timestamp with time zone NULL,
+                        ""IsWarrantyClaim"" boolean NOT NULL DEFAULT false,
+                        ""TechnicianName"" text NULL,
+                        ""Notes"" text NULL,
+                        ""AttachmentUrl"" text NULL,
+                        ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        ""CreatedBy"" text NOT NULL DEFAULT 'System'
+                    );
+
+                    CREATE TABLE IF NOT EXISTS ""{schema}"".""AssetHistories"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""AssetId"" uuid NOT NULL,
+                        ""Date"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        ""Action"" text NOT NULL DEFAULT '',
+                        ""PerformedBy"" text NOT NULL DEFAULT '',
+                        ""PreviousValue"" text NULL,
+                        ""NewValue"" text NULL,
+                        ""Remarks"" text NULL
+                    );
+                ";
+
+                await _context.Database.ExecuteSqlRawAsync(sql);
+                _schemaCheckedTenants[schema] = true;
+            }
+            catch
+            {
+                // Ignore schema creation errors if permissions/tables are locked
+            }
+        }
+
         private async Task<Guid> GetCompanyIdAsync()
         {
             var company = await _context.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
@@ -54,12 +338,13 @@ namespace Aquora.Application.Services
 
         private async Task<string> GenerateAssetCodeAsync()
         {
+            var tenantId = GetTenantId();
             var currentYear = DateTime.UtcNow.Year;
             var prefix = $"AST-{currentYear}-";
 
             var count = await _context.Assets
                 .IgnoreQueryFilters()
-                .Where(a => a.TenantId == _tenantProvider.TenantId && a.AssetCode.StartsWith(prefix))
+                .Where(a => a.TenantId == tenantId && a.AssetCode.StartsWith(prefix))
                 .CountAsync();
 
             return $"{prefix}{(count + 1):D5}";
@@ -75,8 +360,11 @@ namespace Aquora.Application.Services
             string? location = null,
             string? department = null)
         {
+            await EnsureAssetSchemaAsync();
+            var tenantId = GetTenantId();
+
             var query = _context.Assets
-                .Where(a => a.TenantId == _tenantProvider.TenantId && !a.IsDeleted)
+                .Where(a => a.TenantId == tenantId && !a.IsDeleted)
                 .AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(search))
@@ -87,54 +375,66 @@ namespace Aquora.Application.Services
                     a.AssetTag.ToLower().Contains(term) ||
                     a.AssetCode.ToLower().Contains(term) ||
                     (a.SerialNumber != null && a.SerialNumber.ToLower().Contains(term)) ||
+                    (a.ModelNumber != null && a.ModelNumber.ToLower().Contains(term)) ||
                     (a.Manufacturer != null && a.Manufacturer.ToLower().Contains(term)));
             }
 
-            if (!string.IsNullOrWhiteSpace(category) && category != "ALL")
+            if (!string.IsNullOrWhiteSpace(category) && !category.Trim().Equals("ALL", StringComparison.OrdinalIgnoreCase))
             {
-                query = query.Where(a => a.AssetCategory.ToLower() == category.Trim().ToLower());
+                var cat = category.Trim().ToLower();
+                query = query.Where(a => a.AssetCategory.ToLower() == cat);
             }
 
-            if (!string.IsNullOrWhiteSpace(status) && status != "ALL")
+            if (!string.IsNullOrWhiteSpace(status) && !status.Trim().Equals("ALL", StringComparison.OrdinalIgnoreCase))
             {
-                query = query.Where(a => a.CurrentStatus.ToLower() == status.Trim().ToLower());
+                var st = status.Trim().ToLower();
+                query = query.Where(a => a.CurrentStatus.ToLower() == st);
             }
 
-            if (!string.IsNullOrWhiteSpace(condition) && condition != "ALL")
+            if (!string.IsNullOrWhiteSpace(condition) && !condition.Trim().Equals("ALL", StringComparison.OrdinalIgnoreCase))
             {
-                query = query.Where(a => a.Condition.ToLower() == condition.Trim().ToLower());
+                var cond = condition.Trim().ToLower();
+                query = query.Where(a => a.Condition.ToLower() == cond);
             }
 
-            if (!string.IsNullOrWhiteSpace(location) && location != "ALL")
+            if (!string.IsNullOrWhiteSpace(location) && !location.Trim().Equals("ALL", StringComparison.OrdinalIgnoreCase))
             {
-                query = query.Where(a => a.Location != null && a.Location.ToLower() == location.Trim().ToLower());
+                var loc = location.Trim().ToLower();
+                query = query.Where(a => a.Location != null && a.Location.ToLower() == loc);
             }
 
-            if (!string.IsNullOrWhiteSpace(department) && department != "ALL")
+            if (!string.IsNullOrWhiteSpace(department) && !department.Trim().Equals("ALL", StringComparison.OrdinalIgnoreCase))
             {
-                query = query.Where(a => a.Department != null && a.Department.ToLower() == department.Trim().ToLower());
+                var dept = department.Trim().ToLower();
+                query = query.Where(a => a.Department != null && a.Department.ToLower() == dept);
             }
+
+            var safePageNumber = pageNumber >= 1 ? pageNumber : 1;
+            var safePageSize = pageSize > 0 ? (pageSize > 200 ? 200 : pageSize) : 50;
 
             var totalCount = await query.CountAsync();
             var items = await query
                 .OrderByDescending(a => a.CreatedAt)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
+                .Skip((safePageNumber - 1) * safePageSize)
+                .Take(safePageSize)
                 .ToListAsync();
 
             return new AssetPagedResultDto
             {
                 Items = items.Select(MapToDetailedDto).ToList(),
                 TotalCount = totalCount,
-                PageNumber = pageNumber,
-                PageSize = pageSize
+                PageNumber = safePageNumber,
+                PageSize = safePageSize
             };
         }
 
         public async Task<AssetKpiSummaryDto> GetAssetKpisAsync()
         {
+            await EnsureAssetSchemaAsync();
+            var tenantId = GetTenantId();
+
             var assets = await _context.Assets
-                .Where(a => a.TenantId == _tenantProvider.TenantId && !a.IsDeleted)
+                .Where(a => a.TenantId == tenantId && !a.IsDeleted)
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -144,26 +444,30 @@ namespace Aquora.Application.Services
             return new AssetKpiSummaryDto
             {
                 TotalAssetsCount = assets.Count,
-                ActiveAssetsCount = assets.Count(a => a.CurrentStatus == "Active" || a.CurrentStatus == "InUse"),
+                ActiveAssetsCount = assets.Count(a => string.Equals(a.CurrentStatus, "Active", StringComparison.OrdinalIgnoreCase) || string.Equals(a.CurrentStatus, "InUse", StringComparison.OrdinalIgnoreCase)),
                 TotalAssetValue = assets.Sum(a => a.TotalCapitalizedCost > 0 ? a.TotalCapitalizedCost : a.PurchasePrice),
-                CurrentBookValue = assets.Where(a => a.CurrentStatus != "Disposed" && a.CurrentStatus != "Retired").Sum(a => a.CurrentValue),
+                CurrentBookValue = assets.Where(a => !string.Equals(a.CurrentStatus, "Disposed", StringComparison.OrdinalIgnoreCase) && !string.Equals(a.CurrentStatus, "Retired", StringComparison.OrdinalIgnoreCase)).Sum(a => a.CurrentValue),
                 AccumulatedDepreciation = assets.Sum(a => a.AccumulatedDepreciation),
-                UnderMaintenanceCount = assets.Count(a => a.CurrentStatus == "UnderMaintenance"),
-                DisposedCount = assets.Count(a => a.CurrentStatus == "Disposed" || a.CurrentStatus == "Retired"),
+                UnderMaintenanceCount = assets.Count(a => string.Equals(a.CurrentStatus, "UnderMaintenance", StringComparison.OrdinalIgnoreCase)),
+                DisposedCount = assets.Count(a => string.Equals(a.CurrentStatus, "Disposed", StringComparison.OrdinalIgnoreCase) || string.Equals(a.CurrentStatus, "Retired", StringComparison.OrdinalIgnoreCase)),
                 WarrantyExpiringCount = assets.Count(a => a.WarrantyEndDate.HasValue && a.WarrantyEndDate.Value >= now && a.WarrantyEndDate.Value <= thirtyDaysFromNow)
             };
         }
 
         public async Task<DetailedAssetDto?> GetAssetByIdAsync(Guid id)
         {
+            await EnsureAssetSchemaAsync();
+            var tenantId = GetTenantId();
             var asset = await _context.Assets
-                .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == _tenantProvider.TenantId && !a.IsDeleted);
+                .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == tenantId && !a.IsDeleted);
 
             return asset == null ? null : MapToDetailedDto(asset);
         }
 
         public async Task<DetailedAssetDto> CreateAssetAsync(CreateAssetRequest request)
         {
+            await EnsureAssetSchemaAsync();
+            var tenantId = GetTenantId();
             if (string.IsNullOrWhiteSpace(request.AssetName))
                 throw new ArgumentException("Asset name is required.");
 
@@ -182,7 +486,7 @@ namespace Aquora.Application.Services
 
             // Validate unique tag per tenant
             var tagExists = await _context.Assets.AnyAsync(a =>
-                a.TenantId == _tenantProvider.TenantId &&
+                a.TenantId == tenantId &&
                 !a.IsDeleted &&
                 a.AssetTag.ToLower() == tag.ToLower());
 
@@ -196,7 +500,7 @@ namespace Aquora.Application.Services
 
             var asset = new Asset
             {
-                TenantId = _tenantProvider.TenantId,
+                TenantId = tenantId,
                 CompanyId = companyId,
                 AssetCode = assetCode,
                 AssetTag = tag,
@@ -268,8 +572,10 @@ namespace Aquora.Application.Services
 
         public async Task<DetailedAssetDto?> UpdateAssetAsync(Guid id, UpdateAssetRequest request)
         {
+            await EnsureAssetSchemaAsync();
+            var tenantId = GetTenantId();
             var asset = await _context.Assets
-                .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == _tenantProvider.TenantId && !a.IsDeleted);
+                .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == tenantId && !a.IsDeleted);
 
             if (asset == null) return null;
 
@@ -314,8 +620,10 @@ namespace Aquora.Application.Services
 
         public async Task<DetailedAssetDto?> AssignAssetAsync(Guid id, AssignAssetRequest request)
         {
+            await EnsureAssetSchemaAsync();
+            var tenantId = GetTenantId();
             var asset = await _context.Assets
-                .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == _tenantProvider.TenantId && !a.IsDeleted);
+                .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == tenantId && !a.IsDeleted);
 
             if (asset == null) return null;
 
@@ -347,8 +655,10 @@ namespace Aquora.Application.Services
 
         public async Task<DetailedAssetDto?> TransferAssetAsync(Guid id, TransferAssetRequest request)
         {
+            await EnsureAssetSchemaAsync();
+            var tenantId = GetTenantId();
             var asset = await _context.Assets
-                .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == _tenantProvider.TenantId && !a.IsDeleted);
+                .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == tenantId && !a.IsDeleted);
 
             if (asset == null) return null;
 
@@ -380,8 +690,10 @@ namespace Aquora.Application.Services
 
         public async Task<AssetMaintenanceRecordDto?> RecordMaintenanceAsync(Guid id, RecordMaintenanceRequest request)
         {
+            await EnsureAssetSchemaAsync();
+            var tenantId = GetTenantId();
             var asset = await _context.Assets
-                .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == _tenantProvider.TenantId && !a.IsDeleted);
+                .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == tenantId && !a.IsDeleted);
 
             if (asset == null) return null;
 
@@ -390,7 +702,7 @@ namespace Aquora.Application.Services
 
             var record = new AssetMaintenanceRecord
             {
-                TenantId = _tenantProvider.TenantId,
+                TenantId = tenantId,
                 CompanyId = companyId,
                 AssetId = asset.Id,
                 MaintenanceType = request.MaintenanceType,
@@ -454,8 +766,10 @@ namespace Aquora.Application.Services
 
         public async Task<List<AssetMaintenanceRecordDto>> GetMaintenanceRecordsAsync(Guid id)
         {
+            await EnsureAssetSchemaAsync();
+            var tenantId = GetTenantId();
             var records = await _context.AssetMaintenanceRecords
-                .Where(m => m.AssetId == id && m.TenantId == _tenantProvider.TenantId)
+                .Where(m => m.AssetId == id && m.TenantId == tenantId)
                 .OrderByDescending(m => m.MaintenanceDate)
                 .AsNoTracking()
                 .ToListAsync();
@@ -483,8 +797,10 @@ namespace Aquora.Application.Services
 
         public async Task<DetailedAssetDto?> CalculateDepreciationAsync(Guid id)
         {
+            await EnsureAssetSchemaAsync();
+            var tenantId = GetTenantId();
             var asset = await _context.Assets
-                .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == _tenantProvider.TenantId && !a.IsDeleted);
+                .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == tenantId && !a.IsDeleted);
 
             if (asset == null || asset.CurrentStatus == "Disposed") return null;
 
@@ -542,8 +858,10 @@ namespace Aquora.Application.Services
 
         public async Task<DetailedAssetDto?> DisposeAssetAsync(Guid id, DisposeAssetRequest request)
         {
+            await EnsureAssetSchemaAsync();
+            var tenantId = GetTenantId();
             var asset = await _context.Assets
-                .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == _tenantProvider.TenantId && !a.IsDeleted);
+                .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == tenantId && !a.IsDeleted);
 
             if (asset == null) return null;
 
@@ -579,6 +897,7 @@ namespace Aquora.Application.Services
 
         public async Task<List<AssetHistoryDto>> GetAssetHistoryAsync(Guid id)
         {
+            await EnsureAssetSchemaAsync();
             var histories = await _context.AssetHistories
                 .Where(h => h.AssetId == id)
                 .OrderByDescending(h => h.Date)
@@ -602,8 +921,10 @@ namespace Aquora.Application.Services
         {
             if (request.AssetIds == null || request.AssetIds.Count == 0) return false;
 
+            await EnsureAssetSchemaAsync();
+            var tenantId = GetTenantId();
             var assets = await _context.Assets
-                .Where(a => request.AssetIds.Contains(a.Id) && a.TenantId == _tenantProvider.TenantId && !a.IsDeleted)
+                .Where(a => request.AssetIds.Contains(a.Id) && a.TenantId == tenantId && !a.IsDeleted)
                 .ToListAsync();
 
             foreach (var asset in assets)
@@ -639,6 +960,8 @@ namespace Aquora.Application.Services
 
             if (rows.Count == 0) return result;
 
+            await EnsureAssetSchemaAsync();
+            var tenantId = GetTenantId();
             var companyId = await GetCompanyIdAsync();
 
             for (int i = 0; i < rows.Count; i++)
@@ -668,7 +991,7 @@ namespace Aquora.Application.Services
                 var tag = !string.IsNullOrWhiteSpace(row.AssetTag) ? row.AssetTag.Trim().ToUpper() : $"TAG-{assetCode}";
 
                 var tagExists = await _context.Assets.AnyAsync(a =>
-                    a.TenantId == _tenantProvider.TenantId &&
+                    a.TenantId == tenantId &&
                     !a.IsDeleted &&
                     a.AssetTag.ToLower() == tag.ToLower());
 
@@ -686,7 +1009,7 @@ namespace Aquora.Application.Services
 
                 var asset = new Asset
                 {
-                    TenantId = _tenantProvider.TenantId,
+                    TenantId = tenantId,
                     CompanyId = companyId,
                     AssetCode = assetCode,
                     AssetTag = tag,
