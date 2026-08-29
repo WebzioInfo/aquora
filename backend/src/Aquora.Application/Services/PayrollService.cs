@@ -15,6 +15,7 @@ namespace Aquora.Application.Services
     public class PayrollService : IPayrollService
     {
         private readonly ITenantDbContext _context;
+        private readonly IPlatformDbContext? _platformContext;
         private readonly ILedgerService _ledgerService;
         private readonly ICurrentUserContext _currentUserContext;
         private readonly ITenantProvider _tenantProvider;
@@ -23,12 +24,14 @@ namespace Aquora.Application.Services
             ITenantDbContext context,
             ILedgerService ledgerService,
             ICurrentUserContext currentUserContext,
-            ITenantProvider tenantProvider)
+            ITenantProvider tenantProvider,
+            IPlatformDbContext? platformContext = null)
         {
             _context = context;
             _ledgerService = ledgerService;
             _currentUserContext = currentUserContext;
             _tenantProvider = tenantProvider;
+            _platformContext = platformContext;
         }
 
         private Guid GetTenantId() => _tenantProvider.TenantId;
@@ -738,6 +741,175 @@ namespace Aquora.Application.Services
                     throw;
                 }
             });
+        }
+
+        public async Task<EmployeeSalaryStatementReportDto> GetEmployeeSalaryStatementReportAsync(Guid employeeId, string? month)
+        {
+            var tenantId = GetTenantId();
+            var companyId = await GetCompanyIdAsync();
+
+            // 1. Validate employee exists within current tenant context
+            var employee = await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == employeeId && u.TenantId == tenantId && !u.IsDeleted);
+
+            if (employee == null)
+            {
+                throw new KeyNotFoundException("Employee record not found or does not belong to the current company.");
+            }
+
+            var targetMonth = !string.IsNullOrWhiteSpace(month) ? month.Trim() : DateTime.UtcNow.ToString("yyyy-MM");
+
+            // 2. Fetch or compute MonthlySalary statement for targetMonth
+            var currentEntitlement = await _context.MonthlySalaries
+                .Include(m => m.Employee)
+                .Include(m => m.Payments.Where(p => !p.IsDeleted))
+                .FirstOrDefaultAsync(m => m.TenantId == tenantId && m.EmployeeId == employeeId && m.SalaryMonth == targetMonth && !m.IsDeleted);
+
+            MonthlySalaryDetailsDto currentStatement;
+            if (currentEntitlement != null)
+            {
+                var allPaymentsForEmployeeMonth = await _context.SalaryPayments
+                    .Where(p => p.TenantId == tenantId && !p.IsDeleted && p.EmployeeId == employeeId && p.SalaryMonth == targetMonth)
+                    .ToListAsync();
+                currentEntitlement.Payments = allPaymentsForEmployeeMonth;
+                currentStatement = await MapToDetailsDtoAsync(currentEntitlement);
+            }
+            else
+            {
+                var baseSalary = employee.CurrentSalary ?? 0m;
+                currentStatement = new MonthlySalaryDetailsDto
+                {
+                    Id = Guid.Empty,
+                    SalaryNo = $"SAL-{targetMonth.Replace("-", "")}-0000",
+                    EmployeeId = employee.Id,
+                    EmployeeName = $"{employee.FirstName} {employee.LastName}".Trim(),
+                    Department = !string.IsNullOrWhiteSpace(employee.Department) ? employee.Department : "Operations",
+                    Designation = !string.IsNullOrWhiteSpace(employee.Designation) ? employee.Designation : (!string.IsNullOrWhiteSpace(employee.RoleName) ? employee.RoleName : "Staff"),
+                    SalaryMonth = targetMonth,
+                    BaseSalary = baseSalary,
+                    WorkingDays = 30,
+                    DaysWorked = 30,
+                    DailySalary = baseSalary > 0 ? Math.Round(baseSalary / 30m, 2) : 0m,
+                    GrossSalary = baseSalary,
+                    Bonus = 0m,
+                    AdvanceDeduction = 0m,
+                    OtherDeduction = 0m,
+                    CalculatedEntitlement = baseSalary,
+                    NetSalaryEntitlement = baseSalary,
+                    TotalPaid = 0m,
+                    RemainingBalance = baseSalary,
+                    Status = "Unpaid",
+                    Payments = new List<SalaryPaymentTransactionDto>()
+                };
+            }
+
+            // 3. Fetch all monthly statements for this employee
+            var allMonthlyRecords = await _context.MonthlySalaries
+                .Include(m => m.Employee)
+                .Include(m => m.Payments.Where(p => !p.IsDeleted))
+                .Where(m => m.TenantId == tenantId && m.EmployeeId == employeeId && !m.IsDeleted)
+                .OrderByDescending(m => m.SalaryMonth)
+                .ToListAsync();
+
+            var monthlyHistory = allMonthlyRecords.Select(m => MapToDirectoryDto(m)).ToList();
+
+            // 4. Fetch all payment transactions for this employee across all time
+            var allPayments = await _context.SalaryPayments
+                .Where(p => p.TenantId == tenantId && p.EmployeeId == employeeId && !p.IsDeleted)
+                .OrderByDescending(p => p.PaymentDate)
+                .ThenByDescending(p => p.CreatedAt)
+                .ToListAsync();
+
+            var bankAccounts = await _context.BankAccounts.Where(b => b.TenantId == tenantId && !b.IsDeleted).ToListAsync();
+            var cashBooks = await _context.CashBooks.Where(c => c.TenantId == tenantId && !c.IsDeleted).ToListAsync();
+
+            var paymentTransactions = allPayments.Select(p =>
+            {
+                string paidFrom = string.Empty;
+                if (p.PaymentMethod == "BankAccount" && p.BankAccountId.HasValue)
+                {
+                    var b = bankAccounts.FirstOrDefault(x => x.Id == p.BankAccountId.Value);
+                    paidFrom = b != null ? $"{b.BankName} ({b.AccountName})" : "Bank Account";
+                }
+                else if (p.PaymentMethod == "CashBook" && p.CashBookId.HasValue)
+                {
+                    var c = cashBooks.FirstOrDefault(x => x.Id == p.CashBookId.Value);
+                    paidFrom = c != null ? c.Name : "Cash Book";
+                }
+
+                return new SalaryPaymentTransactionDto
+                {
+                    Id = p.Id,
+                    MonthlySalaryId = p.MonthlySalaryId ?? Guid.Empty,
+                    SalaryNo = p.SalaryNo,
+                    PaymentType = p.PaymentType,
+                    Amount = p.Amount,
+                    PaymentMethod = p.PaymentMethod,
+                    PaidFrom = paidFrom,
+                    BankAccountId = p.BankAccountId,
+                    CashBookId = p.CashBookId,
+                    PaymentDate = p.PaymentDate,
+                    Remarks = p.Remarks,
+                    Status = p.Status
+                };
+            }).ToList();
+
+            // 5. Fetch Company and Tenant Info dynamically
+            var company = await _context.Companies
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == companyId && c.TenantId == tenantId && !c.IsDeleted);
+
+            Domain.Entities.Tenant? tenant = null;
+            if (_platformContext != null)
+            {
+                tenant = await _platformContext.Tenants
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(t => t.Id == tenantId);
+            }
+
+            var companyName = !string.IsNullOrWhiteSpace(tenant?.Name) 
+                ? tenant.Name 
+                : (!string.IsNullOrWhiteSpace(company?.Name) && company.Name != "Company" ? company.Name : "Aquora Enterprise");
+
+            var address = !string.IsNullOrWhiteSpace(tenant?.Address) ? tenant.Address : null;
+            var phone = !string.IsNullOrWhiteSpace(tenant?.OwnerPhone) ? tenant.OwnerPhone : null;
+            var email = !string.IsNullOrWhiteSpace(tenant?.OwnerEmail) ? tenant.OwnerEmail : null;
+            var gstNumber = !string.IsNullOrWhiteSpace(tenant?.GstNumber) ? tenant.GstNumber : null;
+            var logoUrl = !string.IsNullOrWhiteSpace(tenant?.LogoUrl) ? tenant.LogoUrl : null;
+            var currency = !string.IsNullOrWhiteSpace(tenant?.Currency) ? tenant.Currency : "INR";
+            var currencySymbol = currency == "INR" ? "₹" : (currency == "USD" ? "$" : (currency == "EUR" ? "€" : currency));
+
+            return new EmployeeSalaryStatementReportDto
+            {
+                Employee = new EmployeeSalaryProfileDto
+                {
+                    Id = employee.Id,
+                    FullName = $"{employee.FirstName} {employee.LastName}".Trim(),
+                    Designation = !string.IsNullOrWhiteSpace(employee.Designation) ? employee.Designation : (!string.IsNullOrWhiteSpace(employee.RoleName) ? employee.RoleName : "Staff"),
+                    Department = !string.IsNullOrWhiteSpace(employee.Department) ? employee.Department : "Operations",
+                    Email = employee.Email,
+                    Phone = employee.Phone,
+                    BaseSalary = employee.CurrentSalary ?? 0m,
+                    JoiningDate = employee.JoiningDate
+                },
+                CurrentStatement = currentStatement,
+                MonthlyHistory = monthlyHistory,
+                AllPaymentTransactions = paymentTransactions,
+                Company = new PayrollCompanyInfoDto
+                {
+                    Name = companyName,
+                    DisplayName = companyName,
+                    Address = address,
+                    Phone = phone,
+                    Email = email,
+                    GstNumber = gstNumber,
+                    LogoUrl = logoUrl,
+                    Currency = currency,
+                    CurrencySymbol = currencySymbol
+                },
+                ReportGeneratedAt = DateTime.UtcNow.ToString("dd MMM yyyy, hh:mm tt")
+            };
         }
 
         public async Task<List<Aquora.Application.DTOs.SimpleAccounts.BankLedgerAuditEntryDto>> GetSalaryPaymentHistoryAsync(Guid transactionId)

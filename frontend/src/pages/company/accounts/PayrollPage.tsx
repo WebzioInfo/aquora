@@ -17,8 +17,9 @@ import EnterpriseBadge from '../../../components/ui/EnterpriseBadge'
 import EnterpriseModal from '../../../components/ui/EnterpriseModal'
 import EnterpriseLoading from '../../../components/ui/EnterpriseLoading'
 import { api } from '../../../services/api'
-import { Search, Trash2, Printer, Landmark, Wallet, Receipt, DollarSign, AlertCircle, ArrowUpRight, Calculator, Loader2, CheckCircle2, MoreVertical, Eye, History, Clock, Lock, FileText, Users, Calendar } from 'lucide-react'
+import { Search, Trash2, Printer, Landmark, Wallet, Receipt, DollarSign, AlertCircle, ArrowUpRight, Calculator, Loader2, CheckCircle2, MoreVertical, Eye, History, Clock, Lock, FileText, Users, Calendar, Download } from 'lucide-react'
 import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
+import { generateSalarySlipPDF, printSalarySlip, generateSalaryHistoryPDF, printSalaryHistory } from '../../../utils/salaryStatementPdfEngine'
 
 export const PayrollPage: React.FC = () => {
   const queryClient = useQueryClient()
@@ -54,6 +55,8 @@ export const PayrollPage: React.FC = () => {
 
   // Selected Entitlement & Details
   const [selectedEntitlement, setSelectedEntitlement] = useState<MonthlySalaryDetails | null>(null)
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
+  const [isPrintingDoc, setIsPrintingDoc] = useState(false)
 
   // Print Preview Modal States
   const [printModalOpen, setPrintModalOpen] = useState(false)
@@ -604,69 +607,84 @@ export const PayrollPage: React.FC = () => {
     }
   }
 
-  const handlePrintPayslip = async (details: MonthlySalaryDetails, transaction?: SalaryPaymentTransaction) => {
-    try {
-      const amountPaid = transaction ? transaction.amount : details.totalPaid
-      const methodLabel = transaction ? (transaction.paymentMethod === 'BankAccount' ? 'Bank Transfer' : 'Cash Book') : 'Bank / Cash'
-      const refNo = transaction ? transaction.salaryNo : details.salaryNo
-
-      setPrintDocData({
-        title: 'Salary Pay Slip',
-        docNumber: refNo || 'PAY-SLIP',
-        date: new Date(transaction?.paymentDate || Date.now()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-        partyLabel: 'Employee',
-        partyInfo: {
-          name: details.employeeName || 'General Employee',
-          details1: `Designation: ${details.designation || 'N/A'} | Department: ${details.department || 'N/A'}`,
-          details2: `Salary Month: ${details.salaryMonth}`
-        },
-        preparedBy: 'Accounts Admin',
-        paymentDetails: {
-          method: methodLabel,
-          reference: '—'
-        },
-        items: [
-          {
-            sno: 1,
-            description: `Monthly Salary (Days Worked: ${details.daysWorked}/${details.workingDays})`,
-            quantity: 1,
-            unitPrice: details.baseSalary,
-            amount: details.baseSalary
-          },
-          {
-            sno: 2,
-            description: `Performance Bonus / Allowances`,
-            quantity: 1,
-            unitPrice: details.bonus,
-            amount: details.bonus
-          },
-          {
-            sno: 3,
-            description: `Advance Deductions`,
-            quantity: 1,
-            unitPrice: -details.advanceDeduction,
-            amount: -details.advanceDeduction
-          },
-          {
-            sno: 4,
-            description: `Other Deductions (LOP)`,
-            quantity: 1,
-            unitPrice: -details.otherDeduction,
-            amount: -details.otherDeduction
-          }
-        ],
-        financialSummary: {
-          subTotal: details.netSalaryEntitlement,
-          grandTotal: details.netSalaryEntitlement,
-          amountPaid: amountPaid,
-          balance: details.remainingBalance
-        },
-        notes: `Monthly Salary: ₹${details.baseSalary.toLocaleString('en-IN')}. Earned Salary: ₹${details.grossSalary.toLocaleString('en-IN')}. Total Advances Paid: ₹${(details.totalAdvances || 0).toLocaleString('en-IN')}. Total Settlements Paid: ₹${(details.totalSettlements || 0).toLocaleString('en-IN')}.`
-      })
-      setPrintModalOpen(true)
-    } catch {
-      showToast('Failed to load payslip print preview.', 'error')
+  const handleDownloadSalarySlip = async (details: MonthlySalaryDetails | null) => {
+    if (!details || !details.employeeId) {
+      showToast('Employee information is missing.', 'error')
+      return
     }
+
+    try {
+      setIsExportingPdf(true)
+      const report = await payrollService.getEmployeeSalaryStatement(details.employeeId, details.salaryMonth)
+      if (!report) {
+        showToast('Unable to load salary slip details.', 'error')
+        return
+      }
+
+      const pdf = generateSalarySlipPDF(report)
+      const sanitizedName = (report.employee.fullName || 'Employee').replace(/[^a-zA-Z0-9_-]/g, '_')
+      const sanitizedMonth = (report.currentStatement.salaryMonth || 'Slip').replace(/[^a-zA-Z0-9_-]/g, '_')
+      pdf.save(`Aquzio_Salary_Slip_${sanitizedName}_${sanitizedMonth}.pdf`)
+      showToast(`Salary slip for ${report.employee.fullName} downloaded successfully.`, 'success')
+    } catch (err: any) {
+      console.error('Failed to generate salary slip PDF:', err)
+      showToast(err.response?.data?.message || 'Failed to generate salary slip PDF.', 'error')
+    } finally {
+      setIsExportingPdf(false)
+    }
+  }
+
+  const handlePrintSalarySlip = async (details: MonthlySalaryDetails | null) => {
+    if (!details || !details.employeeId) {
+      showToast('Employee information is missing.', 'error')
+      return
+    }
+
+    try {
+      setIsPrintingDoc(true)
+      const report = await payrollService.getEmployeeSalaryStatement(details.employeeId, details.salaryMonth)
+      if (!report) {
+        showToast('Unable to load salary slip details.', 'error')
+        return
+      }
+
+      printSalarySlip(report)
+    } catch (err: any) {
+      console.error('Failed to prepare salary slip for printing:', err)
+      showToast(err.response?.data?.message || 'Failed to prepare print document.', 'error')
+    } finally {
+      setIsPrintingDoc(false)
+    }
+  }
+
+  const handleDownloadSalaryHistory = async (details: MonthlySalaryDetails | null) => {
+    if (!details || !details.employeeId) {
+      showToast('Employee information is missing.', 'error')
+      return
+    }
+
+    try {
+      setIsExportingPdf(true)
+      const report = await payrollService.getEmployeeSalaryStatement(details.employeeId, details.salaryMonth)
+      if (!report) {
+        showToast('Unable to load employee salary history.', 'error')
+        return
+      }
+
+      const pdf = generateSalaryHistoryPDF(report)
+      const sanitizedName = (report.employee.fullName || 'Employee').replace(/[^a-zA-Z0-9_-]/g, '_')
+      pdf.save(`Aquzio_Salary_History_${sanitizedName}.pdf`)
+      showToast(`Complete salary history for ${report.employee.fullName} downloaded successfully.`, 'success')
+    } catch (err: any) {
+      console.error('Failed to generate salary history PDF:', err)
+      showToast(err.response?.data?.message || 'Failed to generate salary history PDF.', 'error')
+    } finally {
+      setIsExportingPdf(false)
+    }
+  }
+
+  const handlePrintPayslip = async (details: MonthlySalaryDetails, _transaction?: SalaryPaymentTransaction) => {
+    await handlePrintSalarySlip(details)
   }
 
   // SUBMIT ADVANCE FORM
@@ -2115,7 +2133,55 @@ export const PayrollPage: React.FC = () => {
               )}
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                <EnterpriseButton
+                  variant="primary"
+                  size="sm"
+                  disabled={isExportingPdf || isPrintingDoc}
+                  onClick={() => handleDownloadSalarySlip(selectedEntitlement)}
+                >
+                  {isExportingPdf ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin inline-block" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-1.5 inline-block" />
+                      Download Salary Slip
+                    </>
+                  )}
+                </EnterpriseButton>
+                <EnterpriseButton
+                  variant="secondary"
+                  size="sm"
+                  disabled={isExportingPdf || isPrintingDoc}
+                  onClick={() => handlePrintSalarySlip(selectedEntitlement)}
+                >
+                  {isPrintingDoc ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin inline-block" />
+                      Preparing...
+                    </>
+                  ) : (
+                    <>
+                      <Printer className="w-4 h-4 mr-1.5 inline-block" />
+                      Print
+                    </>
+                  )}
+                </EnterpriseButton>
+                <EnterpriseButton
+                  variant="secondary"
+                  size="sm"
+                  disabled={isExportingPdf || isPrintingDoc}
+                  onClick={() => handleDownloadSalaryHistory(selectedEntitlement)}
+                  title="Export complete salary and payment history across all periods"
+                >
+                  <History className="w-3.5 h-3.5 mr-1 inline-block text-slate-500" />
+                  Salary History
+                </EnterpriseButton>
+              </div>
               <EnterpriseButton variant="secondary" onClick={() => setIsViewModalOpen(false)}>
                 Close
               </EnterpriseButton>
@@ -2248,7 +2314,55 @@ export const PayrollPage: React.FC = () => {
               )}
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                <EnterpriseButton
+                  variant="primary"
+                  size="sm"
+                  disabled={isExportingPdf || isPrintingDoc}
+                  onClick={() => handleDownloadSalarySlip(selectedEntitlement)}
+                >
+                  {isExportingPdf ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin inline-block" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-1.5 inline-block" />
+                      Download Salary Slip
+                    </>
+                  )}
+                </EnterpriseButton>
+                <EnterpriseButton
+                  variant="secondary"
+                  size="sm"
+                  disabled={isExportingPdf || isPrintingDoc}
+                  onClick={() => handlePrintSalarySlip(selectedEntitlement)}
+                >
+                  {isPrintingDoc ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin inline-block" />
+                      Preparing...
+                    </>
+                  ) : (
+                    <>
+                      <Printer className="w-4 h-4 mr-1.5 inline-block" />
+                      Print
+                    </>
+                  )}
+                </EnterpriseButton>
+                <EnterpriseButton
+                  variant="secondary"
+                  size="sm"
+                  disabled={isExportingPdf || isPrintingDoc}
+                  onClick={() => handleDownloadSalaryHistory(selectedEntitlement)}
+                  title="Export complete salary and payment history across all periods"
+                >
+                  <History className="w-3.5 h-3.5 mr-1 inline-block text-slate-500" />
+                  Salary History
+                </EnterpriseButton>
+              </div>
               <EnterpriseButton variant="secondary" onClick={() => setIsHistoryOpen(false)}>
                 Close
               </EnterpriseButton>
