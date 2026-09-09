@@ -385,7 +385,521 @@ namespace Aquora.Persistence.Services
                                          WHERE ""MachineId"" IS NOT NULL
                                          AND NOT EXISTS (
                                              SELECT 1 FROM ""{tenant.SchemaName}"".""OperationsIssueAffectedMachines"" m WHERE m.""IssueId"" = ""{tenant.SchemaName}"".""OperationsIssues"".""Id"" AND m.""MachineId"" = ""{tenant.SchemaName}"".""OperationsIssues"".""MachineId""
-                                         );";
+                                         );
+
+                                          -- 20L Business Engine Schema Self-Healing
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""TwentyLDistributorProfiles"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""CustomerId"" uuid NOT NULL,
+                                              ""DistributorType"" text NOT NULL DEFAULT 'EXTERNAL',
+                                              ""JarOwnershipModel"" text NOT NULL DEFAULT 'MIXED',
+                                              ""VehicleOwnership"" text NOT NULL DEFAULT 'DISTRIBUTOR',
+                                              ""RouteOwnership"" text NOT NULL DEFAULT 'DISTRIBUTOR',
+                                              ""PricingModel"" text NOT NULL DEFAULT 'RATE_CARD',
+                                              ""CommissionModel"" text NOT NULL DEFAULT 'NONE',
+                                              ""CreditLimit"" numeric NOT NULL DEFAULT 0.0,
+                                              ""SecurityDeposit"" numeric NOT NULL DEFAULT 0.0,
+                                              ""PaymentTerms"" text NULL,
+                                              ""EffectiveFrom"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""EffectiveTo"" timestamp with time zone NULL,
+                                              ""IsActive"" boolean NOT NULL DEFAULT true,
+                                              ""AgreementReference"" text NULL,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL,
+                                              ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                              ""DeletedAt"" timestamp with time zone NULL,
+                                              ""DeletedBy"" text NULL
+                                          );
+                                          CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLDistributorProfiles_TenantId_CustomerId"" ON ""{tenant.SchemaName}"".""TwentyLDistributorProfiles"" (""TenantId"", ""CustomerId"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""TwentyLJarMovements"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""ProductId"" uuid NULL,
+                                              ""OwnerCustomerId"" uuid NULL,
+                                              ""FromCustomerId"" uuid NULL,
+                                              ""ToCustomerId"" uuid NULL,
+                                              ""OwnerType"" text NOT NULL DEFAULT 'COMPANY',
+                                              ""HolderType"" text NOT NULL DEFAULT 'COMPANY',
+                                              ""HolderCustomerId"" uuid NULL,
+                                              ""FromLocationType"" text NOT NULL DEFAULT 'PLANT',
+                                              ""ToLocationType"" text NOT NULL DEFAULT 'PLANT',
+                                              ""FromLocationReference"" text NULL,
+                                              ""ToLocationReference"" text NULL,
+                                              ""MovementType"" text NOT NULL DEFAULT '',
+                                              ""ContainerStatus"" text NOT NULL DEFAULT 'EMPTY',
+                                              ""Quantity"" integer NOT NULL DEFAULT 0,
+                                              ""ReferenceId"" uuid NULL,
+                                              ""ReferenceType"" text NULL,
+                                              ""OccurredAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""Reason"" text NULL,
+                                              ""Notes"" text NULL,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL
+                                          );
+                                          CREATE INDEX IF NOT EXISTS ""IX_TwentyLJarMovements_Ledger"" ON ""{tenant.SchemaName}"".""TwentyLJarMovements"" (""TenantId"", ""OwnerType"", ""OwnerCustomerId"", ""ToLocationType"", ""ToCustomerId"", ""OccurredAt"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""TwentyLJarPositions"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""PositionKey"" text NOT NULL,
+                                              ""ProductId"" uuid NULL,
+                                              ""OwnerType"" text NOT NULL DEFAULT 'COMPANY',
+                                              ""OwnerCustomerId"" uuid NULL,
+                                              ""HolderType"" text NOT NULL DEFAULT 'COMPANY',
+                                              ""HolderCustomerId"" uuid NULL,
+                                              ""LocationType"" text NOT NULL DEFAULT 'PLANT',
+                                              ""LocationReference"" text NULL,
+                                              ""ContainerStatus"" text NOT NULL DEFAULT 'EMPTY',
+                                              ""Quantity"" integer NOT NULL DEFAULT 0,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL
+                                          );
+                                          CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLJarPositions_Position"" ON ""{tenant.SchemaName}"".""TwentyLJarPositions"" (""TenantId"", ""CompanyId"", ""PositionKey"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""TwentyLRateRules"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""ProductId"" uuid NOT NULL,
+                                              ""CustomerId"" uuid NULL,
+                                              ""PartyType"" text NOT NULL DEFAULT 'ANY',
+                                              ""RefillType"" text NOT NULL DEFAULT 'ANY',
+                                              ""JarOwnerType"" text NOT NULL DEFAULT 'ANY',
+                                              ""MinimumQuantity"" numeric NOT NULL DEFAULT 1.0,
+                                              ""Priority"" integer NOT NULL DEFAULT 0,
+                                              ""UnitRate"" numeric NOT NULL DEFAULT 0.0,
+                                              ""DiscountRate"" numeric NULL,
+                                              ""TaxRate"" numeric NULL,
+                                              ""EffectiveFrom"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""EffectiveTo"" timestamp with time zone NULL,
+                                              ""RequiresAuthorization"" boolean NOT NULL DEFAULT false,
+                                              ""IsActive"" boolean NOT NULL DEFAULT true,
+                                              ""Notes"" text NULL,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL,
+                                              ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                              ""DeletedAt"" timestamp with time zone NULL,
+                                              ""DeletedBy"" text NULL
+                                          );
+                                          CREATE INDEX IF NOT EXISTS ""IX_TwentyLRateRules_Effective"" ON ""{tenant.SchemaName}"".""TwentyLRateRules"" (""TenantId"", ""ProductId"", ""CustomerId"", ""EffectiveFrom"", ""EffectiveTo"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""TwentyLDeliveries"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""CustomerId"" uuid NOT NULL,
+                                              ""DistributorId"" uuid NULL,
+                                              ""ProductId"" uuid NOT NULL,
+                                              ""RateRuleId"" uuid NULL,
+                                              ""SalesTransactionId"" uuid NULL,
+                                              ""RefillType"" text NOT NULL DEFAULT 'DIRECT_CUSTOMER_REFILL',
+                                              ""JarOwnerType"" text NOT NULL DEFAULT 'COMPANY',
+                                              ""OrderedQuantity"" integer NOT NULL DEFAULT 0,
+                                              ""FilledDeliveredQuantity"" integer NOT NULL DEFAULT 0,
+                                              ""EmptyCollectedQuantity"" integer NOT NULL DEFAULT 0,
+                                              ""FailedQuantity"" integer NOT NULL DEFAULT 0,
+                                              ""AppliedUnitRate"" numeric NOT NULL DEFAULT 0.0,
+                                              ""DiscountAmount"" numeric NOT NULL DEFAULT 0.0,
+                                              ""TaxAmount"" numeric NOT NULL DEFAULT 0.0,
+                                              ""TotalAmount"" numeric NOT NULL DEFAULT 0.0,
+                                              ""AmountCollected"" numeric NOT NULL DEFAULT 0.0,
+                                              ""PaymentMode"" text NOT NULL DEFAULT 'CREDIT',
+                                              ""Status"" text NOT NULL DEFAULT 'COMPLETED',
+                                              ""RouteReference"" text NULL,
+                                              ""VehicleReference"" text NULL,
+                                              ""DriverReference"" text NULL,
+                                              ""DeliveredAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""FailureReason"" text NULL,
+                                              ""Notes"" text NULL,
+                                              ""IdempotencyKey"" text NULL,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL
+                                          );
+                                          CREATE INDEX IF NOT EXISTS ""IX_TwentyLDeliveries_TenantId_CustomerId_DeliveredAt"" ON ""{tenant.SchemaName}"".""TwentyLDeliveries"" (""TenantId"", ""CustomerId"", ""DeliveredAt"");
+                                          CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLDeliveries_TenantId_IdempotencyKey"" ON ""{tenant.SchemaName}"".""TwentyLDeliveries"" (""TenantId"", ""IdempotencyKey"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""TwentyLCommissionRules"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""BeneficiaryCustomerId"" uuid NULL,
+                                              ""ProductId"" uuid NULL,
+                                              ""BeneficiaryType"" text NOT NULL DEFAULT 'EMPLOYEE',
+                                              ""CalculationType"" text NOT NULL DEFAULT 'PERCENTAGE',
+                                              ""Value"" numeric NOT NULL DEFAULT 0.0,
+                                              ""MinimumQuantity"" numeric NOT NULL DEFAULT 0.0,
+                                              ""EffectiveFrom"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""EffectiveTo"" timestamp with time zone NULL,
+                                              ""Priority"" integer NOT NULL DEFAULT 0,
+                                              ""IsActive"" boolean NOT NULL DEFAULT true,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL,
+                                              ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                              ""DeletedAt"" timestamp with time zone NULL,
+                                              ""DeletedBy"" text NULL
+                                          );
+                                          CREATE INDEX IF NOT EXISTS ""IX_TwentyLCommissionRules_Effective"" ON ""{tenant.SchemaName}"".""TwentyLCommissionRules"" (""TenantId"", ""BeneficiaryCustomerId"", ""ProductId"", ""EffectiveFrom"", ""EffectiveTo"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""TwentyLCommissionTransactions"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""DeliveryId"" uuid NOT NULL,
+                                              ""RuleId"" uuid NULL,
+                                              ""BeneficiaryCustomerId"" uuid NULL,
+                                              ""BeneficiaryType"" text NOT NULL DEFAULT 'EMPLOYEE',
+                                              ""TransactionType"" text NOT NULL DEFAULT 'EARNED',
+                                              ""Amount"" numeric NOT NULL DEFAULT 0.0,
+                                              ""OccurredAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""ReversalOfId"" uuid NULL,
+                                              ""Reason"" text NULL,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL
+                                          );
+                                          CREATE INDEX IF NOT EXISTS ""IX_TwentyLCommissionTransactions_Delivery"" ON ""{tenant.SchemaName}"".""TwentyLCommissionTransactions"" (""TenantId"", ""DeliveryId"", ""BeneficiaryCustomerId"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""TwentyLTrips"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""TripNumber"" text NOT NULL,
+                                              ""DriverName"" text NOT NULL DEFAULT '',
+                                              ""DriverCustomerId"" uuid NULL,
+                                              ""VehicleNumber"" text NOT NULL DEFAULT '',
+                                              ""RouteCode"" text NULL,
+                                              ""PlannedDate"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""Status"" text NOT NULL DEFAULT 'PLANNED',
+                                              ""LoadedFilledJars"" integer NOT NULL DEFAULT 0,
+                                              ""LoadedEmptyJars"" integer NOT NULL DEFAULT 0,
+                                              ""DeliveredFilledJars"" integer NOT NULL DEFAULT 0,
+                                              ""CollectedEmptyJars"" integer NOT NULL DEFAULT 0,
+                                              ""ReturnedFilledJars"" integer NOT NULL DEFAULT 0,
+                                              ""ReturnedEmptyJars"" integer NOT NULL DEFAULT 0,
+                                              ""DamagedJarsCount"" integer NOT NULL DEFAULT 0,
+                                              ""LostJarsCount"" integer NOT NULL DEFAULT 0,
+                                              ""CondemnedJarsCount"" integer NOT NULL DEFAULT 0,
+                                              ""TotalTripRevenue"" numeric NOT NULL DEFAULT 0.0,
+                                              ""TotalCashCollected"" numeric NOT NULL DEFAULT 0.0,
+                                              ""ReconciliationStatus"" text NOT NULL DEFAULT 'PENDING',
+                                              ""DiscrepancyNotes"" text NULL,
+                                              ""DispatchedAt"" timestamp with time zone NULL,
+                                              ""ReturnedAt"" timestamp with time zone NULL,
+                                              ""ReconciledAt"" timestamp with time zone NULL,
+                                              ""ReconciledBy"" text NULL,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL,
+                                              ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                              ""DeletedAt"" timestamp with time zone NULL,
+                                              ""DeletedBy"" text NULL
+                                          );
+                                          CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLTrips_TenantId_TripNumber"" ON ""{tenant.SchemaName}"".""TwentyLTrips"" (""TenantId"", ""TripNumber"");
+                                          CREATE INDEX IF NOT EXISTS ""IX_TwentyLTrips_TenantId_PlannedDate_Status"" ON ""{tenant.SchemaName}"".""TwentyLTrips"" (""TenantId"", ""PlannedDate"", ""Status"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""TwentyLTripStops"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""TripId"" uuid NOT NULL,
+                                              ""StopSequence"" integer NOT NULL DEFAULT 1,
+                                              ""CustomerId"" uuid NOT NULL,
+                                              ""ProductId"" uuid NULL,
+                                              ""PlannedFilledJars"" integer NOT NULL DEFAULT 0,
+                                              ""DeliveredFilledJars"" integer NOT NULL DEFAULT 0,
+                                              ""CollectedEmptyJars"" integer NOT NULL DEFAULT 0,
+                                              ""DamagedEmptyJars"" integer NOT NULL DEFAULT 0,
+                                              ""LostJars"" integer NOT NULL DEFAULT 0,
+                                              ""UnitRate"" numeric NOT NULL DEFAULT 0.0,
+                                              ""TotalAmount"" numeric NOT NULL DEFAULT 0.0,
+                                              ""AmountCollected"" numeric NOT NULL DEFAULT 0.0,
+                                              ""PaymentMode"" text NOT NULL DEFAULT 'CREDIT',
+                                              ""PaymentStatus"" text NOT NULL DEFAULT 'PENDING',
+                                              ""Status"" text NOT NULL DEFAULT 'PENDING',
+                                              ""FailureReason"" text NULL,
+                                              ""Notes"" text NULL,
+                                              ""DeliveredAt"" timestamp with time zone NULL,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL
+                                          );
+                                          CREATE INDEX IF NOT EXISTS ""IX_TwentyLTripStops_TenantId_TripId_Sequence"" ON ""{tenant.SchemaName}"".""TwentyLTripStops"" (""TenantId"", ""TripId"", ""StopSequence"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""TwentyLOperations"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""OperationNumber"" text NOT NULL,
+                                              ""OperationType"" text NOT NULL,
+                                              ""Stage"" text NOT NULL DEFAULT 'COMPLETED',
+                                              ""TripId"" uuid NULL,
+                                              ""CustomerId"" uuid NULL,
+                                              ""DistributorId"" uuid NULL,
+                                              ""DriverName"" text NULL,
+                                              ""VehicleNumber"" text NULL,
+                                              ""ProductId"" uuid NULL,
+                                              ""QuantityFilled"" integer NOT NULL DEFAULT 0,
+                                              ""QuantityEmpty"" integer NOT NULL DEFAULT 0,
+                                              ""QuantityDamaged"" integer NOT NULL DEFAULT 0,
+                                              ""QuantityLost"" integer NOT NULL DEFAULT 0,
+                                              ""QuantityCondemned"" integer NOT NULL DEFAULT 0,
+                                              ""AppliedRate"" numeric NOT NULL DEFAULT 0.0,
+                                              ""TotalAmount"" numeric NOT NULL DEFAULT 0.0,
+                                              ""AmountCollected"" numeric NOT NULL DEFAULT 0.0,
+                                              ""PaymentStatus"" text NOT NULL DEFAULT 'PENDING',
+                                              ""Status"" text NOT NULL DEFAULT 'COMPLETED',
+                                              ""ReferenceNumber"" text NULL,
+                                              ""Reason"" text NULL,
+                                              ""Notes"" text NULL,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL
+                                          );
+                                          CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLOperations_TenantId_Number"" ON ""{tenant.SchemaName}"".""TwentyLOperations"" (""TenantId"", ""OperationNumber"");
+                                          CREATE INDEX IF NOT EXISTS ""IX_TwentyLOperations_TenantId_Type_Stage"" ON ""{tenant.SchemaName}"".""TwentyLOperations"" (""TenantId"", ""OperationType"", ""Stage"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""TwentyLJarInspections"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""InspectionNumber"" text NOT NULL,
+                                              ""ReferenceType"" text NOT NULL DEFAULT '',
+                                              ""ReferenceId"" uuid NULL,
+                                              ""SourceHolderType"" text NOT NULL DEFAULT 'DRIVER',
+                                              ""SourceHolderId"" uuid NULL,
+                                              ""SourceHolderName"" text NULL,
+                                              ""InspectedCount"" integer NOT NULL DEFAULT 0,
+                                              ""ReusableCount"" integer NOT NULL DEFAULT 0,
+                                              ""DamagedCount"" integer NOT NULL DEFAULT 0,
+                                              ""CondemnedCount"" integer NOT NULL DEFAULT 0,
+                                              ""InspectionOutcome"" text NOT NULL DEFAULT 'PASSED',
+                                              ""ResponsibleParty"" text NULL,
+                                              ""DamageReason"" text NULL,
+                                              ""CondemnationReason"" text NULL,
+                                              ""AuthorizedBy"" text NULL,
+                                              ""DisposalReference"" text NULL,
+                                              ""Notes"" text NULL,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL
+                                          );
+                                          CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLJarInspections_TenantId_Number"" ON ""{tenant.SchemaName}"".""TwentyLJarInspections"" (""TenantId"", ""InspectionNumber"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""TwentyLDistributorSupplies"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""SupplyNumber"" text NOT NULL,
+                                              ""DistributorId"" uuid NOT NULL,
+                                              ""DistributorName"" text NOT NULL DEFAULT '',
+                                              ""ProductId"" uuid NOT NULL,
+                                              ""ProductName"" text NOT NULL DEFAULT '20L Water Jar',
+                                              ""Stage"" text NOT NULL DEFAULT 'COMPLETED',
+                                              ""QuantityRequested"" integer NOT NULL DEFAULT 0,
+                                              ""QuantitySupplied"" integer NOT NULL DEFAULT 0,
+                                              ""QuantityEmptyReturned"" integer NOT NULL DEFAULT 0,
+                                              ""QuantityDamaged"" integer NOT NULL DEFAULT 0,
+                                              ""AppliedRate"" numeric NOT NULL DEFAULT 0.0,
+                                              ""TotalAmount"" numeric NOT NULL DEFAULT 0.0,
+                                              ""AmountPaid"" numeric NOT NULL DEFAULT 0.0,
+                                              ""PaymentStatus"" text NOT NULL DEFAULT 'PENDING',
+                                              ""PaymentMode"" text NULL,
+                                              ""VehicleNumber"" text NULL,
+                                              ""DriverName"" text NULL,
+                                              ""DispatcherNotes"" text NULL,
+                                              ""ReceiverNotes"" text NULL,
+                                              ""DispatchedAt"" timestamp with time zone NULL,
+                                              ""ReceivedAt"" timestamp with time zone NULL,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL
+                                          );
+                                          CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLDistributorSupplies_TenantId_Number"" ON ""{tenant.SchemaName}"".""TwentyLDistributorSupplies"" (""TenantId"", ""SupplyNumber"");
+                                          CREATE INDEX IF NOT EXISTS ""IX_TwentyLDistributorSupplies_TenantId_DistributorId"" ON ""{tenant.SchemaName}"".""TwentyLDistributorSupplies"" (""TenantId"", ""DistributorId"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""TwentyLDistributorRoutes"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""DistributorId"" uuid NOT NULL,
+                                              ""RouteCode"" text NOT NULL DEFAULT '',
+                                              ""RouteName"" text NOT NULL DEFAULT '',
+                                              ""AreaDescription"" text NULL,
+                                              ""DefaultDriverName"" text NULL,
+                                              ""DefaultVehicleNumber"" text NULL,
+                                              ""ScheduleDays"" text NOT NULL DEFAULT 'DAILY',
+                                              ""IsActive"" boolean NOT NULL DEFAULT true,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL,
+                                              ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                              ""DeletedAt"" timestamp with time zone NULL,
+                                              ""DeletedBy"" text NULL
+                                          );
+                                          CREATE INDEX IF NOT EXISTS ""IX_TwentyLDistributorRoutes_TenantId_DistributorId"" ON ""{tenant.SchemaName}"".""TwentyLDistributorRoutes"" (""TenantId"", ""DistributorId"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""TwentyLDistributorVehicles"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""DistributorId"" uuid NOT NULL,
+                                              ""RegistrationNumber"" text NOT NULL,
+                                              ""VehicleType"" text NOT NULL DEFAULT 'MINI_TRUCK',
+                                              ""CapacityJars"" integer NOT NULL DEFAULT 50,
+                                              ""AssignedDriverName"" text NULL,
+                                              ""IsActive"" boolean NOT NULL DEFAULT true,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL,
+                                              ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                              ""DeletedAt"" timestamp with time zone NULL,
+                                              ""DeletedBy"" text NULL
+                                          );
+                                          CREATE INDEX IF NOT EXISTS ""IX_TwentyLDistributorVehicles_TenantId_DistributorId"" ON ""{tenant.SchemaName}"".""TwentyLDistributorVehicles"" (""TenantId"", ""DistributorId"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""TwentyLDistributorDrivers"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""DistributorId"" uuid NOT NULL,
+                                              ""DriverName"" text NOT NULL,
+                                              ""Phone"" text NOT NULL DEFAULT '',
+                                              ""LicenseNumber"" text NULL,
+                                              ""AssignedVehicleNumber"" text NULL,
+                                              ""CurrentRouteId"" uuid NULL,
+                                              ""IsActive"" boolean NOT NULL DEFAULT true,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL,
+                                              ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                              ""DeletedAt"" timestamp with time zone NULL,
+                                              ""DeletedBy"" text NULL
+                                          );
+                                          CREATE INDEX IF NOT EXISTS ""IX_TwentyLDistributorDrivers_TenantId_DistributorId"" ON ""{tenant.SchemaName}"".""TwentyLDistributorDrivers"" (""TenantId"", ""DistributorId"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""TwentyLDistributorCustomers"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""DistributorId"" uuid NOT NULL,
+                                              ""CustomerName"" text NOT NULL,
+                                              ""Phone"" text NOT NULL DEFAULT '',
+                                              ""Address"" text NULL,
+                                              ""Area"" text NULL,
+                                              ""RouteId"" uuid NULL,
+                                              ""RouteName"" text NULL,
+                                              ""DeliveryFrequency"" text NOT NULL DEFAULT 'DAILY',
+                                              ""DefaultRate"" numeric NOT NULL DEFAULT 40.0,
+                                              ""AssignedDriverName"" text NULL,
+                                              ""AssignedVehicleNumber"" text NULL,
+                                              ""FilledJarsHeld"" integer NOT NULL DEFAULT 0,
+                                              ""EmptyJarsHeld"" integer NOT NULL DEFAULT 0,
+                                              ""SecurityDeposit"" numeric NOT NULL DEFAULT 0.0,
+                                              ""OutstandingBalance"" numeric NOT NULL DEFAULT 0.0,
+                                              ""IsActive"" boolean NOT NULL DEFAULT true,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL,
+                                              ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                              ""DeletedAt"" timestamp with time zone NULL,
+                                              ""DeletedBy"" text NULL
+                                          );
+                                          CREATE INDEX IF NOT EXISTS ""IX_TwentyLDistributorCustomers_TenantId_DistributorId"" ON ""{tenant.SchemaName}"".""TwentyLDistributorCustomers"" (""TenantId"", ""DistributorId"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""TwentyLDistributorDeliveries"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""DeliveryNumber"" text NOT NULL,
+                                              ""DistributorId"" uuid NOT NULL,
+                                              ""DistributorCustomerId"" uuid NOT NULL,
+                                              ""CustomerName"" text NOT NULL,
+                                              ""RouteId"" uuid NULL,
+                                              ""RouteName"" text NULL,
+                                              ""DriverName"" text NULL,
+                                              ""VehicleNumber"" text NULL,
+                                              ""ProductId"" uuid NULL,
+                                              ""QuantityFilledDelivered"" integer NOT NULL DEFAULT 0,
+                                              ""QuantityEmptyCollected"" integer NOT NULL DEFAULT 0,
+                                              ""QuantityDamaged"" integer NOT NULL DEFAULT 0,
+                                              ""SellingRate"" numeric NOT NULL DEFAULT 0.0,
+                                              ""CompanyRefillRate"" numeric NOT NULL DEFAULT 0.0,
+                                              ""TotalAmount"" numeric NOT NULL DEFAULT 0.0,
+                                              ""AmountCollected"" numeric NOT NULL DEFAULT 0.0,
+                                              ""PaymentMode"" text NOT NULL DEFAULT 'CASH',
+                                              ""PaymentStatus"" text NOT NULL DEFAULT 'PAID',
+                                              ""GrossMargin"" numeric NOT NULL DEFAULT 0.0,
+                                              ""DeliveryDate"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""Notes"" text NULL,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL
+                                          );
+                                          CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLDistributorDeliveries_TenantId_Number"" ON ""{tenant.SchemaName}"".""TwentyLDistributorDeliveries"" (""TenantId"", ""DeliveryNumber"");
+                                          CREATE INDEX IF NOT EXISTS ""IX_TwentyLDistributorDeliveries_TenantId_DistributorId"" ON ""{tenant.SchemaName}"".""TwentyLDistributorDeliveries"" (""TenantId"", ""DistributorId"", ""DeliveryDate"");
+                                          ";
                                     await cmd.ExecuteNonQueryAsync();
                                 }
                             }
@@ -786,7 +1300,19 @@ namespace Aquora.Persistence.Services
                                                 ""Details"" text NULL,
                                                 ""Timestamp"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                                 CONSTRAINT fk_issue_history FOREIGN KEY (""IssueId"") REFERENCES ""{schema}"".""OperationsIssues"" (""Id"") ON DELETE CASCADE
-                                            );";
+                                            );
+
+                                            -- Global Search Performance Optimization Indexes
+                                            CREATE INDEX IF NOT EXISTS idx_customers_search ON ""{schema}"".""Customers"" (""CustomerName"", ""Phone"");
+                                            CREATE INDEX IF NOT EXISTS idx_vehicles_search ON ""{schema}"".""twenty_l_distributor_vehicles"" (""RegistrationNumber"");
+                                            CREATE INDEX IF NOT EXISTS idx_drivers_search ON ""{schema}"".""twenty_l_distributor_drivers"" (""DriverName"", ""Phone"");
+                                            CREATE INDEX IF NOT EXISTS idx_dist_cust_search ON ""{schema}"".""twenty_l_distributor_customers"" (""CustomerName"", ""Phone"");
+                                            CREATE INDEX IF NOT EXISTS idx_supplies_search ON ""{schema}"".""twenty_l_distributor_supplies"" (""SupplyNumber"");
+                                            CREATE INDEX IF NOT EXISTS idx_deliveries_search ON ""{schema}"".""twenty_l_distributor_deliveries"" (""DeliveryNumber"");
+                                            CREATE INDEX IF NOT EXISTS idx_products_search ON ""{schema}"".""Products"" (""Name"", ""SKU"");
+                                            CREATE INDEX IF NOT EXISTS idx_batches_search ON ""{schema}"".""ProductionBatches"" (""BatchNumber"");
+                                            CREATE INDEX IF NOT EXISTS idx_purchases_search ON ""{schema}"".""Purchases"" (""PurchaseNo"", ""InvoiceNumber"");
+                                            CREATE INDEX IF NOT EXISTS idx_vendors_search ON ""{schema}"".""Vendors"" (""Name"", ""Phone"");";
                                         await cmd.ExecuteNonQueryAsync();
                                     }
                                     catch {}

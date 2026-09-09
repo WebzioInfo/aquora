@@ -43,6 +43,23 @@ namespace Aquora.Application.Interfaces
         DbSet<OperationsReservedJar> OperationsReservedJars { get; }
         DbSet<OperationsWashingLog> OperationsWashingLogs { get; }
         DbSet<OperationsFillingLog> OperationsFillingLogs { get; }
+        DbSet<TwentyLDistributorProfile> TwentyLDistributorProfiles { get; }
+        DbSet<TwentyLJarMovement> TwentyLJarMovements { get; }
+        DbSet<TwentyLJarPosition> TwentyLJarPositions { get; }
+        DbSet<TwentyLRateRule> TwentyLRateRules { get; }
+        DbSet<TwentyLDelivery> TwentyLDeliveries { get; }
+        DbSet<TwentyLCommissionRule> TwentyLCommissionRules { get; }
+        DbSet<TwentyLCommissionTransaction> TwentyLCommissionTransactions { get; }
+        DbSet<TwentyLTrip> TwentyLTrips { get; }
+        DbSet<TwentyLTripStop> TwentyLTripStops { get; }
+        DbSet<TwentyLOperation> TwentyLOperations { get; }
+        DbSet<TwentyLJarInspection> TwentyLJarInspections { get; }
+        DbSet<TwentyLDistributorSupply> TwentyLDistributorSupplies { get; }
+        DbSet<TwentyLDistributorRoute> TwentyLDistributorRoutes { get; }
+        DbSet<TwentyLDistributorVehicle> TwentyLDistributorVehicles { get; }
+        DbSet<TwentyLDistributorDriver> TwentyLDistributorDrivers { get; }
+        DbSet<TwentyLDistributorCustomer> TwentyLDistributorCustomers { get; }
+        DbSet<TwentyLDistributorDelivery> TwentyLDistributorDeliveries { get; }
 
         // God Mode Finance Module
         DbSet<Aquora.Domain.Entities.Finance.AccountGroup> AccountGroups { get; }

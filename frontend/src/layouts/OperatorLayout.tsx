@@ -4,16 +4,19 @@ import { useAuthStore } from '../store/useAuthStore'
 import { useThemeStore } from '../store/useThemeStore'
 import { useNotificationStore } from '../store/useNotificationStore'
 import ToastContainer from '../components/ui/ToastContainer'
-import { LogOut, Calendar, Clock, Check, ChevronDown, X } from 'lucide-react'
+import { LogOut, Calendar, Clock, Check, ChevronDown, X, Search } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { getLineTheme } from '../utils/lineTheme'
 import BRAND from '../config/brand'
+import { GlobalSearchModal } from '../components/search/GlobalSearchModal'
+import { useSearchStore } from '../store/useSearchStore'
 
 export const OperatorLayout: React.FC = () => {
   const { user, clearAuth } = useAuthStore()
   const { initTheme } = useThemeStore()
   const { showToast } = useNotificationStore()
+  const { openSearch } = useSearchStore()
   const navigate = useNavigate()
 
   // State managed globally in layout and shared with child pages via context
@@ -442,6 +445,22 @@ export const OperatorLayout: React.FC = () => {
 
           <span className="text-white/20 select-none hidden md:inline">|</span>
 
+          {/* Global Search Trigger */}
+          <button
+            onClick={() => openSearch()}
+            className="flex items-center gap-1.5 px-2.5 h-7.5 rounded-[6px] border text-[10px] font-bold tracking-tight cursor-pointer transition-all duration-150"
+            style={{
+              borderColor: lineTheme ? 'rgba(255,255,255,0.3)' : '#E5E7EB',
+              color: lineTheme ? '#FFFFFF' : '#374151',
+              backgroundColor: lineTheme ? 'rgba(255,255,255,0.1)' : '#F9FAFB'
+            }}
+            title="Search Aquzio (Ctrl+K)"
+          >
+            <Search className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Search</span>
+            <kbd className="hidden lg:inline text-[8px] opacity-75 font-mono px-1 rounded bg-black/10">Ctrl+K</kbd>
+          </button>
+
           {/* Action buttons (End Batch & Logout) */}
           <div className="flex items-center gap-2 select-none shrink-0">
             {selectedLine && lineTheme && activeBatchData?.canEnterProductionPage && (
@@ -531,6 +550,7 @@ export const OperatorLayout: React.FC = () => {
         </div>
       )}
 
+      <GlobalSearchModal />
       <ToastContainer />
     </div>
   )

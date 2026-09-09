@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import EnterpriseSidebar from '../components/ui/EnterpriseSidebar'
 import EnterpriseTopbar from '../components/ui/EnterpriseTopbar'
+import { GlobalSearchModal } from '../components/search/GlobalSearchModal'
 
 export const PlatformLayout: React.FC = () => {
   const { user, clearAuth } = useAuthStore()
@@ -76,6 +77,7 @@ export const PlatformLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen flex bg-[#F7F9FC] text-[#101828]">
+      <GlobalSearchModal />
       
       {/* Reusable Enterprise Sidebar */}
       <EnterpriseSidebar 
