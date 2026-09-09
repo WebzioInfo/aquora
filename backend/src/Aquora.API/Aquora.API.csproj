@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Aquora.Application\Aquora.Application.csproj" />
     <ProjectReference Include="..\Aquora.Infrastructure\Aquora.Infrastructure.csproj" />
     <ProjectReference Include="..\Aquora.Persistence\Aquora.Persistence.csproj" />
   </ItemGroup>

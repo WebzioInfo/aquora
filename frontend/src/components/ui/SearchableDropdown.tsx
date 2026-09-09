@@ -5,7 +5,8 @@ export interface SearchableDropdownProps {
   label: string
   value: string
   onChange: (value: string) => void
-  items: { id: string; name: string }[]
+  items?: { id: string; name: string }[]
+  options?: { id: string; name: string }[]
   placeholder?: string
   isLoading?: boolean
   disabled?: boolean
@@ -17,11 +18,13 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
   value,
   onChange,
   items,
+  options,
   placeholder = 'Select...',
   isLoading = false,
   disabled = false,
   required = false
 }) => {
+  const dropdownItems = useMemo(() => items || options || [], [items, options])
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -41,12 +44,12 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
   }, [isOpen])
 
   const filteredItems = useMemo(() => {
-    if (!searchTerm) return items
+    if (!searchTerm) return dropdownItems
     const lowerSearch = searchTerm.toLowerCase()
-    return items.filter(item => item.name.toLowerCase().includes(lowerSearch))
-  }, [items, searchTerm])
+    return dropdownItems.filter(item => item.name.toLowerCase().includes(lowerSearch))
+  }, [dropdownItems, searchTerm])
 
-  const selectedItem = items.find(item => item.id === value)
+  const selectedItem = dropdownItems.find(item => item.id === value)
 
   const handleSelect = (id: string) => {
     onChange(id)

@@ -42,9 +42,7 @@ namespace Aquora.API.Controllers
 
         private bool IsAuthorizedToWrite()
         {
-            var isOwner = _currentUserContext.Roles.Any(r => r.Equals("Owner", StringComparison.OrdinalIgnoreCase) || r.Equals("CompanyOwner", StringComparison.OrdinalIgnoreCase));
-            if (isOwner) return false;
-            var allowedRoles = new[] { "CompanyAdmin", "Admin", "Manager", "Accountant" };
+            var allowedRoles = new[] { "Owner", "CompanyOwner", "SuperAdmin", "PlatformAdmin", "CompanyAdmin", "Admin", "Manager", "Accountant" };
             return _currentUserContext.Roles.Any(r => allowedRoles.Contains(r, StringComparer.OrdinalIgnoreCase));
         }
 
@@ -84,6 +82,7 @@ namespace Aquora.API.Controllers
                         CurrentStock = p.CurrentStock,
                         SellingPrice = p.SellingPrice,
                         CostPrice = p.CostPrice,
+                        UnitCost = p.CostPrice,
                         Category = p.Category,
                         DisplayOrder = p.DisplayOrder,
                         BottleSize = p.BottleSize,
@@ -128,6 +127,7 @@ namespace Aquora.API.Controllers
                     CurrentStock = product.CurrentStock,
                     SellingPrice = product.SellingPrice,
                     CostPrice = product.CostPrice,
+                    UnitCost = product.CostPrice,
                     Category = product.Category,
                     DisplayOrder = product.DisplayOrder,
                     BottleSize = product.BottleSize,
@@ -263,6 +263,9 @@ namespace Aquora.API.Controllers
                     SKU = product.SKU,
                     IsActive = product.IsActive,
                     CurrentStock = product.CurrentStock,
+                    SellingPrice = product.SellingPrice,
+                    CostPrice = product.CostPrice,
+                    UnitCost = product.CostPrice,
                     Category = product.Category,
                     DisplayOrder = product.DisplayOrder,
                     BottleSize = product.BottleSize,
@@ -668,6 +671,72 @@ namespace Aquora.API.Controllers
             {
                 _logger.LogError(ex, "An error occurred in ProductsController.");
                 return Failure<PagedResult<InventoryMovementDto>>(ex.Message, "Failed to retrieve product movements.");
+            }
+        }
+
+        public class UpdateProductCostRequest
+        {
+            public decimal UnitCost { get; set; }
+            public decimal? CostPrice { get; set; }
+        }
+
+        [HttpPut("{id:guid}/cost")]
+        [HttpPatch("{id:guid}/cost")]
+        public async Task<ActionResult<ApiResponse<ProductDto>>> UpdateProductCost(Guid id, [FromBody] UpdateProductCostRequest request)
+        {
+            if (!IsAuthorizedToWrite())
+            {
+                return StatusCode(403, ApiResponse<ProductDto>.CreateFailure("You do not have permission to perform this action.", "Forbidden", HttpContext.TraceIdentifier));
+            }
+
+            try
+            {
+                decimal newCost = request.CostPrice ?? request.UnitCost;
+                if (newCost < 0)
+                {
+                    return BadRequest(ApiResponse<ProductDto>.CreateFailure("Unit cost must be greater than or equal to 0.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                var product = await _tenantContext.Products
+                    .Include(p => p.Brand)
+                    .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+
+                if (product == null)
+                {
+                    return NotFound(ApiResponse<ProductDto>.CreateFailure("Product not found.", "Not Found", HttpContext.TraceIdentifier));
+                }
+
+                product.CostPrice = newCost;
+                product.UpdatedAt = DateTime.UtcNow;
+
+                await _tenantContext.SaveChangesAsync();
+
+                var dto = new ProductDto
+                {
+                    Id = product.Id,
+                    Name = product.Name,
+                    BrandId = product.BrandId,
+                    BrandName = product.Brand?.Name ?? "Unknown Brand",
+                    SKU = product.SKU,
+                    IsActive = product.IsActive,
+                    CurrentStock = product.CurrentStock,
+                    SellingPrice = product.SellingPrice,
+                    CostPrice = product.CostPrice,
+                    UnitCost = product.CostPrice,
+                    Category = product.Category,
+                    DisplayOrder = product.DisplayOrder,
+                    BottleSize = product.BottleSize,
+                    ImageUrl = product.ImageUrl,
+                    CreatedAt = product.CreatedAt,
+                    UpdatedAt = product.UpdatedAt
+                };
+
+                return Success(dto, "Product unit cost updated successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while updating unit cost for product {ProductId}", id);
+                return Failure<ProductDto>(ex.Message, "Failed to update product unit cost.");
             }
         }
     }

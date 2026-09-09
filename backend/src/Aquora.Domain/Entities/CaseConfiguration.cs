@@ -5,13 +5,18 @@ namespace Aquora.Domain.Entities
 {
     public class CaseConfiguration : BaseEntity, IMultiTenant, ICompanySpecific, IAuditable, ISoftDelete
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
+
+        public Guid ProductId { get; set; }
+        public virtual Product Product { get; set; } = null!;
+
+        public int UnitsPerCase { get; set; } = 24;
 
         // Multi-tenant mappings
         public Guid TenantId { get; set; }
         public Guid CompanyId { get; set; }
-        public virtual Company Company { get; set; }
+        public virtual Company Company { get; set; } = null!;
 
         // Auditable fields
         public DateTime CreatedAt { get; set; }

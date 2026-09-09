@@ -1,5 +1,6 @@
 using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Aquora.Persistence.Context;
 
 #nullable disable
 
@@ -8,10 +9,12 @@ namespace Aquora.Persistence.Migrations.Tenant
     /// <inheritdoc />
     public partial class RemoveCaseConfigurationLink : Migration
     {
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            var schema = Aquora.Persistence.Context.TenantSchemaResolver.CurrentSchemaName ?? "public";
+            var schema = Aquora.Persistence.Context.TenantSchemaResolver.ResolveRequiredSchema();
 
             migrationBuilder.DropForeignKey(
                 name: "FK_ProductionEntries_CaseConfigurations_CaseConfigurationId",
@@ -47,7 +50,7 @@ namespace Aquora.Persistence.Migrations.Tenant
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            var schema = Aquora.Persistence.Context.TenantSchemaResolver.CurrentSchemaName ?? "public";
+            var schema = Aquora.Persistence.Context.TenantSchemaResolver.ResolveRequiredSchema();
 
             migrationBuilder.AddColumn<Guid>(
                 name: "CaseConfigurationId",

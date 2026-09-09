@@ -8,6 +8,7 @@ namespace Aquora.Domain.Entities
         public string Name { get; set; }
         public string Code { get; set; }
         public bool IsActive { get; set; } = true;
+        public bool IsBiodropsProduction { get; set; } = false;
 
         public string? TimeZone { get; set; } = "Asia/Kolkata";
         public string? DateFormat { get; set; } = "dd MMM yyyy";

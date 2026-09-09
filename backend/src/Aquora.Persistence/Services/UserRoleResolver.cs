@@ -254,6 +254,11 @@ namespace Aquora.Persistence.Services
                         matchingRole = await _tenantContext.Roles
                             .FirstOrDefaultAsync(r => r.Name == "CompanyAdmin" || r.Code == "COMPANYADMIN");
                     }
+                    if (matchingRole == null && newRoleName.Equals("Accountant", StringComparison.OrdinalIgnoreCase))
+                    {
+                        matchingRole = await _tenantContext.Roles
+                            .FirstOrDefaultAsync(r => r.Name == "Accountant" || r.Code == "ACCOUNTANT");
+                    }
 
                     if (matchingRole == null)
                     {
@@ -269,6 +274,28 @@ namespace Aquora.Persistence.Services
                         };
                         _tenantContext.Roles.Add(matchingRole);
                         await _tenantContext.SaveChangesAsync();
+
+                        if (newRoleName.Equals("Accountant", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var adminRole = await _tenantContext.Roles
+                                .FirstOrDefaultAsync(r => r.Name == "CompanyAdmin" || r.Code == "COMPANYADMIN");
+                            if (adminRole != null)
+                            {
+                                var adminPerms = await _tenantContext.RolePermissions
+                                    .Where(rp => rp.RoleId == adminRole.Id)
+                                    .ToListAsync();
+                                foreach (var ap in adminPerms)
+                                {
+                                    _tenantContext.RolePermissions.Add(new RolePermission
+                                    {
+                                        RoleId = matchingRole.Id,
+                                        PermissionId = ap.PermissionId,
+                                        TenantId = activeTenantId.Value
+                                    });
+                                }
+                                await _tenantContext.SaveChangesAsync();
+                            }
+                        }
                     }
                 }
                 catch (Exception ex)

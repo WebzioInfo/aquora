@@ -860,6 +860,20 @@ namespace Aquora.Persistence.Services
                         alterCmd.CommandText = $@"
                             DO $$ 
                             BEGIN 
+                                IF EXISTS (
+                                    SELECT FROM information_schema.tables 
+                                    WHERE table_schema = '{schema}' AND table_name = 'Tenants'
+                                ) THEN
+                                    ALTER TABLE ""{schema}"".""Tenants"" ADD COLUMN IF NOT EXISTS ""IsBiodropsProduction"" boolean NOT NULL DEFAULT false;
+                                END IF;
+
+                                IF EXISTS (
+                                    SELECT FROM information_schema.tables 
+                                    WHERE table_schema = '{schema}' AND table_name = 'Companies'
+                                ) THEN
+                                    ALTER TABLE ""{schema}"".""Companies"" ADD COLUMN IF NOT EXISTS ""IsBiodropsProduction"" boolean NOT NULL DEFAULT false;
+                                END IF;
+
                                 CREATE TABLE IF NOT EXISTS ""{schema}"".""MonthlySalaries"" (
                                     ""Id"" uuid NOT NULL PRIMARY KEY,
                                     ""TenantId"" uuid NOT NULL,

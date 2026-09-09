@@ -89,7 +89,7 @@ namespace Aquora.API.Controllers
         {
             try
             {
-                var allowedRoles = new[] { "CompanyAdmin", "SuperAdmin", "PlatformAdmin" };
+                var allowedRoles = new[] { "CompanyAdmin", "Accountant", "SuperAdmin", "PlatformAdmin" };
                 if (!_currentUserContext.Roles.Any(r => allowedRoles.Contains(r, StringComparer.OrdinalIgnoreCase)))
                 {
                     return Forbid();

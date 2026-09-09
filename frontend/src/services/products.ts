@@ -11,6 +11,7 @@ export interface Product {
   currentStock: number
   sellingPrice?: number
   costPrice?: number
+  unitCost?: number
   createdAt: string
   updatedAt: string | null
 }
@@ -82,6 +83,11 @@ export const productsService = {
 
   updateUnitPrice: async (id: string, sellingPrice: number): Promise<ApiResponse<Product>> => {
     const response = await api.put<ApiResponse<Product>>(`/api/v1/products/${id}/price`, { sellingPrice })
+    return response.data
+  },
+
+  updateUnitCost: async (id: string, unitCost: number): Promise<ApiResponse<Product>> => {
+    const response = await api.put<ApiResponse<Product>>(`/api/v1/products/${id}/cost`, { unitCost })
     return response.data
   },
 

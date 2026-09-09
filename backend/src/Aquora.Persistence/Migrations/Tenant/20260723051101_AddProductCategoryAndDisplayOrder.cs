@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore.Migrations;
+using Aquora.Persistence.Context;
 
 #nullable disable
 
@@ -7,7 +8,7 @@ namespace Aquora.Persistence.Migrations.Tenant
     /// <inheritdoc />
     public partial class AddProductCategoryAndDisplayOrder : Migration
     {
-        private string _schema => Aquora.Persistence.Context.TenantSchemaResolver.CurrentSchemaName ?? "public";
+        private string _schema => Aquora.Persistence.Context.TenantSchemaResolver.ResolveRequiredSchema();
 
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

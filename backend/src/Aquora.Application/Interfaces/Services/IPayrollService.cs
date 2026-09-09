@@ -20,7 +20,8 @@ namespace Aquora.Application.Interfaces.Services
         Task<SalaryPaymentTransactionDto> UpdateSalaryPaymentTransactionAsync(Guid transactionId, UpdateSalaryPaymentTransactionRequest request);
         Task<bool> ReverseSalaryPaymentTransactionAsync(Guid transactionId);
 
-        // Audit & Metrics
+        // Audit, Reports & Metrics
+        Task<EmployeeSalaryStatementReportDto> GetEmployeeSalaryStatementReportAsync(Guid employeeId, string? month);
         Task<List<Aquora.Application.DTOs.SimpleAccounts.BankLedgerAuditEntryDto>> GetSalaryPaymentHistoryAsync(Guid transactionId);
         Task<PayrollDashboardMetricsDto> GetPayrollDashboardMetricsAsync(string? month);
 

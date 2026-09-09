@@ -7,6 +7,7 @@ namespace Aquora.Application.DTOs.Employees
         public Guid Id { get; set; }
         public string FullName { get; set; }
         public string Username { get; set; }
+        public string Email { get; set; }
         public string RoleName { get; set; }
         public string RoleCode { get; set; }
         public string Department { get; set; }

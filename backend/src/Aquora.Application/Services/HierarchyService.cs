@@ -73,17 +73,7 @@ namespace Aquora.Application.Services
             switch (type.ToLower())
             {
                 case "company":
-                    var company = new Company
-                    {
-                        Name = nodeDto.Name,
-                        Code = nodeDto.Code,
-                        IsActive = nodeDto.IsActive,
-                        TenantId = tenantId
-                    };
-                    _context.Companies.Add(company);
-                    await _context.SaveChangesAsync();
-                    nodeDto.Id = company.Id;
-                    break;
+                    throw new InvalidOperationException("A tenant workspace contains exactly one company root. Additional companies cannot be created.");
 
                 case "productionline":
                     if (nodeDto.ParentId == null) throw new ArgumentException("Parent Company ID is required.");
@@ -120,8 +110,6 @@ namespace Aquora.Application.Services
                     nodeDto.Id = station.Id;
                     break;
 
-
-
                 default:
                     throw new ArgumentException("Invalid node type.");
             }
@@ -157,8 +145,6 @@ namespace Aquora.Application.Services
                     station.IsActive = nodeDto.IsActive;
                     break;
 
-
-
                 default:
                     throw new ArgumentException("Invalid node type.");
             }
@@ -172,10 +158,7 @@ namespace Aquora.Application.Services
             switch (type.ToLower())
             {
                 case "company":
-                    var company = await _context.Companies.FindAsync(id);
-                    if (company == null) return false;
-                    _context.Companies.Remove(company);
-                    break;
+                    throw new InvalidOperationException("The company root cannot be deleted from the tenant workspace.");
 
                 case "productionline":
                     var line = await _context.ProductionLines.FindAsync(id);

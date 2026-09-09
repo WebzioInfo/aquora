@@ -44,9 +44,7 @@ namespace Aquora.API.Controllers
 
         private bool IsAuthorizedToWrite()
         {
-            var isOwner = _currentUserContext.Roles.Any(r => r.Equals("Owner", StringComparison.OrdinalIgnoreCase) || r.Equals("CompanyOwner", StringComparison.OrdinalIgnoreCase));
-            if (isOwner) return false;
-            var allowedRoles = new[] { "CompanyAdmin", "Admin", "Manager", "Accountant" };
+            var allowedRoles = new[] { "Owner", "CompanyOwner", "SuperAdmin", "PlatformAdmin", "CompanyAdmin", "Admin", "Manager", "Accountant" };
             return _currentUserContext.Roles.Any(r => allowedRoles.Contains(r, StringComparer.OrdinalIgnoreCase));
         }
 

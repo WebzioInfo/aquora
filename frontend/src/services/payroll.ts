@@ -90,6 +90,38 @@ export interface PayrollMetrics {
   totalPendingBalanceThisMonth: number
 }
 
+export interface EmployeeSalaryProfile {
+  id: string
+  fullName: string
+  designation?: string
+  department?: string
+  email?: string
+  phone?: string
+  baseSalary: number
+  joiningDate?: string
+}
+
+export interface PayrollCompanyInfo {
+  name: string
+  displayName?: string
+  address?: string
+  phone?: string
+  email?: string
+  gstNumber?: string
+  logoUrl?: string
+  currency: string
+  currencySymbol: string
+}
+
+export interface EmployeeSalaryStatementReport {
+  employee: EmployeeSalaryProfile
+  currentStatement: MonthlySalaryDetails
+  monthlyHistory: MonthlySalaryDirectory[]
+  allPaymentTransactions: SalaryPaymentTransaction[]
+  company: PayrollCompanyInfo
+  reportGeneratedAt: string
+}
+
 export interface PagedMonthlySalariesResponse {
   items: MonthlySalaryDirectory[]
   totalCount: number
@@ -122,6 +154,13 @@ export const payrollService = {
 
   getMonthlySalaryById: async (id: string) => {
     const res = await api.get<{ data: MonthlySalaryDetails }>(`/api/v1/SalaryPayments/${id}`)
+    return res.data.data
+  },
+
+  getEmployeeSalaryStatement: async (employeeId: string, month?: string) => {
+    const res = await api.get<{ data: EmployeeSalaryStatementReport }>(`/api/v1/SalaryPayments/employees/${employeeId}/statement`, {
+      params: month ? { month } : undefined
+    })
     return res.data.data
   },
 

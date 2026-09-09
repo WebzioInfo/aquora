@@ -61,6 +61,7 @@ const OperationsIssuesListPage = React.lazy(() => import('../pages/company/opera
 const OperationsIssueDetailPage = React.lazy(() => import('../pages/company/operations/OperationsIssueDetailPage'))
 const OperatorQuickReportPage = React.lazy(() => import('../pages/company/operations/OperatorQuickReportPage'))
 const OperationsIssueFormPage = React.lazy(() => import('../pages/company/operations/OperationsIssueFormPage'))
+const ReportsPage = React.lazy(() => import('../pages/company/ReportsPage'))
 
 export const getDefaultRouteForUser = (user: any): string => {
   const getRoute = () => {
@@ -89,7 +90,7 @@ export const getDefaultRouteForUser = (user: any): string => {
     if (roles.includes('Sales')) return '/sales/dashboard'
 
     if (roles.includes('Owner')) return '/company/dashboard'
-    if (roles.includes('CompanyAdmin')) return '/company/dashboard'
+    if (roles.includes('CompanyAdmin') || roles.includes('Accountant')) return '/company/dashboard'
     if (roles.includes('Manager')) return '/manager/dashboard'
     if (roles.includes('Supervisor')) return '/supervisor/dashboard'
     if (roles.includes('QC')) return '/qc/dashboard'
@@ -188,7 +189,7 @@ const CompanyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
   const roles = user.roles || []
   const hasAccess = roles.some(role =>
-    ['Owner', 'CompanyAdmin', 'GeneralManager', 'ProductionManager', 'InventoryManager', 'HRManager', 'Supervisor', 'Employee', 'Manager'].includes(role)
+    ['Owner', 'CompanyAdmin', 'Accountant', 'GeneralManager', 'ProductionManager', 'InventoryManager', 'HRManager', 'Supervisor', 'Employee', 'Manager'].includes(role)
   )
 
   if (!hasAccess && (roles.includes('Operator') || roles.some((r: string) => ['Store Keeper', 'StoreKeeper', 'STORE_KEEPER'].includes(r)) || roles.includes('Sales') || roles.includes('HR'))) {
@@ -256,7 +257,7 @@ const QCRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const roles = user.roles || []
   const hasAccess = roles.some(role =>
-    ['QC', 'CompanyAdmin', 'Admin'].includes(role)
+    ['QC', 'CompanyAdmin', 'Accountant', 'Admin'].includes(role)
   )
 
   if (!hasAccess) {
@@ -605,6 +606,8 @@ export const AppRoutes: React.FC = () => {
           <Route path="operations-issues/new" element={<OperationsIssueFormPage />} />
           <Route path="operations-issues/:id" element={<OperationsIssueDetailPage />} />
           <Route path="operations-issues/:id/edit" element={<OperationsIssueFormPage />} />
+          {/* Reports Module */}
+          <Route path="reports" element={<ReportsPage />} />
           {/* Water Test Reports */}
           <Route path="qc/water-test" element={<WaterTestReportsListPage />} />
           <Route path="qc/water-test/new" element={<WaterTestReportFormPage />} />

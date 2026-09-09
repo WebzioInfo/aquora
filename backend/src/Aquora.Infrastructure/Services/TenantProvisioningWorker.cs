@@ -33,14 +33,54 @@ namespace Aquora.Infrastructure.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Tenant Provisioning Background Worker started.");
+            _logger.LogInformation("[WORKER] Tenant Provisioning Background Worker started.");
+
+            // Startup Orphaned Provisioning Recovery
+            try
+            {
+                using (var scope = _scopeFactory.CreateScope())
+                {
+                    var platformContext = scope.ServiceProvider.GetRequiredService<IPlatformDbContext>();
+                    var uninitializedTenants = await platformContext.Tenants
+                        .Where(t => !t.IsDeleted && !t.IsInitialized && t.Status == "Provisioning")
+                        .ToListAsync(stoppingToken);
+
+                    foreach (var orphanedTenant in uninitializedTenants)
+                    {
+                        var ownerUser = await platformContext.Users.FirstOrDefaultAsync(u => u.TenantId == orphanedTenant.Id, stoppingToken);
+                        if (ownerUser != null)
+                        {
+                            var enabledStations = await platformContext.TenantProductionConfigurations
+                                .Where(c => c.TenantId == orphanedTenant.Id && c.IsEnabled)
+                                .Select(c => c.StationName)
+                                .ToListAsync(stoppingToken);
+
+                            _logger.LogInformation($"[WORKER] Auto-recovering orphaned provisioning job for Tenant: {orphanedTenant.Id} ({orphanedTenant.Name})");
+                            _queue.QueueProvisioning(new TenantProvisioningJob
+                            {
+                                TenantId = orphanedTenant.Id,
+                                SchemaName = orphanedTenant.SchemaName,
+                                CompanyName = orphanedTenant.Name,
+                                CompanyCode = orphanedTenant.Code,
+                                OwnerUserId = ownerUser.Id,
+                                EnabledStations = enabledStations
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[WORKER] Error while recovering orphaned provisioning jobs on startup.");
+            }
 
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
+                    _logger.LogInformation("[WORKER] Waiting for provisioning job...");
                     var job = await _queue.DequeueAsync(stoppingToken);
-                    _logger.LogInformation($"Dequeued tenant provisioning job for Tenant: {job.TenantId} ({job.CompanyName})");
+                    _logger.LogInformation($"[WORKER] Provisioning job received. Processing tenant {job.TenantId} ({job.CompanyName})");
 
                     await ProcessJobAsync(job, stoppingToken);
                 }
@@ -50,20 +90,20 @@ namespace Aquora.Infrastructure.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Unhandled error in Tenant Provisioning Worker processing loop.");
+                    _logger.LogError(ex, "[WORKER] Unhandled error in Tenant Provisioning Worker processing loop.");
                 }
             }
 
-            _logger.LogInformation("Tenant Provisioning Background Worker stopped.");
+            _logger.LogInformation("[WORKER] Tenant Provisioning Background Worker stopped.");
         }
 
         private async Task ProcessJobAsync(TenantProvisioningJob job, CancellationToken stoppingToken)
         {
             var stopwatch = Stopwatch.StartNew();
             
-            // Set initial state
-            await UpdateProgressAsync(job.TenantId, 5, "Starting", "Getting things ready...");
-            await _progressReporter.ReportProgressAsync(job.OwnerUserId.ToString(), 5, "Starting", "Getting things ready...");
+            // Set initial state matching pipeline step 1
+            await UpdateProgressAsync(job.TenantId, 10, "TenantCreated", "Create Tenant Workspace Entry");
+            await _progressReporter.ReportProgressAsync(job.OwnerUserId.ToString(), 10, "TenantCreated", "Create Tenant Workspace Entry");
 
             try
             {
@@ -116,27 +156,26 @@ namespace Aquora.Infrastructure.Services
                     await UpdateProgressAsync(
                         job.TenantId, 
                         100, 
-                        "Complete", 
+                        "ProvisioningCompleted", 
                         "Your workspace is ready!", 
                         isInitialized: true,
                         duration: stopwatch.Elapsed.TotalSeconds);
-                    await _progressReporter.ReportProgressAsync(job.OwnerUserId.ToString(), 100, "Complete", "Your workspace is ready!");
+                    await _progressReporter.ReportProgressAsync(job.OwnerUserId.ToString(), 100, "ProvisioningCompleted", "Your workspace is ready!");
 
-                    _logger.LogInformation($"[TENANT CREATION SUCCESS] Tenant: {job.CompanyName} (ID: {job.TenantId}) provisioned successfully in {stopwatch.ElapsedMilliseconds} ms.");
+                    _logger.LogInformation($"[WORKER] [TENANT CREATION SUCCESS] Tenant: {job.CompanyName} (ID: {job.TenantId}) provisioned successfully in {stopwatch.ElapsedMilliseconds} ms.");
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 stopwatch.Stop();
                 _logger.LogWarning(
-                    "Tenant provisioning for {CompanyName} (ID: {TenantId}) was interrupted by host shutdown after {ElapsedMs}ms. " +
-                    "Tenant remains in current state and can be retried.",
+                    "[WORKER] Tenant provisioning for {CompanyName} (ID: {TenantId}) was interrupted by host shutdown after {ElapsedMs}ms.",
                     job.CompanyName, job.TenantId, stopwatch.ElapsedMilliseconds);
             }
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                _logger.LogError(ex, $"Failed to provision tenant: {job.CompanyName} (ID: {job.TenantId}). Attempting cleanup...");
+                _logger.LogError(ex, $"[WORKER] Failed to provision tenant: {job.CompanyName} (ID: {job.TenantId}). Attempting cleanup...");
                 
                 await HandleFailureAsync(job.TenantId, job.SchemaName, job.OwnerUserId, ex, stopwatch.Elapsed.TotalSeconds);
             }
@@ -161,14 +200,14 @@ namespace Aquora.Infrastructure.Services
                     {
                         tenant.Progress = progress;
                         tenant.CurrentStep = step;
-                        tenant.Status = status;
+                        tenant.Status = isInitialized || progress >= 100 ? "Completed" : (failureReason != null ? "Failed" : "Provisioning");
                         
                         if (progress == 15)
                         {
                             tenant.StartedAt = DateTime.UtcNow;
                         }
 
-                        if (isInitialized)
+                        if (isInitialized || progress >= 100)
                         {
                             tenant.IsInitialized = true;
                             tenant.InitializedAt = DateTime.UtcNow;
@@ -232,11 +271,11 @@ namespace Aquora.Infrastructure.Services
                         await platformContext.SaveChangesAsync();
                     }
 
-                    // Reset user's TenantId in the platform database so they don't block
+                    // Ensure user's TenantId in the platform database remains associated with the failed tenant for status and retry
                     var user = await platformContext.Users.FirstOrDefaultAsync(u => u.Id == ownerUserId);
-                    if (user != null)
+                    if (user != null && user.TenantId != tenantId)
                     {
-                        user.TenantId = null;
+                        user.TenantId = tenantId;
                         await platformContext.SaveChangesAsync();
                     }
 

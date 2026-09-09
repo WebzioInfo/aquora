@@ -26,6 +26,7 @@ namespace Aquora.Application.Interfaces.Services
         public string? CustomDomain { get; set; }
         public string Status { get; set; } = "Active";
         public bool IsActive { get; set; }
+        public bool IsBiodropsProduction { get; set; }
 
         // Company Details
         public string? OwnerName { get; set; }
@@ -133,26 +134,28 @@ namespace Aquora.Application.Interfaces.Services
         public string Language { get; set; } = "en";
         public string? LogoUrl { get; set; }
         public string Theme { get; set; } = "light";
+        public bool IsBiodropsProduction { get; set; } = false;
     }
 
     public class UpdateTenantRequest
     {
-        public string CompanyName { get; set; } = string.Empty;
-        public string OwnerName { get; set; } = string.Empty;
-        public string OwnerEmail { get; set; } = string.Empty;
+        public string? CompanyName { get; set; }
+        public string? OwnerName { get; set; }
+        public string? OwnerEmail { get; set; }
         public string? OwnerPhone { get; set; }
         public string? Address { get; set; }
         public string? GstNumber { get; set; }
         public string? PanNumber { get; set; }
         public string? LicenseNumber { get; set; }
-        public string SubscriptionPlan { get; set; } = "Starter";
-        public string Status { get; set; } = "Active";
-        public string Subdomain { get; set; } = string.Empty;
-        public string Timezone { get; set; } = "UTC";
-        public string Currency { get; set; } = "USD";
-        public string Language { get; set; } = "en";
+        public string? SubscriptionPlan { get; set; }
+        public string? Status { get; set; }
+        public string? Subdomain { get; set; }
+        public string? Timezone { get; set; }
+        public string? Currency { get; set; }
+        public string? Language { get; set; }
         public string? LogoUrl { get; set; }
-        public string Theme { get; set; } = "light";
+        public string? Theme { get; set; }
+        public bool? IsBiodropsProduction { get; set; }
     }
 
     public class DeleteTenantRequest

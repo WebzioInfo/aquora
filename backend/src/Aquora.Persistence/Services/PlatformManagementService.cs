@@ -117,10 +117,10 @@ namespace Aquora.Persistence.Services
 
             var tenantIds = tenants.Select(t => t.Id).ToList();
 
-            // Fetch user counts per tenant
+            // Fetch active user counts per tenant (counting only active, non-deleted users)
             var userCounts = await _platformContext.Users
                 .AsNoTracking()
-                .Where(u => !u.IsDeleted && u.TenantId.HasValue && tenantIds.Contains(u.TenantId.Value))
+                .Where(u => !u.IsDeleted && u.IsActive && u.TenantId.HasValue && tenantIds.Contains(u.TenantId.Value))
                 .GroupBy(u => u.TenantId!.Value)
                 .Select(g => new { TenantId = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.TenantId, x => x.Count);
@@ -135,6 +135,7 @@ namespace Aquora.Persistence.Services
                 CustomDomain = t.CustomDomain,
                 Status = t.IsActive ? "Active" : "Inactive",
                 IsActive = t.IsActive,
+                IsBiodropsProduction = t.IsBiodropsProduction,
                 OwnerName = t.OwnerName,
                 OwnerEmail = t.OwnerEmail,
                 OwnerPhone = t.OwnerPhone,
@@ -149,7 +150,7 @@ namespace Aquora.Persistence.Services
                 LogoUrl = t.LogoUrl,
                 Theme = t.Theme,
                 StorageUsedMb = t.StorageUsedMb,
-                ActiveUsersCount = userCounts.TryGetValue(t.Id, out var count) ? count : t.ActiveUsersCount,
+                ActiveUsersCount = userCounts.TryGetValue(t.Id, out var count) ? count : 0,
                 DatabaseStatus = null,
                 SslStatus = null,
                 ApiKey = null,
@@ -321,6 +322,7 @@ namespace Aquora.Persistence.Services
                 CustomDomain = t.CustomDomain,
                 Status = t.IsActive ? "Active" : "Inactive",
                 IsActive = t.IsActive,
+                IsBiodropsProduction = t.IsBiodropsProduction,
                 OwnerName = t.OwnerName,
                 OwnerEmail = t.OwnerEmail,
                 OwnerPhone = t.OwnerPhone,
@@ -397,6 +399,7 @@ namespace Aquora.Persistence.Services
                 Language = request.Language,
                 LogoUrl = request.LogoUrl,
                 Theme = request.Theme,
+                IsBiodropsProduction = request.IsBiodropsProduction,
                 StorageUsedMb = 12.0,
                 ActiveUsersCount = 1,
                 CreatedAt = DateTime.UtcNow,
@@ -479,42 +482,60 @@ namespace Aquora.Persistence.Services
             if (tenant == null)
                 throw new KeyNotFoundException("Tenant not found.");
 
-            // Check duplicate company name
-            var nameExists = await _platformContext.Tenants.AnyAsync(t => t.Name.ToLower() == request.CompanyName.Trim().ToLower() && t.Id != tenantId && !t.IsDeleted);
-            if (nameExists)
-                throw new InvalidOperationException($"Company Name '{request.CompanyName}' is already registered.");
-
-            var newSubdomain = request.Subdomain.Trim().ToLower();
-            if (tenant.Subdomain != newSubdomain)
+            // Check duplicate company name ONLY if CompanyName is provided and non-empty
+            if (!string.IsNullOrWhiteSpace(request.CompanyName))
             {
-                var subExists = await _platformContext.Tenants.AnyAsync(t => t.Subdomain == newSubdomain && t.Id != tenantId && !t.IsDeleted);
-                if (subExists)
-                    throw new InvalidOperationException($"Subdomain '{newSubdomain}' is already taken.");
-
-                // Update TenantDomain entry
-                var primaryDomain = await _platformContext.TenantDomains.FirstOrDefaultAsync(d => d.TenantId == tenantId && d.IsPrimary);
-                if (primaryDomain != null)
+                var newName = request.CompanyName.Trim();
+                if (!string.Equals(tenant.Name, newName, StringComparison.OrdinalIgnoreCase))
                 {
-                    primaryDomain.Domain = $"{newSubdomain}.aquora.com";
+                    var nameExists = await _platformContext.Tenants.AnyAsync(t => t.Name.ToLower() == newName.ToLower() && t.Id != tenantId && !t.IsDeleted);
+                    if (nameExists)
+                        throw new InvalidOperationException($"Company Name '{newName}' is already registered.");
+                    tenant.Name = newName;
                 }
-                tenant.Subdomain = newSubdomain;
             }
 
-            tenant.Name = request.CompanyName.Trim();
-            tenant.OwnerName = request.OwnerName;
-            tenant.OwnerEmail = request.OwnerEmail;
-            tenant.OwnerPhone = request.OwnerPhone;
-            tenant.Address = request.Address;
-            tenant.GstNumber = request.GstNumber;
-            tenant.PanNumber = request.PanNumber;
-            tenant.LicenseNumber = request.LicenseNumber;
-            tenant.SubscriptionPlan = request.SubscriptionPlan;
-            tenant.IsActive = string.Equals(request.Status, "Active", StringComparison.OrdinalIgnoreCase);
-            tenant.Timezone = request.Timezone;
-            tenant.Currency = request.Currency;
-            tenant.Language = request.Language;
-            tenant.LogoUrl = request.LogoUrl;
-            tenant.Theme = request.Theme;
+            // Check duplicate subdomain ONLY if Subdomain is provided and non-empty
+            if (!string.IsNullOrWhiteSpace(request.Subdomain))
+            {
+                var newSubdomain = request.Subdomain.Trim().ToLower();
+                if (!string.Equals(tenant.Subdomain, newSubdomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    var subExists = await _platformContext.Tenants.AnyAsync(t => t.Subdomain == newSubdomain && t.Id != tenantId && !t.IsDeleted);
+                    if (subExists)
+                        throw new InvalidOperationException($"Subdomain '{newSubdomain}' is already taken.");
+
+                    var primaryDomain = await _platformContext.TenantDomains.FirstOrDefaultAsync(d => d.TenantId == tenantId && d.IsPrimary);
+                    if (primaryDomain != null)
+                    {
+                        primaryDomain.Domain = $"{newSubdomain}.aquora.com";
+                    }
+                    tenant.Subdomain = newSubdomain;
+                }
+            }
+
+            if (request.OwnerName != null) tenant.OwnerName = request.OwnerName;
+            if (request.OwnerEmail != null) tenant.OwnerEmail = request.OwnerEmail;
+            if (request.OwnerPhone != null) tenant.OwnerPhone = request.OwnerPhone;
+            if (request.Address != null) tenant.Address = request.Address;
+            if (request.GstNumber != null) tenant.GstNumber = request.GstNumber;
+            if (request.PanNumber != null) tenant.PanNumber = request.PanNumber;
+            if (request.LicenseNumber != null) tenant.LicenseNumber = request.LicenseNumber;
+            if (request.SubscriptionPlan != null) tenant.SubscriptionPlan = request.SubscriptionPlan;
+            if (request.Status != null)
+            {
+                tenant.Status = request.Status;
+                tenant.IsActive = string.Equals(request.Status, "Active", StringComparison.OrdinalIgnoreCase);
+            }
+            if (request.IsBiodropsProduction.HasValue)
+            {
+                tenant.IsBiodropsProduction = request.IsBiodropsProduction.Value;
+            }
+            if (request.Timezone != null) tenant.Timezone = request.Timezone;
+            if (request.Currency != null) tenant.Currency = request.Currency;
+            if (request.Language != null) tenant.Language = request.Language;
+            if (request.LogoUrl != null) tenant.LogoUrl = request.LogoUrl;
+            if (request.Theme != null) tenant.Theme = request.Theme;
             tenant.UpdatedAt = DateTime.UtcNow;
             tenant.UpdatedBy = performerUserId;
             tenant.UpdatedByIP = performerIp;

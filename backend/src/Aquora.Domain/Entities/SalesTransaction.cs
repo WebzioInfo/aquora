@@ -19,6 +19,8 @@ namespace Aquora.Domain.Entities
         public virtual Product Product { get; set; } = null!;
 
         public decimal Cases { get; set; }
+        public Guid? ParentTransactionId { get; set; }
+        public virtual SalesTransaction? ParentTransaction { get; set; }
         public string TransactionType { get; set; } = string.Empty; // Sales Dispatch, Customer Return, Damage
 
         public DateTime TransactionDate { get; set; }

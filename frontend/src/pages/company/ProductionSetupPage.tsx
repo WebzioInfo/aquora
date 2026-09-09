@@ -3,6 +3,8 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../services/api'
 import { productionShiftsService, type ProductionShift, calculateShiftDuration } from '../../services/productionShifts'
+import { caseConfigurationsService, type CaseConfiguration } from '../../services/caseConfigurations'
+import { productsService } from '../../services/products'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import PageContainer from '../../components/ui/layout/PageContainer'
@@ -10,8 +12,9 @@ import EnterpriseModal from '../../components/ui/EnterpriseModal'
 import EnterpriseInput from '../../components/ui/EnterpriseInput'
 import EnterpriseButton from '../../components/ui/EnterpriseButton'
 import EnterpriseLoading from '../../components/ui/EnterpriseLoading'
+import EnterpriseNumberInput from '../../components/ui/EnterpriseNumberInput'
 import { EnterpriseTimePicker } from '../../components/ui/EnterpriseTimePicker'
-import { Sliders, Workflow, Clock, Plus, Edit2, Trash2, Power, Search } from 'lucide-react'
+import { Sliders, Workflow, Clock, Plus, Edit2, Trash2, Power, Search, Package } from 'lucide-react'
 
 export const ProductionSetupPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -20,10 +23,11 @@ export const ProductionSetupPage: React.FC = () => {
   const { showToast } = useNotificationStore()
   const { user } = useAuthStore()
 
-  // Tab State: 'lines' | 'shifts'
-  const activeTab = (searchParams.get('tab') === 'shifts' ? 'shifts' : 'lines') as 'lines' | 'shifts'
+  // Tab State: 'lines' | 'shifts' | 'cases'
+  const tabParam = searchParams.get('tab')
+  const activeTab = (tabParam === 'shifts' ? 'shifts' : tabParam === 'cases' ? 'cases' : 'lines') as 'lines' | 'shifts' | 'cases'
 
-  const setActiveTab = (tab: 'lines' | 'shifts') => {
+  const setActiveTab = (tab: 'lines' | 'shifts' | 'cases') => {
     setSearchParams({ tab })
   }
 
@@ -33,8 +37,8 @@ export const ProductionSetupPage: React.FC = () => {
   const isOwner = userRoles.some((r: string) => ['owner', 'companyowner', 'platformowner'].includes(r)) || primaryRole === 'owner'
   const canManage = !isOwner && (
     !!user?.isPlatformAdmin ||
-    userRoles.some((r: string) => ['companyadmin', 'admin', 'superadmin', 'platformadmin'].includes(r)) ||
-    ['companyadmin', 'admin', 'superadmin', 'platformadmin'].includes(primaryRole)
+    userRoles.some((r: string) => ['companyadmin', 'accountant', 'admin', 'superadmin', 'platformadmin'].includes(r)) ||
+    ['companyadmin', 'accountant', 'admin', 'superadmin', 'platformadmin'].includes(primaryRole)
   )
 
   // ─── TAB 1: PRODUCTION LINES DATA & MUTATIONS ────────────────────────────────
@@ -314,6 +318,140 @@ export const ProductionSetupPage: React.FC = () => {
     (s.description || '').toLowerCase().includes(shiftSearch.toLowerCase())
   )
 
+  // ─── TAB 3: CASE CONFIGURATION DATA & MUTATIONS ─────────────────────────────
+  const [caseConfigSearch, setCaseConfigSearch] = useState('')
+  const [isAddCaseConfigModalOpen, setIsAddCaseConfigModalOpen] = useState(false)
+  const [isEditCaseConfigModalOpen, setIsEditCaseConfigModalOpen] = useState(false)
+  const [editingCaseConfig, setEditingCaseConfig] = useState<CaseConfiguration | null>(null)
+
+  const [caseConfigProductId, setCaseConfigProductId] = useState('')
+  const [caseConfigUnitsPerCase, setCaseConfigUnitsPerCase] = useState('24')
+  const [caseConfigIsActive, setCaseConfigIsActive] = useState(true)
+  const [caseConfigErrors, setCaseConfigErrors] = useState<Record<string, string>>({})
+
+  // Queries
+  const { data: caseConfigs = [], isLoading: caseConfigsLoading } = useQuery<CaseConfiguration[]>({
+    queryKey: ['caseConfigurations'],
+    queryFn: async () => {
+      const res = await caseConfigurationsService.getAll()
+      return res.data || []
+    },
+    enabled: activeTab === 'cases'
+  })
+
+  const { data: productsData } = useQuery({
+    queryKey: ['productsForCaseConfig'],
+    queryFn: async () => {
+      const res = await productsService.getProducts(1, 200)
+      return res.data?.items || []
+    },
+    enabled: isAddCaseConfigModalOpen || isEditCaseConfigModalOpen
+  })
+  const availableProducts = productsData || []
+
+  // Case Config Mutations
+  const createCaseConfigMutation = useMutation({
+    mutationFn: async (data: { productId: string; unitsPerCase: number }) =>
+      await caseConfigurationsService.create(data),
+    onSuccess: (res) => {
+      if (res.success) {
+        showToast('Case Configuration created successfully.', 'success')
+        queryClient.invalidateQueries({ queryKey: ['caseConfigurations'] })
+        setIsAddCaseConfigModalOpen(false)
+        resetCaseConfigForm()
+      } else {
+        showToast(res.message || 'Failed to create Case Configuration.', 'error')
+      }
+    },
+    onError: (err: any) => {
+      showToast(err.response?.data?.message || 'Failed to create Case Configuration.', 'error')
+    }
+  })
+
+  const updateCaseConfigMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { productId?: string; unitsPerCase: number; isActive?: boolean } }) =>
+      await caseConfigurationsService.update(id, data),
+    onSuccess: (res) => {
+      if (res.success) {
+        showToast('Case Configuration updated successfully.', 'success')
+        queryClient.invalidateQueries({ queryKey: ['caseConfigurations'] })
+        setIsEditCaseConfigModalOpen(false)
+        setEditingCaseConfig(null)
+        resetCaseConfigForm()
+      } else {
+        showToast(res.message || 'Failed to update Case Configuration.', 'error')
+      }
+    },
+    onError: (err: any) => {
+      showToast(err.response?.data?.message || 'Failed to update Case Configuration.', 'error')
+    }
+  })
+
+  const deleteCaseConfigMutation = useMutation({
+    mutationFn: async (id: string) => await caseConfigurationsService.delete(id),
+    onSuccess: (res) => {
+      if (res.success) {
+        showToast('Case Configuration deactivated successfully.', 'success')
+        queryClient.invalidateQueries({ queryKey: ['caseConfigurations'] })
+      } else {
+        showToast(res.message || 'Failed to deactivate Case Configuration.', 'error')
+      }
+    },
+    onError: (err: any) => {
+      showToast(err.response?.data?.message || 'Failed to deactivate Case Configuration.', 'error')
+    }
+  })
+
+  const resetCaseConfigForm = () => {
+    setCaseConfigProductId('')
+    setCaseConfigUnitsPerCase('24')
+    setCaseConfigIsActive(true)
+    setCaseConfigErrors({})
+  }
+
+  const handleOpenAddCaseConfig = () => {
+    resetCaseConfigForm()
+    setIsAddCaseConfigModalOpen(true)
+  }
+
+  const handleOpenEditCaseConfig = (config: CaseConfiguration) => {
+    setEditingCaseConfig(config)
+    setCaseConfigProductId(config.productId)
+    setCaseConfigUnitsPerCase(config.unitsPerCase.toString())
+    setCaseConfigIsActive(config.isActive)
+    setCaseConfigErrors({})
+    setIsEditCaseConfigModalOpen(true)
+  }
+
+  const handleSaveCaseConfig = () => {
+    const errs: Record<string, string> = {}
+    if (!caseConfigProductId && !editingCaseConfig) errs.productId = 'Product is required.'
+    const units = parseInt(caseConfigUnitsPerCase, 10)
+    if (isNaN(units) || units <= 0) errs.unitsPerCase = 'Units per case must be a positive integer greater than zero.'
+
+    if (Object.keys(errs).length > 0) {
+      setCaseConfigErrors(errs)
+      return
+    }
+
+    if (editingCaseConfig) {
+      updateCaseConfigMutation.mutate({
+        id: editingCaseConfig.id,
+        data: { unitsPerCase: units, isActive: caseConfigIsActive }
+      })
+    } else {
+      createCaseConfigMutation.mutate({
+        productId: caseConfigProductId,
+        unitsPerCase: units
+      })
+    }
+  }
+
+  const filteredCaseConfigs = caseConfigs.filter((c: CaseConfiguration) =>
+    (c.productName || '').toLowerCase().includes(caseConfigSearch.toLowerCase()) ||
+    (c.productSku || '').toLowerCase().includes(caseConfigSearch.toLowerCase())
+  )
+
   // ─────────────────────────────────────────────────────────────────────────────
   return (
     <PageContainer>
@@ -338,12 +476,19 @@ export const ProductionSetupPage: React.FC = () => {
                 >
                   <Plus className="w-4 h-4" /> Add Production Line
                 </button>
-              ) : (
+              ) : activeTab === 'shifts' ? (
                 <button
                   onClick={handleOpenAddShift}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer"
                 >
                   <Plus className="w-4 h-4" /> Add Production Shift
+                </button>
+              ) : (
+                <button
+                  onClick={handleOpenAddCaseConfig}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" /> Add Case Configuration
                 </button>
               )}
             </div>
@@ -383,6 +528,21 @@ export const ProductionSetupPage: React.FC = () => {
                 {shifts.length}
               </span>
             </button>
+
+            <button
+              onClick={() => setActiveTab('cases')}
+              className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                activeTab === 'cases'
+                  ? 'bg-white text-blue-700 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Package className="w-3.5 h-3.5" />
+              <span>Case Configuration</span>
+              <span className="ml-1 text-[10px] bg-slate-200 px-1.5 py-0.2 rounded-full text-slate-700 font-extrabold">
+                {caseConfigs.length}
+              </span>
+            </button>
           </div>
 
           {/* Search Filter Input */}
@@ -390,9 +550,9 @@ export const ProductionSetupPage: React.FC = () => {
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder={activeTab === 'lines' ? "Search lines..." : "Search shifts..."}
-              value={activeTab === 'lines' ? lineSearch : shiftSearch}
-              onChange={(e) => activeTab === 'lines' ? setLineSearch(e.target.value) : setShiftSearch(e.target.value)}
+              placeholder={activeTab === 'lines' ? "Search lines..." : activeTab === 'shifts' ? "Search shifts..." : "Search product / SKU..."}
+              value={activeTab === 'lines' ? lineSearch : activeTab === 'shifts' ? shiftSearch : caseConfigSearch}
+              onChange={(e) => activeTab === 'lines' ? setLineSearch(e.target.value) : activeTab === 'shifts' ? setShiftSearch(e.target.value) : setCaseConfigSearch(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-md pl-8 pr-3 py-1.5 text-xs font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
@@ -666,6 +826,113 @@ export const ProductionSetupPage: React.FC = () => {
             )
           )}
 
+          {/* ────────────── TAB 3: CASE CONFIGURATION ────────────── */}
+          {activeTab === 'cases' && (
+            caseConfigsLoading ? (
+              <div className="p-8">
+                <EnterpriseLoading label="Loading case configurations..." />
+              </div>
+            ) : filteredCaseConfigs.length === 0 ? (
+              <div className="p-12 text-center flex flex-col items-center justify-center">
+                <Package className="w-10 h-10 text-slate-300 mb-2" />
+                <p className="text-sm font-bold text-slate-700">No case configurations defined.</p>
+                <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                  {caseConfigSearch ? "No configurations match your search filter." : "Define how many units are contained in each product case."}
+                </p>
+                {canManage && !caseConfigSearch && (
+                  <button
+                    onClick={handleOpenAddCaseConfig}
+                    className="mt-4 flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg cursor-pointer transition-all"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Case Configuration
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="overflow-x-auto overflow-y-auto flex-1">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10 select-none">
+                    <tr>
+                      <th className="py-2.5 px-4 font-bold text-slate-700 uppercase tracking-wider text-[10px]">Product</th>
+                      <th className="py-2.5 px-4 font-bold text-slate-700 uppercase tracking-wider text-[10px] text-right">Units Per Case</th>
+                      <th className="py-2.5 px-4 font-bold text-slate-700 uppercase tracking-wider text-[10px]">Status</th>
+                      <th className="py-2.5 px-4 font-bold text-slate-700 uppercase tracking-wider text-[10px]">Last Updated</th>
+                      <th className="py-2.5 px-4 font-bold text-slate-700 uppercase tracking-wider text-[10px] text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredCaseConfigs.map((config: CaseConfiguration) => (
+                      <tr key={config.id} className="hover:bg-slate-50/70 transition-colors">
+                        {/* Product */}
+                        <td className="py-2.5 px-4">
+                          <span className="font-bold text-slate-900 block leading-tight">{config.productName}</span>
+                          {config.productSku && (
+                            <span className="font-mono text-[10px] text-slate-500 block mt-0.5">SKU: {config.productSku}</span>
+                          )}
+                        </td>
+
+                        {/* Units Per Case */}
+                        <td className="py-2.5 px-4 text-right">
+                          <span className="font-black text-slate-900 text-sm tabular-nums bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200 inline-block">
+                            {config.unitsPerCase} <span className="text-xs font-normal text-slate-500">Units/Case</span>
+                          </span>
+                        </td>
+
+                        {/* Status */}
+                        <td className="py-2.5 px-4">
+                          <span
+                            className={`inline-flex items-center gap-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                              config.isActive
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : 'bg-slate-100 text-slate-600 border border-slate-200'
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${config.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                            {config.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+
+                        {/* Last Updated */}
+                        <td className="py-2.5 px-4 text-slate-500 text-[11px]">
+                          {config.updatedAt || config.createdAt ? new Date(config.updatedAt || config.createdAt).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : '—'}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-2.5 px-4 text-right">
+                          {canManage ? (
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => handleOpenEditCaseConfig(config)}
+                                title="Edit Configuration"
+                                className="p-1 rounded text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Deactivate case configuration for '${config.productName}'?`)) {
+                                    deleteCaseConfigMutation.mutate(config.id)
+                                  }
+                                }}
+                                title="Deactivate Configuration"
+                                className="p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 text-[10px]">Read-only</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          )}
+
         </div>
 
       </div>
@@ -803,6 +1070,111 @@ export const ProductionSetupPage: React.FC = () => {
               loading={createShiftMutation.isPending || updateShiftMutation.isPending}
             >
               {isEditShiftModalOpen ? 'Save Changes' : 'Create Shift'}
+            </EnterpriseButton>
+          </div>
+        </div>
+      </EnterpriseModal>
+
+      {/* ══ MODALS: ADD / EDIT CASE CONFIGURATION ═══════════════════════════════ */}
+      <EnterpriseModal
+        isOpen={isAddCaseConfigModalOpen || isEditCaseConfigModalOpen}
+        onClose={() => { setIsAddCaseConfigModalOpen(false); setIsEditCaseConfigModalOpen(false); resetCaseConfigForm(); }}
+        title={isEditCaseConfigModalOpen ? "Edit Case Configuration" : "Create Case Configuration"}
+        maxWidth="md"
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-xs text-slate-500 font-medium">
+            Define how many units are packed in each case for the selected product.
+          </p>
+
+          {/* Product Dropdown Selector */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Product <span className="text-red-500">*</span>
+            </label>
+            {isEditCaseConfigModalOpen ? (
+              <input
+                type="text"
+                disabled
+                value={editingCaseConfig?.productName || ''}
+                className="w-full bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 cursor-not-allowed"
+              />
+            ) : (
+              <select
+                value={caseConfigProductId}
+                onChange={(e) => {
+                  setCaseConfigProductId(e.target.value)
+                  if (caseConfigErrors.productId) {
+                    setCaseConfigErrors((prev) => ({ ...prev, productId: '' }))
+                  }
+                }}
+                className={`w-full bg-white border rounded-lg px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer ${
+                  caseConfigErrors.productId ? 'border-red-500' : 'border-slate-200'
+                }`}
+              >
+                <option value="">Select Product...</option>
+                {availableProducts.map((p: any) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} {p.sku ? `(${p.sku})` : ''}
+                  </option>
+                ))}
+              </select>
+            )}
+            {caseConfigErrors.productId && (
+              <p className="text-[11px] font-bold text-red-500 mt-1">{caseConfigErrors.productId}</p>
+            )}
+          </div>
+
+          {/* Units Per Case Input */}
+          <div>
+            <EnterpriseNumberInput
+              label="Units Per Case *"
+              placeholder="24"
+              value={caseConfigUnitsPerCase}
+              onChange={(e) => {
+                setCaseConfigUnitsPerCase(e.target.value)
+                if (caseConfigErrors.unitsPerCase) {
+                  setCaseConfigErrors((prev) => ({ ...prev, unitsPerCase: '' }))
+                }
+              }}
+              allowDecimals={false}
+              error={caseConfigErrors.unitsPerCase}
+            />
+            <p className="text-[11px] text-slate-500 font-semibold mt-1">
+              Example: 24 means 1 Case = 24 units of this product.
+            </p>
+          </div>
+
+          {/* Active Checkbox (Edit mode) */}
+          {isEditCaseConfigModalOpen && (
+            <div className="flex items-center gap-2 pt-1 select-none">
+              <input
+                type="checkbox"
+                id="caseConfigActiveCheck"
+                checked={caseConfigIsActive}
+                onChange={(e) => setCaseConfigIsActive(e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+              />
+              <label htmlFor="caseConfigActiveCheck" className="text-xs font-bold text-slate-700 cursor-pointer">
+                Active Configuration
+              </label>
+            </div>
+          )}
+
+          {/* Modal Action Buttons */}
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => { setIsAddCaseConfigModalOpen(false); setIsEditCaseConfigModalOpen(false); resetCaseConfigForm(); }}
+              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <EnterpriseButton
+              onClick={handleSaveCaseConfig}
+              loading={createCaseConfigMutation.isPending || updateCaseConfigMutation.isPending}
+            >
+              {isEditCaseConfigModalOpen ? 'Save Changes' : 'Create Configuration'}
             </EnterpriseButton>
           </div>
         </div>

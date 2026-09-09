@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Aquora.Application.Interfaces;
+using Aquora.Application.Services;
 using Aquora.Domain.Entities;
 using Aquora.Shared.Constants;
 using Aquora.Persistence.Context;
@@ -48,10 +49,13 @@ namespace Aquora.Persistence.Services
                 return;
             }
 
+            if (_platformContext.Database.IsRelational())
+            {
 #pragma warning disable EF1003
-            await _platformContext.Database.ExecuteSqlRawAsync(
-                "DROP SCHEMA IF EXISTS " + QuoteSchemaName(schemaName) + " CASCADE;");
+                await _platformContext.Database.ExecuteSqlRawAsync(
+                    "DROP SCHEMA IF EXISTS " + QuoteSchemaName(schemaName) + " CASCADE;");
 #pragma warning restore EF1003
+            }
         }
 
         public static string QuoteSchemaName(string schemaName)
@@ -87,29 +91,47 @@ namespace Aquora.Persistence.Services
                     {
                         await onProgress(100, "ProvisioningCompleted", "Your workspace is ready!");
                     }
+
+                    using (var checkScope = _scopeFactory.CreateScope())
+                    {
+                        TenantSchemaResolver.CurrentSchemaName = schemaName;
+                        var checkTenantProvider = checkScope.ServiceProvider.GetRequiredService<ITenantProvider>();
+                        checkTenantProvider.SetTenantId(tenantId);
+                        checkTenantProvider.SetTenantSchemaName(schemaName);
+                        var checkContext = checkScope.ServiceProvider.GetRequiredService<TenantDbContext>();
+                        var company = await checkContext.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
+                        if (company != null)
+                        {
+                            result.CompanyId = company.Id;
+                        }
+                    }
                     return result;
                 }
 
                 // 1. Create Postgres Schema
+                if (_platformContext.Database.IsRelational())
+                {
 #pragma warning disable EF1003
-                await _platformContext.Database.ExecuteSqlRawAsync(
-                    "CREATE SCHEMA IF NOT EXISTS " + QuoteSchemaName(schemaName) + ";");
+                    await _platformContext.Database.ExecuteSqlRawAsync(
+                        "CREATE SCHEMA IF NOT EXISTS " + QuoteSchemaName(schemaName) + ";");
 #pragma warning restore EF1003
+                }
 
                 if (onProgress != null)
                 {
-                    await onProgress(15, "Preparing workspace", "Creating your workspace environment...");
+                    await onProgress(15, "DatabaseCreated", "Creating your workspace environment...");
                 }
 
                 // 2. Resolve TenantDbContext in a child scope with custom schema configuration
                 using (var scope = _scopeFactory.CreateScope())
                 {
+                    TenantSchemaResolver.CurrentSchemaName = schemaName;
+
                     var tenantProvider = scope.ServiceProvider.GetRequiredService<ITenantProvider>();
                     tenantProvider.SetTenantId(tenantId);
                     tenantProvider.SetTenantSchemaName(schemaName);
 
                     var tenantContext = scope.ServiceProvider.GetRequiredService<TenantDbContext>();
-                    TenantSchemaResolver.CurrentSchemaName = schemaName;
 
                     // Verify Database Connection
                     var canConnect = await tenantContext.Database.CanConnectAsync();
@@ -118,22 +140,33 @@ namespace Aquora.Persistence.Services
                         throw new InvalidOperationException("Failed to verify connection to the tenant database schema.");
                     }
 
-                    if (onProgress != null)
+                    // Explicitly configure search_path for the connection to protect against any third-party or legacy raw SQL
+                    if (tenantContext.Database.IsRelational())
                     {
-                        await onProgress(30, "Preparing workspace", "Verifying workspace configuration...");
+                        await tenantContext.Database.ExecuteSqlRawAsync($"SET search_path TO \"{schemaName}\", public;");
                     }
 
                     if (onProgress != null)
                     {
-                        await onProgress(45, "Building workspace", "Building your workspace structure...");
+                        await onProgress(30, "DatabaseCreated", "Verifying workspace configuration...");
+                    }
+
+                    if (onProgress != null)
+                    {
+                        await onProgress(45, "SchemaMigrationsRun", "Building your workspace structure...");
                     }
 
                     // Run EF migrations inside the tenant schema. Any failure must abort provisioning.
-                    await tenantContext.Database.MigrateAsync();
+                    if (tenantContext.Database.IsRelational())
+                    {
+                        await tenantContext.Database.MigrateAsync();
+                    }
 
                     // Repair schema for ProductionShifts and Simple Accounts tables
-                    try
+                    if (tenantContext.Database.IsRelational())
                     {
+                        try
+                        {
                         var repairSql = $@"
                             CREATE TABLE IF NOT EXISTS ""{schemaName}"".""ProductionShifts"" (
                                 ""Id"" uuid NOT NULL,
@@ -288,26 +321,29 @@ namespace Aquora.Persistence.Services
 
                             ALTER TABLE ""{schemaName}"".""Companies"" ADD COLUMN IF NOT EXISTS ""AdminPinHash"" text NULL;
                             ALTER TABLE ""{schemaName}"".""Companies"" ADD COLUMN IF NOT EXISTS ""ApiKey"" text NULL;
+                            CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Companies_SingleActiveRoot"" ON ""{schemaName}"".""Companies"" (""TenantId"") WHERE ""IsDeleted"" = false;
                         ";
 #pragma warning disable EF1003
                         await tenantContext.Database.ExecuteSqlRawAsync(repairSql);
 #pragma warning restore EF1003
-                    }
-                    catch (Exception repairEx)
-                    {
-                        Console.WriteLine($"[SCHEMA REPAIR ERROR]: Failed to repair ProductionShifts schema for {schemaName}: {repairEx.Message}");
+                        }
+                        catch (Exception repairEx)
+                        {
+                            Console.WriteLine($"[SCHEMA REPAIR ERROR]: Failed to repair ProductionShifts schema for {schemaName}: {repairEx.Message}");
+                        }
                     }
                     
                     if (onProgress != null)
                     {
-                        await onProgress(60, "Configuring access", "Setting up team access controls...");
+                        await onProgress(60, "DefaultRolesCreated", "Setting up team access controls...");
                     }
 
                     // Check for duplicate company record to prevent repeat initialization
-                    var companyExists = await tenantContext.Companies.AnyAsync();
-                    if (companyExists)
+                    var existingCompany = await tenantContext.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
+                    if (existingCompany != null)
                     {
-                        Console.WriteLine($"[PROVISIONING IDEMPOTENT]: Company record already exists in schema '{schemaName}'. Returning existing owner role.");
+                        Console.WriteLine($"[PROVISIONING IDEMPOTENT]: Company record already exists in schema '{schemaName}'. Returning existing company and owner role.");
+                        result.CompanyId = existingCompany.Id;
                         var existingOwnerRole = await tenantContext.Roles.FirstOrDefaultAsync(r => r.Name == "CompanyAdmin" || r.Name == "Owner");
                         if (existingOwnerRole != null)
                         {
@@ -322,19 +358,20 @@ namespace Aquora.Persistence.Services
                     }
 
                     // Wrap all seed data updates in a single Postgres transaction
-                    using var transaction = await tenantContext.Database.BeginTransactionAsync();
+                    var transaction = tenantContext.Database.IsRelational() ? await tenantContext.Database.BeginTransactionAsync() : null;
                     try
                     {
                         // 1. Seed security roles inside schema
                         var roleNames = new[]
                         {
-                            "Owner", "CompanyAdmin", "Admin", "Manager", "Supervisor", "Operator",
+                            "Owner", "CompanyAdmin", "Accountant", "Admin", "Manager", "Supervisor", "Operator",
                             "Store Keeper", "Sales", "HR", "QC"
                         };
                         Console.WriteLine($"[ROLE SEEDING]: Seeding roles: {string.Join(", ", roleNames)} inside schema '{schemaName}'.");
 
                         Role ownerRole = null!;
                         Role companyAdminRole = null!;
+                        Role accountantRole = null!;
                         Role qcRole = null!;
                         foreach (var roleName in roleNames)
                         {
@@ -349,6 +386,10 @@ namespace Aquora.Persistence.Services
                             {
                                 companyAdminRole = role;
                             }
+                            if (roleName == "Accountant")
+                            {
+                                accountantRole = role;
+                            }
                             if (roleName == "QC")
                             {
                                 qcRole = role;
@@ -358,7 +399,7 @@ namespace Aquora.Persistence.Services
 
                         if (onProgress != null)
                         {
-                            await onProgress(70, "Configuring access", "Configuring security settings...");
+                            await onProgress(70, "DefaultRolesCreated", "Configuring security settings...");
                         }
 
                         result.OwnerRoleId = ownerRole.Id;
@@ -391,10 +432,10 @@ namespace Aquora.Persistence.Services
 
                         if (onProgress != null)
                         {
-                            await onProgress(80, "Creating your account", "Setting up your administrator profile...");
+                            await onProgress(80, "AdministratorUserInitialized", "Setting up your administrator profile...");
                         }
 
-                        // 3. Map permissions: CompanyAdmin gets all permissions, Owner gets Read-Only permissions
+                        // 3. Map permissions: CompanyAdmin and Accountant get all permissions, Owner gets Read-Only permissions
                         var ownerReadPerms = seededPermissions.Where(p => p.Code.EndsWith(".Read")).ToList();
                         foreach (var perm in ownerReadPerms)
                         {
@@ -413,6 +454,19 @@ namespace Aquora.Persistence.Services
                                 tenantContext.RolePermissions.Add(new RolePermission
                                 {
                                     RoleId = companyAdminRole.Id,
+                                    PermissionId = perm.Id,
+                                    TenantId = tenantId
+                                });
+                            }
+                        }
+
+                        if (accountantRole != null)
+                        {
+                            foreach (var perm in seededPermissions)
+                            {
+                                tenantContext.RolePermissions.Add(new RolePermission
+                                {
+                                    RoleId = accountantRole.Id,
                                     PermissionId = perm.Id,
                                     TenantId = tenantId
                                 });
@@ -446,18 +500,24 @@ namespace Aquora.Persistence.Services
 
                         if (onProgress != null)
                         {
-                            await onProgress(90, "Finalizing setup", "Applying default settings...");
+                            await onProgress(90, "ManufacturingModulesInitialized", "Applying default settings...");
                         }
 
-                        // 4. Create initial Company entity inside the schema
-                        var company = new Company
+                        // 4. Create initial Company entity inside the schema if not already present
+                        var companyInDb = await tenantContext.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
+                        var companyId = companyInDb?.Id ?? Guid.NewGuid();
+                        if (companyInDb == null)
                         {
-                            Name = companyName,
-                            Code = companyCode.ToUpperInvariant(),
-                            TenantId = tenantId,
-                            IsActive = true
-                        };
-                        tenantContext.Companies.Add(company);
+                            var company = new Company
+                            {
+                                Id = companyId,
+                                Name = companyName,
+                                Code = companyCode.ToUpperInvariant(),
+                                TenantId = tenantId,
+                                IsActive = true
+                            };
+                            tenantContext.Companies.Add(company);
+                        }
 
                         // Create default onboarding audit record
                         var auditLog = new AuditLog
@@ -476,35 +536,47 @@ namespace Aquora.Persistence.Services
                         tenantContext.AuditLogs.Add(auditLog);
                         await tenantContext.SaveChangesAsync();
 
-                        // Seed default station configurations in public schema
-                        var allStations = new[] { "Blowing", "Filling", "Labeling", "Packing" };
-                        foreach (var station in allStations)
+                        // Seed default station configurations in public schema if not already present
+                        var existingConfigs = await _platformContext.TenantProductionConfigurations
+                            .Where(c => c.TenantId == tenantId)
+                            .ToListAsync();
+                        if (!existingConfigs.Any())
                         {
-                            var isEnabled = enabledStations == null || enabledStations.Contains(station, StringComparer.OrdinalIgnoreCase);
-                            var config = new TenantProductionConfiguration
+                            var allStations = new[] { "Blowing", "Filling", "Labeling", "Packing" };
+                            foreach (var station in allStations)
                             {
-                                Id = Guid.NewGuid(),
-                                TenantId = tenantId,
-                                StationName = station,
-                                IsEnabled = isEnabled,
-                                CreatedAt = DateTime.UtcNow,
-                                CreatedBy = "System Onboarding"
-                            };
-                            _platformContext.TenantProductionConfigurations.Add(config);
+                                var isEnabled = enabledStations == null || enabledStations.Contains(station, StringComparer.OrdinalIgnoreCase);
+                                var config = new TenantProductionConfiguration
+                                {
+                                    Id = Guid.NewGuid(),
+                                    TenantId = tenantId,
+                                    StationName = station,
+                                    IsEnabled = isEnabled,
+                                    CreatedAt = DateTime.UtcNow,
+                                    CreatedBy = "System Onboarding"
+                                };
+                                _platformContext.TenantProductionConfigurations.Add(config);
+                            }
+                            await _platformContext.SaveChangesAsync();
                         }
-                        await _platformContext.SaveChangesAsync();
 
-                        if (onProgress != null)
+                        // 5. Seed complete canonical QC default parameters and settings inside tenant schema
+                        await QCDataSeeder.SeedQCDefaultParametersAsync(tenantContext, "System Provisioning");
+
+                        if (transaction != null)
                         {
-                            await onProgress(95, "Finalizing setup", "Running final checks...");
+                            await transaction.CommitAsync();
+                            await transaction.DisposeAsync();
                         }
-
-                        await transaction.CommitAsync();
-                        result.CompanyId = company.Id;
+                        result.CompanyId = companyId;
                     }
                     catch
                     {
-                        await transaction.RollbackAsync();
+                        if (transaction != null)
+                        {
+                            await transaction.RollbackAsync();
+                            await transaction.DisposeAsync();
+                        }
                         throw;
                     }
                 }

@@ -8,7 +8,7 @@ namespace Aquora.API.Controllers
 {
     [ApiController]
     [Route("api/v1/qc/water-test")]
-    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "QC,CompanyAdmin,Admin,Owner")]
+    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "QC,CompanyAdmin,Accountant,Admin,Owner")]
     public class WaterTestController : ControllerBase
     {
         private readonly IWaterTestService _waterTestService;
@@ -89,8 +89,15 @@ namespace Aquora.API.Controllers
         public async Task<IActionResult> CreateOrUpdateParameter([FromBody] WaterTestParameterDto request)
         {
             if (IsReadOnlyUser()) return StatusCode(403, "Owner role is read-only.");
-            var param = await _waterTestService.CreateOrUpdateParameterAsync(request);
-            return Ok(param);
+            try
+            {
+                var param = await _waterTestService.CreateOrUpdateParameterAsync(request);
+                return Ok(param);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         // Compliance & CAPA/NCR Endpoints
@@ -137,7 +144,7 @@ namespace Aquora.API.Controllers
         public async Task<IActionResult> DownloadReportPdf(Guid id)
         {
             var pdfBytes = await _waterTestService.GenerateReportPdfAsync(id);
-            return File(pdfBytes, "application/pdf", $"QC_Certificate_{id.ToString()[..8].ToUpper()}.pdf");
+            return File(pdfBytes, "application/pdf", $"Water_Test_Report_{id.ToString()[..8].ToUpper()}.pdf");
         }
     }
 }

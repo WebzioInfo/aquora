@@ -8,7 +8,7 @@ namespace Aquora.Persistence.Migrations.Tenant
     /// <inheritdoc />
     public partial class AddBusinessPartnerFields : Migration
     {
-        private string _schema => TenantSchemaResolver.CurrentSchemaName ?? "public";
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
 
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

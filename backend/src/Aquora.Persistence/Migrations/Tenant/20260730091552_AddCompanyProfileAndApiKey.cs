@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Aquora.Persistence.Context;
 
 #nullable disable
 
@@ -8,26 +9,28 @@ namespace Aquora.Persistence.Migrations.Tenant
     /// <inheritdoc />
     public partial class AddCompanyProfileAndApiKey : Migration
     {
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
                 name: "Address",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "ApiKey",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<bool>(
                 name: "AutoBatchNumber",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "boolean",
                 nullable: false,
@@ -35,7 +38,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<bool>(
                 name: "AutoProductionNumber",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "boolean",
                 nullable: false,
@@ -43,7 +46,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<bool>(
                 name: "AutoSKU",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "boolean",
                 nullable: false,
@@ -51,7 +54,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "Currency",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: false,
@@ -59,7 +62,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "DateFormat",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: false,
@@ -67,56 +70,56 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "DefaultDispatchMethod",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<Guid>(
                 name: "DefaultProductionLineId",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "uuid",
                 nullable: true);
 
             migrationBuilder.AddColumn<Guid>(
                 name: "DefaultShiftId",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "uuid",
                 nullable: true);
 
             migrationBuilder.AddColumn<Guid>(
                 name: "DefaultWarehouseId",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "uuid",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "DisplayName",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "Email",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "GstNumber",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "Language",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: false,
@@ -124,28 +127,28 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "LogoUrl",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "Phone",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "SecretKeyHash",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "Timezone",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: false,
@@ -157,97 +160,97 @@ namespace Aquora.Persistence.Migrations.Tenant
         {
             migrationBuilder.DropColumn(
                 name: "Address",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "ApiKey",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "AutoBatchNumber",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "AutoProductionNumber",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "AutoSKU",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "Currency",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "DateFormat",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "DefaultDispatchMethod",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "DefaultProductionLineId",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "DefaultShiftId",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "DefaultWarehouseId",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "DisplayName",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "Email",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "GstNumber",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "Language",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "LogoUrl",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "Phone",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "SecretKeyHash",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "Timezone",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
         }
     }

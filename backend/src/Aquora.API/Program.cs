@@ -194,7 +194,10 @@ builder.Services.AddCors(options =>
             "https://aquora-webzio.vercel.app",
             "https://aquora-backend.webziointernational.in",
             "https://aquora.webziointernational.in",
+            "https://aquzio.webziotech.in",
             "https://app.aquora.com",
+            "https://biodrops.in",
+            "https://www.biodrops.in",
             
             // Local Development Origins
             "http://localhost:5173",

@@ -87,6 +87,52 @@ namespace Aquora.Application.Services
                             Permissions = defaultPerms
                         };
                     }
+                    if (existingTenant.Status == "Failed")
+                    {
+                        // Reset tenant status and re-queue provisioning
+                        existingTenant.Name = request.CompanyName.Trim();
+                        existingTenant.Status = "Provisioning";
+                        existingTenant.Progress = 5;
+                        existingTenant.CurrentStep = "Workspace Created";
+                        existingTenant.FailureReason = null;
+                        existingTenant.StartedAt = DateTime.UtcNow;
+                        await _platformContext.SaveChangesAsync();
+
+                        _queue.QueueProvisioning(new TenantProvisioningJob
+                        {
+                            TenantId = existingTenant.Id,
+                            SchemaName = existingTenant.SchemaName,
+                            CompanyName = existingTenant.Name,
+                            CompanyCode = existingTenant.Code,
+                            OwnerUserId = user.Id,
+                            EnabledStations = request.EnabledStations
+                        });
+
+                        var defaultRoles = new System.Collections.Generic.List<string> { "Owner" };
+                        var defaultPerms = new System.Collections.Generic.List<string>
+                        {
+                            Permissions.TenantRead,
+                            Permissions.UsersRead,
+                            Permissions.RolesRead,
+                            Permissions.AuditRead,
+                            Permissions.HierarchyRead,
+                            Permissions.DashboardRead
+                        };
+                        var accToken = _tokenService.GenerateAccessToken(user, defaultRoles, defaultPerms);
+                        var refToken = _tokenService.GenerateRefreshToken();
+                        return new CompanyOnboardingResponse
+                        {
+                            TenantId = existingTenant.Id,
+                            CompanyName = existingTenant.Name,
+                            SchemaName = existingTenant.SchemaName,
+                            OwnerRole = "Owner",
+                            ProvisioningStatus = "Provisioning",
+                            AccessToken = accToken,
+                            RefreshToken = refToken,
+                            ExpiresIn = 3600,
+                            Permissions = defaultPerms
+                        };
+                    }
                     else
                     {
                         // Provisioning in progress — return active state without duplicating tenant entry
@@ -110,11 +156,15 @@ namespace Aquora.Application.Services
                 }
             }
 
+            Console.WriteLine($"[ONBOARDING] Request received for user {userId} ({request.CompanyName})");
+
             var companyCode = await GenerateUniqueCompanyCodeAsync(request.CompanyName);
 
             var tenantId = Guid.NewGuid();
             var schemaName = await _schemaNameGenerator.GenerateSchemaNameAsync(request.CompanyName);
             var subdomain = companyCode.ToLowerInvariant();
+
+            Console.WriteLine($"[ONBOARDING] Tenant record created with TenantId: {tenantId}, Schema: {schemaName}, Code: {companyCode}");
 
             // 1. Commit Tenant Creation in Platform Db
             await using (var transaction = await _platformContext.Database.BeginTransactionAsync())
@@ -131,7 +181,7 @@ namespace Aquora.Application.Services
                         IsInitialized = false,
                         Status = "Provisioning",
                         Progress = 10,
-                        CurrentStep = "Queueing provisioning",
+                        CurrentStep = "TenantCreated",
                         StartedAt = DateTime.UtcNow
                     };
 
@@ -139,15 +189,18 @@ namespace Aquora.Application.Services
                     user.TenantId = tenant.Id;
                     await _platformContext.SaveChangesAsync();
                     await transaction.CommitAsync();
+                    Console.WriteLine($"[ONBOARDING] Tenant committed and user linked to TenantId: {tenant.Id}");
                 }
-                catch
+                catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
+                    Console.WriteLine($"[ONBOARDING] Transaction rolled back during tenant creation: {ex.Message}");
                     throw;
                 }
             }
 
             // 2. Queue Background Tenant Provisioning
+            Console.WriteLine($"[ONBOARDING] Provisioning job enqueue attempted for Tenant: {tenantId}");
             _queue.QueueProvisioning(new TenantProvisioningJob
             {
                 TenantId = tenantId,
@@ -157,6 +210,7 @@ namespace Aquora.Application.Services
                 OwnerUserId = user.Id,
                 EnabledStations = request.EnabledStations
             });
+            Console.WriteLine($"[ONBOARDING] Provisioning job enqueue succeeded for Tenant: {tenantId}");
 
             // 3. Generate dynamic token with default role and permission claims during provisioning
             var roles = new System.Collections.Generic.List<string> { "Owner" };
@@ -217,7 +271,7 @@ namespace Aquora.Application.Services
                 throw new InvalidOperationException("Associated company details not found.");
             }
 
-            if (tenant.Status != "Failed")
+            if (tenant.Status != "Failed" && (tenant.Status != "Provisioning" || tenant.IsInitialized))
             {
                 throw new InvalidOperationException($"Cannot retry onboarding. Current status is '{tenant.Status}'.");
             }
@@ -233,8 +287,8 @@ namespace Aquora.Application.Services
 
             // Reset tenant status in platform DB
             tenant.Status = "Provisioning";
-            tenant.Progress = 5;
-            tenant.CurrentStep = "Workspace Created";
+            tenant.Progress = 10;
+            tenant.CurrentStep = "TenantCreated";
             tenant.FailureReason = null;
             tenant.StartedAt = DateTime.UtcNow;
 
@@ -299,11 +353,14 @@ namespace Aquora.Application.Services
             {
                 return new
                 {
+                    TenantId = (Guid?)null,
                     Status = "Pending",
                     Progress = 0,
-                    Step = (string?)null,
+                    CurrentStep = (string?)null,
                     Message = "No workspace created yet.",
-                    FailureReason = (string?)null
+                    FailureReason = (string?)null,
+                    Steps = Array.Empty<object>(),
+                    EstimatedRemainingSeconds = 0
                 };
             }
 
@@ -312,11 +369,14 @@ namespace Aquora.Application.Services
             {
                 return new
                 {
+                    TenantId = (Guid?)null,
                     Status = "Pending",
                     Progress = 0,
-                    Step = (string?)null,
+                    CurrentStep = (string?)null,
                     Message = "Workspace record not found.",
-                    FailureReason = (string?)null
+                    FailureReason = (string?)null,
+                    Steps = Array.Empty<object>(),
+                    EstimatedRemainingSeconds = 0
                 };
             }
 
@@ -362,7 +422,7 @@ namespace Aquora.Application.Services
             }).ToList();
 
             int completedCount = stepsResult.Count(s => s.status == "Completed");
-            int calculatedProgress = isDone ? 100 : (int)Math.Round((double)completedCount / pipelineSteps.Length * 100);
+            int calculatedProgress = isDone ? 100 : Math.Max(tenant.Progress, (int)Math.Round((double)completedCount / pipelineSteps.Length * 100));
 
             return new
             {

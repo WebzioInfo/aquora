@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { 
-  Beaker, 
-  FileText, 
-  Save, 
-  Send, 
+import {
+  Beaker,
+  FileText,
+  Save,
+  Send,
   Upload,
   FlaskConical,
   Activity,
@@ -23,10 +23,14 @@ import { EnterpriseButton } from '../../../components/ui/EnterpriseButton';
 import { EnterpriseBadge } from '../../../components/ui/EnterpriseBadge';
 import { EnterpriseLoading } from '../../../components/ui/EnterpriseLoading';
 
-import { waterTestApi } from '../../../services/api/waterTest';
-import type { 
-  WaterTestParameter, 
-  CreateWaterTestReportRequest 
+import {
+  waterTestApi,
+  evaluateWaterTestParameterStatus,
+  formatParameterLimitsDisplay
+} from '../../../services/api/waterTest';
+import type {
+  WaterTestParameter,
+  CreateWaterTestReportRequest
 } from '../../../services/api/waterTest';
 
 // Standard BQMS Parameter Order Definitions
@@ -64,9 +68,10 @@ export const WaterTestReportFormPage: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = React.useRef(false);
   const [concurrencyToken, setConcurrencyToken] = useState<string | null>(null);
   const [showConflictModal, setShowConflictModal] = useState(false);
-  
+
   const [parameters, setParameters] = useState<WaterTestParameter[]>([]);
   const [reportNumber, setReportNumber] = useState('');
 
@@ -113,9 +118,18 @@ export const WaterTestReportFormPage: React.FC = () => {
 
         const mapped: Record<string, { value?: string; stringValue?: string }> = {};
         r.results.forEach(res => {
+          let strVal = res.stringValue || '';
+          const valStr = res.value !== null && res.value !== undefined ? res.value.toString() : '';
+          const pName = (res.parameterName || '').toLowerCase();
+          if (valStr !== '' && (!strVal || strVal === '')) {
+            if (pName.includes('aerobic') || pName.includes('amc')) {
+              strVal = 'Enter Count';
+            }
+          }
+
           const resData = {
-            value: res.value !== null && res.value !== undefined ? res.value.toString() : '',
-            stringValue: res.stringValue || ''
+            value: valStr,
+            stringValue: strVal
           };
 
           if (res.parameterId) {
@@ -136,38 +150,36 @@ export const WaterTestReportFormPage: React.FC = () => {
   };
 
   const getParamResult = (param: WaterTestParameter) => {
-    return results[param.id] || results[param.name] || results[param.name.toLowerCase().trim()];
+    return results[param.id] || results[param.name] || results[param.name?.toLowerCase().trim()];
   };
 
-  const handleResultChange = (parameterKey: string, field: 'value' | 'stringValue', val: string) => {
-    setResults(prev => ({
-      ...prev,
-      [parameterKey]: {
-        ...(prev[parameterKey] || {}),
-        [field]: val
+  const updateParamResult = (
+    param: WaterTestParameter,
+    updates: { value?: string; stringValue?: string }
+  ) => {
+    setResults(prev => {
+      const existing = prev[param.id] || prev[param.name] || prev[param.name?.toLowerCase().trim()] || {};
+      const updated = {
+        ...existing,
+        ...updates
+      };
+      const next = { ...prev };
+      if (param.id) next[param.id] = updated;
+      if (param.name) {
+        next[param.name] = updated;
+        next[param.name.toLowerCase().trim()] = updated;
       }
-    }));
+      return next;
+    });
   };
 
-  // Group and sort Physical & Chemical parameters
-  const physicalChemicalParams = useMemo(() => {
-    let filtered = parameters.filter(p => p.category === 'PHYSICAL' || p.category === 'CHEMICAL');
-    
-    if (!filtered.some(p => p.name.toLowerCase() === 'taste')) {
-      const existingTaste = parameters.find(p => p.name.toLowerCase() === 'taste');
-      filtered = [
-        ...filtered,
-        {
-          id: existingTaste ? existingTaste.id : 'Taste',
-          name: 'Taste',
-          category: 'PHYSICAL',
-          unit: 'Descriptor',
-          minAcceptable: null,
-          maxAcceptable: null
-        }
-      ];
-    }
+  const handleResultChange = (param: WaterTestParameter, field: 'value' | 'stringValue', val: string) => {
+    updateParamResult(param, { [field]: val });
+  };
 
+  // Group and sort Physical & Chemical parameters from database
+  const physicalChemicalParams = useMemo(() => {
+    const filtered = parameters.filter(p => p.category === 'PHYSICAL' || p.category === 'CHEMICAL');
     const uniqueMap = new Map<string, WaterTestParameter>();
     filtered.forEach(p => {
       const key = p.name.toLowerCase().trim();
@@ -184,30 +196,13 @@ export const WaterTestReportFormPage: React.FC = () => {
     });
   }, [parameters]);
 
-  // Group and sort Microbiology parameters
+  // Group and sort Microbiology parameters from database
   const microParams = useMemo(() => {
     const filtered = parameters.filter(p => p.category === 'MICROBIOLOGY');
     const uniqueMap = new Map<string, WaterTestParameter>();
     filtered.forEach(p => {
       const key = p.name.toLowerCase().trim();
       if (!uniqueMap.has(key)) uniqueMap.set(key, p);
-    });
-
-    MICROBIOLOGY_ORDER.forEach(name => {
-      const key = name.toLowerCase().trim();
-      if (!uniqueMap.has(key)) {
-        const existing = parameters.find(p => p.name.toLowerCase().trim() === key);
-        const isAmc = name.toLowerCase().includes('aerobic') || name.toLowerCase().includes('amc');
-        const is22 = name.toLowerCase().includes('22');
-        uniqueMap.set(key, {
-          id: existing ? existing.id : name,
-          name,
-          category: 'MICROBIOLOGY',
-          unit: isAmc ? 'CFU/ml' : 'CFU/100ml',
-          minAcceptable: 0,
-          maxAcceptable: isAmc ? (is22 ? 100 : 20) : 0
-        });
-      }
     });
 
     return Array.from(uniqueMap.values()).sort((a, b) => {
@@ -222,50 +217,20 @@ export const WaterTestReportFormPage: React.FC = () => {
 
   const evaluateParamStatus = (param: WaterTestParameter): 'PASS' | 'FAIL' | 'WARNING' | 'NOT_ENTERED' => {
     const res = getParamResult(param);
-    const pName = param.name.toLowerCase();
-
-    if (!res) return 'NOT_ENTERED';
-
-    if (['colour', 'odour', 'taste'].includes(pName)) {
-      if (!res.stringValue || res.stringValue === '') return 'NOT_ENTERED';
-      return res.stringValue === 'Agreeable' ? 'PASS' : 'FAIL';
-    }
-
-    if (param.category === 'MICROBIOLOGY') {
-      if (!res.stringValue || res.stringValue === '' || res.stringValue === 'Select...') return 'NOT_ENTERED';
-      if (res.stringValue === 'Absent') return 'PASS';
-      if (res.stringValue === 'Present') return 'FAIL';
-      if (res.stringValue === 'Enter Count') {
-        if (!res.value || res.value.trim() === '') return 'NOT_ENTERED';
-        const num = parseFloat(res.value);
-        if (isNaN(num)) return 'NOT_ENTERED';
-        if (param.maxAcceptable !== null && param.maxAcceptable !== undefined) {
-          return num <= param.maxAcceptable ? 'PASS' : 'FAIL';
-        }
-        return num === 0 ? 'PASS' : 'FAIL';
-      }
-    }
-
-    if (res.value === undefined || res.value === null || res.value.trim() === '') return 'NOT_ENTERED';
-    const valNum = parseFloat(res.value);
-    if (isNaN(valNum)) return 'NOT_ENTERED';
-
-    if (param.minAcceptable !== null && param.minAcceptable !== undefined && valNum < param.minAcceptable) {
-      return 'FAIL';
-    }
-    if (param.maxAcceptable !== null && param.maxAcceptable !== undefined && valNum > param.maxAcceptable) {
-      return 'FAIL';
-    }
-
-    return 'PASS';
+    return evaluateWaterTestParameterStatus(param, res?.value, res?.stringValue);
   };
 
   const handleSave = async (submitStatus: 'DRAFT' | 'SUBMITTED') => {
+    if (isSavingRef.current || isSaving) {
+      return;
+    }
+
     if (!batchNumber.trim()) {
       toast.error('Batch Number is required');
       return;
     }
 
+    isSavingRef.current = true;
     setIsSaving(true);
     try {
       const allFormParameters = [...physicalChemicalParams, ...microParams];
@@ -319,26 +284,39 @@ export const WaterTestReportFormPage: React.FC = () => {
         navigate(basePath);
       }
     } catch (error: any) {
-      if (error?.response?.data?.code === 'CONCURRENCY_CONFLICT') {
+      const errCode = error?.response?.data?.code || error?.code;
+      const status = error?.response?.status;
+      if (errCode === 'CONCURRENCY_CONFLICT' || status === 409) {
         setShowConflictModal(true);
       } else {
         toast.error(error);
       }
     } finally {
       setIsSaving(false);
+      isSavingRef.current = false;
     }
   };
 
   const renderParameterInput = (param: WaterTestParameter) => {
-    const pName = param.name.toLowerCase();
+    const pName = (param.name || '').toLowerCase();
     const paramRes = getParamResult(param);
 
-    if (['colour', 'odour', 'taste'].includes(pName)) {
+    if (['colour', 'color', 'odour', 'odor', 'taste'].includes(pName)) {
+      const currentStr = paramRes?.stringValue || '';
+      let selectValue = '';
+      if (currentStr) {
+        const lower = currentStr.toLowerCase().trim();
+        if (lower === 'agreeable' || lower === 'unobjectionable') selectValue = 'Agreeable';
+        else if (lower === 'not agreeable' || lower === 'objectionable') selectValue = 'Not Agreeable';
+        else selectValue = currentStr;
+      }
+
       return (
         <select
+          id={`param-select-${param.id}`}
           className="w-full h-9 px-3 rounded-md border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm bg-white"
-          value={paramRes?.stringValue || ''}
-          onChange={(e) => handleResultChange(param.id, 'stringValue', e.target.value)}
+          value={selectValue}
+          onChange={(e) => updateParamResult(param, { stringValue: e.target.value })}
         >
           <option value="">-- Select Result --</option>
           <option value="Agreeable">Agreeable</option>
@@ -351,16 +329,27 @@ export const WaterTestReportFormPage: React.FC = () => {
       const isAmc = pName.includes('aerobic') || pName.includes('amc');
       const currentStr = paramRes?.stringValue || '';
 
+      let selectValue = '';
+      if (currentStr) {
+        const lower = currentStr.toLowerCase().trim();
+        if (lower === 'absent') selectValue = 'Absent';
+        else if (lower === 'present') selectValue = 'Present';
+        else if (lower === 'enter count') selectValue = 'Enter Count';
+        else selectValue = currentStr;
+      }
+
       return (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <select
+            id={`micro-select-${param.id}`}
             className="h-9 px-3 rounded-md border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm bg-white min-w-[140px]"
-            value={currentStr}
+            value={selectValue}
             onChange={(e) => {
               const strVal = e.target.value;
-              handleResultChange(param.id, 'stringValue', strVal);
-              if (strVal !== 'Enter Count') {
-                handleResultChange(param.id, 'value', '');
+              if (strVal === 'Enter Count') {
+                updateParamResult(param, { stringValue: strVal });
+              } else {
+                updateParamResult(param, { stringValue: strVal, value: '' });
               }
             }}
           >
@@ -370,16 +359,17 @@ export const WaterTestReportFormPage: React.FC = () => {
             {isAmc && <option value="Enter Count">Enter Count</option>}
           </select>
 
-          {isAmc && currentStr === 'Enter Count' && (
+          {isAmc && selectValue === 'Enter Count' && (
             <div className="flex items-center gap-2 animate-in fade-in duration-150">
               <input
+                id={`micro-count-${param.id}`}
                 type="number"
                 min="0"
                 step="1"
                 placeholder="Count"
                 className="w-24 h-9 px-3 rounded-md border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm bg-white"
                 value={paramRes?.value || ''}
-                onChange={(e) => handleResultChange(param.id, 'value', e.target.value)}
+                onChange={(e) => updateParamResult(param, { value: e.target.value })}
               />
               <span className="text-xs font-semibold text-slate-500">CFU/ml</span>
             </div>
@@ -391,12 +381,13 @@ export const WaterTestReportFormPage: React.FC = () => {
     return (
       <div className="relative">
         <input
+          id={`param-input-${param.id}`}
           type="number"
           step="any"
           placeholder="Enter numeric value..."
           className="w-full h-9 px-3 rounded-md border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm bg-white"
           value={paramRes?.value || ''}
-          onChange={(e) => handleResultChange(param.id, 'value', e.target.value)}
+          onChange={(e) => updateParamResult(param, { value: e.target.value })}
         />
         {param.unit && param.unit !== '—' && (
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 pointer-events-none">
@@ -524,16 +515,7 @@ export const WaterTestReportFormPage: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {physicalChemicalParams.map((param) => {
                 const status = evaluateParamStatus(param);
-                let stdRange = '—';
-                if (param.minAcceptable !== null && param.maxAcceptable !== null) {
-                  stdRange = `${param.minAcceptable} – ${param.maxAcceptable} ${param.unit}`;
-                } else if (param.maxAcceptable !== null) {
-                  stdRange = `<= ${param.maxAcceptable} ${param.unit}`;
-                } else if (param.minAcceptable !== null) {
-                  stdRange = `>= ${param.minAcceptable} ${param.unit}`;
-                } else if (['colour', 'odour', 'taste'].includes(param.name.toLowerCase())) {
-                  stdRange = 'Agreeable';
-                }
+                const { standardText, warningText } = formatParameterLimitsDisplay(param);
 
                 return (
                   <tr key={param.id} className="h-12 hover:bg-slate-50/70 transition-colors">
@@ -544,7 +526,14 @@ export const WaterTestReportFormPage: React.FC = () => {
                       <EnterpriseBadge variant="gray">{param.category}</EnterpriseBadge>
                     </td>
                     <td className="py-2.5 px-4 text-slate-600 font-medium">
-                      {stdRange}
+                      <div className="flex flex-col gap-0.5">
+                        <span>{standardText}</span>
+                        {/* {warningText && (
+                          // <span className="text-[10px] text-amber-700 font-medium bg-amber-50 px-1.5 py-0.5 rounded w-fit border border-amber-200/60">
+                          //   {warningText}
+                          // </span>
+                        )} */}
+                      </div>
                     </td>
                     <td className="py-2.5 px-4 min-w-[220px]">
                       {renderParameterInput(param)}
@@ -720,3 +709,12 @@ export const WaterTestReportFormPage: React.FC = () => {
 };
 
 export default WaterTestReportFormPage;
+
+
+
+
+
+
+
+
+

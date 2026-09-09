@@ -45,6 +45,8 @@ export interface SalesTransaction {
   returnType?: string
   isReplacementRequired?: boolean
   productValue?: number
+  parentTransactionId?: string | null
+  relatedCount?: number
   damageCost?: number
   damageReason?: string
 }
@@ -60,6 +62,9 @@ export interface SalesDashboard {
 export interface CreateSalesTransactionRequest {
   customerId: string
   productId: string
+  parentTransactionId?: string | null
+  caseConfigurationId?: string
+  unitsPerCase?: number
   cases: number
   transactionType: string
   transactionDate: string
@@ -84,10 +89,46 @@ export interface CreateSalesTransactionRequest {
   refundAmount?: number
   adjustmentAmount?: number
   returnType?: string
+  returnCondition?: string
+  settlementMethod?: string
   isReplacementRequired?: boolean
   productValue?: number
   damageCost?: number
   damageReason?: string
+}
+
+export interface SalesTransactionTimelineEvent {
+  id: string
+  timestamp: string
+  eventType: string
+  title: string
+  actorName: string
+  actorRole?: string | null
+  status: string
+  description: string
+  metadata?: Record<string, any> | null
+}
+
+export interface CollectSalesPaymentRequest {
+  amount: number
+  paymentMethod: string
+  bankAccountId?: string | null
+  cashBookId?: string | null
+  referenceNumber?: string
+  notes?: string
+  paymentDate?: string
+}
+
+export interface SalesPaymentRecord {
+  id: string
+  date: string
+  createdAt: string
+  amount: number
+  paymentMethod: string
+  referenceNumber: string
+  description: string
+  accountName: string
+  collectedBy: string
 }
 
 export const salesService = {
@@ -120,6 +161,21 @@ export const salesService = {
     return res.data
   },
 
+  getTransactionTimeline: async (id: string) => {
+    const res = await api.get<ApiResponse<SalesTransactionTimelineEvent[]>>(`/api/v1/sales/${id}/timeline`)
+    return res.data
+  },
+
+  getPayments: async (id: string) => {
+    const res = await api.get<ApiResponse<SalesPaymentRecord[]>>(`/api/v1/sales/${id}/payments`)
+    return res.data
+  },
+
+  collectPayment: async ({ id, data }: { id: string; data: CollectSalesPaymentRequest }) => {
+    const res = await api.post<ApiResponse<SalesTransaction>>(`/api/v1/sales/${id}/collect`, data)
+    return res.data
+  },
+
   createTransaction: async (data: CreateSalesTransactionRequest) => {
     const res = await api.post<ApiResponse<SalesTransaction>>('/api/v1/sales', data)
     return res.data
@@ -132,6 +188,37 @@ export const salesService = {
 
   deleteTransaction: async (id: string) => {
     const res = await api.delete<ApiResponse<any>>(`/api/v1/sales/${id}`)
+    return res.data
+  },
+
+  getDispatchHistory: async (id: string) => {
+    const res = await api.get<ApiResponse<{
+      parentDispatch: {
+        id: string
+        transactionNumber: string
+        transactionDate: string
+        customerName: string
+        productName: string
+        originalCases: number
+        totalAmount: number
+        returnedCases: number
+        damagedCases: number
+        remainingCases: number
+      }
+      history: Array<{
+        id: string
+        date: string
+        createdAt: string
+        transactionNumber: string
+        transactionType: string
+        cases: number
+        totalAmount: number
+        paymentMethod: string | null
+        status: string
+        createdBy: string
+        isParent: boolean
+      }>
+    }>>(`/api/v1/sales/${id}/history`)
     return res.data
   },
 

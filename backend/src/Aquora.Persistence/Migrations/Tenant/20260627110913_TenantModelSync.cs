@@ -8,7 +8,7 @@ namespace Aquora.Persistence.Migrations.Tenant
     /// <inheritdoc />
     public partial class TenantModelSync : Migration
     {
-        private string _schema => TenantSchemaResolver.CurrentSchemaName ?? "public";
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
 
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -176,8 +176,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                 schema: _schema,
                 table: "Companies",
                 column: "TenantId",
-                principalSchema: _schema,
-                principalTable: "Tenants",
+                principalSchema: "public", principalTable: "Tenants",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
 
@@ -186,8 +185,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                 schema: _schema,
                 table: "Departments",
                 column: "TenantId",
-                principalSchema: _schema,
-                principalTable: "Tenants",
+                principalSchema: "public", principalTable: "Tenants",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
 
@@ -196,8 +194,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                 schema: _schema,
                 table: "Machines",
                 column: "TenantId",
-                principalSchema: _schema,
-                principalTable: "Tenants",
+                principalSchema: "public", principalTable: "Tenants",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
 
@@ -206,8 +203,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                 schema: _schema,
                 table: "Plants",
                 column: "TenantId",
-                principalSchema: _schema,
-                principalTable: "Tenants",
+                principalSchema: "public", principalTable: "Tenants",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
 
@@ -216,8 +212,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                 schema: _schema,
                 table: "ProductionLines",
                 column: "TenantId",
-                principalSchema: _schema,
-                principalTable: "Tenants",
+                principalSchema: "public", principalTable: "Tenants",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
 
@@ -226,8 +221,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                 schema: _schema,
                 table: "RolePermissions",
                 column: "TenantId",
-                principalSchema: _schema,
-                principalTable: "Tenants",
+                principalSchema: "public", principalTable: "Tenants",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
 
@@ -236,8 +230,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                 schema: _schema,
                 table: "Roles",
                 column: "TenantId",
-                principalSchema: _schema,
-                principalTable: "Tenants",
+                principalSchema: "public", principalTable: "Tenants",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
 
@@ -246,8 +239,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                 schema: _schema,
                 table: "Stations",
                 column: "TenantId",
-                principalSchema: _schema,
-                principalTable: "Tenants",
+                principalSchema: "public", principalTable: "Tenants",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
 
@@ -256,8 +248,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                 schema: _schema,
                 table: "TenantDomain",
                 column: "TenantId",
-                principalSchema: _schema,
-                principalTable: "Tenants",
+                principalSchema: "public", principalTable: "Tenants",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
 
@@ -266,8 +257,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                 schema: _schema,
                 table: "UserRoles",
                 column: "TenantId",
-                principalSchema: _schema,
-                principalTable: "Tenants",
+                principalSchema: "public", principalTable: "Tenants",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
 
@@ -276,8 +266,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                 schema: _schema,
                 table: "UserRoles",
                 column: "UserId",
-                principalSchema: _schema,
-                principalTable: "Users",
+                principalSchema: "public", principalTable: "Users",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
         }
