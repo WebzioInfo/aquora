@@ -65,6 +65,23 @@ namespace Aquora.Persistence.Context
         public DbSet<OperationsReservedJar> OperationsReservedJars => Set<OperationsReservedJar>();
         public DbSet<OperationsWashingLog> OperationsWashingLogs => Set<OperationsWashingLog>();
         public DbSet<OperationsFillingLog> OperationsFillingLogs => Set<OperationsFillingLog>();
+        public DbSet<TwentyLDistributorProfile> TwentyLDistributorProfiles => Set<TwentyLDistributorProfile>();
+        public DbSet<TwentyLJarMovement> TwentyLJarMovements => Set<TwentyLJarMovement>();
+        public DbSet<TwentyLJarPosition> TwentyLJarPositions => Set<TwentyLJarPosition>();
+        public DbSet<TwentyLRateRule> TwentyLRateRules => Set<TwentyLRateRule>();
+        public DbSet<TwentyLDelivery> TwentyLDeliveries => Set<TwentyLDelivery>();
+        public DbSet<TwentyLCommissionRule> TwentyLCommissionRules => Set<TwentyLCommissionRule>();
+        public DbSet<TwentyLCommissionTransaction> TwentyLCommissionTransactions => Set<TwentyLCommissionTransaction>();
+        public DbSet<TwentyLTrip> TwentyLTrips => Set<TwentyLTrip>();
+        public DbSet<TwentyLTripStop> TwentyLTripStops => Set<TwentyLTripStop>();
+        public DbSet<TwentyLOperation> TwentyLOperations => Set<TwentyLOperation>();
+        public DbSet<TwentyLJarInspection> TwentyLJarInspections => Set<TwentyLJarInspection>();
+        public DbSet<TwentyLDistributorSupply> TwentyLDistributorSupplies => Set<TwentyLDistributorSupply>();
+        public DbSet<TwentyLDistributorRoute> TwentyLDistributorRoutes => Set<TwentyLDistributorRoute>();
+        public DbSet<TwentyLDistributorVehicle> TwentyLDistributorVehicles => Set<TwentyLDistributorVehicle>();
+        public DbSet<TwentyLDistributorDriver> TwentyLDistributorDrivers => Set<TwentyLDistributorDriver>();
+        public DbSet<TwentyLDistributorCustomer> TwentyLDistributorCustomers => Set<TwentyLDistributorCustomer>();
+        public DbSet<TwentyLDistributorDelivery> TwentyLDistributorDeliveries => Set<TwentyLDistributorDelivery>();
 
         // God Mode Finance Module
         public DbSet<Aquora.Domain.Entities.Finance.AccountGroup> AccountGroups => Set<Aquora.Domain.Entities.Finance.AccountGroup>();
@@ -381,6 +398,34 @@ namespace Aquora.Persistence.Context
                 .IsRequired();
 
             // Operations Visit Configuration
+            modelBuilder.Entity<TwentyLDistributorProfile>()
+                .HasIndex(p => new { p.TenantId, p.CustomerId }).IsUnique();
+            modelBuilder.Entity<TwentyLJarMovement>()
+                .HasIndex(m => new { m.TenantId, m.OwnerType, m.OwnerCustomerId, m.ToLocationType, m.ToCustomerId, m.OccurredAt });
+            modelBuilder.Entity<TwentyLJarPosition>()
+                .HasIndex(p => new { p.TenantId, p.CompanyId, p.PositionKey }).IsUnique();
+            modelBuilder.Entity<TwentyLRateRule>()
+                .HasIndex(r => new { r.TenantId, r.ProductId, r.CustomerId, r.EffectiveFrom, r.EffectiveTo });
+            modelBuilder.Entity<TwentyLDelivery>()
+                .HasIndex(d => new { d.TenantId, d.CustomerId, d.DeliveredAt });
+            modelBuilder.Entity<TwentyLDelivery>()
+                .HasIndex(d => new { d.TenantId, d.IdempotencyKey }).IsUnique();
+            modelBuilder.Entity<TwentyLCommissionRule>()
+                .HasIndex(r => new { r.TenantId, r.BeneficiaryCustomerId, r.ProductId, r.EffectiveFrom, r.EffectiveTo });
+            modelBuilder.Entity<TwentyLCommissionTransaction>()
+                .HasIndex(t => new { t.TenantId, t.DeliveryId, t.BeneficiaryCustomerId });
+            modelBuilder.Entity<TwentyLTrip>()
+                .HasIndex(t => new { t.TenantId, t.TripNumber }).IsUnique();
+            modelBuilder.Entity<TwentyLTrip>()
+                .HasIndex(t => new { t.TenantId, t.PlannedDate, t.Status });
+            modelBuilder.Entity<TwentyLTripStop>()
+                .HasIndex(s => new { s.TenantId, s.TripId, s.StopSequence });
+            modelBuilder.Entity<TwentyLOperation>()
+                .HasIndex(o => new { o.TenantId, o.OperationNumber }).IsUnique();
+            modelBuilder.Entity<TwentyLOperation>()
+                .HasIndex(o => new { o.TenantId, o.OperationType, o.Stage });
+            modelBuilder.Entity<TwentyLJarInspection>()
+                .HasIndex(i => new { i.TenantId, i.InspectionNumber }).IsUnique();
             modelBuilder.Entity<OperationsVisit>()
                 .HasIndex(v => v.DistributorId);
             modelBuilder.Entity<OperationsVisit>()
