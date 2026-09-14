@@ -280,6 +280,7 @@ export interface AssetSummary {
 
 export interface SimpleAccountsDashboardSummary {
   todaysExpense: number
+  thisWeekExpense?: number
   thisMonthExpense: number
   outstandingSales: number
   todaysSales: number

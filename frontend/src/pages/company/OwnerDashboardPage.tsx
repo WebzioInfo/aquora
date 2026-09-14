@@ -82,6 +82,8 @@ const T: Record<string, Record<Lang, string>> = {
   productionNote:       { en: 'Production output needs to be manually checked before dispatch until auto-sync is set up.',  ml: 'ഓട്ടോ-സിങ്ക് സെറ്റപ്പ് ചെയ്യുന്നത് വരെ ഉൽപ്പാദന ഔട്ട്‌പുട്ട് ഡിസ്‌പാച്ചിന് മുമ്പ് സ്വമേധയാ പരിശോധിക്കണം.' },
   viewProduction:       { en: 'Production Setup',                     ml: 'ഉൽപ്പാദന സെറ്റപ്പ്' },
   bottlingActive:       { en: 'Bottling Active',                      ml: 'ബോട്ടിലിങ് നടക്കുന്നു' },
+  completedBatches:     { en: 'Completed Batches',                    ml: 'പൂർത്തിയായ ബാച്ചുകൾ' },
+  recentCompleted:      { en: 'Recent Completed Batches',             ml: 'സമീപകാലത്ത് പൂർത്തിയായ ബാച്ചുകൾ' },
   line:                 { en: 'Line',                                 ml: 'ലൈൻ' },
   operator:             { en: 'Operator',                             ml: 'ഓപ്പറേറ്റർ' },
   jarsOutput:           { en: 'Jars output',                          ml: 'ജാർ ഔട്ട്‌പുട്ട്' },
@@ -91,12 +93,16 @@ const T: Record<string, Record<Lang, string>> = {
   accountsDesc:         { en: 'Cash flow and outstanding balances.',   ml: 'പണ ഒഴുക്കും ബാക്കി തുകയും.' },
   cashInHand:           { en: 'Cash in Hand',                         ml: 'കയ്യിലുള്ള പണം' },
   bankBalance:          { en: 'Bank Balance',                         ml: 'ബാങ്ക് ബാലൻസ്' },
+  totalFunds:           { en: 'Total Available Funds',                ml: 'ലഭ്യമായ ആകെ പണം' },
   expenses:             { en: 'Expenses',                             ml: 'ചെലവുകൾ' },
   topOwed:              { en: 'Who Owes Us the Most',                 ml: 'ഏറ്റവും കൂടുതൽ കടമുള്ളവർ' },
   totalOwed:            { en: 'Total owed to us:',                    ml: 'ആകെ ഞങ്ങൾക്ക് കിട്ടാനുള്ളത്:' },
   jarsHeld:             { en: 'jars held',                            ml: 'ജാറുകൾ പിടിച്ചിട്ടുണ്ട്' },
   noDebtors:            { en: 'No one owes us right now.',            ml: 'ഇപ്പോൾ ആരും ഞങ്ങൾക്ക് കടം തരാനില്ല.' },
   viewAccounts:         { en: 'View Accounts',                        ml: 'അക്കൗണ്ട്‌സ് കാണുക' },
+  customer:             { en: 'Customer',                             ml: 'കസ്റ്റമർ' },
+  distributor:          { en: 'Distributor',                          ml: 'ഡിസ്ട്രിബ്യൂട്ടർ' },
+  noMovementsInPeriod:  { en: 'No jar movements in this period',      ml: 'ഈ കാലയളവിൽ ജാർ ചലനങ്ങളില്ല' },
 
   // Stock section
   stockTitle:           { en: 'Stock at a Glance',                    ml: 'സ്റ്റോക്ക് ചുരുക്കം' },
@@ -200,12 +206,13 @@ export const OwnerDashboardPage: React.FC = () => {
 
   // Period filter
   const [period, setPeriod] = useState<Period>('today')
+  const periodDates = useMemo(() => getPeriodDates(period), [period])
 
   // ========================================
   // DATA FETCHING (With full error tracking)
   // ========================================
 
-  // 1. Plant balances (jar positions)
+  // 1. Authoritative plant balances (jar positions projection)
   const {
     data: plantBalances,
     isError: isBalancesError,
@@ -231,7 +238,20 @@ export const OwnerDashboardPage: React.FC = () => {
     retry: 1
   })
 
-  // 3. Distributor supplies (period-wide fetch — we filter client-side)
+  // 3. Authoritative Jar Movements Summary for Selected Period
+  const {
+    data: jarMovementData,
+    isError: isJarMovementsError,
+    error: jarMovementsError,
+    refetch: refetchJarMovements
+  } = useQuery({
+    queryKey: ['ownerJarMovementsSummary', periodDates.start, periodDates.end],
+    queryFn: () => twentyLService.getJarMovementsSummary({ dateFrom: periodDates.start, dateTo: periodDates.end }),
+    staleTime: 30000,
+    retry: 1
+  })
+
+  // 4. Distributor supplies
   const {
     data: suppliesResponse,
     isError: isSuppliesError,
@@ -247,23 +267,23 @@ export const OwnerDashboardPage: React.FC = () => {
     retry: 1
   })
 
-  // 4. Active production batches
+  // 5. Authoritative Batches Summary (Strictly active batches + recent completed history + produced outputs)
   const {
-    data: activeBatches = [],
+    data: batchesSummary,
     isError: isBatchesError,
     error: batchesError,
     refetch: refetchBatches
   } = useQuery({
-    queryKey: ['ownerActiveBatches'],
+    queryKey: ['ownerBatchesSummary', periodDates.start, periodDates.end],
     queryFn: async () => {
-      const res = await api.get('/api/v1/production/batches/active')
-      return res.data?.data || []
+      const res = await api.get(`/api/v1/production/batches/summary?dateFrom=${periodDates.start}&dateTo=${periodDates.end}`)
+      return res.data?.data || null
     },
     staleTime: 30000,
     retry: 1
   })
 
-  // 5. Accounts dashboard summary
+  // 6. Accounts dashboard summary (Cashbook authoritative balance + bank + expenses)
   const {
     data: accountsSummary,
     isError: isAccountsError,
@@ -276,7 +296,7 @@ export const OwnerDashboardPage: React.FC = () => {
     retry: 1
   })
 
-  // 6. Sales transactions — large fetch for period aggregation
+  // 7. Sales transactions — large fetch for period aggregation & receivables
   const {
     data: salesData,
     isError: isSalesError,
@@ -292,7 +312,7 @@ export const OwnerDashboardPage: React.FC = () => {
     retry: 1
   })
 
-  // 7. Raw materials
+  // 8. Raw materials
   const {
     data: rawMaterialsData,
     isError: isRawMaterialsError,
@@ -308,7 +328,7 @@ export const OwnerDashboardPage: React.FC = () => {
     retry: 1
   })
 
-  // 8. Products (finished goods)
+  // 9. Products (finished goods)
   const {
     data: productsData,
     isError: isProductsError,
@@ -331,33 +351,33 @@ export const OwnerDashboardPage: React.FC = () => {
   }, [])
 
   // Identify any failure across the dashboard
-  const hasAnyError = isBalancesError || isDistributorsError || isSuppliesError || isBatchesError || isAccountsError || isSalesError || isRawMaterialsError || isProductsError
+  const hasAnyError = isBalancesError || isDistributorsError || isSuppliesError || isJarMovementsError || isBatchesError || isAccountsError || isSalesError || isRawMaterialsError || isProductsError
 
   const failedEndpointsCount = [
-    isBalancesError, isDistributorsError, isSuppliesError, isBatchesError,
-    isAccountsError, isSalesError, isRawMaterialsError, isProductsError
+    isBalancesError, isDistributorsError, isSuppliesError, isJarMovementsError,
+    isBatchesError, isAccountsError, isSalesError, isRawMaterialsError, isProductsError
   ].filter(Boolean).length
 
   // Check if any error indicates missing database tables/columns
   const isSchemaError = useMemo(() => {
-    const errors = [balancesError, distributorsError, suppliesError, batchesError, accountsError, salesError, rawMaterialsError, productsError]
+    const errors = [balancesError, distributorsError, suppliesError, jarMovementsError, batchesError, accountsError, salesError, rawMaterialsError, productsError]
     return errors.some((e: any) => {
       const code = e?.response?.data?.code
       const msg = e?.response?.data?.message || ''
       return code === 'DATABASE_SCHEMA_MISSING_TABLE' || msg.includes('Database schema error') || msg.includes('42P01')
     })
-  }, [balancesError, distributorsError, suppliesError, batchesError, accountsError, salesError, rawMaterialsError, productsError])
+  }, [balancesError, distributorsError, suppliesError, jarMovementsError, batchesError, accountsError, salesError, rawMaterialsError, productsError])
 
   // Refresh all
   const handleRefreshAll = useCallback(async () => {
     setIsRefreshing(true)
     await Promise.all([
-      refetchBalances(), refetchDistributors(), refetchSupplies(),
+      refetchBalances(), refetchDistributors(), refetchJarMovements(), refetchSupplies(),
       refetchBatches(), refetchAccounts(), refetchSales(),
       refetchRawMaterials(), refetchProducts()
     ])
     setIsRefreshing(false)
-  }, [refetchBalances, refetchDistributors, refetchSupplies, refetchBatches, refetchAccounts, refetchSales, refetchRawMaterials, refetchProducts])
+  }, [refetchBalances, refetchDistributors, refetchJarMovements, refetchSupplies, refetchBatches, refetchAccounts, refetchSales, refetchRawMaterials, refetchProducts])
 
   // ========================================
   // DERIVED — PERIOD-AWARE
@@ -381,12 +401,12 @@ export const OwnerDashboardPage: React.FC = () => {
 
     salesInPeriod.forEach((s: any) => {
       const type = (s.transactionType || '').toUpperCase()
-      if (type === 'DISPATCH' || type === 'SALE' || type === 'DELIVERY') {
+      if (type === 'DISPATCH' || type === 'SALE' || type === 'DELIVERY' || type === 'SALES DISPATCH') {
         totalRevenue += Number(s.totalAmount) || 0
         totalCollected += Number(s.amountReceived) || 0
         dispatchCount++
       }
-      if (type === 'RETURN' || type === 'SALES_RETURN') returnCount += Number(s.cases) || 0
+      if (type === 'RETURN' || type === 'SALES_RETURN' || type === 'CUSTOMER RETURN') returnCount += Number(s.cases) || 0
       if (type === 'DAMAGE' || type === 'DAMAGE_REPORT') damageCount += Number(s.cases) || 0
       orderCount++
     })
@@ -404,38 +424,116 @@ export const OwnerDashboardPage: React.FC = () => {
 
   const totalOperationalCash = cashFromSupplies + salesKpi.totalCollected
 
-  // -- Jar movement in period --
+  // -- Jar movement in period (authoritative from ledger & supplies) --
   const jarsSupplied = useMemo(() => {
+    if (jarMovementData?.totalOut !== undefined) return jarMovementData.totalOut
     return suppliesInPeriod.reduce((sum: number, s: any) => sum + (Number(s.quantitySupplied) || 0), 0)
-  }, [suppliesInPeriod])
+  }, [jarMovementData, suppliesInPeriod])
 
   const emptiesReturned = useMemo(() => {
+    if (jarMovementData?.totalBack !== undefined) return jarMovementData.totalBack
     return suppliesInPeriod.reduce((sum: number, s: any) => sum + (Number(s.quantityEmptyReturned) || 0), 0)
-  }, [suppliesInPeriod])
+  }, [jarMovementData, suppliesInPeriod])
 
   const netJarMovement = jarsSupplied - emptiesReturned
 
-  // -- Plant balances (static / non-period) --
+  // -- Plant balances (authoritative positions) --
   const plantFilled = plantBalances?.plant?.filledAvailable ?? 0
   const plantEmpty = plantBalances?.plant?.emptyReusable ?? 0
   const withDistributors = plantBalances?.field?.withDistributors ?? 0
-  const onVehicles = plantBalances?.field?.onVehicles ?? 0
+  const onVehicles = plantBalances?.field?.inTransitVehicles ?? plantBalances?.field?.onVehicles ?? 0
   const withCustomers = plantBalances?.field?.withCustomers ?? 0
   const damagedQuarantine = plantBalances?.plant?.damagedQuarantined ?? 0
   const totalSystemJars = plantBalances?.grandTotalSystemJars ?? 0
   const totalInCirculation = withDistributors + onVehicles + withCustomers
 
-  // -- Receivables --
-  const totalReceivable = useMemo(() => {
+  // -- Production & Batches --
+  const activeBatches = useMemo(() => batchesSummary?.activeBatches || [], [batchesSummary])
+  const recentCompletedBatches = useMemo(() => batchesSummary?.recentCompletedBatches || [], [batchesSummary])
+  const activeBatchCount = batchesSummary?.activeCount ?? activeBatches.length
+  const completedBatchCount = batchesSummary?.completedCount ?? recentCompletedBatches.length
+
+  // Output produced during selected period
+  const productionOutputInPeriod = useMemo(() => {
+    if (batchesSummary?.periodProducedQuantity !== undefined) {
+      return batchesSummary.periodProducedQuantity
+    }
+    if (period === 'today') return batchesSummary?.todayProducedQuantity ?? 0
+    return batchesSummary?.totalProducedQuantity ?? 0
+  }, [batchesSummary, period])
+
+  // -- Accounts & Balances --
+  const cashInHand = accountsSummary?.cashBalance ?? 0
+  const bankBalance = accountsSummary?.totalBankBalance ?? 0
+  const totalAvailableFunds = cashInHand + bankBalance
+
+  const periodExpense = useMemo(() => {
+    if (period === 'today') return accountsSummary?.todaysExpense ?? 0
+    if (period === 'week') return accountsSummary?.thisWeekExpense ?? 0
+    return accountsSummary?.thisMonthExpense ?? 0
+  }, [accountsSummary, period])
+
+  // -- Receivables (Money Owed) --
+  const distributorReceivables = useMemo(() => {
     return (distributorAccounts || []).reduce((sum: number, d: any) => sum + (Number(d.commercial?.netReceivable) || 0), 0)
   }, [distributorAccounts])
 
+  const customerUnpaidSales = useMemo(() => {
+    return (salesData || []).filter((s: any) => Number(s.outstandingAmount || 0) > 0)
+  }, [salesData])
+
+  const customerReceivables = useMemo(() => {
+    return customerUnpaidSales.reduce((sum: number, s: any) => sum + (Number(s.outstandingAmount) || 0), 0)
+  }, [customerUnpaidSales])
+
+  const totalReceivable = distributorReceivables + customerReceivables
+
+  // Top Debtors combining customers and distributors
   const topDebtors = useMemo(() => {
-    return [...(distributorAccounts || [])]
-      .filter((d: any) => (d.commercial?.netReceivable || 0) > 0)
-      .sort((a: any, b: any) => (b.commercial?.netReceivable || 0) - (a.commercial?.netReceivable || 0))
-      .slice(0, 5)
-  }, [distributorAccounts])
+    const list: Array<{
+      id: string
+      name: string
+      type: 'DISTRIBUTOR' | 'CUSTOMER'
+      amount: number
+      details: string
+    }> = []
+
+    // Distributors
+    ;(distributorAccounts || []).forEach((d: any) => {
+      const owed = Number(d.commercial?.netReceivable) || 0
+      if (owed > 0) {
+        list.push({
+          id: d.customerId || d.id,
+          name: d.customerName || 'Distributor',
+          type: 'DISTRIBUTOR',
+          amount: owed,
+          details: `${d.physical?.totalJarsHeld || 0} jars held`
+        })
+      }
+    })
+
+    // Customers
+    const customerMap = new Map<string, { name: string; amount: number; invoiceCount: number }>()
+    customerUnpaidSales.forEach((s: any) => {
+      const cId = s.customerId || s.customerName || 'Cust'
+      const existing = customerMap.get(cId) || { name: s.customerName || 'Customer', amount: 0, invoiceCount: 0 }
+      existing.amount += Number(s.outstandingAmount) || 0
+      existing.invoiceCount += 1
+      customerMap.set(cId, existing)
+    })
+
+    customerMap.forEach((val, id) => {
+      list.push({
+        id,
+        name: val.name,
+        type: 'CUSTOMER',
+        amount: val.amount,
+        details: `${val.invoiceCount} unpaid invoice${val.invoiceCount > 1 ? 's' : ''}`
+      })
+    })
+
+    return list.sort((a, b) => b.amount - a.amount).slice(0, 5)
+  }, [distributorAccounts, customerUnpaidSales])
 
   // -- Raw materials & products --
   const rawMaterials = rawMaterialsData || []
@@ -663,16 +761,16 @@ export const OwnerDashboardPage: React.FC = () => {
 
         {/* Money Owed */}
         <div className={`bg-white border rounded-2xl p-4 shadow-sm flex flex-col justify-between transition-all ${
-          isDistributorsError ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200 hover:border-blue-300'
+          (isDistributorsError && isSalesError) ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200 hover:border-blue-300'
         }`}>
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">{L('moneyOwed')}</span>
-              <div className={`p-1.5 rounded-lg ${isDistributorsError ? 'bg-rose-50 text-rose-600' : 'bg-rose-50 text-rose-600'}`}>
-                {isDistributorsError ? <AlertCircle className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              <div className={`p-1.5 rounded-lg ${(isDistributorsError && isSalesError) ? 'bg-rose-50 text-rose-600' : 'bg-rose-50 text-rose-600'}`}>
+                {(isDistributorsError && isSalesError) ? <AlertCircle className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
               </div>
             </div>
-            {isDistributorsError ? (
+            {(isDistributorsError && isSalesError) ? (
               <div className="my-1">
                 <span className="text-sm font-black text-rose-600 flex items-center gap-1">
                   <AlertCircle className="w-4 h-4 shrink-0" /> {L('errorLoading')}
@@ -684,16 +782,16 @@ export const OwnerDashboardPage: React.FC = () => {
             )}
           </div>
           <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            {isDistributorsError ? (
+            {(isDistributorsError && isSalesError) ? (
               <>
                 <span className="text-rose-500 font-medium">{L('unableToCalculate')}</span>
-                <button onClick={() => refetchDistributors()} className="text-rose-600 font-bold hover:underline cursor-pointer">
+                <button onClick={() => { refetchDistributors(); refetchSales() }} className="text-rose-600 font-bold hover:underline cursor-pointer">
                   {L('retry')}
                 </button>
               </>
             ) : (
               <>
-                <span className="text-slate-500">{L('fromDistributors')}</span>
+                <span className="text-slate-500">Sales & Network</span>
                 <span className="text-rose-600 font-bold">{topDebtors.length} {L('debtors')}</span>
               </>
             )}
@@ -702,26 +800,26 @@ export const OwnerDashboardPage: React.FC = () => {
 
         {/* Production Output */}
         <div className={`bg-white border rounded-2xl p-4 shadow-sm flex flex-col justify-between transition-all ${
-          (isBalancesError || isBatchesError) ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200 hover:border-blue-300'
+          isBatchesError ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200 hover:border-blue-300'
         }`}>
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">{L('productionOutput')}</span>
-              <div className={`p-1.5 rounded-lg ${(isBalancesError || isBatchesError) ? 'bg-rose-50 text-rose-600' : 'bg-cyan-50 text-cyan-600'}`}>
-                {(isBalancesError || isBatchesError) ? <AlertCircle className="w-4 h-4" /> : <Factory className="w-4 h-4" />}
+              <div className={`p-1.5 rounded-lg ${isBatchesError ? 'bg-rose-50 text-rose-600' : 'bg-cyan-50 text-cyan-600'}`}>
+                {isBatchesError ? <AlertCircle className="w-4 h-4" /> : <Factory className="w-4 h-4" />}
               </div>
             </div>
-            {isBalancesError ? (
+            {isBatchesError ? (
               <div className="my-1">
                 <span className="text-sm font-black text-rose-600 flex items-center gap-1">
                   <AlertCircle className="w-4 h-4 shrink-0" /> {L('errorLoading')}
                 </span>
-                <span className="text-[10px] text-rose-500 font-medium block">Jar balance error</span>
+                <span className="text-[10px] text-rose-500 font-medium block">Production query error</span>
               </div>
             ) : (
               <div className="text-2xl font-black text-slate-900">
-                {plantFilled}
-                <span className="text-xs font-semibold text-slate-400 ml-1">{L('filledJars')}</span>
+                {productionOutputInPeriod.toLocaleString('en-IN')}
+                <span className="text-xs font-semibold text-slate-400 ml-1">{L('jarsUnit')}</span>
               </div>
             )}
           </div>
@@ -735,8 +833,8 @@ export const OwnerDashboardPage: React.FC = () => {
               </>
             ) : (
               <>
-                <span className="text-slate-500">{L('activeBatches')}:</span>
-                <span className="font-bold text-cyan-700">{activeBatches.length}</span>
+                <span className="text-slate-500">{L('activeBatches')}: <strong className="text-cyan-700">{activeBatchCount}</strong></span>
+                <span className="text-slate-400 font-medium">{plantFilled} {L('filled')}</span>
               </>
             )}
           </div>
@@ -744,21 +842,21 @@ export const OwnerDashboardPage: React.FC = () => {
 
         {/* Jar Movement */}
         <div className={`bg-white border rounded-2xl p-4 shadow-sm flex flex-col justify-between transition-all ${
-          isSuppliesError ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200 hover:border-blue-300'
+          isJarMovementsError ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200 hover:border-blue-300'
         }`}>
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">{L('jarMovement')}</span>
-              <div className={`p-1.5 rounded-lg ${isSuppliesError ? 'bg-rose-50 text-rose-600' : 'bg-indigo-50 text-indigo-600'}`}>
-                {isSuppliesError ? <AlertCircle className="w-4 h-4" /> : <Package className="w-4 h-4" />}
+              <div className={`p-1.5 rounded-lg ${isJarMovementsError ? 'bg-rose-50 text-rose-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                {isJarMovementsError ? <AlertCircle className="w-4 h-4" /> : <Package className="w-4 h-4" />}
               </div>
             </div>
-            {isSuppliesError ? (
+            {isJarMovementsError ? (
               <div className="my-1">
                 <span className="text-sm font-black text-rose-600 flex items-center gap-1">
                   <AlertCircle className="w-4 h-4 shrink-0" /> {L('errorLoading')}
                 </span>
-                <span className="text-[10px] text-rose-500 font-medium block">Failed to load supplies</span>
+                <span className="text-[10px] text-rose-500 font-medium block">Failed to load movements</span>
               </div>
             ) : (
               <div className="flex items-baseline gap-1.5">
@@ -770,12 +868,17 @@ export const OwnerDashboardPage: React.FC = () => {
             )}
           </div>
           <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            {isSuppliesError ? (
+            {isJarMovementsError ? (
               <>
                 <span className="text-rose-500 font-medium">{L('unableToCalculate')}</span>
-                <button onClick={() => refetchSupplies()} className="text-rose-600 font-bold hover:underline cursor-pointer">
+                <button onClick={() => refetchJarMovements()} className="text-rose-600 font-bold hover:underline cursor-pointer">
                   {L('retry')}
                 </button>
+              </>
+            ) : jarsSupplied === 0 && emptiesReturned === 0 ? (
+              <>
+                <span className="text-slate-400 font-medium">{L('noMovementsInPeriod')}</span>
+                <span className="font-bold text-slate-400">Net: 0</span>
               </>
             ) : (
               <>
@@ -931,31 +1034,71 @@ export const OwnerDashboardPage: React.FC = () => {
                 <RefreshCw className="w-3 h-3" /> {L('retry')}
               </button>
             </div>
-          ) : activeBatches.length > 0 ? (
-            <div className="space-y-2.5">
-              {activeBatches.slice(0, 3).map((b: any) => (
-                <div key={b.id || b.batchId} className="p-3 bg-cyan-50/40 border border-cyan-200 rounded-xl flex items-center justify-between text-xs">
-                  <div>
-                    <div className="font-bold text-slate-900 flex items-center gap-2">
-                      <span>Batch #{b.batchNumber || b.code || 'B-ACTIVE'}</span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-800">{L('bottlingActive')}</span>
-                    </div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">
-                      {L('line')}: {b.productionLineName || '20L Auto Line'} • {L('operator')}: {b.operatorName || 'Plant Operator'}
-                    </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Active Batches */}
+              {activeBatches.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <span>{L('activeBatches')} ({activeBatches.length})</span>
+                    <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Genuinely Active</span>
                   </div>
-                  <div className="text-right">
-                    <span className="font-black text-cyan-900 text-sm">{b.casesProduced || b.outputCases || 0}</span>
-                    <span className="text-[10px] text-slate-500 block">{L('jarsOutput')}</span>
+                  <div className="space-y-2">
+                    {activeBatches.map((b: any) => (
+                      <div key={b.id || b.batchId} className="p-3 bg-cyan-50/40 border border-cyan-200 rounded-xl flex items-center justify-between text-xs">
+                        <div>
+                          <div className="font-bold text-slate-900 flex items-center gap-2">
+                            <span>Batch #{b.batchNumber || b.code || 'B-ACTIVE'}</span>
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-800">{L('bottlingActive')}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 mt-0.5">
+                            {L('line')}: {b.productionLineName || 'Line 1'} • {L('operator')}: {b.operatorName || 'Operator'}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-black text-cyan-900 text-sm">{b.producedQuantity ?? b.casesProduced ?? 0}</span>
+                          <span className="text-[10px] text-slate-500 block">{L('jarsOutput')}</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="p-6 bg-slate-50 rounded-xl text-center">
-              <Factory className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-              <p className="text-xs font-bold text-slate-600">{L('noActiveBatches')}</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">{L('plantIdle')}</p>
+              ) : (
+                <div className="p-5 bg-slate-50 rounded-xl text-center">
+                  <Factory className="w-7 h-7 text-slate-300 mx-auto mb-1.5" />
+                  <p className="text-xs font-bold text-slate-600">{L('noActiveBatches')}</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">{L('plantIdle')}</p>
+                </div>
+              )}
+
+              {/* Recent Completed Batches (shown separately, NEVER classified as active) */}
+              {recentCompletedBatches.length > 0 && (
+                <div className="pt-3 border-t border-slate-100 space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <span>{L('recentCompleted')} ({completedBatchCount})</span>
+                    <span className="text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 font-medium">History</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {recentCompletedBatches.slice(0, 3).map((b: any) => (
+                      <div key={b.id || b.batchId} className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                        <div>
+                          <div className="font-bold text-slate-700 flex items-center gap-2">
+                            <span>Batch #{b.batchNumber}</span>
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700">Completed</span>
+                          </div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">
+                            {b.completedAt ? new Date(b.completedAt).toLocaleDateString() : 'Finished'} • Line: {b.productionLineName || 'Line 1'}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-bold text-slate-800 text-sm">{b.producedQuantity ?? 0}</span>
+                          <span className="text-[10px] text-slate-400 block">{L('jarsUnit')}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -999,33 +1142,43 @@ export const OwnerDashboardPage: React.FC = () => {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl">
               <span className="text-[11px] font-bold text-emerald-800 block">{L('cashInHand')}</span>
-              <div className="text-lg font-black text-emerald-950 mt-0.5">{curr(accountsSummary?.cashBalance ?? 0)}</div>
+              <div className="text-lg font-black text-emerald-950 mt-0.5">{curr(cashInHand)}</div>
+              <span className="text-[10px] text-emerald-700 font-medium">Cashbook balance</span>
             </div>
             <div className="p-3 bg-blue-50/60 border border-blue-200 rounded-xl">
               <span className="text-[11px] font-bold text-blue-800 block">{L('bankBalance')}</span>
-              <div className="text-lg font-black text-blue-950 mt-0.5">{curr(accountsSummary?.totalBankBalance ?? 0)}</div>
+              <div className="text-lg font-black text-blue-950 mt-0.5">{curr(bankBalance)}</div>
+              <span className="text-[10px] text-blue-700 font-medium">Active bank accounts</span>
+            </div>
+            <div className="p-3 bg-indigo-50/60 border border-indigo-200 rounded-xl">
+              <span className="text-[11px] font-bold text-indigo-800 block">{L('totalFunds')}</span>
+              <div className="text-lg font-black text-indigo-950 mt-0.5">{curr(totalAvailableFunds)}</div>
+              <span className="text-[10px] text-indigo-700 font-medium">Cash + Bank total</span>
             </div>
             <div className="p-3 bg-amber-50/60 border border-amber-200 rounded-xl">
               <span className="text-[11px] font-bold text-amber-800 block">{L('expenses')}</span>
-              <div className="text-lg font-black text-amber-950 mt-0.5">{curr(accountsSummary?.thisMonthExpense ?? 0)}</div>
-              <span className="text-[10px] text-amber-700">{L('thisMonth')}</span>
+              <div className="text-lg font-black text-amber-950 mt-0.5">{curr(periodExpense)}</div>
+              <span className="text-[10px] text-amber-700 font-medium">{periodLabels[period]}</span>
             </div>
           </div>
         )}
 
         {/* Top debtors */}
         <div className="space-y-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{L('topOwed')}</span>
-          {isDistributorsError ? (
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{L('topOwed')}</span>
+            <span className="text-[11px] text-slate-400 font-medium">Customer & Distributor Receivables</span>
+          </div>
+          {(isDistributorsError && isSalesError) ? (
             <div className="p-4 bg-rose-50/70 border border-rose-200 rounded-xl text-center space-y-1.5">
               <AlertCircle className="w-6 h-6 text-rose-500 mx-auto" />
               <div className="text-xs font-bold text-rose-900">{L('errorLoading')} — {L('topOwed')}</div>
-              <p className="text-[11px] text-rose-700">{getErrorDetail(distributorsError) || L('serverError')}</p>
+              <p className="text-[11px] text-rose-700">{getErrorDetail(distributorsError || salesError) || L('serverError')}</p>
               <button
-                onClick={() => refetchDistributors()}
+                onClick={() => { refetchDistributors(); refetchSales() }}
                 className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5"
               >
                 <RefreshCw className="w-3 h-3" /> {L('retry')}
@@ -1034,15 +1187,20 @@ export const OwnerDashboardPage: React.FC = () => {
           ) : topDebtors.length > 0 ? (
             <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden text-xs">
               {topDebtors.map((d: any) => (
-                <div key={d.customerId} className="p-2.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                <div key={d.id} className="p-2.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
                   <div>
-                    <div className="font-bold text-slate-900">{d.customerName}</div>
-                    <div className="text-[11px] text-slate-400">
-                      {d.physical?.totalJarsHeld || 0} {L('jarsHeld')}
+                    <div className="font-bold text-slate-900 flex items-center gap-2">
+                      <span>{d.name}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase ${
+                        d.type === 'DISTRIBUTOR' ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-blue-100 text-blue-700 border border-blue-200'
+                      }`}>
+                        {d.type === 'DISTRIBUTOR' ? L('distributor') : L('customer')}
+                      </span>
                     </div>
+                    <div className="text-[11px] text-slate-400">{d.details}</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-black text-rose-600">{curr(Number(d.commercial?.netReceivable || 0))}</div>
+                    <div className="font-black text-rose-600">{curr(Number(d.amount || 0))}</div>
                   </div>
                 </div>
               ))}
@@ -1055,7 +1213,7 @@ export const OwnerDashboardPage: React.FC = () => {
         </div>
 
         <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-600 flex items-center justify-between">
-          {isDistributorsError ? (
+          {(isDistributorsError && isSalesError) ? (
             <span className="text-rose-600 font-semibold">{L('unableToCalculate')}</span>
           ) : (
             <span>{L('totalOwed')} <strong>{curr(totalReceivable)}</strong></span>

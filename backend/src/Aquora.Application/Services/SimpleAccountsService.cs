@@ -1116,6 +1116,7 @@ namespace Aquora.Application.Services
             var tenantId = GetTenantId();
             var today = DateTime.UtcNow.Date;
             var startOfMonth = new DateTime(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var startOfWeek = today.AddDays(-(int)(today.DayOfWeek == DayOfWeek.Sunday ? 6 : (int)today.DayOfWeek - 1));
 
             // Expenses
             var expenses = await _context.SimpleExpenses
@@ -1123,6 +1124,7 @@ namespace Aquora.Application.Services
                 .ToListAsync();
 
             var todaysExpense = expenses.Where(e => e.ExpenseDate.Date == today).Sum(e => e.Amount);
+            var thisWeekExpense = expenses.Where(e => e.ExpenseDate.Date >= startOfWeek).Sum(e => e.Amount);
             var thisMonthExpense = expenses.Where(e => e.ExpenseDate >= startOfMonth).Sum(e => e.Amount);
             var totalExpensesSum = expenses.Sum(e => e.Amount);
 
@@ -1151,9 +1153,23 @@ namespace Aquora.Application.Services
                 .ToListAsync();
 
             var totalBankBalance = activeBanks.Sum(b => b.CurrentBalance);
-            var cashSalesReceived = sales.Where(s => s.TransactionType == "Sales Dispatch").Sum(s => s.AmountReceived);
-            var cashExpensesSum = expenses.Where(e => e.PaymentMethod.Equals("Cash", StringComparison.OrdinalIgnoreCase)).Sum(e => e.Amount);
-            var cashBalance = cashSalesReceived - cashExpensesSum;
+
+            // Cash Balance: authoritative from CashBooks if available, otherwise ledger derived
+            var activeCashBooks = await _context.CashBooks
+                .Where(c => c.TenantId == tenantId && !c.IsDeleted && c.Status == "Active")
+                .ToListAsync();
+
+            decimal cashBalance;
+            if (activeCashBooks.Any())
+            {
+                cashBalance = activeCashBooks.Sum(c => c.CurrentBalance);
+            }
+            else
+            {
+                var cashSalesReceived = sales.Where(s => s.TransactionType == "Sales Dispatch").Sum(s => s.AmountReceived);
+                var cashExpensesSum = expenses.Where(e => e.PaymentMethod.Equals("Cash", StringComparison.OrdinalIgnoreCase)).Sum(e => e.Amount);
+                cashBalance = cashSalesReceived - cashExpensesSum;
+            }
 
             // Assets
             var assetSummary = await GetAssetSummaryAsync();
@@ -1168,6 +1184,7 @@ namespace Aquora.Application.Services
             return new SimpleAccountsDashboardSummaryDto
             {
                 TodaysExpense = todaysExpense,
+                ThisWeekExpense = thisWeekExpense,
                 ThisMonthExpense = thisMonthExpense,
                 OutstandingSales = outstandingSales,
                 TodaysSales = todaysSales,

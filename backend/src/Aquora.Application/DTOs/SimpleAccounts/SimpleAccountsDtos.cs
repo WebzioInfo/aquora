@@ -310,6 +310,7 @@ namespace Aquora.Application.DTOs.SimpleAccounts
     public class SimpleAccountsDashboardSummaryDto
     {
         public decimal TodaysExpense { get; set; }
+        public decimal ThisWeekExpense { get; set; }
         public decimal ThisMonthExpense { get; set; }
         public decimal OutstandingSales { get; set; }
         public decimal TodaysSales { get; set; }

@@ -859,6 +859,7 @@ public sealed class TwentyLBusinessController : ApiControllerBase
 
     #region 6. Container Ledger Movements & Positions
 
+    [HttpGet("ledger")]
     [HttpGet("jar-movements")]
     public async Task<ActionResult<ApiResponse<object>>> GetJarMovements(
         [FromQuery] string? movementType = null,
@@ -933,6 +934,76 @@ public sealed class TwentyLBusinessController : ApiControllerBase
         return Success<object>(new { items, total, page, pageSize }, "Jar movements retrieved successfully.");
     }
 
+    [HttpGet("jar-movements/summary")]
+    [HttpGet("movements/summary")]
+    public async Task<ActionResult<ApiResponse<object>>> GetJarMovementsSummary(
+        [FromQuery] DateTime? dateFrom = null,
+        [FromQuery] DateTime? dateTo = null)
+    {
+        var movementsQuery = _db.TwentyLJarMovements.Where(m => m.TenantId == _user.TenantId);
+        var suppliesQuery = _db.TwentyLDistributorSupplies.Where(s => s.TenantId == _user.TenantId && s.Stage != "CANCELLED");
+
+        if (dateFrom.HasValue)
+        {
+            movementsQuery = movementsQuery.Where(m => m.OccurredAt >= dateFrom.Value.Date);
+            suppliesQuery = suppliesQuery.Where(s => (s.DispatchedAt ?? s.CreatedAt) >= dateFrom.Value.Date);
+        }
+        if (dateTo.HasValue)
+        {
+            var endOfDay = dateTo.Value.Date.AddDays(1);
+            movementsQuery = movementsQuery.Where(m => m.OccurredAt < endOfDay);
+            suppliesQuery = suppliesQuery.Where(s => (s.DispatchedAt ?? s.CreatedAt) < endOfDay);
+        }
+
+        var movements = await movementsQuery.ToListAsync();
+        var supplies = await suppliesQuery.ToListAsync();
+
+        // 1. Out: Jars leaving plant / dispatches / supplies
+        int movementsOut = movements
+            .Where(m => (m.FromLocationType == "PLANT" && m.ToLocationType != "PLANT") ||
+                        m.MovementType == "DISPATCH" || m.MovementType == "SUPPLY" || m.MovementType == "ISSUE")
+            .Sum(m => m.Quantity);
+
+        int suppliesOut = supplies.Sum(s => s.QuantitySupplied);
+
+        var supplyRefIds = supplies.Select(s => (Guid?)s.Id).ToHashSet();
+        int movementsFromSupplies = movements
+            .Where(m => m.ReferenceId.HasValue && supplyRefIds.Contains(m.ReferenceId.Value))
+            .Sum(m => m.Quantity);
+
+        int totalOut = (movementsOut - movementsFromSupplies) + suppliesOut;
+
+        // 2. Back: Empty jars returned to plant
+        int movementsBack = movements
+            .Where(m => (m.ToLocationType == "PLANT" && m.FromLocationType != "PLANT") ||
+                        m.MovementType == "RETURN" || m.MovementType == "RETURN_EMPTY" || m.MovementType == "COLLECTION")
+            .Sum(m => m.Quantity);
+
+        int suppliesBack = supplies.Sum(s => s.QuantityEmptyReturned);
+
+        int movementsBackFromSupplies = movements
+            .Where(m => m.ReferenceId.HasValue && supplyRefIds.Contains(m.ReferenceId.Value) && (m.MovementType == "RETURN" || m.MovementType == "RETURN_EMPTY"))
+            .Sum(m => m.Quantity);
+
+        int totalBack = (movementsBack - movementsBackFromSupplies) + suppliesBack;
+
+        // 3. Damaged jars
+        int damaged = movements.Where(m => m.ContainerStatus == "DAMAGED" || m.MovementType == "DAMAGE").Sum(m => m.Quantity);
+
+        int netMovement = totalOut - totalBack;
+
+        return Success<object>(new
+        {
+            TotalOut = totalOut,
+            TotalBack = totalBack,
+            TotalDamaged = damaged,
+            NetMovement = netMovement,
+            MovementCount = movements.Count + supplies.Count,
+            HasData = movements.Any() || supplies.Any()
+        }, "Jar movement summary retrieved successfully.");
+    }
+
+    [HttpPost("ledger/movement")]
     [HttpPost("jar-movements")]
     public async Task<ActionResult<ApiResponse<object>>> RecordJarMovement(CreateTwentyLJarMovementRequest request)
     {
@@ -952,6 +1023,7 @@ public sealed class TwentyLBusinessController : ApiControllerBase
         catch (InvalidOperationException ex) { return ValidationError<object>("movement", ex.Message); }
     }
 
+    [HttpGet("positions")]
     [HttpGet("jar-positions")]
     public async Task<ActionResult<ApiResponse<object>>> GetJarPositions()
     {
@@ -2282,6 +2354,7 @@ public sealed class TwentyLBusinessController : ApiControllerBase
         }, "Vehicle physical jar balances retrieved.");
     }
 
+    [HttpGet("balances")]
     [HttpGet("balances/plant")]
     public async Task<ActionResult<ApiResponse<object>>> GetPlantBalance()
     {

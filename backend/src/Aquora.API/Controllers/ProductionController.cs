@@ -692,8 +692,9 @@ namespace Aquora.API.Controllers
                 var tenantId = GetTenantId();
                 var activeBatches = await _tenantContext.ProductionBatches
                     .Include(b => b.ProductionLine)
-                    .Where(b => !b.IsDeleted)
-                    .OrderByDescending(b => b.CreatedAt)
+                    .Where(b => !b.IsDeleted && b.CompletedAt == null && (b.Status == "Active" || b.Status == "Running" || b.Status == "Bottling Active" || b.Status == "In Progress"))
+                    .OrderByDescending(b => b.StartedAt)
+                    .ThenByDescending(b => b.CreatedAt)
                     .Select(b => new
                     {
                         b.Id,
@@ -701,7 +702,7 @@ namespace Aquora.API.Controllers
                         b.Product,
                         b.Shift,
                         ProductionLineId = b.ProductionLineId,
-                        ProductionLineName = b.ProductionLine != null ? b.ProductionLine.Name : "Unknown",
+                        ProductionLineName = b.ProductionLine != null ? b.ProductionLine.Name : "Line 1",
                         ProductionLineCode = b.ProductionLine != null ? b.ProductionLine.Code : "L001",
                         b.OperatorId,
                         b.OperatorName,
@@ -709,7 +710,8 @@ namespace Aquora.API.Controllers
                         b.CompletedAt,
                         b.TargetQuantity,
                         b.ProducedQuantity,
-                        b.Status, b.CreatedAt
+                        b.Status,
+                        b.CreatedAt
                     })
                     .ToListAsync();
 
@@ -718,6 +720,95 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 return Failure<List<object>>(ex.Message, "Failed to load active batches.");
+            }
+        }
+
+        // 2d. GET api/v1/production/batches/summary
+        [HttpGet("batches/summary")]
+        public async Task<ActionResult<ApiResponse<object>>> GetBatchesSummary([FromQuery] DateTime? dateFrom = null, [FromQuery] DateTime? dateTo = null)
+        {
+            try
+            {
+                var tenantId = GetTenantId();
+                var today = DateTime.UtcNow.Date;
+
+                var allBatches = await _tenantContext.ProductionBatches
+                    .Include(b => b.ProductionLine)
+                    .Where(b => !b.IsDeleted)
+                    .OrderByDescending(b => b.CreatedAt)
+                    .ToListAsync();
+
+                var activeList = allBatches
+                    .Where(b => b.CompletedAt == null && (b.Status == "Active" || b.Status == "Running" || b.Status == "Bottling Active" || b.Status == "In Progress"))
+                    .Select(b => new
+                    {
+                        b.Id,
+                        b.BatchNumber,
+                        b.Product,
+                        b.Shift,
+                        ProductionLineId = b.ProductionLineId,
+                        ProductionLineName = b.ProductionLine != null ? b.ProductionLine.Name : "Line 1",
+                        ProductionLineCode = b.ProductionLine != null ? b.ProductionLine.Code : "L001",
+                        b.OperatorId,
+                        b.OperatorName,
+                        b.StartedAt,
+                        b.CompletedAt,
+                        b.TargetQuantity,
+                        b.ProducedQuantity,
+                        b.Status,
+                        b.CreatedAt
+                    })
+                    .ToList();
+
+                var completedList = allBatches
+                    .Where(b => b.CompletedAt != null || b.Status == "Completed")
+                    .Take(5)
+                    .Select(b => new
+                    {
+                        b.Id,
+                        b.BatchNumber,
+                        b.Product,
+                        b.Shift,
+                        ProductionLineId = b.ProductionLineId,
+                        ProductionLineName = b.ProductionLine != null ? b.ProductionLine.Name : "Line 1",
+                        ProductionLineCode = b.ProductionLine != null ? b.ProductionLine.Code : "L001",
+                        b.OperatorId,
+                        b.OperatorName,
+                        b.StartedAt,
+                        b.CompletedAt,
+                        b.TargetQuantity,
+                        b.ProducedQuantity,
+                        b.Status,
+                        b.CreatedAt
+                    })
+                    .ToList();
+
+                var from = dateFrom?.Date;
+                var to = dateTo?.Date.AddDays(1);
+
+                var periodBatches = allBatches.AsEnumerable();
+                if (from.HasValue) periodBatches = periodBatches.Where(b => (b.CompletedAt ?? b.StartedAt) >= from.Value);
+                if (to.HasValue) periodBatches = periodBatches.Where(b => (b.CompletedAt ?? b.StartedAt) < to.Value);
+
+                int periodProduced = periodBatches.Sum(b => b.ProducedQuantity);
+                int todayProduced = allBatches.Where(b => (b.CompletedAt ?? b.StartedAt).Date == today).Sum(b => b.ProducedQuantity);
+                int totalProduced = allBatches.Sum(b => b.ProducedQuantity);
+
+                return Success<object>(new
+                {
+                    ActiveBatches = activeList,
+                    RecentCompletedBatches = completedList,
+                    ActiveCount = activeList.Count,
+                    CompletedCount = allBatches.Count(b => b.CompletedAt != null || b.Status == "Completed"),
+                    TotalBatchesCount = allBatches.Count,
+                    PeriodProducedQuantity = periodProduced,
+                    TodayProducedQuantity = todayProduced,
+                    TotalProducedQuantity = totalProduced
+                }, "Batches summary loaded successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<object>(ex.Message, "Failed to load batches summary.");
             }
         }
 
