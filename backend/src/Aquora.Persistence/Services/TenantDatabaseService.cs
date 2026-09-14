@@ -159,7 +159,77 @@ namespace Aquora.Persistence.Services
                     // Run EF migrations inside the tenant schema. Any failure must abort provisioning.
                     if (tenantContext.Database.IsRelational())
                     {
-                        await tenantContext.Database.MigrateAsync();
+                        try
+                        {
+                            await tenantContext.Database.MigrateAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            var dbConnection = tenantContext.Database.GetDbConnection();
+                            string sqlState = "UNKNOWN";
+                            string pgDetail = "";
+                            string pgHint = "";
+                            string pgSchema = "";
+                            string pgTable = "";
+
+                            if (ex is Npgsql.PostgresException pgEx)
+                            {
+                                sqlState = pgEx.SqlState ?? "UNKNOWN";
+                                pgDetail = pgEx.Detail ?? "";
+                                pgHint = pgEx.Hint ?? "";
+                                pgSchema = pgEx.SchemaName ?? "";
+                                pgTable = pgEx.TableName ?? "";
+                            }
+                            else if (ex.InnerException is Npgsql.PostgresException innerPgEx)
+                            {
+                                sqlState = innerPgEx.SqlState ?? "UNKNOWN";
+                                pgDetail = innerPgEx.Detail ?? "";
+                                pgHint = innerPgEx.Hint ?? "";
+                                pgSchema = innerPgEx.SchemaName ?? "";
+                                pgTable = innerPgEx.TableName ?? "";
+                            }
+
+                            IEnumerable<string> pendingMigrations = Array.Empty<string>();
+                            IEnumerable<string> appliedMigrations = Array.Empty<string>();
+                            try
+                            {
+                                pendingMigrations = await tenantContext.Database.GetPendingMigrationsAsync();
+                                appliedMigrations = await tenantContext.Database.GetAppliedMigrationsAsync();
+                            }
+                            catch
+                            {
+                                // Ignore failure during diagnostic inspection
+                            }
+
+                            var pendingList = pendingMigrations.ToList();
+                            var appliedList = appliedMigrations.ToList();
+                            var failingMigration = pendingList.Count > 0 ? pendingList[0] : "Unknown";
+                            var lastApplied = appliedList.Count > 0 ? appliedList[^1] : "None";
+
+                            var diagnosticMessage = new System.Text.StringBuilder();
+                            diagnosticMessage.AppendLine("================================================================================");
+                            diagnosticMessage.AppendLine("CRITICAL PROVISIONING FAILURE: EF CORE MIGRATION ERROR");
+                            diagnosticMessage.AppendLine($"  Tenant ID:           {tenantId}");
+                            diagnosticMessage.AppendLine($"  Tenant Schema:       {schemaName}");
+                            diagnosticMessage.AppendLine($"  Database Server:     {dbConnection.DataSource}");
+                            diagnosticMessage.AppendLine($"  Database Name:       {dbConnection.Database}");
+                            diagnosticMessage.AppendLine($"  Failing Migration:   {failingMigration}");
+                            diagnosticMessage.AppendLine($"  Last Applied:        {lastApplied}");
+                            diagnosticMessage.AppendLine($"  Postgres SQLSTATE:   {sqlState}");
+                            if (!string.IsNullOrWhiteSpace(pgSchema)) diagnosticMessage.AppendLine($"  Target Schema:       {pgSchema}");
+                            if (!string.IsNullOrWhiteSpace(pgTable)) diagnosticMessage.AppendLine($"  Target Table:        {pgTable}");
+                            if (!string.IsNullOrWhiteSpace(pgDetail)) diagnosticMessage.AppendLine($"  Detail:              {pgDetail}");
+                            if (!string.IsNullOrWhiteSpace(pgHint)) diagnosticMessage.AppendLine($"  Hint:                {pgHint}");
+                            diagnosticMessage.AppendLine($"  Error Message:       {ex.Message}");
+                            if (ex.InnerException != null) diagnosticMessage.AppendLine($"  Inner Error:         {ex.InnerException.Message}");
+                            diagnosticMessage.AppendLine("================================================================================");
+
+                            Console.Error.WriteLine(diagnosticMessage.ToString());
+
+                            throw new InvalidOperationException(
+                                $"Tenant database migration failed for Tenant '{tenantId}' (Schema: '{schemaName}', Database: '{dbConnection.Database}'). " +
+                                $"Failed Migration: '{failingMigration}', SQLSTATE: {sqlState}. Error: {ex.Message}", ex);
+                        }
                     }
 
                     // Repair schema for ProductionShifts and Simple Accounts tables
