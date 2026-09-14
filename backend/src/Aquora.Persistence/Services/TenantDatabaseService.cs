@@ -664,7 +664,7 @@ namespace Aquora.Persistence.Services
             }
             catch
             {
-                await DropTenantSchemaAsync(schemaName);
+                // Preserve schema for safe incremental retry and diagnostic investigation
                 throw;
             }
             finally

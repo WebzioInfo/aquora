@@ -134,5 +134,69 @@ namespace Aquora.Tests
                 }
             }
         }
+
+        [Fact]
+        public async Task Audit_Users_And_Tenants_Relationships()
+        {
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            _output.WriteLine("=== PLATFORM USERS ===");
+            await using (var cmd = new NpgsqlCommand(@"
+                SELECT ""Id"", ""Email"", ""FirstName"", ""LastName"", ""TenantId"", ""EmailVerified"", ""IsActive"", ""IsDeleted""
+                FROM ""public"".""Users"" ORDER BY ""CreatedAt"" DESC LIMIT 30;", conn))
+            await using (var reader = await cmd.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    var id = reader.GetGuid(0);
+                    var email = reader.GetString(1);
+                    var name = $"{reader.GetString(2)} {reader.GetString(3)}";
+                    var tenantId = reader.IsDBNull(4) ? (Guid?)null : reader.GetGuid(4);
+                    var verified = reader.GetBoolean(5);
+                    var active = reader.GetBoolean(6);
+                    var deleted = reader.GetBoolean(7);
+                    _output.WriteLine($"User: {email} | ID: {id} | TenantId: {tenantId?.ToString() ?? "NULL"} | Verified: {verified} | Active: {active} | Deleted: {deleted}");
+                }
+            }
+
+            _output.WriteLine("\n=== ALL TENANTS ===");
+            await using (var cmd = new NpgsqlCommand(@"
+                SELECT ""Id"", ""Name"", ""Code"", ""SchemaName"", ""Status"", ""Progress"", ""IsInitialized"", ""IsDeleted"", ""CreatedAt"", ""FailureReason""
+                FROM ""public"".""Tenants"" ORDER BY ""CreatedAt"" DESC LIMIT 30;", conn))
+            await using (var reader = await cmd.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    var id = reader.GetGuid(0);
+                    var name = reader.GetString(1);
+                    var code = reader.GetString(2);
+                    var schema = reader.GetString(3);
+                    var status = reader.IsDBNull(4) ? "" : reader.GetString(4);
+                    var progress = reader.IsDBNull(5) ? 0 : reader.GetInt32(5);
+                    var init = reader.IsDBNull(6) ? false : reader.GetBoolean(6);
+                    var del = reader.IsDBNull(7) ? false : reader.GetBoolean(7);
+                    var created = reader.GetDateTime(8);
+                    var failure = reader.IsDBNull(9) ? "" : reader.GetString(9);
+                    _output.WriteLine($"Tenant: {name} ({code}) | ID: {id} | Schema: {schema} | Status: {status} ({progress}%) | Init: {init} | Deleted: {del} | Created: {created:yyyy-MM-dd HH:mm:ss} | Failure: {(failure.Length > 60 ? failure[..60] + "..." : failure)}");
+                }
+            }
+
+            _output.WriteLine("\n=== USER MEMBERSHIPS ===");
+            await using (var cmd = new NpgsqlCommand(@"
+                SELECT ""Id"", ""PlatformUserId"", ""TenantId"", ""Status"", ""JoinedAt""
+                FROM ""public"".""UserMemberships"" ORDER BY ""JoinedAt"" DESC LIMIT 30;", conn))
+            await using (var reader = await cmd.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    var id = reader.GetGuid(0);
+                    var userId = reader.GetGuid(1);
+                    var tenantId = reader.GetGuid(2);
+                    var status = reader.GetString(3);
+                    _output.WriteLine($"Membership: User {userId} -> Tenant {tenantId} | Status: {status}");
+                }
+            }
+        }
     }
 }

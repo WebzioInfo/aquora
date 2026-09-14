@@ -320,6 +320,36 @@ namespace Aquora.Application.Services
 
             Console.WriteLine($"[OTP VERIFICATION SUCCESS]: Email '{email}' verified successfully. User ID '{user.Id}'.");
 
+            // Self-heal: If user.TenantId is missing, resolve by owner identity or memberships
+            if (!user.TenantId.HasValue)
+            {
+                var normalizedEmail = user.Email.Trim().ToLowerInvariant();
+                var userGuidStr = user.Id.ToString();
+                var resolvedTenant = await _platformContext.Tenants
+                    .OrderByDescending(t => t.CreatedAt)
+                    .FirstOrDefaultAsync(t => !t.IsDeleted &&
+                        (t.OwnerEmail == normalizedEmail || t.CreatedBy == userGuidStr));
+
+                if (resolvedTenant == null)
+                {
+                    var membership = await _platformContext.UserMemberships
+                        .OrderByDescending(m => m.CreatedAt)
+                        .FirstOrDefaultAsync(m => m.PlatformUserId == user.Id);
+
+                    if (membership != null)
+                    {
+                        resolvedTenant = await _platformContext.Tenants
+                            .FirstOrDefaultAsync(t => t.Id == membership.TenantId && !t.IsDeleted);
+                    }
+                }
+
+                if (resolvedTenant != null)
+                {
+                    user.TenantId = resolvedTenant.Id;
+                    await _platformContext.SaveChangesAsync();
+                }
+            }
+
             string companyName = "";
             if (user.TenantId.HasValue)
             {
@@ -381,6 +411,36 @@ namespace Aquora.Application.Services
             {
                 await LogLoginAttemptAsync(inputIdentifier, null, null, false, "Invalid username/email or PIN.");
                 throw new UnauthorizedAccessException("Invalid username/email or PIN.");
+            }
+
+            // Self-heal: If user.TenantId is missing, resolve by owner identity or memberships
+            if (!user.TenantId.HasValue)
+            {
+                var normalizedEmail = user.Email.Trim().ToLowerInvariant();
+                var userGuidStr = user.Id.ToString();
+                var resolvedTenant = await _platformContext.Tenants
+                    .OrderByDescending(t => t.CreatedAt)
+                    .FirstOrDefaultAsync(t => !t.IsDeleted &&
+                        (t.OwnerEmail == normalizedEmail || t.CreatedBy == userGuidStr));
+
+                if (resolvedTenant == null)
+                {
+                    var membership = await _platformContext.UserMemberships
+                        .OrderByDescending(m => m.CreatedAt)
+                        .FirstOrDefaultAsync(m => m.PlatformUserId == user.Id);
+
+                    if (membership != null)
+                    {
+                        resolvedTenant = await _platformContext.Tenants
+                            .FirstOrDefaultAsync(t => t.Id == membership.TenantId && !t.IsDeleted);
+                    }
+                }
+
+                if (resolvedTenant != null)
+                {
+                    user.TenantId = resolvedTenant.Id;
+                    await _platformContext.SaveChangesAsync();
+                }
             }
 
             Tenant? tenant = null;
@@ -517,6 +577,36 @@ namespace Aquora.Application.Services
             if (user == null)
                 throw new UnauthorizedAccessException("User not found.");
 
+            // Self-heal: If user.TenantId is missing, resolve by owner identity or memberships
+            if (!user.TenantId.HasValue)
+            {
+                var normalizedEmail = user.Email.Trim().ToLowerInvariant();
+                var userGuidStr = user.Id.ToString();
+                var resolvedTenant = await _platformContext.Tenants
+                    .OrderByDescending(t => t.CreatedAt)
+                    .FirstOrDefaultAsync(t => !t.IsDeleted &&
+                        (t.OwnerEmail == normalizedEmail || t.CreatedBy == userGuidStr));
+
+                if (resolvedTenant == null)
+                {
+                    var membership = await _platformContext.UserMemberships
+                        .OrderByDescending(m => m.CreatedAt)
+                        .FirstOrDefaultAsync(m => m.PlatformUserId == user.Id);
+
+                    if (membership != null)
+                    {
+                        resolvedTenant = await _platformContext.Tenants
+                            .FirstOrDefaultAsync(t => t.Id == membership.TenantId && !t.IsDeleted);
+                    }
+                }
+
+                if (resolvedTenant != null)
+                {
+                    user.TenantId = resolvedTenant.Id;
+                    await _platformContext.SaveChangesAsync();
+                }
+            }
+
             var membershipCount = await _platformContext.UserMemberships
                 .CountAsync(m => m.PlatformUserId == user.Id && m.Status == "Active");
 
@@ -546,6 +636,36 @@ namespace Aquora.Application.Services
             var user = await _platformContext.Users.FirstOrDefaultAsync(u => u.Id == guidId && !u.IsDeleted);
             if (user == null)
                 throw new UnauthorizedAccessException("User not found.");
+
+            // Self-heal: If user.TenantId is missing, resolve by owner identity or memberships
+            if (!user.TenantId.HasValue)
+            {
+                var normalizedEmail = user.Email.Trim().ToLowerInvariant();
+                var userGuidStr = user.Id.ToString();
+                var resolvedTenant = await _platformContext.Tenants
+                    .OrderByDescending(t => t.CreatedAt)
+                    .FirstOrDefaultAsync(t => !t.IsDeleted &&
+                        (t.OwnerEmail == normalizedEmail || t.CreatedBy == userGuidStr));
+
+                if (resolvedTenant == null)
+                {
+                    var membership = await _platformContext.UserMemberships
+                        .OrderByDescending(m => m.CreatedAt)
+                        .FirstOrDefaultAsync(m => m.PlatformUserId == user.Id);
+
+                    if (membership != null)
+                    {
+                        resolvedTenant = await _platformContext.Tenants
+                            .FirstOrDefaultAsync(t => t.Id == membership.TenantId && !t.IsDeleted);
+                    }
+                }
+
+                if (resolvedTenant != null)
+                {
+                    user.TenantId = resolvedTenant.Id;
+                    await _platformContext.SaveChangesAsync();
+                }
+            }
 
             var ownsCompany = user.TenantId.HasValue && await _platformContext.Tenants
                 .AnyAsync(t => t.Id == user.TenantId.Value && !t.IsDeleted);
@@ -588,6 +708,10 @@ namespace Aquora.Application.Services
             else if (!user.TenantId.HasValue)
             {
                 dashboard = "/onboarding";
+            }
+            else if (!isTenantInitialized)
+            {
+                dashboard = "/account-setup";
             }
             else if (roles.Contains("Operator"))
             {

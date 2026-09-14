@@ -49,6 +49,14 @@ namespace Aquora.Persistence.Context
                 .IsUnique();
 
             modelBuilder.Entity<Tenant>()
+                .HasIndex(t => t.SchemaName)
+                .IsUnique();
+
+            modelBuilder.Entity<Tenant>()
+                .HasIndex(t => t.Subdomain)
+                .IsUnique();
+
+            modelBuilder.Entity<Tenant>()
                 .Property(t => t.IsBiodropsProduction)
                 .HasDefaultValue(false);
 

@@ -267,15 +267,8 @@ namespace Aquora.Infrastructure.Services
                     var platformContext = scope.ServiceProvider.GetRequiredService<IPlatformDbContext>();
                     var tenantDatabaseService = scope.ServiceProvider.GetRequiredService<ITenantDatabaseService>();
 
-                    // Clean up/Drop schema if failed
-                    try
-                    {
-                        await tenantDatabaseService.DropTenantSchemaAsync(schemaName);
-                    }
-                    catch (Exception dropEx)
-                    {
-                        _logger.LogError(dropEx, $"Failed to drop schema: {schemaName} during failure rollback");
-                    }
+                    // Preserve schema on failure for inspection, schema reuse, and idempotent incremental retry.
+                    // Do not drop schema to avoid destruction of valid migration/seed state.
 
                     // Update tenant record status to Failed instead of deleting to allow observability & retry
                     var tenant = await platformContext.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId);
