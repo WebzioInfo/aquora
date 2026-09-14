@@ -15,26 +15,67 @@ public partial class HardenTwentyLLedgerAndCommission : Migration
 
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.AddColumn<string>(name: "HolderType", schema: _schema, table: "TwentyLJarMovements", type: "text", nullable: false, defaultValue: "COMPANY");
-        migrationBuilder.AddColumn<Guid>(name: "HolderCustomerId", schema: _schema, table: "TwentyLJarMovements", type: "uuid", nullable: true);
-        migrationBuilder.AddColumn<int>(name: "Priority", schema: _schema, table: "TwentyLRateRules", type: "integer", nullable: false, defaultValue: 0);
-        migrationBuilder.CreateTable(name: "TwentyLCommissionRules", schema: _schema, columns: table => new
-        {
-            Id = table.Column<Guid>(type: "uuid", nullable: false), TenantId = table.Column<Guid>(type: "uuid", nullable: false), CompanyId = table.Column<Guid>(type: "uuid", nullable: false), BeneficiaryCustomerId = table.Column<Guid>(type: "uuid", nullable: true), ProductId = table.Column<Guid>(type: "uuid", nullable: true), BeneficiaryType = table.Column<string>(type: "text", nullable: false), CalculationType = table.Column<string>(type: "text", nullable: false), Value = table.Column<decimal>(type: "numeric", nullable: false), MinimumQuantity = table.Column<decimal>(type: "numeric", nullable: false), EffectiveFrom = table.Column<DateTime>(type: "timestamp with time zone", nullable: false), EffectiveTo = table.Column<DateTime>(type: "timestamp with time zone", nullable: true), Priority = table.Column<int>(type: "integer", nullable: false), IsActive = table.Column<bool>(type: "boolean", nullable: false), CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false), CreatedBy = table.Column<string>(type: "text", nullable: false), UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true), UpdatedBy = table.Column<string>(type: "text", nullable: true), CreatedByIP = table.Column<string>(type: "text", nullable: true), UpdatedByIP = table.Column<string>(type: "text", nullable: true), IsDeleted = table.Column<bool>(type: "boolean", nullable: false), DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true), DeletedBy = table.Column<string>(type: "text", nullable: true)
-        }, constraints: table => table.PrimaryKey("PK_TwentyLCommissionRules", x => x.Id));
-        migrationBuilder.CreateTable(name: "TwentyLCommissionTransactions", schema: _schema, columns: table => new
-        {
-            Id = table.Column<Guid>(type: "uuid", nullable: false), TenantId = table.Column<Guid>(type: "uuid", nullable: false), CompanyId = table.Column<Guid>(type: "uuid", nullable: false), DeliveryId = table.Column<Guid>(type: "uuid", nullable: false), RuleId = table.Column<Guid>(type: "uuid", nullable: true), BeneficiaryCustomerId = table.Column<Guid>(type: "uuid", nullable: true), BeneficiaryType = table.Column<string>(type: "text", nullable: false), TransactionType = table.Column<string>(type: "text", nullable: false), Amount = table.Column<decimal>(type: "numeric", nullable: false), OccurredAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false), ReversalOfId = table.Column<Guid>(type: "uuid", nullable: true), Reason = table.Column<string>(type: "text", nullable: true), CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false), CreatedBy = table.Column<string>(type: "text", nullable: false), UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true), UpdatedBy = table.Column<string>(type: "text", nullable: true), CreatedByIP = table.Column<string>(type: "text", nullable: true), UpdatedByIP = table.Column<string>(type: "text", nullable: true)
-        }, constraints: table => table.PrimaryKey("PK_TwentyLCommissionTransactions", x => x.Id));
-        migrationBuilder.CreateIndex(name: "IX_TwentyLCommissionRules_Effective", schema: _schema, table: "TwentyLCommissionRules", columns: new[] { "TenantId", "BeneficiaryCustomerId", "ProductId", "EffectiveFrom", "EffectiveTo" });
-        migrationBuilder.CreateIndex(name: "IX_TwentyLCommissionTransactions_Delivery", schema: _schema, table: "TwentyLCommissionTransactions", columns: new[] { "TenantId", "DeliveryId", "BeneficiaryCustomerId" });
+        migrationBuilder.Sql($@"
+            ALTER TABLE ""{_schema}"".""TwentyLJarMovements"" ADD COLUMN IF NOT EXISTS ""HolderType"" text NOT NULL DEFAULT 'COMPANY';
+            ALTER TABLE ""{_schema}"".""TwentyLJarMovements"" ADD COLUMN IF NOT EXISTS ""HolderCustomerId"" uuid NULL;
+            ALTER TABLE ""{_schema}"".""TwentyLRateRules"" ADD COLUMN IF NOT EXISTS ""Priority"" integer NOT NULL DEFAULT 0;
+
+            CREATE TABLE IF NOT EXISTS ""{_schema}"".""TwentyLCommissionRules"" (
+                ""Id"" uuid NOT NULL PRIMARY KEY,
+                ""TenantId"" uuid NOT NULL,
+                ""CompanyId"" uuid NOT NULL,
+                ""BeneficiaryCustomerId"" uuid NULL,
+                ""ProductId"" uuid NULL,
+                ""BeneficiaryType"" text NOT NULL DEFAULT 'EMPLOYEE',
+                ""CalculationType"" text NOT NULL DEFAULT 'PERCENTAGE',
+                ""Value"" numeric NOT NULL DEFAULT 0.0,
+                ""MinimumQuantity"" numeric NOT NULL DEFAULT 0.0,
+                ""EffectiveFrom"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ""EffectiveTo"" timestamp with time zone NULL,
+                ""Priority"" integer NOT NULL DEFAULT 0,
+                ""IsActive"" boolean NOT NULL DEFAULT true,
+                ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                ""UpdatedAt"" timestamp with time zone NULL,
+                ""UpdatedBy"" text NULL,
+                ""CreatedByIP"" text NULL,
+                ""UpdatedByIP"" text NULL,
+                ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                ""DeletedAt"" timestamp with time zone NULL,
+                ""DeletedBy"" text NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS ""{_schema}"".""TwentyLCommissionTransactions"" (
+                ""Id"" uuid NOT NULL PRIMARY KEY,
+                ""TenantId"" uuid NOT NULL,
+                ""CompanyId"" uuid NOT NULL,
+                ""DeliveryId"" uuid NOT NULL,
+                ""RuleId"" uuid NULL,
+                ""BeneficiaryCustomerId"" uuid NULL,
+                ""BeneficiaryType"" text NOT NULL DEFAULT 'EMPLOYEE',
+                ""TransactionType"" text NOT NULL DEFAULT 'EARNED',
+                ""Amount"" numeric NOT NULL DEFAULT 0.0,
+                ""OccurredAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ""ReversalOfId"" uuid NULL,
+                ""Reason"" text NULL,
+                ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                ""UpdatedAt"" timestamp with time zone NULL,
+                ""UpdatedBy"" text NULL,
+                ""CreatedByIP"" text NULL,
+                ""UpdatedByIP"" text NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS ""IX_TwentyLCommissionRules_Effective"" ON ""{_schema}"".""TwentyLCommissionRules"" (""TenantId"", ""BeneficiaryCustomerId"", ""ProductId"", ""EffectiveFrom"", ""EffectiveTo"");
+            CREATE INDEX IF NOT EXISTS ""IX_TwentyLCommissionTransactions_Delivery"" ON ""{_schema}"".""TwentyLCommissionTransactions"" (""TenantId"", ""DeliveryId"", ""BeneficiaryCustomerId"");
+        ");
     }
+
     protected override void Down(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.DropTable(name: "TwentyLCommissionTransactions", schema: _schema);
-        migrationBuilder.DropTable(name: "TwentyLCommissionRules", schema: _schema);
-        migrationBuilder.DropColumn(name: "HolderType", schema: _schema, table: "TwentyLJarMovements");
-        migrationBuilder.DropColumn(name: "HolderCustomerId", schema: _schema, table: "TwentyLJarMovements");
-        migrationBuilder.DropColumn(name: "Priority", schema: _schema, table: "TwentyLRateRules");
+        migrationBuilder.Sql($@"
+            DROP TABLE IF EXISTS ""{_schema}"".""TwentyLCommissionTransactions"";
+            DROP TABLE IF EXISTS ""{_schema}"".""TwentyLCommissionRules"";
+        ");
     }
 }

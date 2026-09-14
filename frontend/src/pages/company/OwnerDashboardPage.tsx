@@ -136,6 +136,16 @@ const T: Record<string, Record<Lang, string>> = {
   accountsCash:         { en: 'Accounts & Cash',                      ml: 'അക്കൗണ്ട്‌സ് & ക്യാഷ്' },
   reports:              { en: 'Reports',                              ml: 'റിപ്പോർട്ടുകൾ' },
   customers:            { en: 'Customers',                            ml: 'കസ്റ്റമർമാർ' },
+
+  // Error handling & diagnostics
+  errorLoading:         { en: 'Failed to load',                       ml: 'ഡാറ്റ ലഭിച്ചില്ല' },
+  errorNoticeTitle:     { en: 'Some dashboard data failed to load',   ml: 'ചില വിവരങ്ങൾ ലോഡ് ചെയ്യാനായില്ല' },
+  errorNoticeDesc:      { en: 'One or more backend queries returned an error. Failed sections are highlighted below with retry options.', ml: 'ഒന്നോ അതിലധികമോ ബാക്കെൻഡ് ക്വറികൾ പരാജയപ്പെട്ടു. പരാജയപ്പെട്ട ഭാഗങ്ങൾ താഴെ അടയാളപ്പെടുത്തിയിരിക്കുന്നു.' },
+  retry:                { en: 'Retry',                                ml: 'വീണ്ടും ശ്രമിക്കുക' },
+  retryAll:             { en: 'Retry All',                            ml: 'എല്ലാം വീണ്ടും ശ്രമിക്കുക' },
+  serverError:          { en: 'Server or network error occurred while loading this data.', ml: 'ഈ ഡാറ്റ ലോഡ് ചെയ്യുമ്പോൾ സെർവർ അല്ലെങ്കിൽ നെറ്റ്‌വർക്ക് തകരാർ ഉണ്ടായി.' },
+  unableToCalculate:    { en: 'Unable to calculate due to query error', ml: 'ക്വറി പിശക് കാരണം കണക്കാക്കാനായില്ല' },
+  databaseSchemaError:  { en: 'Database table or relation missing. Please ensure all tenant migrations have run.', ml: 'ഡാറ്റാബേസ് ടേബിൾ കണ്ടെത്താനായില്ല. എല്ലാ മൈഗ്രേഷനുകളും നടന്നിട്ടുണ്ടെന്ന് ഉറപ്പാക്കുക.' },
 }
 
 // helper
@@ -192,79 +202,151 @@ export const OwnerDashboardPage: React.FC = () => {
   const [period, setPeriod] = useState<Period>('today')
 
   // ========================================
-  // DATA FETCHING
+  // DATA FETCHING (With full error tracking)
   // ========================================
 
   // 1. Plant balances (jar positions)
-  const { data: plantBalances, refetch: refetchBalances } = useQuery({
+  const {
+    data: plantBalances,
+    isError: isBalancesError,
+    error: balancesError,
+    refetch: refetchBalances
+  } = useQuery({
     queryKey: ['ownerPlantBalances'],
     queryFn: twentyLService.getPlantBalances,
-    staleTime: 30000
+    staleTime: 30000,
+    retry: 1
   })
 
   // 2. Distributor accounts (receivables)
-  const { data: distributorAccounts = [], refetch: refetchDistributors } = useQuery({
+  const {
+    data: distributorAccounts = [],
+    isError: isDistributorsError,
+    error: distributorsError,
+    refetch: refetchDistributors
+  } = useQuery({
     queryKey: ['ownerDistributors'],
     queryFn: twentyLService.getDistributorAccounts,
-    staleTime: 30000
+    staleTime: 30000,
+    retry: 1
   })
 
   // 3. Distributor supplies (period-wide fetch — we filter client-side)
-  const { data: suppliesResponse, refetch: refetchSupplies } = useQuery({
+  const {
+    data: suppliesResponse,
+    isError: isSuppliesError,
+    error: suppliesError,
+    refetch: refetchSupplies
+  } = useQuery({
     queryKey: ['ownerSupplies'],
     queryFn: async () => {
       const res = await api.get('/api/v1/20l/distributor-supplies?pageSize=200')
       return res.data?.data || { items: [] }
     },
-    staleTime: 30000
+    staleTime: 30000,
+    retry: 1
   })
 
   // 4. Active production batches
-  const { data: activeBatches = [], refetch: refetchBatches } = useQuery({
+  const {
+    data: activeBatches = [],
+    isError: isBatchesError,
+    error: batchesError,
+    refetch: refetchBatches
+  } = useQuery({
     queryKey: ['ownerActiveBatches'],
     queryFn: async () => {
       const res = await api.get('/api/v1/production/batches/active')
       return res.data?.data || []
     },
-    staleTime: 30000
+    staleTime: 30000,
+    retry: 1
   })
 
   // 5. Accounts dashboard summary
-  const { data: accountsSummary, refetch: refetchAccounts } = useQuery({
+  const {
+    data: accountsSummary,
+    isError: isAccountsError,
+    error: accountsError,
+    refetch: refetchAccounts
+  } = useQuery({
     queryKey: ['ownerAccountsSummary'],
     queryFn: simpleAccountsService.getDashboardSummary,
-    staleTime: 30000
+    staleTime: 30000,
+    retry: 1
   })
 
   // 6. Sales transactions — large fetch for period aggregation
-  const { data: salesData, refetch: refetchSales } = useQuery({
+  const {
+    data: salesData,
+    isError: isSalesError,
+    error: salesError,
+    refetch: refetchSales
+  } = useQuery({
     queryKey: ['ownerSalesAll'],
     queryFn: async () => {
       const res = await salesService.getTransactions(1, 500, '', '', '', '', '', '', '', 'newest')
       return res?.data?.items || []
     },
-    staleTime: 30000
+    staleTime: 30000,
+    retry: 1
   })
 
   // 7. Raw materials
-  const { data: rawMaterialsData, refetch: refetchRawMaterials } = useQuery({
+  const {
+    data: rawMaterialsData,
+    isError: isRawMaterialsError,
+    error: rawMaterialsError,
+    refetch: refetchRawMaterials
+  } = useQuery({
     queryKey: ['ownerRawMaterials'],
     queryFn: async () => {
       const res = await rawMaterialsService.getRawMaterials(1, 100)
       return res?.data?.items || []
     },
-    staleTime: 60000
+    staleTime: 60000,
+    retry: 1
   })
 
   // 8. Products (finished goods)
-  const { data: productsData, refetch: refetchProducts } = useQuery({
+  const {
+    data: productsData,
+    isError: isProductsError,
+    error: productsError,
+    refetch: refetchProducts
+  } = useQuery({
     queryKey: ['ownerProducts'],
     queryFn: async () => {
       const res = await productsService.getProducts(1, 100)
       return res?.data?.items || []
     },
-    staleTime: 60000
+    staleTime: 60000,
+    retry: 1
   })
+
+  // Extract friendly error detail string
+  const getErrorDetail = useCallback((err: any): string | null => {
+    if (!err) return null
+    return err?.response?.data?.message || err?.message || null
+  }, [])
+
+  // Identify any failure across the dashboard
+  const hasAnyError = isBalancesError || isDistributorsError || isSuppliesError || isBatchesError || isAccountsError || isSalesError || isRawMaterialsError || isProductsError
+
+  const failedEndpointsCount = [
+    isBalancesError, isDistributorsError, isSuppliesError, isBatchesError,
+    isAccountsError, isSalesError, isRawMaterialsError, isProductsError
+  ].filter(Boolean).length
+
+  // Check if any error indicates missing database tables/columns
+  const isSchemaError = useMemo(() => {
+    const errors = [balancesError, distributorsError, suppliesError, batchesError, accountsError, salesError, rawMaterialsError, productsError]
+    return errors.some((e: any) => {
+      const code = e?.response?.data?.code
+      const msg = e?.response?.data?.message || ''
+      return code === 'DATABASE_SCHEMA_MISSING_TABLE' || msg.includes('Database schema error') || msg.includes('42P01')
+    })
+  }, [balancesError, distributorsError, suppliesError, batchesError, accountsError, salesError, rawMaterialsError, productsError])
 
   // Refresh all
   const handleRefreshAll = useCallback(async () => {
@@ -466,119 +548,294 @@ export const OwnerDashboardPage: React.FC = () => {
         </div>
       </div>
 
+      {/* ── ERROR NOTIFICATION BANNER (When any API call fails with 500/network error) ────────── */}
+      {hasAnyError && (
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-rose-900 shadow-sm animate-fade-in">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div>
+              <div className="font-black text-rose-950 text-sm flex items-center gap-2">
+                <span>{L('errorNoticeTitle')}</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-200/80 text-rose-900 uppercase tracking-wide">
+                  {failedEndpointsCount} {failedEndpointsCount === 1 ? 'service error' : 'service errors'}
+                </span>
+              </div>
+              <p className="mt-0.5 text-rose-800 leading-relaxed">{L('errorNoticeDesc')}</p>
+              {isSchemaError && (
+                <p className="mt-1.5 font-bold text-rose-950 bg-rose-100/90 px-2.5 py-1 rounded-lg border border-rose-300 flex items-center gap-1.5">
+                  <ShieldAlert className="w-3.5 h-3.5 text-rose-700 shrink-0" />
+                  <span>{L('databaseSchemaError')}</span>
+                </p>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={handleRefreshAll}
+            disabled={isRefreshing}
+            className="self-start sm:self-center px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-2 shrink-0 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{L('retryAll')}</span>
+          </button>
+        </div>
+      )}
+
       {/* ── KPI STRIP ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
 
         {/* Total Sales */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between hover:border-blue-300 transition-all">
+        <div className={`bg-white border rounded-2xl p-4 shadow-sm flex flex-col justify-between transition-all ${
+          isSalesError ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200 hover:border-blue-300'
+        }`}>
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">{L('totalSales')}</span>
-              <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg"><BarChart3 className="w-4 h-4" /></div>
+              <div className={`p-1.5 rounded-lg ${isSalesError ? 'bg-rose-50 text-rose-600' : 'bg-blue-50 text-blue-600'}`}>
+                {isSalesError ? <AlertCircle className="w-4 h-4" /> : <BarChart3 className="w-4 h-4" />}
+              </div>
             </div>
-            <div className="text-2xl font-black text-slate-900">{curr(salesKpi.totalRevenue)}</div>
+            {isSalesError ? (
+              <div className="my-1">
+                <span className="text-sm font-black text-rose-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4 shrink-0" /> {L('errorLoading')}
+                </span>
+                <span className="text-[10px] text-rose-500 font-medium block">HTTP 500 / Error</span>
+              </div>
+            ) : (
+              <div className="text-2xl font-black text-slate-900">{curr(salesKpi.totalRevenue)}</div>
+            )}
           </div>
           <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500">{salesKpi.orderCount} {L('orders')}</span>
-            <span className="text-slate-400 font-medium">{L('fromSales')}</span>
+            {isSalesError ? (
+              <>
+                <span className="text-rose-500 font-medium">{L('unableToCalculate')}</span>
+                <button onClick={() => refetchSales()} className="text-rose-600 font-bold hover:underline cursor-pointer">
+                  {L('retry')}
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-slate-500">{salesKpi.orderCount} {L('orders')}</span>
+                <span className="text-slate-400 font-medium">{L('fromSales')}</span>
+              </>
+            )}
           </div>
         </div>
 
         {/* Cash Collected */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between hover:border-blue-300 transition-all">
+        <div className={`bg-white border rounded-2xl p-4 shadow-sm flex flex-col justify-between transition-all ${
+          (isSuppliesError || isSalesError) ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200 hover:border-blue-300'
+        }`}>
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">{L('cashCollected')}</span>
-              <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg"><DollarSign className="w-4 h-4" /></div>
+              <div className={`p-1.5 rounded-lg ${(isSuppliesError || isSalesError) ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                {(isSuppliesError || isSalesError) ? <AlertCircle className="w-4 h-4" /> : <DollarSign className="w-4 h-4" />}
+              </div>
             </div>
-            <div className="text-2xl font-black text-slate-900">{curr(totalOperationalCash)}</div>
+            {(isSuppliesError || isSalesError) ? (
+              <div className="my-1">
+                <span className="text-sm font-black text-rose-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4 shrink-0" /> {L('errorLoading')}
+                </span>
+                <span className="text-[10px] text-rose-500 font-medium block">Failed to load cash data</span>
+              </div>
+            ) : (
+              <div className="text-2xl font-black text-slate-900">{curr(totalOperationalCash)}</div>
+            )}
           </div>
           <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500">{L('fromSales')}</span>
-            <span className="font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded text-[10px]">{L('waitingToAdd')}</span>
+            {(isSuppliesError || isSalesError) ? (
+              <>
+                <span className="text-rose-500 font-medium">{L('unableToCalculate')}</span>
+                <button onClick={() => { refetchSupplies(); refetchSales() }} className="text-rose-600 font-bold hover:underline cursor-pointer">
+                  {L('retry')}
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-slate-500">{L('fromSales')}</span>
+                <span className="font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded text-[10px]">{L('waitingToAdd')}</span>
+              </>
+            )}
           </div>
         </div>
 
         {/* Money Owed */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between hover:border-blue-300 transition-all">
+        <div className={`bg-white border rounded-2xl p-4 shadow-sm flex flex-col justify-between transition-all ${
+          isDistributorsError ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200 hover:border-blue-300'
+        }`}>
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">{L('moneyOwed')}</span>
-              <div className="p-1.5 bg-rose-50 text-rose-600 rounded-lg"><TrendingDown className="w-4 h-4" /></div>
+              <div className={`p-1.5 rounded-lg ${isDistributorsError ? 'bg-rose-50 text-rose-600' : 'bg-rose-50 text-rose-600'}`}>
+                {isDistributorsError ? <AlertCircle className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              </div>
             </div>
-            <div className="text-2xl font-black text-slate-900">{curr(totalReceivable)}</div>
+            {isDistributorsError ? (
+              <div className="my-1">
+                <span className="text-sm font-black text-rose-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4 shrink-0" /> {L('errorLoading')}
+                </span>
+                <span className="text-[10px] text-rose-500 font-medium block">Failed to load receivables</span>
+              </div>
+            ) : (
+              <div className="text-2xl font-black text-slate-900">{curr(totalReceivable)}</div>
+            )}
           </div>
           <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500">{L('fromDistributors')}</span>
-            <span className="text-rose-600 font-bold">{topDebtors.length} {L('debtors')}</span>
+            {isDistributorsError ? (
+              <>
+                <span className="text-rose-500 font-medium">{L('unableToCalculate')}</span>
+                <button onClick={() => refetchDistributors()} className="text-rose-600 font-bold hover:underline cursor-pointer">
+                  {L('retry')}
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-slate-500">{L('fromDistributors')}</span>
+                <span className="text-rose-600 font-bold">{topDebtors.length} {L('debtors')}</span>
+              </>
+            )}
           </div>
         </div>
 
         {/* Production Output */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between hover:border-blue-300 transition-all">
+        <div className={`bg-white border rounded-2xl p-4 shadow-sm flex flex-col justify-between transition-all ${
+          (isBalancesError || isBatchesError) ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200 hover:border-blue-300'
+        }`}>
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">{L('productionOutput')}</span>
-              <div className="p-1.5 bg-cyan-50 text-cyan-600 rounded-lg"><Factory className="w-4 h-4" /></div>
+              <div className={`p-1.5 rounded-lg ${(isBalancesError || isBatchesError) ? 'bg-rose-50 text-rose-600' : 'bg-cyan-50 text-cyan-600'}`}>
+                {(isBalancesError || isBatchesError) ? <AlertCircle className="w-4 h-4" /> : <Factory className="w-4 h-4" />}
+              </div>
             </div>
-            <div className="text-2xl font-black text-slate-900">
-              {plantFilled}
-              <span className="text-xs font-semibold text-slate-400 ml-1">{L('filledJars')}</span>
-            </div>
+            {isBalancesError ? (
+              <div className="my-1">
+                <span className="text-sm font-black text-rose-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4 shrink-0" /> {L('errorLoading')}
+                </span>
+                <span className="text-[10px] text-rose-500 font-medium block">Jar balance error</span>
+              </div>
+            ) : (
+              <div className="text-2xl font-black text-slate-900">
+                {plantFilled}
+                <span className="text-xs font-semibold text-slate-400 ml-1">{L('filledJars')}</span>
+              </div>
+            )}
           </div>
           <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500">{L('activeBatches')}:</span>
-            <span className="font-bold text-cyan-700">{activeBatches.length}</span>
+            {isBatchesError ? (
+              <>
+                <span className="text-rose-500 font-medium">{L('errorLoading')}</span>
+                <button onClick={() => refetchBatches()} className="text-rose-600 font-bold hover:underline cursor-pointer">
+                  {L('retry')}
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-slate-500">{L('activeBatches')}:</span>
+                <span className="font-bold text-cyan-700">{activeBatches.length}</span>
+              </>
+            )}
           </div>
         </div>
 
         {/* Jar Movement */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between hover:border-blue-300 transition-all">
+        <div className={`bg-white border rounded-2xl p-4 shadow-sm flex flex-col justify-between transition-all ${
+          isSuppliesError ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200 hover:border-blue-300'
+        }`}>
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">{L('jarMovement')}</span>
-              <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg"><Package className="w-4 h-4" /></div>
+              <div className={`p-1.5 rounded-lg ${isSuppliesError ? 'bg-rose-50 text-rose-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                {isSuppliesError ? <AlertCircle className="w-4 h-4" /> : <Package className="w-4 h-4" />}
+              </div>
             </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-slate-900">{jarsSupplied}</span>
-              <span className="text-xs font-semibold text-slate-400">{L('out')} /</span>
-              <span className="text-lg font-bold text-emerald-600">{emptiesReturned}</span>
-              <span className="text-xs font-semibold text-slate-400">{L('back')}</span>
-            </div>
+            {isSuppliesError ? (
+              <div className="my-1">
+                <span className="text-sm font-black text-rose-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4 shrink-0" /> {L('errorLoading')}
+                </span>
+                <span className="text-[10px] text-rose-500 font-medium block">Failed to load supplies</span>
+              </div>
+            ) : (
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl font-black text-slate-900">{jarsSupplied}</span>
+                <span className="text-xs font-semibold text-slate-400">{L('out')} /</span>
+                <span className="text-lg font-bold text-emerald-600">{emptiesReturned}</span>
+                <span className="text-xs font-semibold text-slate-400">{L('back')}</span>
+              </div>
+            )}
           </div>
           <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500">{L('netMovement')}</span>
-            <span className={`font-bold ${netJarMovement > 0 ? 'text-blue-600' : 'text-emerald-600'}`}>
-              {netJarMovement > 0 ? `+${netJarMovement}` : `${netJarMovement}`}
-            </span>
+            {isSuppliesError ? (
+              <>
+                <span className="text-rose-500 font-medium">{L('unableToCalculate')}</span>
+                <button onClick={() => refetchSupplies()} className="text-rose-600 font-bold hover:underline cursor-pointer">
+                  {L('retry')}
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-slate-500">{L('netMovement')}</span>
+                <span className={`font-bold ${netJarMovement > 0 ? 'text-blue-600' : 'text-emerald-600'}`}>
+                  {netJarMovement > 0 ? `+${netJarMovement}` : `${netJarMovement}`}
+                </span>
+              </>
+            )}
           </div>
         </div>
 
         {/* Stock Health */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between hover:border-blue-300 transition-all">
+        <div className={`bg-white border rounded-2xl p-4 shadow-sm flex flex-col justify-between transition-all ${
+          (isBalancesError || isRawMaterialsError) ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200 hover:border-blue-300'
+        }`}>
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">{L('stockHealth')}</span>
               <div className={`p-1.5 rounded-lg ${
+                (isBalancesError || isRawMaterialsError) ? 'bg-rose-50 text-rose-600' :
                 stockHealthStatus === 'good' ? 'bg-emerald-50 text-emerald-600' :
                 stockHealthStatus === 'low' ? 'bg-amber-50 text-amber-600' :
                 'bg-rose-50 text-rose-600'
               }`}>
-                <Box className="w-4 h-4" />
+                {(isBalancesError || isRawMaterialsError) ? <AlertCircle className="w-4 h-4" /> : <Box className="w-4 h-4" />}
               </div>
             </div>
-            <div className={`text-lg font-black ${
-              stockHealthStatus === 'good' ? 'text-emerald-700' :
-              stockHealthStatus === 'low' ? 'text-amber-700' :
-              'text-rose-700'
-            }`}>
-              {stockHealthStatus === 'good' ? L('allGood') : stockHealthStatus === 'low' ? L('lowStock') : L('auditNeeded')}
-            </div>
+            {(isBalancesError || isRawMaterialsError) ? (
+              <div className="my-1">
+                <span className="text-sm font-black text-rose-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4 shrink-0" /> {L('errorLoading')}
+                </span>
+                <span className="text-[10px] text-rose-500 font-medium block">Failed to load stock</span>
+              </div>
+            ) : (
+              <div className={`text-lg font-black ${
+                stockHealthStatus === 'good' ? 'text-emerald-700' :
+                stockHealthStatus === 'low' ? 'text-amber-700' :
+                'text-rose-700'
+              }`}>
+                {stockHealthStatus === 'good' ? L('allGood') : stockHealthStatus === 'low' ? L('lowStock') : L('auditNeeded')}
+              </div>
+            )}
           </div>
           <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500">{totalSystemJars} {L('totalJars').toLowerCase()}</span>
-            {lowStockRawMaterials.length > 0 && (
-              <span className="font-bold text-amber-600">{lowStockRawMaterials.length} {L('lowStock').toLowerCase()}</span>
+            {(isBalancesError || isRawMaterialsError) ? (
+              <>
+                <span className="text-rose-500 font-medium">{L('unableToCalculate')}</span>
+                <button onClick={() => { refetchBalances(); refetchRawMaterials() }} className="text-rose-600 font-bold hover:underline cursor-pointer">
+                  {L('retry')}
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-slate-500">{totalSystemJars} {L('totalJars').toLowerCase()}</span>
+                {lowStockRawMaterials.length > 0 && (
+                  <span className="font-bold text-amber-600">{lowStockRawMaterials.length} {L('lowStock').toLowerCase()}</span>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -606,28 +863,42 @@ export const OwnerDashboardPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Sales summary grid */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="p-3 bg-blue-50/60 border border-blue-200 rounded-xl">
-              <span className="text-[11px] font-bold text-blue-800 block">{L('totalRevenue')}</span>
-              <div className="text-lg font-black text-blue-950 mt-0.5">{curr(salesKpi.totalRevenue)}</div>
+          {/* Sales summary grid or error state */}
+          {isSalesError ? (
+            <div className="p-6 bg-rose-50/70 border border-rose-200 rounded-xl text-center space-y-2">
+              <AlertCircle className="w-7 h-7 text-rose-500 mx-auto" />
+              <div className="text-xs font-bold text-rose-900">{L('errorLoading')} — {L('salesTitle')}</div>
+              <p className="text-[11px] text-rose-700">{getErrorDetail(salesError) || L('serverError')}</p>
+              <button
+                onClick={() => refetchSales()}
+                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <RefreshCw className="w-3 h-3" /> {L('retry')}
+              </button>
             </div>
-            <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl">
-              <span className="text-[11px] font-bold text-emerald-800 block">{L('collected')}</span>
-              <div className="text-lg font-black text-emerald-950 mt-0.5">{curr(salesKpi.totalCollected)}</div>
-            </div>
-            <div className="p-3 bg-rose-50/60 border border-rose-200 rounded-xl">
-              <span className="text-[11px] font-bold text-rose-800 block">{L('stillOwed')}</span>
-              <div className="text-lg font-black text-rose-950 mt-0.5">{curr(salesKpi.outstanding)}</div>
-            </div>
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-              <span className="text-[11px] font-bold text-slate-700 block">{L('totalOrders')}</span>
-              <div className="text-lg font-black text-slate-900 mt-0.5">{salesKpi.orderCount}</div>
-              <div className="text-[10px] text-slate-400 mt-0.5">
-                {salesKpi.dispatchCount} {L('dispatches')} • {salesKpi.returnCount} {L('returns')} • {salesKpi.damageCount} {L('damages')}
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-blue-50/60 border border-blue-200 rounded-xl">
+                <span className="text-[11px] font-bold text-blue-800 block">{L('totalRevenue')}</span>
+                <div className="text-lg font-black text-blue-950 mt-0.5">{curr(salesKpi.totalRevenue)}</div>
+              </div>
+              <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl">
+                <span className="text-[11px] font-bold text-emerald-800 block">{L('collected')}</span>
+                <div className="text-lg font-black text-emerald-950 mt-0.5">{curr(salesKpi.totalCollected)}</div>
+              </div>
+              <div className="p-3 bg-rose-50/60 border border-rose-200 rounded-xl">
+                <span className="text-[11px] font-bold text-rose-800 block">{L('stillOwed')}</span>
+                <div className="text-lg font-black text-rose-950 mt-0.5">{curr(salesKpi.outstanding)}</div>
+              </div>
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                <span className="text-[11px] font-bold text-slate-700 block">{L('totalOrders')}</span>
+                <div className="text-lg font-black text-slate-900 mt-0.5">{salesKpi.orderCount}</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">
+                  {salesKpi.dispatchCount} {L('dispatches')} • {salesKpi.returnCount} {L('returns')} • {salesKpi.damageCount} {L('damages')}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* PRODUCTION */}
@@ -648,7 +919,19 @@ export const OwnerDashboardPage: React.FC = () => {
             </button>
           </div>
 
-          {activeBatches.length > 0 ? (
+          {isBatchesError ? (
+            <div className="p-6 bg-rose-50/70 border border-rose-200 rounded-xl text-center space-y-2">
+              <AlertCircle className="w-7 h-7 text-rose-500 mx-auto" />
+              <div className="text-xs font-bold text-rose-900">{L('errorLoading')} — {L('productionTitle')}</div>
+              <p className="text-[11px] text-rose-700">{getErrorDetail(batchesError) || L('serverError')}</p>
+              <button
+                onClick={() => refetchBatches()}
+                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <RefreshCw className="w-3 h-3" /> {L('retry')}
+              </button>
+            </div>
+          ) : activeBatches.length > 0 ? (
             <div className="space-y-2.5">
               {activeBatches.slice(0, 3).map((b: any) => (
                 <div key={b.id || b.batchId} className="p-3 bg-cyan-50/40 border border-cyan-200 rounded-xl flex items-center justify-between text-xs">
@@ -703,26 +986,52 @@ export const OwnerDashboardPage: React.FC = () => {
         </div>
 
         {/* Summary cards row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl">
-            <span className="text-[11px] font-bold text-emerald-800 block">{L('cashInHand')}</span>
-            <div className="text-lg font-black text-emerald-950 mt-0.5">{curr(accountsSummary?.cashBalance ?? 0)}</div>
+        {isAccountsError ? (
+          <div className="p-4 bg-rose-50/70 border border-rose-200 rounded-xl text-center space-y-1.5">
+            <AlertCircle className="w-6 h-6 text-rose-500 mx-auto" />
+            <div className="text-xs font-bold text-rose-900">{L('errorLoading')} — {L('accountsTitle')}</div>
+            <p className="text-[11px] text-rose-700">{getErrorDetail(accountsError) || L('serverError')}</p>
+            <button
+              onClick={() => refetchAccounts()}
+              className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5"
+            >
+              <RefreshCw className="w-3 h-3" /> {L('retry')}
+            </button>
           </div>
-          <div className="p-3 bg-blue-50/60 border border-blue-200 rounded-xl">
-            <span className="text-[11px] font-bold text-blue-800 block">{L('bankBalance')}</span>
-            <div className="text-lg font-black text-blue-950 mt-0.5">{curr(accountsSummary?.totalBankBalance ?? 0)}</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl">
+              <span className="text-[11px] font-bold text-emerald-800 block">{L('cashInHand')}</span>
+              <div className="text-lg font-black text-emerald-950 mt-0.5">{curr(accountsSummary?.cashBalance ?? 0)}</div>
+            </div>
+            <div className="p-3 bg-blue-50/60 border border-blue-200 rounded-xl">
+              <span className="text-[11px] font-bold text-blue-800 block">{L('bankBalance')}</span>
+              <div className="text-lg font-black text-blue-950 mt-0.5">{curr(accountsSummary?.totalBankBalance ?? 0)}</div>
+            </div>
+            <div className="p-3 bg-amber-50/60 border border-amber-200 rounded-xl">
+              <span className="text-[11px] font-bold text-amber-800 block">{L('expenses')}</span>
+              <div className="text-lg font-black text-amber-950 mt-0.5">{curr(accountsSummary?.thisMonthExpense ?? 0)}</div>
+              <span className="text-[10px] text-amber-700">{L('thisMonth')}</span>
+            </div>
           </div>
-          <div className="p-3 bg-amber-50/60 border border-amber-200 rounded-xl">
-            <span className="text-[11px] font-bold text-amber-800 block">{L('expenses')}</span>
-            <div className="text-lg font-black text-amber-950 mt-0.5">{curr(accountsSummary?.thisMonthExpense ?? 0)}</div>
-            <span className="text-[10px] text-amber-700">{L('thisMonth')}</span>
-          </div>
-        </div>
+        )}
 
         {/* Top debtors */}
         <div className="space-y-2">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{L('topOwed')}</span>
-          {topDebtors.length > 0 ? (
+          {isDistributorsError ? (
+            <div className="p-4 bg-rose-50/70 border border-rose-200 rounded-xl text-center space-y-1.5">
+              <AlertCircle className="w-6 h-6 text-rose-500 mx-auto" />
+              <div className="text-xs font-bold text-rose-900">{L('errorLoading')} — {L('topOwed')}</div>
+              <p className="text-[11px] text-rose-700">{getErrorDetail(distributorsError) || L('serverError')}</p>
+              <button
+                onClick={() => refetchDistributors()}
+                className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <RefreshCw className="w-3 h-3" /> {L('retry')}
+              </button>
+            </div>
+          ) : topDebtors.length > 0 ? (
             <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden text-xs">
               {topDebtors.map((d: any) => (
                 <div key={d.customerId} className="p-2.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
@@ -746,7 +1055,11 @@ export const OwnerDashboardPage: React.FC = () => {
         </div>
 
         <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-600 flex items-center justify-between">
-          <span>{L('totalOwed')} <strong>{curr(totalReceivable)}</strong></span>
+          {isDistributorsError ? (
+            <span className="text-rose-600 font-semibold">{L('unableToCalculate')}</span>
+          ) : (
+            <span>{L('totalOwed')} <strong>{curr(totalReceivable)}</strong></span>
+          )}
         </div>
       </div>
 
@@ -774,7 +1087,19 @@ export const OwnerDashboardPage: React.FC = () => {
               </button>
             </div>
 
-            {totalSystemJars > 0 ? (
+            {isBalancesError ? (
+              <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-lg text-center space-y-1.5">
+                <AlertCircle className="w-5 h-5 text-rose-500 mx-auto" />
+                <p className="text-xs font-bold text-rose-800">{L('errorLoading')}</p>
+                <p className="text-[10px] text-rose-700">{getErrorDetail(balancesError) || L('serverError')}</p>
+                <button
+                  onClick={() => refetchBalances()}
+                  className="px-2.5 py-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-[11px] font-bold transition-colors cursor-pointer inline-flex items-center gap-1"
+                >
+                  <RefreshCw className="w-3 h-3" /> {L('retry')}
+                </button>
+              </div>
+            ) : totalSystemJars > 0 ? (
               <>
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] text-slate-500">{L('totalJars')}</span>
@@ -821,7 +1146,18 @@ export const OwnerDashboardPage: React.FC = () => {
               </button>
             </div>
 
-            {rawMaterials.length > 0 ? (
+            {isRawMaterialsError ? (
+              <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-lg text-center space-y-1.5">
+                <AlertCircle className="w-5 h-5 text-rose-500 mx-auto" />
+                <p className="text-xs font-bold text-rose-800">{L('errorLoading')}</p>
+                <button
+                  onClick={() => refetchRawMaterials()}
+                  className="px-2.5 py-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-[11px] font-bold transition-colors cursor-pointer inline-flex items-center gap-1"
+                >
+                  <RefreshCw className="w-3 h-3" /> {L('retry')}
+                </button>
+              </div>
+            ) : rawMaterials.length > 0 ? (
               <div className="space-y-1.5">
                 {rawMaterials.slice(0, 5).map((rm: any) => {
                   const stock = Number(rm.currentStock) || 0
@@ -862,7 +1198,18 @@ export const OwnerDashboardPage: React.FC = () => {
               </button>
             </div>
 
-            {products.length > 0 ? (
+            {isProductsError ? (
+              <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-lg text-center space-y-1.5">
+                <AlertCircle className="w-5 h-5 text-rose-500 mx-auto" />
+                <p className="text-xs font-bold text-rose-800">{L('errorLoading')}</p>
+                <button
+                  onClick={() => refetchProducts()}
+                  className="px-2.5 py-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-[11px] font-bold transition-colors cursor-pointer inline-flex items-center gap-1"
+                >
+                  <RefreshCw className="w-3 h-3" /> {L('retry')}
+                </button>
+              </div>
+            ) : products.length > 0 ? (
               <div className="space-y-1.5">
                 {products.slice(0, 5).map((p: any) => {
                   const stock = Number(p.currentStock) || 0

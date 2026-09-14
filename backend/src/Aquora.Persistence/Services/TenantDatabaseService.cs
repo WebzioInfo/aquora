@@ -99,6 +99,19 @@ namespace Aquora.Persistence.Services
                         checkTenantProvider.SetTenantId(tenantId);
                         checkTenantProvider.SetTenantSchemaName(schemaName);
                         var checkContext = checkScope.ServiceProvider.GetRequiredService<TenantDbContext>();
+
+                        if (checkContext.Database.IsRelational())
+                        {
+                            try
+                            {
+                                await checkContext.Database.MigrateAsync();
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"[TENANT MIGRATION WARN]: Failed to apply pending migrations for {schemaName}: {ex.Message}");
+                            }
+                        }
+
                         var company = await checkContext.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
                         if (company != null)
                         {

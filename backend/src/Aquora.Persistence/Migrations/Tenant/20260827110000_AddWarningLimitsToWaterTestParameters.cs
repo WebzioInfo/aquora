@@ -13,33 +13,19 @@ namespace Aquora.Persistence.Migrations.Tenant
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<double>(
-                name: "MinWarning",
-                schema: _schema,
-                table: "WaterTestParameters",
-                type: "double precision",
-                nullable: true);
-
-            migrationBuilder.AddColumn<double>(
-                name: "MaxWarning",
-                schema: _schema,
-                table: "WaterTestParameters",
-                type: "double precision",
-                nullable: true);
+            migrationBuilder.Sql($@"
+                ALTER TABLE ""{_schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MinWarning"" double precision NULL;
+                ALTER TABLE ""{_schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MaxWarning"" double precision NULL;
+            ");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "MinWarning",
-                schema: _schema,
-                table: "WaterTestParameters");
-
-            migrationBuilder.DropColumn(
-                name: "MaxWarning",
-                schema: _schema,
-                table: "WaterTestParameters");
+            migrationBuilder.Sql($@"
+                ALTER TABLE ""{_schema}"".""WaterTestParameters"" DROP COLUMN IF EXISTS ""MinWarning"";
+                ALTER TABLE ""{_schema}"".""WaterTestParameters"" DROP COLUMN IF EXISTS ""MaxWarning"";
+            ");
         }
     }
 }

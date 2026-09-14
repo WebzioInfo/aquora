@@ -674,6 +674,584 @@ namespace Aquora.Persistence.Services
                         );";
                     await cmd.ExecuteNonQueryAsync();
                 }
+                else if (table.Equals("TwentyLDistributorSupplies", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""TwentyLDistributorSupplies"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""SupplyNumber"" text NOT NULL,
+                            ""DistributorId"" uuid NOT NULL,
+                            ""DistributorName"" text NOT NULL DEFAULT '',
+                            ""ProductId"" uuid NOT NULL,
+                            ""ProductName"" text NOT NULL DEFAULT '20L Water Jar',
+                            ""Stage"" text NOT NULL DEFAULT 'COMPLETED',
+                            ""QuantityRequested"" integer NOT NULL DEFAULT 0,
+                            ""QuantitySupplied"" integer NOT NULL DEFAULT 0,
+                            ""QuantityEmptyReturned"" integer NOT NULL DEFAULT 0,
+                            ""QuantityDamaged"" integer NOT NULL DEFAULT 0,
+                            ""AppliedRate"" numeric NOT NULL DEFAULT 0.0,
+                            ""TotalAmount"" numeric NOT NULL DEFAULT 0.0,
+                            ""AmountPaid"" numeric NOT NULL DEFAULT 0.0,
+                            ""PaymentStatus"" text NOT NULL DEFAULT 'PENDING',
+                            ""PaymentMode"" text NULL,
+                            ""VehicleNumber"" text NULL,
+                            ""DriverName"" text NULL,
+                            ""DispatcherNotes"" text NULL,
+                            ""ReceiverNotes"" text NULL,
+                            ""DispatchedAt"" timestamp with time zone NULL,
+                            ""ReceivedAt"" timestamp with time zone NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL
+                        );
+                        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLDistributorSupplies_TenantId_Number"" ON ""{schema}"".""TwentyLDistributorSupplies"" (""TenantId"", ""SupplyNumber"");
+                        CREATE INDEX IF NOT EXISTS ""IX_TwentyLDistributorSupplies_TenantId_DistributorId"" ON ""{schema}"".""TwentyLDistributorSupplies"" (""TenantId"", ""DistributorId"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("TwentyLDistributorProfiles", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""TwentyLDistributorProfiles"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""CustomerId"" uuid NOT NULL,
+                            ""DistributorType"" text NOT NULL DEFAULT 'EXTERNAL',
+                            ""JarOwnershipModel"" text NOT NULL DEFAULT 'MIXED',
+                            ""VehicleOwnership"" text NOT NULL DEFAULT 'DISTRIBUTOR',
+                            ""RouteOwnership"" text NOT NULL DEFAULT 'DISTRIBUTOR',
+                            ""PricingModel"" text NOT NULL DEFAULT 'RATE_CARD',
+                            ""CommissionModel"" text NOT NULL DEFAULT 'NONE',
+                            ""CreditLimit"" numeric NOT NULL DEFAULT 0.0,
+                            ""SecurityDeposit"" numeric NOT NULL DEFAULT 0.0,
+                            ""PaymentTerms"" text NULL,
+                            ""EffectiveFrom"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""EffectiveTo"" timestamp with time zone NULL,
+                            ""IsActive"" boolean NOT NULL DEFAULT true,
+                            ""AgreementReference"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_TwentyLDistributorProfiles_CustomerId"" ON ""{schema}"".""TwentyLDistributorProfiles"" (""CustomerId"");
+                        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLDistributorProfiles_TenantId_CustomerId"" ON ""{schema}"".""TwentyLDistributorProfiles"" (""TenantId"", ""CustomerId"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("TwentyLDeliveries", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""TwentyLDeliveries"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""CustomerId"" uuid NOT NULL,
+                            ""DistributorId"" uuid NULL,
+                            ""ProductId"" uuid NOT NULL,
+                            ""RateRuleId"" uuid NULL,
+                            ""SalesTransactionId"" uuid NULL,
+                            ""RefillType"" text NOT NULL DEFAULT 'DIRECT_CUSTOMER_REFILL',
+                            ""JarOwnerType"" text NOT NULL DEFAULT 'COMPANY',
+                            ""OrderedQuantity"" integer NOT NULL DEFAULT 0,
+                            ""FilledDeliveredQuantity"" integer NOT NULL DEFAULT 0,
+                            ""EmptyCollectedQuantity"" integer NOT NULL DEFAULT 0,
+                            ""FailedQuantity"" integer NOT NULL DEFAULT 0,
+                            ""AppliedUnitRate"" numeric NOT NULL DEFAULT 0.0,
+                            ""DiscountAmount"" numeric NOT NULL DEFAULT 0.0,
+                            ""TaxAmount"" numeric NOT NULL DEFAULT 0.0,
+                            ""TotalAmount"" numeric NOT NULL DEFAULT 0.0,
+                            ""AmountCollected"" numeric NOT NULL DEFAULT 0.0,
+                            ""PaymentMode"" text NOT NULL DEFAULT 'CREDIT',
+                            ""Status"" text NOT NULL DEFAULT 'COMPLETED',
+                            ""RouteReference"" text NULL,
+                            ""VehicleReference"" text NULL,
+                            ""DriverReference"" text NULL,
+                            ""DeliveredAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""FailureReason"" text NULL,
+                            ""Notes"" text NULL,
+                            ""IdempotencyKey"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_TwentyLDeliveries_TenantId_CustomerId_DeliveredAt"" ON ""{schema}"".""TwentyLDeliveries"" (""TenantId"", ""CustomerId"", ""DeliveredAt"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("TwentyLJarMovements", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""TwentyLJarMovements"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""ProductId"" uuid NULL,
+                            ""OwnerCustomerId"" uuid NULL,
+                            ""FromCustomerId"" uuid NULL,
+                            ""ToCustomerId"" uuid NULL,
+                            ""OwnerType"" text NOT NULL DEFAULT 'COMPANY',
+                            ""HolderType"" text NOT NULL DEFAULT 'COMPANY',
+                            ""HolderCustomerId"" uuid NULL,
+                            ""FromLocationType"" text NOT NULL DEFAULT 'PLANT',
+                            ""ToLocationType"" text NOT NULL DEFAULT 'PLANT',
+                            ""FromLocationReference"" text NULL,
+                            ""ToLocationReference"" text NULL,
+                            ""MovementType"" text NOT NULL DEFAULT '',
+                            ""ContainerStatus"" text NOT NULL DEFAULT 'EMPTY',
+                            ""Quantity"" integer NOT NULL DEFAULT 0,
+                            ""ReferenceId"" uuid NULL,
+                            ""ReferenceType"" text NULL,
+                            ""OccurredAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""Reason"" text NULL,
+                            ""Notes"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_TwentyLJarMovements_Ledger"" ON ""{schema}"".""TwentyLJarMovements"" (""TenantId"", ""OwnerType"", ""OwnerCustomerId"", ""ToLocationType"", ""ToCustomerId"", ""OccurredAt"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("TwentyLJarPositions", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""TwentyLJarPositions"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""PositionKey"" text NOT NULL,
+                            ""ProductId"" uuid NULL,
+                            ""OwnerType"" text NOT NULL DEFAULT 'COMPANY',
+                            ""OwnerCustomerId"" uuid NULL,
+                            ""HolderType"" text NOT NULL DEFAULT 'COMPANY',
+                            ""HolderCustomerId"" uuid NULL,
+                            ""LocationType"" text NOT NULL DEFAULT 'PLANT',
+                            ""LocationReference"" text NULL,
+                            ""ContainerStatus"" text NOT NULL DEFAULT 'EMPTY',
+                            ""Quantity"" integer NOT NULL DEFAULT 0,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL
+                        );
+                        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLJarPositions_Position"" ON ""{schema}"".""TwentyLJarPositions"" (""TenantId"", ""CompanyId"", ""PositionKey"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("TwentyLRateRules", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""TwentyLRateRules"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""ProductId"" uuid NOT NULL,
+                            ""CustomerId"" uuid NULL,
+                            ""PartyType"" text NOT NULL DEFAULT 'ANY',
+                            ""RefillType"" text NOT NULL DEFAULT 'COMPANY_TO_DISTRIBUTOR',
+                            ""JarOwnerType"" text NOT NULL DEFAULT 'ANY',
+                            ""MinimumQuantity"" numeric NOT NULL DEFAULT 1,
+                            ""Priority"" integer NOT NULL DEFAULT 0,
+                            ""UnitRate"" numeric NOT NULL DEFAULT 0.0,
+                            ""DiscountRate"" numeric NULL,
+                            ""TaxRate"" numeric NULL,
+                            ""EffectiveFrom"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""EffectiveTo"" timestamp with time zone NULL,
+                            ""RequiresAuthorization"" boolean NOT NULL DEFAULT false,
+                            ""IsActive"" boolean NOT NULL DEFAULT true,
+                            ""Notes"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_TwentyLRateRules_Effective"" ON ""{schema}"".""TwentyLRateRules"" (""TenantId"", ""ProductId"", ""CustomerId"", ""EffectiveFrom"", ""EffectiveTo"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("TwentyLCommissionRules", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""TwentyLCommissionRules"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""BeneficiaryCustomerId"" uuid NULL,
+                            ""ProductId"" uuid NULL,
+                            ""BeneficiaryType"" text NOT NULL DEFAULT 'EMPLOYEE',
+                            ""CalculationType"" text NOT NULL DEFAULT 'PERCENTAGE',
+                            ""Value"" numeric NOT NULL DEFAULT 0.0,
+                            ""MinimumQuantity"" numeric NOT NULL DEFAULT 0.0,
+                            ""EffectiveFrom"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""EffectiveTo"" timestamp with time zone NULL,
+                            ""Priority"" integer NOT NULL DEFAULT 0,
+                            ""IsActive"" boolean NOT NULL DEFAULT true,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_TwentyLCommissionRules_Effective"" ON ""{schema}"".""TwentyLCommissionRules"" (""TenantId"", ""BeneficiaryCustomerId"", ""ProductId"", ""EffectiveFrom"", ""EffectiveTo"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("TwentyLCommissionTransactions", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""TwentyLCommissionTransactions"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""DeliveryId"" uuid NOT NULL,
+                            ""RuleId"" uuid NULL,
+                            ""BeneficiaryCustomerId"" uuid NULL,
+                            ""BeneficiaryType"" text NOT NULL DEFAULT 'EMPLOYEE',
+                            ""TransactionType"" text NOT NULL DEFAULT 'EARNED',
+                            ""Amount"" numeric NOT NULL DEFAULT 0.0,
+                            ""OccurredAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""ReversalOfId"" uuid NULL,
+                            ""Reason"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_TwentyLCommissionTransactions_Delivery"" ON ""{schema}"".""TwentyLCommissionTransactions"" (""TenantId"", ""DeliveryId"", ""BeneficiaryCustomerId"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("TwentyLTrips", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""TwentyLTrips"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""TripNumber"" text NOT NULL,
+                            ""DriverName"" text NOT NULL DEFAULT '',
+                            ""DriverCustomerId"" uuid NULL,
+                            ""VehicleNumber"" text NOT NULL DEFAULT '',
+                            ""RouteCode"" text NULL,
+                            ""PlannedDate"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""Status"" text NOT NULL DEFAULT 'PLANNED',
+                            ""LoadedFilledJars"" integer NOT NULL DEFAULT 0,
+                            ""LoadedEmptyJars"" integer NOT NULL DEFAULT 0,
+                            ""DeliveredFilledJars"" integer NOT NULL DEFAULT 0,
+                            ""CollectedEmptyJars"" integer NOT NULL DEFAULT 0,
+                            ""ReturnedFilledJars"" integer NOT NULL DEFAULT 0,
+                            ""ReturnedEmptyJars"" integer NOT NULL DEFAULT 0,
+                            ""DamagedJarsCount"" integer NOT NULL DEFAULT 0,
+                            ""LostJarsCount"" integer NOT NULL DEFAULT 0,
+                            ""CondemnedJarsCount"" integer NOT NULL DEFAULT 0,
+                            ""TotalTripRevenue"" numeric NOT NULL DEFAULT 0.0,
+                            ""TotalCashCollected"" numeric NOT NULL DEFAULT 0.0,
+                            ""ReconciliationStatus"" text NOT NULL DEFAULT 'PENDING',
+                            ""DiscrepancyNotes"" text NULL,
+                            ""DispatchedAt"" timestamp with time zone NULL,
+                            ""ReturnedAt"" timestamp with time zone NULL,
+                            ""ReconciledAt"" timestamp with time zone NULL,
+                            ""ReconciledBy"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );
+                        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLTrips_TenantId_TripNumber"" ON ""{schema}"".""TwentyLTrips"" (""TenantId"", ""TripNumber"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("TwentyLTripStops", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""TwentyLTripStops"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""TripId"" uuid NOT NULL,
+                            ""StopSequence"" integer NOT NULL DEFAULT 1,
+                            ""CustomerId"" uuid NOT NULL,
+                            ""ProductId"" uuid NULL,
+                            ""PlannedFilledJars"" integer NOT NULL DEFAULT 0,
+                            ""DeliveredFilledJars"" integer NOT NULL DEFAULT 0,
+                            ""CollectedEmptyJars"" integer NOT NULL DEFAULT 0,
+                            ""DamagedEmptyJars"" integer NOT NULL DEFAULT 0,
+                            ""LostJars"" integer NOT NULL DEFAULT 0,
+                            ""UnitRate"" numeric NOT NULL DEFAULT 0.0,
+                            ""TotalAmount"" numeric NOT NULL DEFAULT 0.0,
+                            ""AmountCollected"" numeric NOT NULL DEFAULT 0.0,
+                            ""PaymentMode"" text NOT NULL DEFAULT 'CREDIT',
+                            ""PaymentStatus"" text NOT NULL DEFAULT 'PENDING',
+                            ""Status"" text NOT NULL DEFAULT 'PENDING',
+                            ""FailureReason"" text NULL,
+                            ""Notes"" text NULL,
+                            ""DeliveredAt"" timestamp with time zone NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_TwentyLTripStops_TenantId_TripId_Sequence"" ON ""{schema}"".""TwentyLTripStops"" (""TenantId"", ""TripId"", ""StopSequence"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("TwentyLOperations", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""TwentyLOperations"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""OperationNumber"" text NOT NULL,
+                            ""OperationType"" text NOT NULL,
+                            ""Stage"" text NOT NULL DEFAULT 'COMPLETED',
+                            ""TripId"" uuid NULL,
+                            ""CustomerId"" uuid NULL,
+                            ""DistributorId"" uuid NULL,
+                            ""DriverName"" text NULL,
+                            ""VehicleNumber"" text NULL,
+                            ""ProductId"" uuid NULL,
+                            ""QuantityFilled"" integer NOT NULL DEFAULT 0,
+                            ""QuantityEmpty"" integer NOT NULL DEFAULT 0,
+                            ""QuantityDamaged"" integer NOT NULL DEFAULT 0,
+                            ""QuantityLost"" integer NOT NULL DEFAULT 0,
+                            ""QuantityCondemned"" integer NOT NULL DEFAULT 0,
+                            ""AppliedRate"" numeric NOT NULL DEFAULT 0.0,
+                            ""TotalAmount"" numeric NOT NULL DEFAULT 0.0,
+                            ""AmountCollected"" numeric NOT NULL DEFAULT 0.0,
+                            ""PaymentStatus"" text NOT NULL DEFAULT 'PENDING',
+                            ""Status"" text NOT NULL DEFAULT 'COMPLETED',
+                            ""ReferenceNumber"" text NULL,
+                            ""Reason"" text NULL,
+                            ""Notes"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL
+                        );
+                        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLOperations_TenantId_Number"" ON ""{schema}"".""TwentyLOperations"" (""TenantId"", ""OperationNumber"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("TwentyLJarInspections", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""TwentyLJarInspections"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""InspectionNumber"" text NOT NULL,
+                            ""ReferenceType"" text NOT NULL DEFAULT '',
+                            ""ReferenceId"" uuid NULL,
+                            ""SourceHolderType"" text NOT NULL DEFAULT 'DRIVER',
+                            ""SourceHolderId"" uuid NULL,
+                            ""SourceHolderName"" text NULL,
+                            ""InspectedCount"" integer NOT NULL DEFAULT 0,
+                            ""ReusableCount"" integer NOT NULL DEFAULT 0,
+                            ""DamagedCount"" integer NOT NULL DEFAULT 0,
+                            ""CondemnedCount"" integer NOT NULL DEFAULT 0,
+                            ""InspectionOutcome"" text NOT NULL DEFAULT 'PASSED',
+                            ""ResponsibleParty"" text NULL,
+                            ""DamageReason"" text NULL,
+                            ""CondemnationReason"" text NULL,
+                            ""AuthorizedBy"" text NULL,
+                            ""DisposalReference"" text NULL,
+                            ""Notes"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL
+                        );
+                        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLJarInspections_TenantId_Number"" ON ""{schema}"".""TwentyLJarInspections"" (""TenantId"", ""InspectionNumber"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("TwentyLDistributorRoutes", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""TwentyLDistributorRoutes"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""DistributorId"" uuid NOT NULL,
+                            ""RouteCode"" text NOT NULL DEFAULT '',
+                            ""RouteName"" text NOT NULL DEFAULT '',
+                            ""AreaDescription"" text NULL,
+                            ""DefaultDriverName"" text NULL,
+                            ""DefaultVehicleNumber"" text NULL,
+                            ""ScheduleDays"" text NOT NULL DEFAULT 'DAILY',
+                            ""IsActive"" boolean NOT NULL DEFAULT true,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_TwentyLDistributorRoutes_TenantId_DistributorId"" ON ""{schema}"".""TwentyLDistributorRoutes"" (""TenantId"", ""DistributorId"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("TwentyLDistributorVehicles", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""TwentyLDistributorVehicles"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""DistributorId"" uuid NOT NULL,
+                            ""RegistrationNumber"" text NOT NULL,
+                            ""VehicleType"" text NOT NULL DEFAULT 'MINI_TRUCK',
+                            ""CapacityJars"" integer NOT NULL DEFAULT 50,
+                            ""AssignedDriverName"" text NULL,
+                            ""IsActive"" boolean NOT NULL DEFAULT true,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_TwentyLDistributorVehicles_TenantId_DistributorId"" ON ""{schema}"".""TwentyLDistributorVehicles"" (""TenantId"", ""DistributorId"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("TwentyLDistributorDrivers", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""TwentyLDistributorDrivers"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""DistributorId"" uuid NOT NULL,
+                            ""DriverName"" text NOT NULL DEFAULT '',
+                            ""Phone"" text NOT NULL DEFAULT '',
+                            ""LicenseNumber"" text NULL,
+                            ""AssignedVehicleNumber"" text NULL,
+                            ""CurrentRouteId"" uuid NULL,
+                            ""IsActive"" boolean NOT NULL DEFAULT true,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_TwentyLDistributorDrivers_TenantId_DistributorId"" ON ""{schema}"".""TwentyLDistributorDrivers"" (""TenantId"", ""DistributorId"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("TwentyLDistributorCustomers", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""TwentyLDistributorCustomers"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""DistributorId"" uuid NOT NULL,
+                            ""CustomerName"" text NOT NULL DEFAULT '',
+                            ""Phone"" text NOT NULL DEFAULT '',
+                            ""Address"" text NULL,
+                            ""Area"" text NULL,
+                            ""RouteId"" uuid NULL,
+                            ""RouteName"" text NULL,
+                            ""DeliveryFrequency"" text NOT NULL DEFAULT 'DAILY',
+                            ""DefaultRate"" numeric NOT NULL DEFAULT 40.0,
+                            ""AssignedDriverName"" text NULL,
+                            ""AssignedVehicleNumber"" text NULL,
+                            ""FilledJarsHeld"" integer NOT NULL DEFAULT 0,
+                            ""EmptyJarsHeld"" integer NOT NULL DEFAULT 0,
+                            ""SecurityDeposit"" numeric NOT NULL DEFAULT 0.0,
+                            ""OutstandingBalance"" numeric NOT NULL DEFAULT 0.0,
+                            ""IsActive"" boolean NOT NULL DEFAULT true,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_TwentyLDistributorCustomers_TenantId_DistributorId"" ON ""{schema}"".""TwentyLDistributorCustomers"" (""TenantId"", ""DistributorId"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("TwentyLDistributorDeliveries", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""TwentyLDistributorDeliveries"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""DeliveryNumber"" text NOT NULL,
+                            ""DistributorId"" uuid NOT NULL,
+                            ""DistributorCustomerId"" uuid NOT NULL,
+                            ""CustomerName"" text NOT NULL DEFAULT '',
+                            ""RouteId"" uuid NULL,
+                            ""RouteName"" text NULL,
+                            ""DriverName"" text NULL,
+                            ""VehicleNumber"" text NULL,
+                            ""ProductId"" uuid NULL,
+                            ""QuantityFilledDelivered"" integer NOT NULL DEFAULT 0,
+                            ""QuantityEmptyCollected"" integer NOT NULL DEFAULT 0,
+                            ""QuantityDamaged"" integer NOT NULL DEFAULT 0,
+                            ""SellingRate"" numeric NOT NULL DEFAULT 0.0,
+                            ""CompanyRefillRate"" numeric NOT NULL DEFAULT 0.0,
+                            ""TotalAmount"" numeric NOT NULL DEFAULT 0.0,
+                            ""AmountCollected"" numeric NOT NULL DEFAULT 0.0,
+                            ""PaymentMode"" text NOT NULL DEFAULT 'CASH',
+                            ""PaymentStatus"" text NOT NULL DEFAULT 'PAID',
+                            ""GrossMargin"" numeric NOT NULL DEFAULT 0.0,
+                            ""DeliveryDate"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""Notes"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL
+                        );
+                        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLDistributorDeliveries_TenantId_Number"" ON ""{schema}"".""TwentyLDistributorDeliveries"" (""TenantId"", ""DeliveryNumber"");
+                        CREATE INDEX IF NOT EXISTS ""IX_TwentyLDistributorDeliveries_DistributorId"" ON ""{schema}"".""TwentyLDistributorDeliveries"" (""TenantId"", ""DistributorId"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
             }
             catch (Exception ex)
             {

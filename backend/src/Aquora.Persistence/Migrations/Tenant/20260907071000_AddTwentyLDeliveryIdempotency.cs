@@ -13,12 +13,17 @@ public partial class AddTwentyLDeliveryIdempotency : Migration
 
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.AddColumn<string>(name: "IdempotencyKey", schema: _schema, table: "TwentyLDeliveries", type: "text", nullable: true);
-        migrationBuilder.CreateIndex(name: "IX_TwentyLDeliveries_TenantId_IdempotencyKey", schema: _schema, table: "TwentyLDeliveries", columns: new[] { "TenantId", "IdempotencyKey" }, unique: true);
+        migrationBuilder.Sql($@"
+            ALTER TABLE ""{_schema}"".""TwentyLDeliveries"" ADD COLUMN IF NOT EXISTS ""IdempotencyKey"" text NULL;
+            CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLDeliveries_TenantId_IdempotencyKey"" ON ""{_schema}"".""TwentyLDeliveries"" (""TenantId"", ""IdempotencyKey"");
+        ");
     }
+
     protected override void Down(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.DropIndex(name: "IX_TwentyLDeliveries_TenantId_IdempotencyKey", schema: _schema, table: "TwentyLDeliveries");
-        migrationBuilder.DropColumn(name: "IdempotencyKey", schema: _schema, table: "TwentyLDeliveries");
+        migrationBuilder.Sql($@"
+            DROP INDEX IF EXISTS ""{_schema}"".""IX_TwentyLDeliveries_TenantId_IdempotencyKey"";
+            ALTER TABLE ""{_schema}"".""TwentyLDeliveries"" DROP COLUMN IF EXISTS ""IdempotencyKey"";
+        ");
     }
 }
