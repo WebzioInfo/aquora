@@ -94,6 +94,18 @@ namespace Aquora.API.Controllers
             return GetCurrentUserEmail().Split('@')[0];
         }
 
+        private bool IsOwnerUser()
+        {
+            return User.IsInRole("Owner")
+                || User.IsInRole("CompanyOwner")
+                || User.IsInRole("PlatformOwner")
+                || User.HasClaim(c => c.Type == System.Security.Claims.ClaimTypes.Role && (
+                    c.Value.Equals("Owner", StringComparison.OrdinalIgnoreCase) ||
+                    c.Value.Equals("CompanyOwner", StringComparison.OrdinalIgnoreCase) ||
+                    c.Value.Equals("PlatformOwner", StringComparison.OrdinalIgnoreCase)
+                ));
+        }
+
         // GET api/v1/production-entries/today
         [HttpGet("today")]
         public async Task<ActionResult<ApiResponse<List<object>>>> GetTodayEntries([FromQuery] Guid lineId, [FromQuery] string? shift)
@@ -136,6 +148,11 @@ namespace Aquora.API.Controllers
         [HttpPost]
         public async Task<ActionResult<ApiResponse<object>>> CreateEntry([FromBody] CreateProductionEntryRequest request)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             if (request == null)
             {
                 return Failure<object>("Invalid production entry data.", "Validation failed");
@@ -677,6 +694,11 @@ namespace Aquora.API.Controllers
         [HttpPost("session/start")]
         public async Task<ActionResult<ApiResponse<object>>> StartSession([FromBody] StartProductionSessionRequest request)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             if (request == null)
             {
                 return Failure<object>("Invalid session request.", "Validation failed");
@@ -905,6 +927,11 @@ namespace Aquora.API.Controllers
         [HttpPost("session/end")]
         public async Task<ActionResult<ApiResponse<object>>> EndSession([FromBody] EndProductionSessionRequest request)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             if (request == null || !request.ConfirmClose)
             {
                 return Failure<object>("Session closing confirmation is required.", "Validation failed");

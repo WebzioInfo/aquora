@@ -342,7 +342,7 @@ export const BatchDetailsPage: React.FC = () => {
             </button>
             <div className="flex items-center gap-2.5">
               <StatusBadge status={isCompleted ? 'Completed' : isPaused ? 'Paused' : 'Active'} />
-              {!isCompleted && !isPaused && (
+              {canWrite && !isCompleted && !isPaused && (
                 <button
                   type="button"
                   onClick={() => { setStopError(null); setIsStopModalOpen(true); }}

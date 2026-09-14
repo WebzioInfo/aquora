@@ -2789,25 +2789,29 @@ export const CompanyDashboardPage: React.FC = () => {
           description={pageDesc}
           actions={
             productionTab === 'batches' ? (
-              <button
-                onClick={() => {
-                  if (productionLines.length > 0) setStartBatchLineId(productionLines[0].lineId)
-                  if (allCatalogProducts.length > 0) setStartBatchProduct(allCatalogProducts[0].name)
-                  setIsStartBatchModalOpen(true)
-                }}
-                className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Create Batch</span>
-              </button>
+              !isOwnerRole ? (
+                <button
+                  onClick={() => {
+                    if (productionLines.length > 0) setStartBatchLineId(productionLines[0].lineId)
+                    if (allCatalogProducts.length > 0) setStartBatchProduct(allCatalogProducts[0].name)
+                    setIsStartBatchModalOpen(true)
+                  }}
+                  className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Create Batch</span>
+                </button>
+              ) : null
             ) : productionTab === 'lines' ? (
-              <button
-                onClick={() => setIsAddLineModalOpen(true)}
-                className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Production Line</span>
-              </button>
+              !isOwnerRole ? (
+                <button
+                  onClick={() => setIsAddLineModalOpen(true)}
+                  className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Production Line</span>
+                </button>
+              ) : null
             ) : null
           }
         />
@@ -2995,7 +2999,7 @@ export const CompanyDashboardPage: React.FC = () => {
                 <p className="text-[12px] text-slate-400 mt-1">
                   Create your first batch to begin production tracking.
                 </p>
-                {!batchSearch && !batchLineFilter && batchStatusFilter === 'All' && (
+                {!isOwnerRole && !batchSearch && !batchLineFilter && batchStatusFilter === 'All' && (
                   <button
                     onClick={() => {
                       if (productionLines.length > 0) setStartBatchLineId(productionLines[0].lineId)
@@ -3042,7 +3046,7 @@ export const CompanyDashboardPage: React.FC = () => {
                         <th className="py-2 px-4">Line Code</th>
                         <th className="py-2 px-4">Line Name</th>
                         <th className="py-2 px-4">Status</th>
-                        <th className="py-2 px-4 text-right">Actions</th>
+                        {!isOwnerRole && <th className="py-2 px-4 text-right">Actions</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -3055,24 +3059,26 @@ export const CompanyDashboardPage: React.FC = () => {
                               {row.isActive ? 'Active' : 'Inactive'}
                             </span>
                           </td>
-                          <td className="py-2 px-4 text-right">
-                            <div className="flex gap-1.5 justify-end">
-                              <button
-                                onClick={() => openEditLineModal(row)}
-                                className="p-1 border border-[#E5E7EB] hover:bg-slate-50 text-slate-500 rounded"
-                                title="Edit Line"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => triggerDeleteLine(row.lineId, row.name)}
-                                className="p-1 border border-red-200 hover:bg-red-50 text-red-600 rounded"
-                                title="Delete Line"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </td>
+                          {!isOwnerRole && (
+                            <td className="py-2 px-4 text-right">
+                              <div className="flex gap-1.5 justify-end">
+                                <button
+                                  onClick={() => openEditLineModal(row)}
+                                  className="p-1 border border-[#E5E7EB] hover:bg-slate-50 text-slate-500 rounded"
+                                  title="Edit Line"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => triggerDeleteLine(row.lineId, row.name)}
+                                  className="p-1 border border-red-200 hover:bg-red-50 text-red-600 rounded"
+                                  title="Delete Line"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>

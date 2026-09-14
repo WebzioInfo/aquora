@@ -85,6 +85,18 @@ namespace Aquora.API.Controllers
             return GetCurrentUserEmail().Split('@')[0];
         }
 
+        private bool IsOwnerUser()
+        {
+            return User.IsInRole("Owner")
+                || User.IsInRole("CompanyOwner")
+                || User.IsInRole("PlatformOwner")
+                || User.HasClaim(c => c.Type == System.Security.Claims.ClaimTypes.Role && (
+                    c.Value.Equals("Owner", StringComparison.OrdinalIgnoreCase) ||
+                    c.Value.Equals("CompanyOwner", StringComparison.OrdinalIgnoreCase) ||
+                    c.Value.Equals("PlatformOwner", StringComparison.OrdinalIgnoreCase)
+                ));
+        }
+
         // 1. GET api/v1/production/lines
         [HttpGet("lines")]
         public async Task<ActionResult<ApiResponse<List<ProductionLineDto>>>> GetProductionLines([FromQuery] bool includeInactive = false)
@@ -1245,6 +1257,11 @@ namespace Aquora.API.Controllers
         [HttpPost("batch/start")]
         public async Task<ActionResult<ApiResponse<object>>> StartBatch([FromBody] StartBatchRequest request)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             try
             {
                 var tenantId = GetTenantId();
@@ -1414,6 +1431,11 @@ namespace Aquora.API.Controllers
         [HttpPost("batch/{batchId}/station-data")]
         public async Task<ActionResult<ApiResponse<object>>> SubmitStationData(Guid batchId, [FromBody] SubmitStationDataRequest request)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             try
             {
                 var tenantId = GetTenantId();
@@ -1475,6 +1497,11 @@ namespace Aquora.API.Controllers
         [HttpPost("batch/{batchId}/complete")]
         public async Task<ActionResult<ApiResponse<object>>> CompleteBatch(Guid batchId)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             try
             {
                 var tenantId = GetTenantId();
@@ -1523,6 +1550,11 @@ namespace Aquora.API.Controllers
         [HttpPost("batch/{batchId}/pause")]
         public async Task<ActionResult<ApiResponse<object>>> PauseBatch(Guid batchId)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             try
             {
                 var tenantId = GetTenantId();
@@ -1559,6 +1591,11 @@ namespace Aquora.API.Controllers
         [HttpPost("batch/{batchId}/resume")]
         public async Task<ActionResult<ApiResponse<object>>> ResumeBatch(Guid batchId)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             try
             {
                 var tenantId = GetTenantId();
@@ -1633,6 +1670,11 @@ namespace Aquora.API.Controllers
         [HttpPost("lines")]
         public async Task<ActionResult<ApiResponse<object>>> CreateProductionLine([FromBody] CreateLineRequest request)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             try
             {
                 var tenantId = GetTenantId();
@@ -1693,6 +1735,11 @@ namespace Aquora.API.Controllers
         [HttpPut("lines/{id}")]
         public async Task<ActionResult<ApiResponse<object>>> UpdateProductionLine(Guid id, [FromBody] UpdateLineRequest request)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             try
             {
                 var line = await _tenantContext.ProductionLines
@@ -1764,6 +1811,11 @@ namespace Aquora.API.Controllers
         [HttpDelete("lines/{id}")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteProductionLine(Guid id)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             try
             {
                 var line = await _tenantContext.ProductionLines
@@ -1793,6 +1845,11 @@ namespace Aquora.API.Controllers
         [HttpPost("line-switch")]
         public async Task<ActionResult<ApiResponse<object>>> LogLineSwitch([FromBody] LogLineSwitchRequest request)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             try
             {
                 var tenantId = GetTenantId();
