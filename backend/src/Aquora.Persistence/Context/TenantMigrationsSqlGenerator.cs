@@ -157,8 +157,12 @@ namespace Aquora.Persistence.Context
                         if (fk.Schema == "public" || string.IsNullOrEmpty(fk.Schema))
                             fk.Schema = schema;
                         
-                        // Keep platform tables in public schema
-                        if (PlatformTables.Contains(fk.PrincipalTable))
+                        // Defensive sanitization: Prevent "Id" from ever being treated as a PostgreSQL schema
+                        if (string.Equals(fk.PrincipalSchema, "Id", System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            fk.PrincipalSchema = PlatformTables.Contains(fk.PrincipalTable) ? "public" : schema;
+                        }
+                        else if (PlatformTables.Contains(fk.PrincipalTable))
                         {
                             fk.PrincipalSchema = "public";
                         }
@@ -225,7 +229,12 @@ namespace Aquora.Persistence.Context
                     if (addFk.Schema == "public" || string.IsNullOrEmpty(addFk.Schema))
                         addFk.Schema = schema;
                     
-                    if (PlatformTables.Contains(addFk.PrincipalTable))
+                    // Defensive sanitization: Prevent "Id" from ever being treated as a PostgreSQL schema
+                    if (string.Equals(addFk.PrincipalSchema, "Id", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        addFk.PrincipalSchema = PlatformTables.Contains(addFk.PrincipalTable) ? "public" : schema;
+                    }
+                    else if (PlatformTables.Contains(addFk.PrincipalTable))
                     {
                         addFk.PrincipalSchema = "public";
                     }
