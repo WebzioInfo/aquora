@@ -58,6 +58,11 @@ const T: Record<string, Record<Lang, string>> = {
   allGood:              { en: 'All Good',                             ml: 'എല്ലാം ശരി' },
   lowStock:             { en: 'Low Stock',                            ml: 'സ്റ്റോക്ക് കുറവ്' },
   auditNeeded:          { en: 'Count Needed',                         ml: 'എണ്ണം വേണം' },
+  countRequired:        { en: 'Count Required',                       ml: 'എണ്ണൽ ആവശ്യമാണ്' },
+  initialCountNeeded:   { en: 'Initial count needed — baseline not established', ml: 'ആദ്യ എണ്ണൽ ആവശ്യമാണ്' },
+  creditInvoicePending: { en: 'Uncollected (credit invoice)',         ml: 'കടം (പിരിക്കാനുള്ളത്)' },
+  idleToday:            { en: 'Bottled today (Plant idle today)',     ml: 'ഇന്ന് ഉൽപ്പാദനം നടന്നില്ല' },
+  inProgressActive:     { en: 'in progress',                          ml: 'നടപ്പിലുള്ളവ' },
 
   // Sales section
   salesTitle:           { en: 'Sales',                                ml: 'വിൽപ്പന' },
@@ -750,6 +755,11 @@ export const OwnerDashboardPage: React.FC = () => {
                   {L('retry')}
                 </button>
               </>
+            ) : totalOperationalCash === 0 ? (
+              <>
+                <span className="text-slate-500">{L('fromSales')}</span>
+                <span className="font-semibold text-slate-400 text-[10px]">{L('creditInvoicePending')}</span>
+              </>
             ) : (
               <>
                 <span className="text-slate-500">{L('fromSales')}</span>
@@ -791,7 +801,11 @@ export const OwnerDashboardPage: React.FC = () => {
               </>
             ) : (
               <>
-                <span className="text-slate-500">Sales & Network</span>
+                <span className="text-slate-500">
+                  {period === 'today' && salesKpi.outstanding > 0
+                    ? `₹${salesKpi.outstanding} today + ₹${Math.max(0, totalReceivable - salesKpi.outstanding)} past`
+                    : 'Total Debtor Ledgers'}
+                </span>
                 <span className="text-rose-600 font-bold">{topDebtors.length} {L('debtors')}</span>
               </>
             )}
@@ -817,9 +831,14 @@ export const OwnerDashboardPage: React.FC = () => {
                 <span className="text-[10px] text-rose-500 font-medium block">Production query error</span>
               </div>
             ) : (
-              <div className="text-2xl font-black text-slate-900">
-                {productionOutputInPeriod.toLocaleString('en-IN')}
-                <span className="text-xs font-semibold text-slate-400 ml-1">{L('jarsUnit')}</span>
+              <div>
+                <div className="text-2xl font-black text-slate-900">
+                  {productionOutputInPeriod.toLocaleString('en-IN')}
+                  <span className="text-xs font-semibold text-slate-400 ml-1">{L('jarsUnit')}</span>
+                </div>
+                {period === 'today' && productionOutputInPeriod === 0 && (
+                  <span className="text-[10px] text-slate-400 font-medium block">{L('idleToday')}</span>
+                )}
               </div>
             )}
           </div>
@@ -833,7 +852,12 @@ export const OwnerDashboardPage: React.FC = () => {
               </>
             ) : (
               <>
-                <span className="text-slate-500">{L('activeBatches')}: <strong className="text-cyan-700">{activeBatchCount}</strong></span>
+                <span className="text-slate-500">
+                  {L('activeBatches')}: <strong className="text-cyan-700">{activeBatchCount}</strong>
+                  {Number(batchesSummary?.activeProducedQuantity || 0) > 0 && (
+                    <span className="text-slate-400 ml-1">({Number(batchesSummary.activeProducedQuantity).toLocaleString('en-IN')} {L('inProgressActive')})</span>
+                  )}
+                </span>
                 <span className="text-slate-400 font-medium">{plantFilled} {L('filled')}</span>
               </>
             )}
@@ -916,11 +940,17 @@ export const OwnerDashboardPage: React.FC = () => {
               </div>
             ) : (
               <div className={`text-lg font-black ${
-                stockHealthStatus === 'good' ? 'text-emerald-700' :
-                stockHealthStatus === 'low' ? 'text-amber-700' :
-                'text-rose-700'
+                totalSystemJars === 0 && plantBalances?.hasPhysicalCount === false
+                  ? 'text-amber-700'
+                  : stockHealthStatus === 'good' ? 'text-emerald-700'
+                  : stockHealthStatus === 'low' ? 'text-amber-700'
+                  : 'text-rose-700'
               }`}>
-                {stockHealthStatus === 'good' ? L('allGood') : stockHealthStatus === 'low' ? L('lowStock') : L('auditNeeded')}
+                {totalSystemJars === 0 && plantBalances?.hasPhysicalCount === false
+                  ? L('countRequired')
+                  : stockHealthStatus === 'good' ? L('allGood')
+                  : stockHealthStatus === 'low' ? L('lowStock')
+                  : L('auditNeeded')}
               </div>
             )}
           </div>
@@ -932,9 +962,11 @@ export const OwnerDashboardPage: React.FC = () => {
                   {L('retry')}
                 </button>
               </>
+            ) : totalSystemJars === 0 && plantBalances?.hasPhysicalCount === false ? (
+              <span className="text-amber-600 font-medium text-[10px]">{L('initialCountNeeded')}</span>
             ) : (
               <>
-                <span className="text-slate-500">{totalSystemJars} {L('totalJars').toLowerCase()}</span>
+                <span className="text-slate-500">{totalSystemJars.toLocaleString('en-IN')} {L('totalJars').toLowerCase()}</span>
                 {lowStockRawMaterials.length > 0 && (
                   <span className="font-bold text-amber-600">{lowStockRawMaterials.length} {L('lowStock').toLowerCase()}</span>
                 )}

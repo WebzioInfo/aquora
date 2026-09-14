@@ -739,7 +739,7 @@ namespace Aquora.API.Controllers
                     .ToListAsync();
 
                 var activeList = allBatches
-                    .Where(b => b.CompletedAt == null && (b.Status == "Active" || b.Status == "Running" || b.Status == "Bottling Active" || b.Status == "In Progress"))
+                    .Where(b => b.CompletedAt == null && b.Status != "Completed" && b.Status != "Stopped" && b.Status != "Closed" && b.Status != "Cancelled" && (b.Status == "Active" || b.Status == "Running" || b.Status == "Bottling Active" || b.Status == "In Progress"))
                     .Select(b => new
                     {
                         b.Id,
@@ -790,6 +790,7 @@ namespace Aquora.API.Controllers
                 if (from.HasValue) periodBatches = periodBatches.Where(b => (b.CompletedAt ?? b.StartedAt) >= from.Value);
                 if (to.HasValue) periodBatches = periodBatches.Where(b => (b.CompletedAt ?? b.StartedAt) < to.Value);
 
+                int activeProduced = activeList.Sum(b => b.ProducedQuantity);
                 int periodProduced = periodBatches.Sum(b => b.ProducedQuantity);
                 int todayProduced = allBatches.Where(b => (b.CompletedAt ?? b.StartedAt).Date == today).Sum(b => b.ProducedQuantity);
                 int totalProduced = allBatches.Sum(b => b.ProducedQuantity);
@@ -801,6 +802,7 @@ namespace Aquora.API.Controllers
                     ActiveCount = activeList.Count,
                     CompletedCount = allBatches.Count(b => b.CompletedAt != null || b.Status == "Completed"),
                     TotalBatchesCount = allBatches.Count,
+                    ActiveProducedQuantity = activeProduced,
                     PeriodProducedQuantity = periodProduced,
                     TodayProducedQuantity = todayProduced,
                     TotalProducedQuantity = totalProduced
