@@ -19,6 +19,7 @@ const PlatformDashboardPage = React.lazy(() => import('../pages/platform/Platfor
 const PlatformManagementPage = React.lazy(() => import('../pages/platform/PlatformManagementPage'))
 const SettingsPage = React.lazy(() => import('../pages/company/SettingsPage').then(module => ({ default: module.SettingsPage })))
 const CompanyDashboardPage = React.lazy(() => import('../pages/company/CompanyDashboardPage'))
+const OwnerDashboardPage = React.lazy(() => import('../pages/company/OwnerDashboardPage'))
 const ProductionSetupPage = React.lazy(() => import('../pages/company/ProductionSetupPage'))
 const BatchDetailsPage = React.lazy(() => import('../pages/company/BatchDetailsPage'))
 const OperatorDashboardPage = React.lazy(() => import('../pages/operator/OperatorDashboardPage'))
@@ -201,6 +202,17 @@ const CompanyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   }
 
   return <>{children}</>
+}
+
+// Role-aware Dashboard Dispatcher for Company Dashboard
+const CompanyDashboardDispatcher: React.FC = () => {
+  const { user } = useAuthStore()
+  const isOwner = (user?.roles?.some((r: string) => ['owner', 'companyowner', 'platformowner'].includes(r.toLowerCase())) || user?.roleName?.toLowerCase() === 'owner') ?? false
+
+  if (isOwner) {
+    return <OwnerDashboardPage />
+  }
+  return <CompanyDashboardPage />
 }
 
 // Operator Terminal Guard
@@ -562,7 +574,8 @@ export const AppRoutes: React.FC = () => {
           }
         >
           <Route index element={<Navigate to="/company/dashboard" replace />} />
-          <Route path="dashboard" element={<CompanyDashboardPage />} />
+          <Route path="dashboard" element={<CompanyDashboardDispatcher />} />
+          <Route path="dashboard/owner" element={<OwnerDashboardPage />} />
           <Route path="production" element={<CompanyDashboardPage />} />
           <Route path="production-setup" element={<ProductionSetupPage />} />
           <Route path="production/batches/:batchId" element={<BatchDetailsPage />} />
