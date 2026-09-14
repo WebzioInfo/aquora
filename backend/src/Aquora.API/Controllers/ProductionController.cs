@@ -683,6 +683,137 @@ namespace Aquora.API.Controllers
             }
         }
 
+        // 2b. GET api/v1/production/batches (Complete batch register)
+        [HttpGet("batches")]
+        public async Task<ActionResult<ApiResponse<List<object>>>> GetAllBatches(
+            [FromQuery] string? status = null,
+            [FromQuery] Guid? lineId = null,
+            [FromQuery] string? search = null,
+            [FromQuery] DateTime? date = null)
+        {
+            try
+            {
+                var tenantId = GetTenantId();
+                var query = _tenantContext.ProductionBatches
+                    .Include(b => b.ProductionLine)
+                    .Where(b => !b.IsDeleted);
+
+                if (!string.IsNullOrWhiteSpace(status) && !status.Equals("All", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (status.Equals("Active", StringComparison.OrdinalIgnoreCase) || status.Equals("Running", StringComparison.OrdinalIgnoreCase))
+                    {
+                        query = query.Where(b => b.CompletedAt == null && (b.Status == "Active" || b.Status == "Running" || b.Status == "Bottling Active" || b.Status == "In Progress"));
+                    }
+                    else if (status.Equals("Paused", StringComparison.OrdinalIgnoreCase))
+                    {
+                        query = query.Where(b => b.Status == "Paused");
+                    }
+                    else if (status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                    {
+                        query = query.Where(b => b.CompletedAt != null || b.Status == "Completed");
+                    }
+                    else if (status.Equals("Cancelled", StringComparison.OrdinalIgnoreCase) || status.Equals("Stopped", StringComparison.OrdinalIgnoreCase))
+                    {
+                        query = query.Where(b => b.Status == "Cancelled" || b.Status == "Stopped");
+                    }
+                    else
+                    {
+                        query = query.Where(b => b.Status.ToLower() == status.ToLower());
+                    }
+                }
+
+                if (lineId.HasValue && lineId.Value != Guid.Empty)
+                {
+                    query = query.Where(b => b.ProductionLineId == lineId.Value);
+                }
+
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var s = search.Trim().ToLower();
+                    query = query.Where(b => b.BatchNumber.ToLower().Contains(s) ||
+                                             (b.Product != null && b.Product.ToLower().Contains(s)) ||
+                                             (b.OperatorName != null && b.OperatorName.ToLower().Contains(s)));
+                }
+
+                if (date.HasValue)
+                {
+                    var targetDate = date.Value.Date;
+                    var nextDate = targetDate.AddDays(1);
+                    query = query.Where(b => (b.StartedAt != default ? b.StartedAt : b.CreatedAt) >= targetDate &&
+                                             (b.StartedAt != default ? b.StartedAt : b.CreatedAt) < nextDate);
+                }
+
+                var batches = await query
+                    .OrderByDescending(b => b.StartedAt != default ? b.StartedAt : b.CreatedAt)
+                    .ThenByDescending(b => b.CreatedAt)
+                    .Select(b => new
+                    {
+                        b.Id,
+                        b.BatchNumber,
+                        b.Product,
+                        b.Shift,
+                        ProductionLineId = b.ProductionLineId,
+                        ProductionLineName = b.ProductionLine != null ? b.ProductionLine.Name : "Line 1",
+                        ProductionLineCode = b.ProductionLine != null ? b.ProductionLine.Code : "L001",
+                        b.OperatorId,
+                        b.OperatorName,
+                        b.StartedAt,
+                        b.CompletedAt,
+                        b.TargetQuantity,
+                        b.ProducedQuantity,
+                        b.Status,
+                        b.CreatedAt
+                    })
+                    .ToListAsync();
+
+                return Success<List<object>>(batches.Cast<object>().ToList(), "Batches loaded successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<List<object>>(ex.Message, "Failed to load batches.");
+            }
+        }
+
+        // GET api/v1/production/batches/{id:guid}
+        [HttpGet("batches/{id:guid}")]
+        public async Task<ActionResult<ApiResponse<object>>> GetBatchById(Guid id)
+        {
+            try
+            {
+                var batch = await _tenantContext.ProductionBatches
+                    .Include(b => b.ProductionLine)
+                    .Where(b => b.Id == id && !b.IsDeleted)
+                    .Select(b => new
+                    {
+                        b.Id,
+                        b.BatchNumber,
+                        b.Product,
+                        b.Shift,
+                        ProductionLineId = b.ProductionLineId,
+                        ProductionLineName = b.ProductionLine != null ? b.ProductionLine.Name : "Line 1",
+                        ProductionLineCode = b.ProductionLine != null ? b.ProductionLine.Code : "L001",
+                        b.OperatorId,
+                        b.OperatorName,
+                        b.StartedAt,
+                        b.CompletedAt,
+                        b.TargetQuantity,
+                        b.ProducedQuantity,
+                        b.Status,
+                        b.CreatedAt
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (batch == null)
+                    return Failure<object>("Batch not found.", "NotFound", System.Net.HttpStatusCode.NotFound);
+
+                return Success<object>(batch, "Batch loaded successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<object>(ex.Message, "Failed to load batch.");
+            }
+        }
+
         // 2c. GET api/v1/production/batches/active
         [HttpGet("batches/active")]
         public async Task<ActionResult<ApiResponse<List<object>>>> GetActiveBatches()

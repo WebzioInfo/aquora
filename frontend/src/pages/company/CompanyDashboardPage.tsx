@@ -1854,15 +1854,20 @@ export const CompanyDashboardPage: React.FC = () => {
     enabled: (isProductionView || isDashboardView) && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
 
-  // Fetch active production batches
-  const { data: activeBatches = [], isLoading: batchesLoading } = useQuery<any[]>({
-    queryKey: ['activeBatchesList'],
+  // Fetch all production batches for complete batch register
+  const { data: allBatches = [], isLoading: batchesLoading } = useQuery<any[]>({
+    queryKey: ['allBatchesList'],
     queryFn: async () => {
-      const res = await api.get('/api/v1/production/batches/active')
+      const res = await api.get('/api/v1/production/batches')
       return res.data?.data || []
     },
     enabled: (isProductionView || isDashboardView) && user?.tenantStatus !== 'Provisioning' && user?.isTenantInitialized
   })
+
+  // Derived active batches for operational widgets
+  const activeBatches = React.useMemo(() => allBatches.filter((b: any) =>
+    b.status === 'Active' || b.status === 'Running' || b.status === 'Bottling Active' || b.status === 'In Progress'
+  ), [allBatches])
 
   // Fetch Raw Materials for Dashboard Inventory Health
   const { data: dashboardRawMaterials = [], isLoading: dashboardRawMaterialsLoading } = useQuery<any[]>({
@@ -2680,51 +2685,85 @@ export const CompanyDashboardPage: React.FC = () => {
       }
     }
 
-    // Local filtering logic
-    const filteredBatches = activeBatches.filter((batch: any) => {
-      const matchesSearch =
-        batch.batchNumber.toLowerCase().includes(batchSearch.toLowerCase()) ||
-        batch.product.toLowerCase().includes(batchSearch.toLowerCase()) ||
-        batch.operatorName.toLowerCase().includes(batchSearch.toLowerCase())
+    // Local filtering logic for the complete batch register
+    const filteredBatches = allBatches.filter((batch: any) => {
+      const s = (batchSearch || '').trim().toLowerCase()
+      const matchesSearch = !s ||
+        (batch.batchNumber && batch.batchNumber.toLowerCase().includes(s)) ||
+        (batch.product && batch.product.toLowerCase().includes(s)) ||
+        (batch.operatorName && batch.operatorName.toLowerCase().includes(s)) ||
+        (batch.productionLineName && batch.productionLineName.toLowerCase().includes(s)) ||
+        (batch.productionLineCode && batch.productionLineCode.toLowerCase().includes(s)) ||
+        (batch.shift && batch.shift.toLowerCase().includes(s))
+
       const matchesLine = batchLineFilter === '' || batch.productionLineId === batchLineFilter
-      const matchesStatus =
-        batchStatusFilter === 'All' ||
-        (batchStatusFilter === 'Active' && batch.status === 'Active') ||
-        (batchStatusFilter === 'Paused' && batch.status === 'Paused')
-      const matchesDate = !batchDateFilter || new Date(batch.startedAt).toISOString().slice(0, 10) === batchDateFilter
+
+      let matchesStatus = true
+      if (batchStatusFilter && batchStatusFilter !== 'All') {
+        const statusUpper = (batch.status || (batch.completedAt ? 'COMPLETED' : '')).toUpperCase()
+        if (batchStatusFilter === 'Running' || batchStatusFilter === 'Active') {
+          matchesStatus = statusUpper === 'ACTIVE' || statusUpper === 'RUNNING' || statusUpper === 'BOTTLING ACTIVE' || statusUpper === 'IN PROGRESS'
+        } else if (batchStatusFilter === 'Paused') {
+          matchesStatus = statusUpper === 'PAUSED'
+        } else if (batchStatusFilter === 'Completed') {
+          matchesStatus = statusUpper === 'COMPLETED' || !!batch.completedAt
+        } else if (batchStatusFilter === 'Cancelled') {
+          matchesStatus = statusUpper === 'CANCELLED' || statusUpper === 'STOPPED'
+        } else {
+          matchesStatus = statusUpper === batchStatusFilter.toUpperCase()
+        }
+      }
+
+      let matchesDate = true
+      if (batchDateFilter) {
+        const batchDate = batch.startedAt || batch.createdAt || batch.completedAt
+        matchesDate = !!batchDate && new Date(batchDate).toISOString().slice(0, 10) === batchDateFilter
+      }
+
       return matchesSearch && matchesLine && matchesStatus && matchesDate
     })
 
-    // Derived stats
+    // Derived operational stats for the top summary cards
     const totalActiveBatchesCount = activeBatches.length
-    const runningLinesCount = activeBatches.filter((b: any) => b.status === 'Active').length
-    const pausedBatchesCount = activeBatches.filter((b: any) => b.status === 'Paused').length
-    const todayCasesCount = activeBatches.reduce((acc: number, curr: any) => acc + (curr.producedQuantity || 0), 0)
+    const runningLinesCount = activeBatches.filter((b: any) => b.status === 'Active' || b.status === 'Running' || b.status === 'Bottling Active' || b.status === 'In Progress').length
+    const pausedBatchesCount = allBatches.filter((b: any) => b.status === 'Paused').length
+    const todayStr = new Date().toISOString().slice(0, 10)
+    const todayCasesCount = allBatches
+      .filter((b: any) => {
+        const d = b.completedAt || b.startedAt || b.createdAt
+        return d && new Date(d).toISOString().slice(0, 10) === todayStr
+      })
+      .reduce((acc: number, curr: any) => acc + (curr.producedQuantity || 0), 0)
     const runningOperatorsCount = new Set(activeBatches.map((b: any) => b.operatorName).filter(Boolean)).size
-    const currentShiftVal = activeBatches[0]?.shift || 'Morning'
+    const currentShiftVal = activeBatches[0]?.shift || allBatches[0]?.shift || 'Morning'
 
-    const getStatusBadge = (status: string) => {
-      switch (status?.toUpperCase()) {
+    const getStatusBadge = (status: string, completedAt?: string | null) => {
+      const s = (status || (completedAt ? 'COMPLETED' : '')).toUpperCase()
+      switch (s) {
         case 'ACTIVE':
+        case 'RUNNING':
+        case 'BOTTLING ACTIVE':
+        case 'IN PROGRESS':
           return { label: 'RUNNING', cls: 'bg-green-50 border-green-200 text-green-700' }
         case 'PAUSED':
-          return { label: 'PAUSED', cls: 'bg-orange-50 border-orange-200 text-orange-700' }
+          return { label: 'PAUSED', cls: 'bg-amber-50 border-amber-200 text-amber-700' }
         case 'COMPLETED':
           return { label: 'COMPLETED', cls: 'bg-blue-50 border-blue-200 text-blue-700' }
         case 'CANCELLED':
-          return { label: 'CANCELLED', cls: 'bg-red-50 border-red-200 text-red-700' }
+          return { label: 'CANCELLED', cls: 'bg-rose-50 border-rose-200 text-rose-700' }
         case 'STOPPED':
-          return { label: 'STOPPED', cls: 'bg-red-50 border-red-200 text-red-700' }
+          return { label: 'STOPPED', cls: 'bg-rose-50 border-rose-200 text-rose-700' }
+        case 'CLOSED':
+          return { label: 'CLOSED', cls: 'bg-slate-100 border-slate-300 text-slate-700' }
         default:
-          return { label: status?.toUpperCase() || 'UNKNOWN', cls: 'bg-slate-50 border-slate-200 text-slate-600' }
+          return { label: s || 'UNKNOWN', cls: 'bg-slate-50 border-slate-200 text-slate-600' }
       }
     }
-
 
     const searchParams = new URLSearchParams(location.search)
     const productionTab = searchParams.get('tab') || 'batches'
     const pageTitle = productionTab === 'lines' ? 'Production Lines' : productionTab === 'shifts' ? 'Production Shifts' : 'Production Batches'
-    const pageDesc = productionTab === 'lines' ? 'Manage production bottling & packaging lines' : productionTab === 'shifts' ? 'Configure operational shifts, start & end times' : 'Batch queue - monitor, filter, and manage active production runs'
+    const pageDesc = productionTab === 'lines' ? 'Manage production bottling & packaging lines' : productionTab === 'shifts' ? 'Configure operational shifts, start & end times' : 'Complete production batch register — view, filter, search, and manage all production batches'
 
     return (
       <PageContainer>
@@ -2809,8 +2848,10 @@ export const CompanyDashboardPage: React.FC = () => {
                   className="px-2.5 py-1 text-[11px] border border-[#E5E7EB] rounded-md bg-white focus:outline-none focus:border-blue-500 font-semibold text-slate-700 h-[30px] cursor-pointer"
                 >
                   <option value="All">All Statuses</option>
-                  <option value="Active">Running</option>
+                  <option value="Running">Running</option>
                   <option value="Paused">Paused</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Cancelled">Cancelled / Stopped</option>
                 </select>
 
                 {/* Date filter */}
@@ -2824,7 +2865,10 @@ export const CompanyDashboardPage: React.FC = () => {
 
               <div className="flex items-center gap-1.5">
                 <button
-                  onClick={() => queryClient.invalidateQueries({ queryKey: ['activeBatchesList'] })}
+                  onClick={() => {
+                    queryClient.invalidateQueries({ queryKey: ['allBatchesList'] })
+                    queryClient.invalidateQueries({ queryKey: ['activeBatchesList'] })
+                  }}
                   className="px-2.5 h-[30px] text-[11px] font-bold text-slate-600 border border-[#E5E7EB] rounded-md hover:bg-slate-50 cursor-pointer"
                 >
                   Refresh
@@ -2862,7 +2906,7 @@ export const CompanyDashboardPage: React.FC = () => {
             ) : filteredBatches.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7 gap-2">
                 {filteredBatches.map((batch: any) => {
-                  const { label, cls } = getStatusBadge(batch.status)
+                  const { label, cls } = getStatusBadge(batch.status, batch.completedAt)
                   const createdDateObj = new Date(batch.createdAt || batch.startedAt)
                   const formattedDate = createdDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                   const formattedTime = createdDateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
@@ -2872,7 +2916,11 @@ export const CompanyDashboardPage: React.FC = () => {
                     <div
                       key={batch.id}
                       onClick={() => navigate(`/company/production/batches/${batch.id}`)}
-                      className="bg-white border border-slate-200 rounded-md p-2.5 hover:bg-slate-50 hover:border-blue-300 transition-colors cursor-pointer flex flex-col justify-between min-h-[85px]"
+                      className={`bg-white border rounded-md p-2.5 hover:bg-slate-50 transition-all cursor-pointer flex flex-col justify-between min-h-[85px] shadow-sm ${
+                        label === 'RUNNING' ? 'border-green-300 ring-1 ring-green-100' :
+                        label === 'COMPLETED' ? 'border-slate-200 hover:border-blue-300' :
+                        'border-slate-200 hover:border-blue-300'
+                      }`}
                       title={`Open ${batch.batchNumber} (${lineDisplay})`}
                     >
                       <div>
@@ -2886,21 +2934,49 @@ export const CompanyDashboardPage: React.FC = () => {
                         </div>
                         <div className="text-[11px] font-medium text-slate-500 truncate leading-tight">
                           {lineDisplay}
+                          {batch.product && <span className="text-slate-400"> • {batch.product}</span>}
                         </div>
+                        {batch.operatorName && (
+                          <div className="text-[10px] text-slate-400 truncate mt-0.5">
+                            {batch.operatorName}
+                          </div>
+                        )}
                       </div>
 
                       <div className="mt-auto pt-1 flex justify-between items-end text-[11px] font-medium text-slate-500">
-                        <span>{formattedDate}</span>
-                        <span>{formattedTime}</span>
+                        <span>{formattedDate} {formattedTime}</span>
+                        {batch.producedQuantity > 0 ? (
+                          <span className="font-bold text-slate-700 text-[10px]">{batch.producedQuantity.toLocaleString('en-IN')} cases</span>
+                        ) : null}
                       </div>
                     </div>
                   )
                 })}
               </div>
+            ) : allBatches.length > 0 ? (
+              <div className="bg-white border border-[#E5E7EB] rounded-xl p-10 text-center shadow-sm flex flex-col items-center justify-center">
+                <p className="text-[14px] font-semibold text-slate-600">
+                  No production batches match your filter criteria.
+                </p>
+                <button
+                  onClick={() => {
+                    setBatchSearch('')
+                    setBatchLineFilter('')
+                    setBatchStatusFilter('All')
+                    setBatchDateFilter('')
+                  }}
+                  className="mt-3 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-md cursor-pointer transition-all"
+                >
+                  Clear Filters
+                </button>
+              </div>
             ) : (
               <div className="bg-white border border-[#E5E7EB] rounded-xl p-10 text-center shadow-sm flex flex-col items-center justify-center">
                 <p className="text-[14px] font-semibold text-slate-600">
-                  No production batches found.
+                  No production batches yet.
+                </p>
+                <p className="text-[12px] text-slate-400 mt-1">
+                  Create your first batch to begin production tracking.
                 </p>
                 {!batchSearch && !batchLineFilter && batchStatusFilter === 'All' && (
                   <button
@@ -2918,9 +2994,15 @@ export const CompanyDashboardPage: React.FC = () => {
             )}
 
             {/* Result count */}
-            {!batchesLoading && filteredBatches.length > 0 && (
+            {!batchesLoading && (
               <div className="text-[11px] text-slate-400 font-medium select-none px-1">
-                Showing {filteredBatches.length} of {activeBatches.length} batches
+                {allBatches.length === 0 ? (
+                  <span>0 batches in register</span>
+                ) : filteredBatches.length === allBatches.length ? (
+                  <span>Showing {filteredBatches.length} of {allBatches.length} batches</span>
+                ) : (
+                  <span>Showing {filteredBatches.length} of {allBatches.length} batches</span>
+                )}
               </div>
             )}
           </>
