@@ -28,8 +28,6 @@ const T: Record<string, Record<Lang, string>> = {
   refreshData:          { en: 'Refresh Data',                         ml: 'ഡാറ്റ പുതുക്കുക' },
   refreshing:           { en: 'Refreshing...',                        ml: 'പുതുക്കുന്നു...' },
   operationsHub:        { en: '20L Operations',                       ml: '20L പ്രവർത്തനങ്ങൾ' },
-  transparencyNote:     { en: 'Some numbers shown here are from operations and haven\'t been added to the official accounts book yet.', ml: 'ഇവിടെ കാണിക്കുന്ന ചില സംഖ്യകൾ പ്രവർത്തനങ്ങളിൽ നിന്നുള്ളതാണ്, ഇത് ഇതുവരെ ഔദ്യോഗിക അക്കൗണ്ട്‌സ് ബുക്കിൽ ചേർത്തിട്ടില്ല.' },
-  note:                 { en: 'Note:',                                ml: 'കുറിപ്പ്:' },
 
   // Time filter
   today:                { en: 'Today',                                ml: 'ഇന്ന്' },
@@ -46,7 +44,6 @@ const T: Record<string, Record<Lang, string>> = {
 
   // KPI sub-labels
   fromSales:            { en: 'From sales & supplies',                ml: 'വിൽപ്പനയിൽ നിന്ന്' },
-  waitingToAdd:         { en: 'Waiting to be added to accounts',      ml: 'അക്കൗണ്ട്‌സിൽ ചേർക്കാനുള്ളത്' },
   fromDistributors:     { en: 'From distributors',                    ml: 'ഡിസ്ട്രിബ്യൂട്ടർമാരിൽ നിന്ന്' },
   debtors:              { en: 'Debtors',                              ml: 'കടക്കാർ' },
   activeBatches:        { en: 'Active Batches',                       ml: 'നടക്കുന്ന ബാച്ചുകൾ' },
@@ -84,7 +81,6 @@ const T: Record<string, Record<Lang, string>> = {
   jarsUnit:             { en: 'jars',                                 ml: 'ജാറുകൾ' },
   noActiveBatches:      { en: 'No batches running right now',         ml: 'ഇപ്പോൾ ബാച്ചുകളൊന്നും നടക്കുന്നില്ല' },
   plantIdle:            { en: 'Plant is currently idle or shifts have ended.',  ml: 'പ്ലാന്റ് ഇപ്പോൾ നിശ്ചലമാണ് അല്ലെങ്കിൽ ഷിഫ്റ്റ് തീർന്നു.' },
-  productionNote:       { en: 'Production output needs to be manually checked before dispatch until auto-sync is set up.',  ml: 'ഓട്ടോ-സിങ്ക് സെറ്റപ്പ് ചെയ്യുന്നത് വരെ ഉൽപ്പാദന ഔട്ട്‌പുട്ട് ഡിസ്‌പാച്ചിന് മുമ്പ് സ്വമേധയാ പരിശോധിക്കണം.' },
   viewProduction:       { en: 'Production Setup',                     ml: 'ഉൽപ്പാദന സെറ്റപ്പ്' },
   bottlingActive:       { en: 'Bottling Active',                      ml: 'ബോട്ടിലിങ് നടക്കുന്നു' },
   completedBatches:     { en: 'Completed Batches',                    ml: 'പൂർത്തിയായ ബാച്ചുകൾ' },
@@ -134,9 +130,9 @@ const T: Record<string, Record<Lang, string>> = {
   stockCountOverdue:    { en: 'No Stock Count Done Yet',              ml: 'സ്റ്റോക്ക് എണ്ണം ഇതുവരെ എടുത്തിട്ടില്ല' },
   stockCountDesc:       { en: 'No physical jar count has been done this month. Without counting, you can\'t know if any jars are missing.',  ml: 'ഈ മാസം ജാറുകളുടെ ഫിസിക്കൽ എണ്ണം എടുത്തിട്ടില്ല. എണ്ണം എടുക്കാതെ ജാറുകൾ കാണാതായോ എന്ന് അറിയാൻ കഴിയില്ല.' },
   openJarLedger:        { en: 'Open Jar Ledger',                      ml: 'ജാർ ലെഡ്ജർ തുറക്കുക' },
-  unpostedCash:         { en: 'Cash Waiting To Be Added',             ml: 'ചേർക്കാൻ ബാക്കിയുള്ള പണം' },
-  unpostedCashDesc:     { en: 'Cash collected from today\'s deliveries and distributor supplies is not yet in the accounts book.', ml: 'ഇന്നത്തെ ഡെലിവറികളിൽ നിന്നും ഡിസ്ട്രിബ്യൂട്ടർ സപ്ലൈയിൽ നിന്നും ശേഖരിച്ച പണം ഇതുവരെ അക്കൗണ്ട്‌സ് ബുക്കിൽ ചേർത്തിട്ടില്ല.' },
-  reviewCashBook:       { en: 'Review Cash Book',                     ml: 'ക്യാഷ് ബുക്ക് പരിശോധിക്കുക' },
+  receivablesAlert:     { en: 'Outstanding Receivables',              ml: 'കിട്ടാനുള്ള കുടിശ്ശിക' },
+  receivablesAlertDesc: { en: 'Follow up with customers and distributors having pending balances.', ml: 'കുടിശ്ശികയുള്ള കസ്റ്റമർമാരുമായും ഡിസ്ട്രിബ്യൂട്ടർമാരുമായും ബന്ധപ്പെടുക.' },
+  reviewDebtors:        { en: 'Review Debtors',                       ml: 'കടക്കാരെ പരിശോധിക്കുക' },
   jarsInQuarantine:     { en: 'Jars in Quarantine',                   ml: 'ക്വാറന്റൈനിലുള്ള ജാറുകൾ' },
   quarantineDesc:       { en: 'Cracked or dirty jars kept aside. Decide if they can be fixed or need to be thrown away.',  ml: 'പൊട്ടിയതോ വൃത്തിയല്ലാത്തതോ ആയ ജാറുകൾ മാറ്റിവെച്ചിരിക്കുന്നു. അവ ശരിയാക്കാനാകുമോ അതോ ഉപേക്ഷിക്കണമോ എന്ന് തീരുമാനിക്കുക.' },
   inspectQuarantine:    { en: 'Inspect Quarantine',                   ml: 'ക്വാറന്റൈൻ പരിശോധിക്കുക' },
@@ -641,14 +637,6 @@ export const OwnerDashboardPage: React.FC = () => {
             </button>
           </div>
         </div>
-
-        {/* Transparency Notice */}
-        <div className="mt-4 p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl flex items-start gap-2.5">
-          <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-          <div className="text-xs text-amber-900 leading-relaxed">
-            <strong className="font-bold">{L('note')}</strong> {L('transparencyNote')}
-          </div>
-        </div>
       </div>
 
       {/* ── ERROR NOTIFICATION BANNER (When any API call fails with 500/network error) ────────── */}
@@ -755,15 +743,10 @@ export const OwnerDashboardPage: React.FC = () => {
                   {L('retry')}
                 </button>
               </>
-            ) : totalOperationalCash === 0 ? (
-              <>
-                <span className="text-slate-500">{L('fromSales')}</span>
-                <span className="font-semibold text-slate-400 text-[10px]">{L('creditInvoicePending')}</span>
-              </>
             ) : (
               <>
-                <span className="text-slate-500">{L('fromSales')}</span>
-                <span className="font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded text-[10px]">{L('waitingToAdd')}</span>
+                <span className="text-slate-500">{periodLabels[period]}</span>
+                <span className="font-bold text-slate-700">{L('fromSales')}</span>
               </>
             )}
           </div>
@@ -802,11 +785,9 @@ export const OwnerDashboardPage: React.FC = () => {
             ) : (
               <>
                 <span className="text-slate-500">
-                  {period === 'today' && salesKpi.outstanding > 0
-                    ? `₹${salesKpi.outstanding} today + ₹${Math.max(0, totalReceivable - salesKpi.outstanding)} past`
-                    : 'Total Debtor Ledgers'}
+                  {topDebtors.length > 0 ? `${topDebtors.length} ${L('debtors')}` : 'All settled'}
                 </span>
-                <span className="text-rose-600 font-bold">{topDebtors.length} {L('debtors')}</span>
+                <span className="text-rose-600 font-bold">Total Receivables</span>
               </>
             )}
           </div>
@@ -831,14 +812,9 @@ export const OwnerDashboardPage: React.FC = () => {
                 <span className="text-[10px] text-rose-500 font-medium block">Production query error</span>
               </div>
             ) : (
-              <div>
-                <div className="text-2xl font-black text-slate-900">
-                  {productionOutputInPeriod.toLocaleString('en-IN')}
-                  <span className="text-xs font-semibold text-slate-400 ml-1">{L('jarsUnit')}</span>
-                </div>
-                {period === 'today' && productionOutputInPeriod === 0 && (
-                  <span className="text-[10px] text-slate-400 font-medium block">{L('idleToday')}</span>
-                )}
+              <div className="text-2xl font-black text-slate-900">
+                {productionOutputInPeriod.toLocaleString('en-IN')}
+                <span className="text-xs font-semibold text-slate-400 ml-1">{L('jarsUnit')}</span>
               </div>
             )}
           </div>
@@ -852,12 +828,7 @@ export const OwnerDashboardPage: React.FC = () => {
               </>
             ) : (
               <>
-                <span className="text-slate-500">
-                  {L('activeBatches')}: <strong className="text-cyan-700">{activeBatchCount}</strong>
-                  {Number(batchesSummary?.activeProducedQuantity || 0) > 0 && (
-                    <span className="text-slate-400 ml-1">({Number(batchesSummary.activeProducedQuantity).toLocaleString('en-IN')} {L('inProgressActive')})</span>
-                  )}
-                </span>
+                <span className="text-slate-500">{L('activeBatches')}: <strong className="text-cyan-700">{activeBatchCount}</strong></span>
                 <span className="text-slate-400 font-medium">{plantFilled} {L('filled')}</span>
               </>
             )}
@@ -1133,12 +1104,6 @@ export const OwnerDashboardPage: React.FC = () => {
               )}
             </div>
           )}
-
-          {/* Production footnote */}
-          <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-500 flex items-start gap-2">
-            <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-            <span>{L('productionNote')}</span>
-          </div>
         </div>
       </div>
 
@@ -1458,22 +1423,26 @@ export const OwnerDashboardPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Unposted Cash */}
-          <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-xl flex flex-col justify-between space-y-3">
-            <div>
-              <div className="flex items-center gap-2 text-blue-800 font-bold text-xs">
-                <DollarSign className="w-4 h-4 text-blue-600" />
-                <span>{curr(totalOperationalCash)} — {L('unpostedCash')}</span>
+          {/* Outstanding Receivables Alert */}
+          {totalReceivable > 0 && (
+            <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl flex flex-col justify-between space-y-3">
+              <div>
+                <div className="flex items-center gap-2 text-amber-800 font-bold text-xs">
+                  <DollarSign className="w-4 h-4 text-amber-600" />
+                  <span>{curr(totalReceivable)} — {L('receivablesAlert')}</span>
+                </div>
+                <p className="text-xs text-amber-900 mt-1 leading-relaxed">
+                  {topDebtors.length} {L('debtors').toLowerCase()} with pending balances due. {L('receivablesAlertDesc')}
+                </p>
               </div>
-              <p className="text-xs text-blue-900 mt-1 leading-relaxed">{L('unpostedCashDesc')}</p>
+              <button
+                onClick={() => navigate('/company/sales')}
+                className="self-start px-3 py-1.5 text-xs font-bold bg-white text-amber-900 border border-amber-300 rounded-lg hover:bg-amber-100 transition-colors cursor-pointer"
+              >
+                {L('reviewDebtors')}
+              </button>
             </div>
-            <button
-              onClick={() => navigate('/company/accounts/dashboard')}
-              className="self-start px-3 py-1.5 text-xs font-bold bg-white text-blue-900 border border-blue-300 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
-            >
-              {L('reviewCashBook')}
-            </button>
-          </div>
+          )}
 
           {/* Quarantine */}
           <div className="p-4 bg-rose-50/70 border border-rose-200 rounded-xl flex flex-col justify-between space-y-3">
