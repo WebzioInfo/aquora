@@ -27,7 +27,7 @@ interface ProvisioningStatusResponse {
   message: string
   failureReason?: string | null
   steps?: ProvisionStep[]
-  estimatedRemainingSeconds?: number
+  estimatedRemainingSeconds?: number | null
 }
 
 export const ProvisioningPage: React.FC = () => {
@@ -102,6 +102,24 @@ export const ProvisioningPage: React.FC = () => {
     handleFinalRedirectRef.current = handleFinalRedirect
   }, [handleFinalRedirect])
 
+  const stopPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current)
+      pollIntervalRef.current = null
+    }
+  }, [])
+
+  const startPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current)
+      pollIntervalRef.current = null
+    }
+    // Background fallback polling every 3 seconds only while active
+    pollIntervalRef.current = setInterval(() => {
+      fetchTelemetryStatusRef.current()
+    }, 3000)
+  }, [])
+
   // HTTP Polling: Queries /api/v1/onboarding/status
   const fetchTelemetryStatus = useCallback(async () => {
     if (!isMountedRef.current || completionHandledRef.current) return
@@ -135,17 +153,23 @@ export const ProvisioningPage: React.FC = () => {
           message: data.message || 'Provisioning workspace...',
           failureReason: data.status === 'Failed' ? (data.failureReason || null) : null,
           steps: Array.isArray(data.steps) ? data.steps : [],
-          estimatedRemainingSeconds: data.estimatedRemainingSeconds
+          estimatedRemainingSeconds: data.status === 'Failed' ? null : data.estimatedRemainingSeconds
         }
       })
 
+      if (data.status === 'Failed') {
+        stopPolling()
+        return
+      }
+
       if (data.status === 'Completed' || data.progress >= 100) {
+        stopPolling()
         handleFinalRedirectRef.current()
       }
     } catch (err) {
       console.warn('[PROVISIONING POLLING]: Telemetry fetch failed:', err)
     }
-  }, [])
+  }, [stopPolling])
 
   const fetchTelemetryStatusRef = useRef(fetchTelemetryStatus)
   useEffect(() => {
@@ -188,7 +212,13 @@ export const ProvisioningPage: React.FC = () => {
         }
       })
 
+      if (newStatus === 'Failed') {
+        stopPolling()
+        return
+      }
+
       if (newStatus === 'Completed' || payload.progress >= 100) {
+        stopPolling()
         handleFinalRedirectRef.current()
       } else {
         // Fetch full updated step list from telemetry endpoint
@@ -200,6 +230,7 @@ export const ProvisioningPage: React.FC = () => {
     connection.on('ProvisionStepCompleted', updateSignalRState)
     connection.on('ProvisionFinished', updateSignalRState)
     connection.on('ProvisionFailed', (payload) => {
+      stopPolling()
       if (!isMountedRef.current) return
       setStatusState(prev => ({
         ...prev,
@@ -248,17 +279,12 @@ export const ProvisioningPage: React.FC = () => {
         })
     }
 
-    // Background fallback polling every 3 seconds
-    pollIntervalRef.current = setInterval(() => {
-      fetchTelemetryStatusRef.current()
-    }, 3000)
+    // Start single authoritative polling timer
+    startPolling()
 
     return () => {
       isMountedRef.current = false
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current)
-        pollIntervalRef.current = null
-      }
+      stopPolling()
       if (connectionRef.current) {
         const conn = connectionRef.current
         connectionRef.current = null
@@ -267,7 +293,7 @@ export const ProvisioningPage: React.FC = () => {
         }
       }
     }
-  }, [token])
+  }, [token, startPolling, stopPolling])
 
   // Handle Retry
   const handleRetry = async () => {
@@ -278,6 +304,7 @@ export const ProvisioningPage: React.FC = () => {
       if (response.data?.success) {
         showToast('Restarted workspace provisioning pipeline.', 'info')
         setStatusState(prev => ({ ...prev, status: 'Provisioning', failureReason: null }))
+        startPolling()
         fetchTelemetryStatus()
       } else {
         showToast('Retry request failed.', 'error')
@@ -385,7 +412,9 @@ ${(statusState.steps || []).map(s => `- [${s.status}] ${s.name} (${s.key})`).joi
             {/* Real-time Connection Badge */}
             <div className="flex items-center justify-between p-2.5 bg-[#FAFBFC] border border-[#E5E7EB] rounded-xl text-xs select-none">
               <span className="text-[#6B7280] font-medium flex items-center gap-1.5">
-                {connectionMode === 'SignalR' ? (
+                {isFailed ? (
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                ) : connectionMode === 'SignalR' ? (
                   <Wifi className="w-3.5 h-3.5 text-emerald-600" />
                 ) : connectionMode === 'Reconnecting' ? (
                   <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin" />
@@ -393,12 +422,18 @@ ${(statusState.steps || []).map(s => `- [${s.status}] ${s.name} (${s.key})`).joi
                   <WifiOff className="w-3.5 h-3.5 text-blue-600" />
                 )}
                 <span>
-                  {connectionMode === 'SignalR' && 'Real-Time Pipeline (SignalR)'}
-                  {connectionMode === 'Reconnecting' && `Reconnecting... Attempt ${reconnectAttempt} of 5`}
-                  {connectionMode === 'Polling' && 'HTTP Telemetry Stream (Active)'}
+                  {isFailed
+                    ? `Pipeline Halted (${statusState.currentStep || 'Failed'})`
+                    : connectionMode === 'SignalR'
+                      ? 'Real-Time Pipeline (SignalR)'
+                      : connectionMode === 'Reconnecting'
+                        ? `Reconnecting... Attempt ${reconnectAttempt} of 5`
+                        : 'HTTP Telemetry Stream (Active)'}
                 </span>
               </span>
-              <span className="font-bold text-[#111827] font-mono">{calculatedProgress}%</span>
+              <span className={`font-bold font-mono ${isFailed ? 'text-rose-600' : 'text-[#111827]'}`}>
+                {isFailed ? `FAILED (${calculatedProgress}%)` : `${calculatedProgress}%`}
+              </span>
             </div>
 
             {/* Dynamic Progress Bar */}
@@ -414,8 +449,8 @@ ${(statusState.steps || []).map(s => `- [${s.status}] ${s.name} (${s.key})`).joi
                 </div>
                 <div className="flex justify-between items-center text-[11px] text-[#6B7280]">
                   <span>{completedCount} of {steps.length || 9} steps finished</span>
-                  {!isComplete && (
-                    <span>~{statusState.estimatedRemainingSeconds || Math.max(3, ((steps.length || 9) - completedCount) * 2)}s remaining</span>
+                  {!isComplete && !isFailed && statusState.estimatedRemainingSeconds != null && (
+                    <span>~{statusState.estimatedRemainingSeconds}s remaining</span>
                   )}
                 </div>
               </div>

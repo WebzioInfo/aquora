@@ -1,11 +1,14 @@
-using Microsoft.EntityFrameworkCore.Migrations;
 using Aquora.Persistence.Context;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Aquora.Persistence.Migrations.Tenant
 {
     /// <inheritdoc />
+    [DbContext(typeof(TenantDbContext))]
+    [Migration("20260827110000_AddWarningLimitsToWaterTestParameters")]
     public partial class AddWarningLimitsToWaterTestParameters : Migration
     {
         private string _schema => TenantSchemaResolver.ResolveRequiredSchema();

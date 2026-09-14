@@ -80,6 +80,14 @@ namespace Aquora.Persistence.Context
                 // 7. DROP INDEX -> DROP INDEX IF EXISTS
                 sql = System.Text.RegularExpressions.Regex.Replace(sql, @"\bDROP\s+INDEX\b(?!\s*IF\s+EXISTS\b)", "DROP INDEX IF EXISTS", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
+                // 8. ALTER TABLE ... ADD CONSTRAINT -> Wrap in DO block to gracefully ignore duplicate_object (SQLSTATE 42710)
+                if (System.Text.RegularExpressions.Regex.IsMatch(sql, @"\bALTER\s+TABLE\s+.+\bADD\s+CONSTRAINT\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+                    && !sql.TrimStart().StartsWith("DO $$", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    var cleanSql = sql.Trim().TrimEnd(';');
+                    sql = $"DO $$ BEGIN {cleanSql}; EXCEPTION WHEN duplicate_object THEN NULL; END $$;";
+                }
+
                 if (sql != originalSql)
                 {
                     bool setSuccessful = false;

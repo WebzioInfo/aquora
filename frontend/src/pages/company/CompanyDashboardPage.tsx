@@ -790,8 +790,16 @@ export const CompanyDashboardPage: React.FC = () => {
           })
 
           if (data.tenantStatus === 'Ready' || data.tenantStatus === 'Completed' || data.isTenantInitialized) {
+            if (pollIntervalId) {
+              clearInterval(pollIntervalId)
+              pollIntervalId = null
+            }
             handleOnboardingComplete(data)
           } else if (data.tenantStatus === 'Failed') {
+            if (pollIntervalId) {
+              clearInterval(pollIntervalId)
+              pollIntervalId = null
+            }
             setOnboarding(prev => ({ ...prev, status: 'Failed', failureReason: data.onboardingFailureReason || 'Provisioning failed' }))
           }
         }
@@ -822,7 +830,16 @@ export const CompanyDashboardPage: React.FC = () => {
       })
 
       if (data.status === 'Ready' || data.progress === 100) {
+        if (pollIntervalId) {
+          clearInterval(pollIntervalId)
+          pollIntervalId = null
+        }
         handleOnboardingComplete()
+      } else if (data.status === 'Failed') {
+        if (pollIntervalId) {
+          clearInterval(pollIntervalId)
+          pollIntervalId = null
+        }
       }
     })
 

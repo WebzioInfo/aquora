@@ -1,11 +1,14 @@
-using Microsoft.EntityFrameworkCore.Migrations;
 using Aquora.Persistence.Context;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Aquora.Persistence.Migrations.Tenant
 {
     /// <inheritdoc />
+    [DbContext(typeof(TenantDbContext))]
+    [Migration("20260813120000_AddPriceAndDiscountToCustomer")]
     public partial class AddPriceAndDiscountToCustomer : Migration
     {
         private string _schema => TenantSchemaResolver.ResolveRequiredSchema();

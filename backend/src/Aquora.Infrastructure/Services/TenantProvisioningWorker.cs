@@ -127,21 +127,28 @@ namespace Aquora.Infrastructure.Services
                         });
 
                     // 2. Create UserMembership link in Platform Db
+                    // 2. Create UserMembership link in Platform Db (Idempotent)
                     await using (var transaction = await platformContext.Database.BeginTransactionAsync(stoppingToken))
                     {
                         try
                         {
-                            var membership = new UserMembership
-                            {
-                                PlatformUserId = job.OwnerUserId,
-                                TenantId = job.TenantId,
-                                RoleId = provisioningResult.OwnerRoleId,
-                                Status = "Active",
-                                JoinedAt = DateTime.UtcNow
-                            };
+                            var existingMembership = await platformContext.UserMemberships.FirstOrDefaultAsync(
+                                m => m.PlatformUserId == job.OwnerUserId && m.TenantId == job.TenantId, stoppingToken);
 
-                            platformContext.UserMemberships.Add(membership);
-                            await platformContext.SaveChangesAsync(stoppingToken);
+                            if (existingMembership == null)
+                            {
+                                var membership = new UserMembership
+                                {
+                                    PlatformUserId = job.OwnerUserId,
+                                    TenantId = job.TenantId,
+                                    RoleId = provisioningResult.OwnerRoleId,
+                                    Status = "Active",
+                                    JoinedAt = DateTime.UtcNow
+                                };
+
+                                platformContext.UserMemberships.Add(membership);
+                                await platformContext.SaveChangesAsync(stoppingToken);
+                            }
                             await transaction.CommitAsync(stoppingToken);
                         }
                         catch (Exception ex)
@@ -175,7 +182,18 @@ namespace Aquora.Infrastructure.Services
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                _logger.LogError(ex, $"[WORKER] Failed to provision tenant: {job.CompanyName} (ID: {job.TenantId}). Attempting cleanup...");
+                
+                var targetEx = ex.InnerException ?? ex;
+                var exType = targetEx.GetType();
+                string sqlState = exType.GetProperty("SqlState")?.GetValue(targetEx)?.ToString() ?? "UNKNOWN";
+                string pgTable = exType.GetProperty("TableName")?.GetValue(targetEx)?.ToString() ?? "UNKNOWN";
+                string pgColumn = exType.GetProperty("ColumnName")?.GetValue(targetEx)?.ToString() ?? "UNKNOWN";
+                string pgDetail = exType.GetProperty("Detail")?.GetValue(targetEx)?.ToString() ?? "N/A";
+
+                _logger.LogError(ex, 
+                    "[WORKER] [PROVISIONING FAILURE] Tenant: {CompanyName} (ID: {TenantId}, Schema: {SchemaName}). " +
+                    "Step: Failed, SQLSTATE: {SqlState}, Table: {Table}, Column: {Column}, Detail: {Detail}, Error: {Message}",
+                    job.CompanyName, job.TenantId, job.SchemaName, sqlState, pgTable, pgColumn, pgDetail, ex.Message);
                 
                 await HandleFailureAsync(job.TenantId, job.SchemaName, job.OwnerUserId, ex, stopwatch.Elapsed.TotalSeconds);
             }

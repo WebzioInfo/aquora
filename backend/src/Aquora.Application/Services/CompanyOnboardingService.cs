@@ -430,10 +430,11 @@ namespace Aquora.Application.Services
                 Status = isDone ? "Completed" : (isFailed ? "Failed" : "Provisioning"),
                 Progress = calculatedProgress,
                 CurrentStep = currentStepKey,
+                FailedStep = isFailed ? currentStepKey : (string?)null,
                 Message = isDone ? "Your workspace is ready!" : (isFailed ? (tenant.FailureReason ?? "Provisioning failed.") : $"{pipelineSteps[currentStepIndex].name}..."),
                 FailureReason = tenant.FailureReason,
                 Steps = stepsResult,
-                EstimatedRemainingSeconds = isDone ? 0 : Math.Max(3, (pipelineSteps.Length - completedCount) * 2)
+                EstimatedRemainingSeconds = (isDone || isFailed) ? (int?)null : Math.Max(3, (pipelineSteps.Length - completedCount) * 2)
             };
         }
 

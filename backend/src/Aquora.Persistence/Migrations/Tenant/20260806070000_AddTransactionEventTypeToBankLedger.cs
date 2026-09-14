@@ -1,10 +1,13 @@
-using Microsoft.EntityFrameworkCore.Migrations;
 using Aquora.Persistence.Context;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Aquora.Persistence.Migrations.Tenant
 {
+    [DbContext(typeof(TenantDbContext))]
+    [Migration("20260806070000_AddTransactionEventTypeToBankLedger")]
     public partial class AddTransactionEventTypeToBankLedger : Migration
     {
         private string _schema => TenantSchemaResolver.ResolveRequiredSchema();

@@ -1,11 +1,14 @@
 using System;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Aquora.Persistence.Context;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Aquora.Persistence.Migrations.Tenant
 {
+    [DbContext(typeof(TenantDbContext))]
+    [Migration("20260803173000_AddCashBooksLedger")]
     public partial class AddCashBooksLedger : Migration
     {
         private string _schema => TenantSchemaResolver.ResolveRequiredSchema();

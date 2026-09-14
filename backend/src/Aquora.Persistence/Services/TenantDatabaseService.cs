@@ -444,7 +444,7 @@ namespace Aquora.Persistence.Services
                     var transaction = tenantContext.Database.IsRelational() ? await tenantContext.Database.BeginTransactionAsync() : null;
                     try
                     {
-                        // 1. Seed security roles inside schema
+                        // 1. Seed security roles inside schema (Idempotent)
                         var roleNames = new[]
                         {
                             "Owner", "CompanyAdmin", "Accountant", "Admin", "Manager", "Supervisor", "Operator",
@@ -452,31 +452,26 @@ namespace Aquora.Persistence.Services
                         };
                         Console.WriteLine($"[ROLE SEEDING]: Seeding roles: {string.Join(", ", roleNames)} inside schema '{schemaName}'.");
 
-                        Role ownerRole = null!;
-                        Role companyAdminRole = null!;
-                        Role accountantRole = null!;
-                        Role qcRole = null!;
+                        var existingRoles = await tenantContext.Roles.Where(r => r.TenantId == tenantId).ToListAsync();
+                        Role ownerRole = existingRoles.FirstOrDefault(r => r.Name == "Owner")!;
+                        Role companyAdminRole = existingRoles.FirstOrDefault(r => r.Name == "CompanyAdmin")!;
+                        Role accountantRole = existingRoles.FirstOrDefault(r => r.Name == "Accountant")!;
+                        Role qcRole = existingRoles.FirstOrDefault(r => r.Name == "QC")!;
+
                         foreach (var roleName in roleNames)
                         {
                             var code = roleName.Replace(" ", "_").ToUpperInvariant();
-                            var role = new Role { Name = roleName, Code = code, TenantId = tenantId };
-                            tenantContext.Roles.Add(role);
-                            if (roleName == "Owner")
+                            var role = existingRoles.FirstOrDefault(r => r.Name == roleName || r.Code == code);
+                            if (role == null)
                             {
-                                ownerRole = role;
+                                role = new Role { Name = roleName, Code = code, TenantId = tenantId };
+                                tenantContext.Roles.Add(role);
+                                existingRoles.Add(role);
                             }
-                            if (roleName == "CompanyAdmin")
-                            {
-                                companyAdminRole = role;
-                            }
-                            if (roleName == "Accountant")
-                            {
-                                accountantRole = role;
-                            }
-                            if (roleName == "QC")
-                            {
-                                qcRole = role;
-                            }
+                            if (roleName == "Owner") ownerRole = role;
+                            if (roleName == "CompanyAdmin") companyAdminRole = role;
+                            if (roleName == "Accountant") accountantRole = role;
+                            if (roleName == "QC") qcRole = role;
                         }
                         await tenantContext.SaveChangesAsync();
 
@@ -488,7 +483,7 @@ namespace Aquora.Persistence.Services
                         result.OwnerRoleId = ownerRole.Id;
                         result.OwnerRoleName = ownerRole.Name;
 
-                        // 2. Seed dynamic permissions inside schema
+                        // 2. Seed dynamic permissions inside schema (Idempotent)
                         var permissionStrings = new[]
                         {
                             Permissions.TenantRead, Permissions.TenantWrite,
@@ -500,15 +495,21 @@ namespace Aquora.Persistence.Services
                             Permissions.QCRead, Permissions.QCWrite
                         };
 
+                        var existingPermissions = await tenantContext.Permissions.ToListAsync();
                         var seededPermissions = new List<Permission>();
                         foreach (var permStr in permissionStrings)
                         {
-                            var p = new Permission
+                            var p = existingPermissions.FirstOrDefault(ep => ep.Code == permStr);
+                            if (p == null)
                             {
-                                Name = permStr.Replace("Permissions.", "").Replace(".", " "),
-                                Code = permStr
-                            };
-                            tenantContext.Permissions.Add(p);
+                                p = new Permission
+                                {
+                                    Name = permStr.Replace("Permissions.", "").Replace(".", " "),
+                                    Code = permStr
+                                };
+                                tenantContext.Permissions.Add(p);
+                                existingPermissions.Add(p);
+                            }
                             seededPermissions.Add(p);
                         }
                         await tenantContext.SaveChangesAsync();
@@ -518,28 +519,29 @@ namespace Aquora.Persistence.Services
                             await onProgress(80, "AdministratorUserInitialized", "Setting up your administrator profile...");
                         }
 
-                        // 3. Map permissions: CompanyAdmin and Accountant get all permissions, Owner gets Read-Only permissions
+                        // 3. Map permissions: CompanyAdmin and Accountant get all permissions, Owner gets Read-Only permissions (Idempotent)
+                        var existingRolePerms = await tenantContext.RolePermissions.Where(rp => rp.TenantId == tenantId).ToListAsync();
+                        void EnsureRolePermission(Guid roleId, Guid permId)
+                        {
+                            if (!existingRolePerms.Any(rp => rp.RoleId == roleId && rp.PermissionId == permId))
+                            {
+                                var rp = new RolePermission { RoleId = roleId, PermissionId = permId, TenantId = tenantId };
+                                tenantContext.RolePermissions.Add(rp);
+                                existingRolePerms.Add(rp);
+                            }
+                        }
+
                         var ownerReadPerms = seededPermissions.Where(p => p.Code.EndsWith(".Read")).ToList();
                         foreach (var perm in ownerReadPerms)
                         {
-                            tenantContext.RolePermissions.Add(new RolePermission
-                            {
-                                RoleId = ownerRole.Id,
-                                PermissionId = perm.Id,
-                                TenantId = tenantId
-                            });
+                            EnsureRolePermission(ownerRole.Id, perm.Id);
                         }
 
                         if (companyAdminRole != null)
                         {
                             foreach (var perm in seededPermissions)
                             {
-                                tenantContext.RolePermissions.Add(new RolePermission
-                                {
-                                    RoleId = companyAdminRole.Id,
-                                    PermissionId = perm.Id,
-                                    TenantId = tenantId
-                                });
+                                EnsureRolePermission(companyAdminRole.Id, perm.Id);
                             }
                         }
 
@@ -547,12 +549,7 @@ namespace Aquora.Persistence.Services
                         {
                             foreach (var perm in seededPermissions)
                             {
-                                tenantContext.RolePermissions.Add(new RolePermission
-                                {
-                                    RoleId = accountantRole.Id,
-                                    PermissionId = perm.Id,
-                                    TenantId = tenantId
-                                });
+                                EnsureRolePermission(accountantRole.Id, perm.Id);
                             }
                         }
 
@@ -562,23 +559,22 @@ namespace Aquora.Persistence.Services
                             var qcPerms = seededPermissions.Where(p => p.Code.StartsWith("Permissions.QC") || p.Code == Permissions.DashboardRead);
                             foreach (var perm in qcPerms)
                             {
-                                tenantContext.RolePermissions.Add(new RolePermission
-                                {
-                                    RoleId = qcRole.Id,
-                                    PermissionId = perm.Id,
-                                    TenantId = tenantId
-                                });
+                                EnsureRolePermission(qcRole.Id, perm.Id);
                             }
                         }
 
-                        var userRole = new UserRole
+                        var existingUserRole = await tenantContext.UserRoles.FirstOrDefaultAsync(ur => ur.UserId == ownerUserId && ur.RoleId == ownerRole.Id && ur.TenantId == tenantId);
+                        if (existingUserRole == null)
                         {
-                            UserId = ownerUserId,
-                            RoleId = ownerRole.Id,
-                            TenantId = tenantId
-                        };
-                        tenantContext.UserRoles.Add(userRole);
-                        await tenantContext.SaveChangesAsync();
+                            var userRole = new UserRole
+                            {
+                                UserId = ownerUserId,
+                                RoleId = ownerRole.Id,
+                                TenantId = tenantId
+                            };
+                            tenantContext.UserRoles.Add(userRole);
+                            await tenantContext.SaveChangesAsync();
+                        }
                         Console.WriteLine($"[USERROLE ASSIGNMENT]: Assigned role '{ownerRole.Name}' (ID: {ownerRole.Id}) to user '{ownerUserId}' inside schema '{schemaName}'.");
 
                         if (onProgress != null)
