@@ -6,7 +6,12 @@ import React, { useState, useEffect } from 'react'
 import { api } from '../../services/api'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import EnterpriseNumberInput from '../../components/ui/EnterpriseNumberInput'
+
+import { Truck, Clock, Package, AlertCircle, RefreshCw, Box, Layers, LogIn, CheckCircle, Search, Edit2, Zap, Settings, HelpCircle, DollarSign, Activity } from 'lucide-react'
+import { TwentyLOperationsHub } from './TwentyLOperationsHub'
+=======
 import { Truck, Clock, Package, AlertCircle, RefreshCw, Box, Layers, LogIn, CheckCircle, Search, Edit2, Zap, Settings, HelpCircle, Plus, X, User, Phone, MapPin, CreditCard } from 'lucide-react'
+
 
 export const OperationsPage: React.FC = () => {
   const { showToast } = useNotificationStore()
@@ -311,13 +316,39 @@ export const OperationsPage: React.FC = () => {
     }
   }
 
+  const [operationsView, setOperationsView] = useState<'business' | 'floor'>('business')
+
   return (
     <PageContainer>
-      <PageHeader
-        title="20L Operations"
-        description="Manage 20L empty returns, filling queue, and loading operations."
-      />
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <PageHeader
+          title="20L Operations & Business Hub"
+          description="Authoritative 20L container ledger, commercial deliveries, rate cards, and factory floor loading."
+        />
 
+        <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <button
+            onClick={() => setOperationsView('business')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              operationsView === 'business' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <DollarSign className="w-3.5 h-3.5" /> 20L Business Engine
+          </button>
+          <button
+            onClick={() => setOperationsView('floor')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              operationsView === 'floor' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5" /> Plant Floor Loading & Queue
+          </button>
+        </div>
+      </div>
+
+      {operationsView === 'business' ? (
+        <TwentyLOperationsHub />
+      ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           
           <div className="lg:col-span-3 space-y-6">
@@ -585,6 +616,9 @@ export const OperationsPage: React.FC = () => {
 
         </div>
 
+      )}
+
+
         {/* QUICK CUSTOMER CREATION MODAL */}
         {showQuickCustomerModal && (
           <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
@@ -727,6 +761,7 @@ export const OperationsPage: React.FC = () => {
             </div>
           </div>
         )}
+
     </PageContainer>
   )
 }

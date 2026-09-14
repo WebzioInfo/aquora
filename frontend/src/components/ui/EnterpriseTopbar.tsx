@@ -1,6 +1,6 @@
-import React from 'react'
-import { Menu, Bell, LogOut } from 'lucide-react'
+import { Menu, Bell, LogOut, Search, Command } from 'lucide-react'
 import BRAND from '../../config/brand'
+import { useSearchStore } from '../../store/useSearchStore'
 
 export interface TopbarNotificationItem {
   id: string;
@@ -44,8 +44,10 @@ export const EnterpriseTopbar: React.FC<EnterpriseTopbarProps> = ({
   onNotificationClick,
   onMarkAllRead
 }) => {
+  const { openSearch } = useSearchStore()
+
   return (
-    <header className="h-16 border-b border-[#E5E9F2] bg-white sticky top-0 z-30 px-6 flex items-center justify-between">
+    <header className="h-16 border-b border-[#E5E9F2] bg-white sticky top-0 z-30 px-4 md:px-6 flex items-center justify-between gap-4">
       <div className="flex items-center gap-3">
         <button 
           onClick={onToggleSidebar}
@@ -53,10 +55,32 @@ export const EnterpriseTopbar: React.FC<EnterpriseTopbarProps> = ({
         >
           <Menu className="w-5 h-5" />
         </button>
+
+        {/* Global Universal Search Trigger (Desktop) */}
+        <button
+          onClick={() => openSearch()}
+          className="hidden sm:flex items-center gap-3 px-3 py-1.5 rounded-xl bg-slate-100/90 hover:bg-slate-100 text-slate-400 hover:text-slate-600 border border-slate-200/70 transition-all text-xs w-64 md:w-80 cursor-pointer shadow-xs group"
+        >
+          <Search className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors shrink-0" />
+          <span className="flex-1 text-left text-slate-500 font-medium">Search Aquzio...</span>
+          <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white text-[10px] font-bold text-slate-500 border border-slate-200 shadow-2xs font-mono">
+            <span>Ctrl</span>
+            <span>+</span>
+            <span>K</span>
+          </div>
+        </button>
       </div>
 
       {/* Right nav items */}
-      <div className="flex items-center gap-4 select-none relative">
+      <div className="flex items-center gap-2 md:gap-4 select-none relative">
+        {/* Mobile Search Icon Button */}
+        <button
+          onClick={() => openSearch()}
+          className="sm:hidden p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+          title="Search"
+        >
+          <Search className="w-5 h-5" />
+        </button>
         <div className="hidden md:flex flex-col text-right select-none mr-1">
           <span className="text-xs font-bold text-[#101828]">
             {user?.companyName || user?.tenantName || BRAND.name}

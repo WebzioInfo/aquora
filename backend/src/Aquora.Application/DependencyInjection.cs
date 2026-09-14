@@ -20,6 +20,7 @@ namespace Aquora.Application
             services.AddScoped<IHierarchyService, HierarchyService>();
             services.AddScoped<ISchemaNameGenerator, SchemaNameGenerator>();
             services.AddScoped<IInventoryMovementService, InventoryMovementService>();
+            services.AddScoped<ITwentyLLedgerPostingService, TwentyLLedgerPostingService>();
             services.AddScoped<IPriceListService, PriceListService>();
             services.AddScoped<IDiscountGroupService, DiscountGroupService>();
 
@@ -42,9 +43,12 @@ namespace Aquora.Application
             services.AddScoped<IBackupService, BackupService>();
             services.AddScoped<IExportService, ExportService>();
             services.AddSingleton<IPlatformBackupJobManager, PlatformBackupJobManager>();
-            services.AddScoped<IPlatformBackupEngine, PlatformBackupEngine>();
             services.AddScoped<IPlatformBackupService, PlatformBackupService>();
+
+            services.AddScoped<IGlobalSearchService, GlobalSearchService>();
+
             services.AddScoped<IReportService, ReportService>();
+
 
             return services;
         }

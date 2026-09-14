@@ -15,6 +15,7 @@ import {
 import EnterpriseSidebar from '../components/ui/EnterpriseSidebar'
 import EnterpriseTopbar from '../components/ui/EnterpriseTopbar'
 import EnterpriseModal from '../components/ui/EnterpriseModal'
+import { GlobalSearchModal } from '../components/search/GlobalSearchModal'
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { HubConnectionBuilder, HttpTransportType } from '@microsoft/signalr'
@@ -258,6 +259,7 @@ export const CompanyLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen flex bg-[#F7F9FC] text-[#101828]">
+      <GlobalSearchModal />
 
       {/* Reusable Enterprise Sidebar */}
       <EnterpriseSidebar
