@@ -15,6 +15,7 @@ import { brandService } from '../../services/brands'
 import { rawMaterialsService } from '../../services/rawMaterials'
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown'
 import { useNotificationStore } from '../../store/useNotificationStore'
+import { isOwnerUser } from '../../utils/permissions'
 import { useAuthStore } from '../../store/useAuthStore'
 import EnterpriseHeader from '../../components/ui/EnterpriseHeader'
 import PageContainer from '../../components/ui/layout/PageContainer'
@@ -81,7 +82,8 @@ export const CustomersPage: React.FC = () => {
   // Permissions check based on specifications
   const userRoles = user?.roles || []
   const isOperator = userRoles.includes('Operator') && userRoles.length === 1
-  const canWrite = !isOperator
+  const isOwner = isOwnerUser(user)
+  const canWrite = !isOperator && !isOwner
 
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('')

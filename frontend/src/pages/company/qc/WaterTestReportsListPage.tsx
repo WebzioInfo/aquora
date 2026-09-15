@@ -25,10 +25,14 @@ import { EnterpriseButton } from '../../../components/ui/EnterpriseButton';
 
 import { waterTestApi } from '../../../services/api/waterTest';
 import type { WaterTestReport } from '../../../services/api/waterTest';
+import { useAuthStore } from '../../../store/useAuthStore';
+import { isOwnerUser } from '../../../utils/permissions';
 
 export const WaterTestReportsListPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuthStore();
+  const isOwner = isOwnerUser(user);
 
   const isCompanyContext = location.pathname.startsWith('/company');
   const basePath = isCompanyContext ? '/company/qc/water-test' : '/qc/water-tests';
@@ -160,13 +164,15 @@ export const WaterTestReportsListPage: React.FC = () => {
           >
             <Eye className="w-4 h-4 mr-1.5" /> View
           </EnterpriseButton>
-          <EnterpriseButton
-            variant="secondary"
-            size="sm"
-            onClick={() => navigate(`${basePath}/${row.id}/edit`)}
-          >
-            <Edit2 className="w-4 h-4 mr-1.5" /> Edit
-          </EnterpriseButton>
+          {!isOwner && (
+            <EnterpriseButton
+              variant="secondary"
+              size="sm"
+              onClick={() => navigate(`${basePath}/${row.id}/edit`)}
+            >
+              <Edit2 className="w-4 h-4 mr-1.5" /> Edit
+            </EnterpriseButton>
+          )}
         </div>
       )
     }
@@ -179,13 +185,15 @@ export const WaterTestReportsListPage: React.FC = () => {
         title="Water Test Reports"
         description="View, search, and manage all quality control laboratory test reports."
         actions={
-          <button
-            onClick={() => navigate(`${basePath}/new`)}
-            className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Create Water Test Report</span>
-          </button>
+          !isOwner ? (
+            <button
+              onClick={() => navigate(`${basePath}/new`)}
+              className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Create Water Test Report</span>
+            </button>
+          ) : undefined
         }
       />
 

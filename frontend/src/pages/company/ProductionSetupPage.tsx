@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../services/api'
@@ -7,6 +7,7 @@ import { caseConfigurationsService, type CaseConfiguration } from '../../service
 import { productsService } from '../../services/products'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import { useAuthStore } from '../../store/useAuthStore'
+import { isOwnerUser } from '../../utils/permissions'
 import PageContainer from '../../components/ui/layout/PageContainer'
 import EnterpriseModal from '../../components/ui/EnterpriseModal'
 import EnterpriseInput from '../../components/ui/EnterpriseInput'
@@ -23,6 +24,13 @@ export const ProductionSetupPage: React.FC = () => {
   const { showToast } = useNotificationStore()
   const { user } = useAuthStore()
 
+  // Owner access guard
+  useEffect(() => {
+    if (isOwnerUser(user)) {
+      navigate('/company/dashboard', { replace: true })
+    }
+  }, [user, navigate])
+
   // Tab State: 'lines' | 'shifts' | 'cases'
   const tabParam = searchParams.get('tab')
   const activeTab = (tabParam === 'shifts' ? 'shifts' : tabParam === 'cases' ? 'cases' : 'lines') as 'lines' | 'shifts' | 'cases'
@@ -34,7 +42,7 @@ export const ProductionSetupPage: React.FC = () => {
   // User Role Check
   const userRoles = (user?.roles || []).map((r: string) => r.toLowerCase().replace(/[\s_]/g, ''))
   const primaryRole = (user?.roleName || '').toLowerCase().replace(/[\s_]/g, '')
-  const isOwner = userRoles.some((r: string) => ['owner', 'companyowner', 'platformowner'].includes(r)) || primaryRole === 'owner'
+  const isOwner = isOwnerUser(user)
   const canManage = !isOwner && (
     !!user?.isPlatformAdmin ||
     userRoles.some((r: string) => ['companyadmin', 'accountant', 'admin', 'superadmin', 'platformadmin'].includes(r)) ||

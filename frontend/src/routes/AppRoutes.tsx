@@ -1,7 +1,8 @@
 import React from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/useAuthStore'
 import { authService } from '../services/auth'
+import { isOwnerUser } from '../utils/permissions'
 import AuthLayout from '../layouts/AuthLayout'
 import PlatformLayout from '../layouts/PlatformLayout'
 import CompanyLayout from '../layouts/CompanyLayout'
@@ -204,10 +205,29 @@ const CompanyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   return <>{children}</>
 }
 
+// Guard to deny access to Owner role for restricted operational modules (Production Setup, Brands)
+const OwnerRestrictedRoute: React.FC<{ children: React.ReactNode; restrictedTab?: string }> = ({ children, restrictedTab }) => {
+  const { user } = useAuthStore()
+  const location = useLocation()
+  const searchParams = new URLSearchParams(location.search)
+
+  if (isOwnerUser(user)) {
+    if (restrictedTab) {
+      if (searchParams.get('tab') === restrictedTab) {
+        return <Navigate to="/company/dashboard" replace />
+      }
+    } else {
+      return <Navigate to="/company/dashboard" replace />
+    }
+  }
+
+  return <>{children}</>
+}
+
 // Role-aware Dashboard Dispatcher for Company Dashboard
 const CompanyDashboardDispatcher: React.FC = () => {
   const { user } = useAuthStore()
-  const isOwner = (user?.roles?.some((r: string) => ['owner', 'companyowner', 'platformowner'].includes(r.toLowerCase())) || user?.roleName?.toLowerCase() === 'owner') ?? false
+  const isOwner = isOwnerUser(user)
 
   if (isOwner) {
     return <OwnerDashboardPage />
@@ -577,9 +597,9 @@ export const AppRoutes: React.FC = () => {
           <Route path="dashboard" element={<CompanyDashboardDispatcher />} />
           <Route path="dashboard/owner" element={<OwnerDashboardPage />} />
           <Route path="production" element={<CompanyDashboardPage />} />
-          <Route path="production-setup" element={<ProductionSetupPage />} />
+          <Route path="production-setup" element={<OwnerRestrictedRoute><ProductionSetupPage /></OwnerRestrictedRoute>} />
           <Route path="production/batches/:batchId" element={<BatchDetailsPage />} />
-          <Route path="inventory" element={<CompanyDashboardPage />} />
+          <Route path="inventory" element={<OwnerRestrictedRoute restrictedTab="brands"><CompanyDashboardPage /></OwnerRestrictedRoute>} />
           <Route path="sales" element={<CompanyDashboardPage />} />
           {/* Simple Accounts V1 Routes */}
           <Route path="accounts/dashboard" element={<AccountsDashboardPage />} />
@@ -623,9 +643,9 @@ export const AppRoutes: React.FC = () => {
           <Route path="reports" element={<ReportsPage />} />
           {/* Water Test Reports */}
           <Route path="qc/water-test" element={<WaterTestReportsListPage />} />
-          <Route path="qc/water-test/new" element={<WaterTestReportFormPage />} />
+          <Route path="qc/water-test/new" element={<OwnerRestrictedRoute><WaterTestReportFormPage /></OwnerRestrictedRoute>} />
           <Route path="qc/water-test/:id" element={<WaterTestReportDetailPage />} />
-          <Route path="qc/water-test/:id/edit" element={<WaterTestReportFormPage />} />
+          <Route path="qc/water-test/:id/edit" element={<OwnerRestrictedRoute><WaterTestReportFormPage /></OwnerRestrictedRoute>} />
         </Route>
 
         {/* QC Portal */}
@@ -640,9 +660,9 @@ export const AppRoutes: React.FC = () => {
           <Route index element={<Navigate to="/qc/dashboard" replace />} />
           <Route path="dashboard" element={<QualityDashboardPage />} />
           <Route path="water-tests" element={<WaterTestReportsListPage />} />
-          <Route path="water-tests/new" element={<WaterTestReportFormPage />} />
+          <Route path="water-tests/new" element={<OwnerRestrictedRoute><WaterTestReportFormPage /></OwnerRestrictedRoute>} />
           <Route path="water-tests/:id" element={<WaterTestReportDetailPage />} />
-          <Route path="water-tests/:id/edit" element={<WaterTestReportFormPage />} />
+          <Route path="water-tests/:id/edit" element={<OwnerRestrictedRoute><WaterTestReportFormPage /></OwnerRestrictedRoute>} />
           <Route path="compliance" element={<CompliancePage />} />
           <Route path="parameters" element={<ParametersManagementPage />} />
           <Route path="settings" element={<QCSettingsPage />} />

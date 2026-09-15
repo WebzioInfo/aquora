@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../services/api'
@@ -6,6 +6,8 @@ import { productsService } from '../../services/products'
 import { rawMaterialsService } from '../../services/rawMaterials'
 import { brandService } from '../../services/brands'
 import { RAW_MATERIAL_CATEGORIES } from '../../utils/rawMaterialCategories'
+import { useAuthStore } from '../../store/useAuthStore'
+import { isOwnerUser } from '../../utils/permissions'
 import { Search, Plus, Edit2, Trash2, ChevronDown, ChevronUp, RefreshCw, RotateCcw, Package, X } from 'lucide-react'
 import EnterpriseModal from '../../components/ui/EnterpriseModal'
 import EnterpriseInput from '../../components/ui/EnterpriseInput'
@@ -332,9 +334,20 @@ interface InventoryPageProps {
 export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToast }) => {
   const queryClient = useQueryClient()
   const location = useLocation()
+  const navigate = useNavigate()
+  const { user } = useAuthStore()
+  const isOwner = isOwnerUser(user)
+
   const searchParams = new URLSearchParams(location.search)
   const queryTab = searchParams.get('tab') as 'products' | 'raw_materials' | 'brands' | null
   const inventoryTab = queryTab || 'products'
+
+  useEffect(() => {
+    if (isOwner && queryTab === 'brands') {
+      navigate('/company/dashboard', { replace: true })
+    }
+  }, [isOwner, queryTab, navigate])
+
   const [globalSearch, setGlobalSearch] = useState('')
   const [productsPage, setProductsPage] = useState(1)
   const [productsSearch, setProductsSearch] = useState('')
@@ -400,8 +413,8 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
   const [rawMaterialFormCurrentStock, setRawMaterialFormCurrentStock] = useState('0')
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
   const toggleRow = (id: string) => setExpandedRowId(prev => prev === id ? null : id)
-  const navigate = useNavigate()
   const switchTab = (tab: 'products' | 'raw_materials' | 'brands') => {
+    if (isOwner && tab === 'brands') return
     navigate(`?tab=${tab}`); setExpandedRowId(null); setGlobalSearch('')
     setProductsSearch(''); setRawMaterialsSearch(''); setBrandsSearch('')
   }
@@ -413,7 +426,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
   const { data: paginatedBrandsData, isLoading: brandsLoading, refetch: refetchBrands } = useQuery({
     queryKey: ['brandsPaginated', brandsPage, brandsSearch],
     queryFn: async () => (await brandService.getBrands(brandsPage, 10, brandsSearch)).data,
-    enabled: inventoryTab === 'brands'
+    enabled: !isOwner && inventoryTab === 'brands'
   })
   const { data: brands = [] } = useQuery({
     queryKey: ['brandsDropdown'],

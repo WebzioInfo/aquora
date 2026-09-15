@@ -1018,7 +1018,7 @@ export const OwnerDashboardPage: React.FC = () => {
               <p className="text-xs text-slate-500">{L('productionDesc')}</p>
             </div>
             <button
-              onClick={() => navigate('/company/production-setup')}
+              onClick={() => navigate('/company/production')}
               className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
             >
               {L('viewProduction')} <ChevronRight className="w-3.5 h-3.5" />
@@ -1475,7 +1475,7 @@ export const OwnerDashboardPage: React.FC = () => {
             <button onClick={() => navigate('/company/sales')} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5">
               <BarChart3 className="w-3.5 h-3.5 text-indigo-600" /> {L('salesTitle')}
             </button>
-            <button onClick={() => navigate('/company/production-setup')} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5">
+            <button onClick={() => navigate('/company/production')} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5">
               <Factory className="w-3.5 h-3.5 text-cyan-600" /> {L('viewProduction')}
             </button>
             <button onClick={() => navigate('/company/accounts/dashboard')} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5">

@@ -57,6 +57,9 @@ const MICROBIOLOGY_ORDER = [
   'Yeast & Mold'
 ];
 
+import { useAuthStore } from '../../../store/useAuthStore';
+import { isOwnerUser } from '../../../utils/permissions';
+
 export const WaterTestReportFormPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -65,6 +68,14 @@ export const WaterTestReportFormPage: React.FC = () => {
   const location = useLocation();
   const isCompanyContext = location.pathname.startsWith('/company');
   const basePath = isCompanyContext ? '/company/qc/water-test' : '/qc/water-tests';
+
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    if (isOwnerUser(user)) {
+      navigate(basePath, { replace: true });
+    }
+  }, [user, navigate, basePath]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);

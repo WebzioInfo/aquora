@@ -148,7 +148,7 @@ export const OperatorLayout: React.FC = () => {
 
   const location = useLocation()
 
-  // Guard routing logic based on selected product and line/shift allocation
+  // Guard routing logic based on selected active line and resolved active configuration
   useEffect(() => {
     if (location.pathname === '/access-denied') return
 
@@ -157,35 +157,27 @@ export const OperatorLayout: React.FC = () => {
     // Only guard if the route is part of operator
     if (!path.startsWith('/operator')) return
 
-    // 1. If no product is selected, we MUST go to product selection
-    if (!selectedProduct) {
-      if (path !== '/operator/product-selection') {
+    // 1. If no active line or product configuration is selected, direct to line selection
+    if (!selectedLine || !selectedProduct) {
+      if (path !== '/operator/product-selection' && path !== '/operator/production-allocation') {
         navigate('/operator/product-selection', { replace: true })
       }
       return
     }
 
-    // 2. If product is 20L Jar, redirect to /operator/jar
+    // 2. If active product is 20L Jar, redirect to /operator/jar terminal
     const isJar = selectedProduct.category?.toLowerCase() === '20l jar' || selectedProduct.name?.toLowerCase().includes('jar')
     if (isJar) {
       if (path !== '/operator/jar') {
         navigate('/operator/jar', { replace: true })
       }
     } else {
-      // 3. For bottles/cans/other categories
-      if (path === '/operator/jar' || path === '/operator/product-selection') {
-        if (!selectedLine || !selectedShift) {
-          navigate('/operator/production-allocation', { replace: true })
-        } else {
-          navigate('/operator/dashboard', { replace: true })
-        }
-      } else if (path === '/operator/dashboard' && (!selectedLine || !selectedShift)) {
-        navigate('/operator/production-allocation', { replace: true })
-      } else if (path === '/operator/production-allocation' && (selectedLine && selectedShift)) {
+      // 3. For bottled goods / other categories -> /operator/dashboard terminal
+      if (path === '/operator/jar' || path === '/operator/product-selection' || path === '/operator/production-allocation') {
         navigate('/operator/dashboard', { replace: true })
       }
     }
-  }, [selectedProduct, selectedLine, selectedShift, location.pathname, navigate])
+  }, [selectedProduct, selectedLine, location.pathname, navigate])
 
   // Dynamic fallback when linesData finishes loading if no line is currently selected
   useEffect(() => {

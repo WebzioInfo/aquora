@@ -55,11 +55,14 @@ const MICROBIOLOGY_ORDER = [
   'Yeast & Mold'
 ];
 
+import { isOwnerUser } from '../../../utils/permissions';
+
 export const WaterTestReportDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuthStore();
+  const isOwner = isOwnerUser(user);
 
   const isCompanyContext = location.pathname.startsWith('/company');
   const basePath = isCompanyContext ? '/company/qc/water-test' : '/qc/water-tests';
@@ -257,12 +260,14 @@ export const WaterTestReportDetailPage: React.FC = () => {
               >
                 <Printer className="w-3.5 h-3.5" /> Print Certificate
               </button>
-              <button
-                onClick={() => navigate(`${basePath}/${report.id}/edit`)}
-                className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
-              >
-                <Edit2 className="w-3.5 h-3.5" /> Edit Report
-              </button>
+              {!isOwner && (
+                <button
+                  onClick={() => navigate(`${basePath}/${report.id}/edit`)}
+                  className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+                >
+                  <Edit2 className="w-3.5 h-3.5" /> Edit Report
+                </button>
+              )}
             </div>
           }
         />

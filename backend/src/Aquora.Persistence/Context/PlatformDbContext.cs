@@ -37,6 +37,12 @@ namespace Aquora.Persistence.Context
         public DbSet<Aquora.Domain.Entities.Administration.BackupHistory> BackupHistories => Set<Aquora.Domain.Entities.Administration.BackupHistory>();
         public DbSet<Aquora.Domain.Entities.Administration.RestoreHistory> RestoreHistories => Set<Aquora.Domain.Entities.Administration.RestoreHistory>();
 
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            base.OnConfiguring(optionsBuilder);
+            optionsBuilder.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+        }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

@@ -218,9 +218,9 @@ namespace Aquora.Persistence.Services
                             var tenantProvider = tenantScope.ServiceProvider.GetRequiredService<ITenantProvider>();
                             tenantProvider.SetTenantId(tenant.Id);
                             tenantProvider.SetTenantSchemaName(tenant.SchemaName);
+                            TenantSchemaResolver.CurrentSchemaName = tenant.SchemaName;
 
                             var tenantContext = tenantScope.ServiceProvider.GetRequiredService<TenantDbContext>();
-                            TenantSchemaResolver.CurrentSchemaName = tenant.SchemaName;
 
                              // Check migration history and clean up legacy manually-created tables
                               bool hasFinanceModule = false;

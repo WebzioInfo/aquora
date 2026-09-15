@@ -17,6 +17,9 @@ import DetailTabs from '../../components/ui/layout/DetailTabs'
 import type { TabItem } from '../../components/ui/layout/DetailTabs'
 import { Box, Layers, RefreshCw, CheckCircle, AlertCircle, Package } from 'lucide-react'
 
+import { useAuthStore } from '../../store/useAuthStore'
+import { isOwnerUser } from '../../utils/permissions'
+
 interface CustomerProfilePageProps {
   customerId: string
   onEditCustomer: (customer: any) => void
@@ -27,6 +30,8 @@ type TabType = 'overview' | 'sales' | 'ledger' | 'jars' | 'dispatch' | 'docs' | 
 
 export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ customerId, onEditCustomer, onCollectPayment }) => {
   const navigate = useNavigate()
+  const { user } = useAuthStore()
+  const isOwner = isOwnerUser(user)
   const [activeTab, setActiveTab] = useState<TabType>('overview')
 
   // Fetch customer details by ID
@@ -133,7 +138,7 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
             Back to Customers
           </button>
 
-          {hasOutstanding && onCollectPayment && (
+          {!isOwner && hasOutstanding && onCollectPayment && (
             <button
               onClick={() => onCollectPayment(customer)}
               className="h-[30px] px-3 text-[12px] font-bold bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg flex items-center gap-1.5 cursor-pointer transition-all shadow-sm"
@@ -185,15 +190,17 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ custom
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            <EnterpriseButton
-              variant="primary"
-              onClick={() => onEditCustomer(customer)}
-              className="inline-flex items-center gap-1.5 h-8 px-3 font-bold text-xs cursor-pointer"
-            >
-              <Edit3 className="w-3.5 h-3.5" /> Edit Profile
-            </EnterpriseButton>
-          </div>
+          {!isOwner && (
+            <div className="flex items-center gap-2">
+              <EnterpriseButton
+                variant="primary"
+                onClick={() => onEditCustomer(customer)}
+                className="inline-flex items-center gap-1.5 h-8 px-3 font-bold text-xs cursor-pointer"
+              >
+                <Edit3 className="w-3.5 h-3.5" /> Edit Profile
+              </EnterpriseButton>
+            </div>
+          )}
         </div>
       </div>
 

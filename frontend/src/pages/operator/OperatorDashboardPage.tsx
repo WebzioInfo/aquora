@@ -231,11 +231,7 @@ export const OperatorDashboardPage: React.FC = () => {
     } else {
       if (currentView === 'entry') {
         setCurrentView('dashboard')
-        showToast('No active production batch found. Please start a batch first.', 'warning')
-      }
-      if (!sessionLoading && selectedLine?.lineId && !hasAutoOpenedModal.current) {
-        setShowStartModal(true)
-        hasAutoOpenedModal.current = true
+        showToast('No active production configuration found for this line. Please contact the production administrator.', 'warning')
       }
     }
   }, [activeSession?.id, activeSession?.canEnterProductionPage, currentView, sessionLoading, selectedLine?.lineId])
@@ -1461,23 +1457,23 @@ export const OperatorDashboardPage: React.FC = () => {
                 <AlertTriangle className="w-7 h-7 stroke-[2.5]" />
               </div>
               <div className="space-y-1.5">
-                <h2 className="text-lg font-bold text-[#111827]">No Active Production Batch</h2>
-                <p className="text-xs text-[#6B7280] max-w-[380px] mx-auto font-medium">
-                  There is currently no running production batch allocated on {selectedLine.name} for the current shift. You must start a batch before entries can be saved.
+                <h2 className="text-lg font-bold text-[#111827]">No Active Production Configuration</h2>
+                <p className="text-xs text-[#6B7280] max-w-[420px] mx-auto font-medium">
+                  No active production configuration found for line <strong className="text-slate-800">{selectedLine.name}</strong>. Please contact the production administrator.
                 </p>
               </div>
 
               <div className="border-t border-[#E5E7EB] pt-6 flex justify-center">
                 <button
-                  onClick={() => setShowStartModal(true)}
+                  onClick={() => resetTerminal()}
                   className="px-6 h-[44px] hover:brightness-110 transition-all duration-200 rounded-[8px] text-white text-xs font-bold uppercase tracking-wider shadow-md flex items-center gap-2 cursor-pointer"
                   style={{
                     backgroundColor: lineTheme?.primary || '#1A56DB',
                     boxShadow: lineTheme ? `0 2px 4px ${lineTheme.glow}` : 'none'
                   }}
                 >
-                  <Play className="w-4 h-4 fill-white" />
-                  <span>Start Production</span>
+                  <RefreshCw className="w-4 h-4 text-white" />
+                  <span>Select Another Line</span>
                 </button>
               </div>
             </div>

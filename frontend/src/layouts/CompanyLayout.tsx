@@ -20,6 +20,7 @@ import { GlobalSearchModal } from '../components/search/GlobalSearchModal'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { HubConnectionBuilder, HttpTransportType } from '@microsoft/signalr'
 import { operationsIssueApi } from '../services/api/operationsIssue'
+import { filterSidebarItemsForUser } from '../utils/permissions'
 
 export const CompanyLayout: React.FC = () => {
   const { user, clearAuth } = useAuthStore()
@@ -184,7 +185,7 @@ export const CompanyLayout: React.FC = () => {
     navigate(`/company/operations-issues/${id}`)
   }
 
-  const sidebarItems = [
+  const rawSidebarItems = [
     { label: 'Dashboard', path: '/company/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
     { label: 'Production Batches', path: '/company/production', icon: <Layers className="w-5 h-5" /> },
     { label: 'Production Setup', path: '/company/production-setup', icon: <Sliders className="w-5 h-5" /> },
@@ -222,6 +223,8 @@ export const CompanyLayout: React.FC = () => {
     { label: 'Company Settings', path: '/company/settings', icon: <Settings className="w-5 h-5" /> },
     { label: 'Backup & Restore', path: '/company/backups', icon: <Database className="w-5 h-5" /> },
   ]
+
+  const sidebarItems = filterSidebarItemsForUser(rawSidebarItems, user)
 
   const getBreadcrumbs = () => {
     const paths = location.pathname.split('/').filter(x => x)

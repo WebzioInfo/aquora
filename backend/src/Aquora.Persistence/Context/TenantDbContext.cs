@@ -131,6 +131,12 @@ namespace Aquora.Persistence.Context
         public DbSet<Aquora.Domain.Entities.Operations.OperationsIssueComment> OperationsIssueComments => Set<Aquora.Domain.Entities.Operations.OperationsIssueComment>();
         public DbSet<Aquora.Domain.Entities.Operations.OperationsIssueHistory> OperationsIssueHistories => Set<Aquora.Domain.Entities.Operations.OperationsIssueHistory>();
 
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            base.OnConfiguring(optionsBuilder);
+            optionsBuilder.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+        }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

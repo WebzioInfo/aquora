@@ -24,9 +24,13 @@ import { EnterpriseLoading } from '../../../components/ui/EnterpriseLoading';
 
 import { waterTestApi } from '../../../services/api/waterTest';
 import type { WaterTestDashboard, WaterTestReport } from '../../../services/api/waterTest';
+import { useAuthStore } from '../../../store/useAuthStore';
+import { isOwnerUser } from '../../../utils/permissions';
 
 export const QualityDashboardPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const isOwner = isOwnerUser(user);
   const [dashboard, setDashboard] = useState<WaterTestDashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -119,13 +123,15 @@ export const QualityDashboardPage: React.FC = () => {
           >
             <Eye className="w-4 h-4 mr-1.5" /> View
           </EnterpriseButton>
-          <EnterpriseButton
-            variant="secondary"
-            size="sm"
-            onClick={() => navigate(`/qc/water-tests/${row.id}/edit`)}
-          >
-            <Edit2 className="w-4 h-4 mr-1.5" /> Edit
-          </EnterpriseButton>
+          {!isOwner && (
+            <EnterpriseButton
+              variant="secondary"
+              size="sm"
+              onClick={() => navigate(`/qc/water-tests/${row.id}/edit`)}
+            >
+              <Edit2 className="w-4 h-4 mr-1.5" /> Edit
+            </EnterpriseButton>
+          )}
         </div>
       )
     }
@@ -147,14 +153,16 @@ export const QualityDashboardPage: React.FC = () => {
           description="Water testing, laboratory analysis, and quality compliance metrics"
         />
         
-        <div className="flex items-center gap-3">
-          <EnterpriseButton
-            variant="primary"
-            onClick={() => navigate('/qc/water-tests/new')}
-          >
-            <Plus className="w-4 h-4 mr-2" /> Create Water Test Report
-          </EnterpriseButton>
-        </div>
+        {!isOwner && (
+          <div className="flex items-center gap-3">
+            <EnterpriseButton
+              variant="primary"
+              onClick={() => navigate('/qc/water-tests/new')}
+            >
+              <Plus className="w-4 h-4 mr-2" /> Create Water Test Report
+            </EnterpriseButton>
+          </div>
+        )}
       </div>
 
       {/* Metrics Cards */}
