@@ -61,6 +61,7 @@ if (builder.Configuration is IConfigurationRoot root)
         }
     }
 }
+
 configSource ??= "Unknown";
 
 // Log runtime diagnostics (Phase 3)
