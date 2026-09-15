@@ -423,74 +423,128 @@ export const PlatformBackupCenterPage: React.FC = () => {
                 <th className="px-4 py-2.5">Size & Format</th>
                 <th className="px-4 py-2.5">Schemas & Tenants</th>
                 <th className="px-4 py-2.5">Status</th>
-                <th className="px-4 py-2.5 text-right">Actions</th>
+                <th className="px-4 py-2.5 text-right w-44 min-w-[170px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredHistory && filteredHistory.length > 0 ? (
-                filteredHistory.map((backup) => (
-                  <tr key={backup.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-4 py-3 min-w-[200px]">
-                      <div className="font-semibold text-slate-900 mb-0.5 flex items-center gap-1.5">
-                        {backup.backupName}
-                      </div>
-                      <div className="text-[11px] text-slate-500 line-clamp-1" title={backup.description}>
-                        {backup.description}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="text-slate-900 font-medium">{format(new Date(backup.createdAt), 'MMM d, yyyy HH:mm')}</div>
-                      <div className="text-[10px] text-slate-400">By {backup.createdByName || 'SuperAdmin'}</div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="text-slate-900 font-medium">{backup.formattedSize}</div>
-                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold tracking-wider border mt-0.5 inline-block bg-blue-50 text-blue-700 border-blue-200">
-                        {backup.format}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="text-slate-900 font-medium">{backup.schemaCount || 1} Schemas</div>
-                      <div className="text-[10px] text-slate-400">{backup.tenantCount || 0} Tenants</div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        {backup.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button 
-                          onClick={() => handleInspect(backup.id)}
-                          className="p-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                          title="Inspect Manifest"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={() => handleDownload(backup.id, backup.backupName)}
-                          className="p-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors"
-                          title="Download ZIP Archive"
-                        >
-                          <ArrowDownToLine className="w-3.5 h-3.5 text-blue-600" />
-                        </button>
-                        <button 
-                          onClick={() => handlePreviewRestore(backup.id)}
-                          className="p-1.5 bg-white border border-slate-200 text-amber-600 rounded-lg hover:bg-amber-50 transition-colors"
-                          title="Restore Platform Snapshot"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(backup.id)}
-                          className="p-1.5 bg-white border border-slate-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                          title="Delete Backup"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                filteredHistory.map((backup) => {
+                  const targetId = backup.id || (backup as any).backupId || (backup as any).Id;
+                  const statusUpper = (backup.status || 'COMPLETED').toUpperCase();
+                  const isCompleted = statusUpper === 'COMPLETED';
+                  const isFailed = statusUpper === 'FAILED';
+                  const isRunning = ['QUEUED', 'RUNNING', 'PREPARING', 'READING', 'COMPRESSING', 'ENCRYPTING', 'WRITING'].includes(statusUpper);
+
+                  return (
+                    <tr key={targetId} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-4 py-3 min-w-[200px]">
+                        <div className="font-semibold text-slate-900 mb-0.5 flex items-center gap-1.5">
+                          {backup.backupName}
+                        </div>
+                        <div className="text-[11px] text-slate-500 line-clamp-1" title={backup.description}>
+                          {backup.description}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="text-slate-900 font-medium">
+                          {backup.createdAt ? format(new Date(backup.createdAt), 'MMM d, yyyy HH:mm') : 'N/A'}
+                        </div>
+                        <div className="text-[10px] text-slate-400">By {backup.createdByName || backup.createdBy || 'SuperAdmin'}</div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="text-slate-900 font-medium">{backup.formattedSize || formatBytes(backup.backupSize || 0)}</div>
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold tracking-wider border mt-0.5 inline-block bg-blue-50 text-blue-700 border-blue-200">
+                          {backup.format || 'ZIP'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="text-slate-900 font-medium">{backup.schemaCount || 1} Schemas</div>
+                        <div className="text-[10px] text-slate-400">{backup.tenantCount || 0} Tenants</div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {isCompleted ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            COMPLETED
+                          </span>
+                        ) : isFailed ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200">
+                            FAILED
+                          </span>
+                        ) : isRunning ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 animate-pulse">
+                            {statusUpper}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-50 text-slate-700 border border-slate-200">
+                            {statusUpper}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap min-w-[170px]">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {isCompleted && (
+                            <>
+                              <button 
+                                onClick={() => handleInspect(targetId)}
+                                disabled={actionLoading}
+                                className="p-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors disabled:opacity-40"
+                                title="Inspect Manifest (View JSON & Table Schema)"
+                                aria-label="Inspect Manifest"
+                              >
+                                <Eye className="w-4 h-4 text-blue-600" />
+                              </button>
+                              <button 
+                                onClick={() => handleDownload(targetId, backup.backupName)}
+                                disabled={actionLoading}
+                                className="p-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-colors disabled:opacity-40"
+                                title="Download ZIP Archive"
+                                aria-label="Download ZIP Archive"
+                              >
+                                <ArrowDownToLine className="w-4 h-4 text-emerald-600" />
+                              </button>
+                              <button 
+                                onClick={() => handlePreviewRestore(targetId)}
+                                disabled={actionLoading}
+                                className="p-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors disabled:opacity-40"
+                                title="Restore Platform Snapshot"
+                                aria-label="Restore Snapshot"
+                              >
+                                <RotateCcw className="w-4 h-4 text-amber-600" />
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(targetId)}
+                                disabled={actionLoading}
+                                className="p-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-40"
+                                title="Delete Backup Record"
+                                aria-label="Delete Backup Record"
+                              >
+                                <Trash2 className="w-4 h-4 text-red-600" />
+                              </button>
+                            </>
+                          )}
+
+                          {isFailed && (
+                            <button 
+                              onClick={() => handleDelete(targetId)}
+                              disabled={actionLoading}
+                              className="p-1.5 bg-white border border-slate-200 text-red-600 rounded-lg hover:bg-red-50 hover:border-red-200 transition-colors disabled:opacity-40"
+                              title="Delete Failed Record"
+                              aria-label="Delete Failed Record"
+                            >
+                              <Trash2 className="w-4 h-4 text-red-600" />
+                            </button>
+                          )}
+
+                          {isRunning && (
+                            <span className="text-[11px] text-blue-600 font-medium flex items-center gap-1">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing...
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan={6} className="px-4 py-16 text-center">
@@ -554,33 +608,35 @@ export const PlatformBackupCenterPage: React.FC = () => {
                 </span>
               </h4>
               
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-x-auto relative">
+                <table className="w-full text-left text-xs min-w-[720px] border-collapse">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold sticky top-0 z-10">
                     <tr>
-                      <th className="px-4 py-2.5">Schema Name</th>
-                      <th className="px-4 py-2.5">SQL File Path</th>
-                      <th className="px-4 py-2.5 text-right">Tables</th>
-                      <th className="px-4 py-2.5 text-right">Records</th>
-                      <th className="px-4 py-2.5 text-right">Size</th>
-                      <th className="px-4 py-2.5 text-center">Preview</th>
+                      <th className="px-4 py-2.5 min-w-[170px]">Schema Name</th>
+                      <th className="px-4 py-2.5 min-w-[220px]">SQL File Path</th>
+                      <th className="px-4 py-2.5 text-right whitespace-nowrap">Tables</th>
+                      <th className="px-4 py-2.5 text-right whitespace-nowrap">Records</th>
+                      <th className="px-4 py-2.5 text-right whitespace-nowrap">Size</th>
+                      <th className="px-4 py-2.5 text-center sticky right-0 bg-slate-50 border-b border-slate-200 min-w-[130px] shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.06)] z-20">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {inspectionData.schemas?.map(s => (
-                      <tr key={s.schemaName} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-4 py-2.5 font-bold text-slate-800">{s.schemaName}</td>
-                        <td className="px-4 py-2.5 font-mono text-slate-500">{s.sqlFileName}</td>
-                        <td className="px-4 py-2.5 text-right font-mono text-slate-700">{s.tablesCount}</td>
-                        <td className="px-4 py-2.5 text-right font-mono text-slate-700">{s.recordsCount.toLocaleString()}</td>
-                        <td className="px-4 py-2.5 text-right text-slate-500">{s.formattedSize}</td>
-                        <td className="px-4 py-2.5 text-center">
+                      <tr key={s.schemaName} className="hover:bg-slate-50 transition-colors group">
+                        <td className="px-4 py-2.5 font-bold text-slate-800 font-mono text-[11px] whitespace-nowrap">{s.schemaName}</td>
+                        <td className="px-4 py-2.5 font-mono text-slate-500 text-[11px] truncate max-w-[260px]" title={s.sqlFileName}>{s.sqlFileName}</td>
+                        <td className="px-4 py-2.5 text-right font-mono text-slate-700 whitespace-nowrap">{s.tablesCount}</td>
+                        <td className="px-4 py-2.5 text-right font-mono text-slate-700 whitespace-nowrap">{s.recordsCount.toLocaleString()}</td>
+                        <td className="px-4 py-2.5 text-right text-slate-500 whitespace-nowrap">{s.formattedSize}</td>
+                        <td className="px-4 py-2.5 text-center sticky right-0 bg-white group-hover:bg-slate-50 transition-colors min-w-[130px] shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.06)] z-10">
                           <button
                             onClick={() => handleOpenSchemaPreview(inspectionData.backupId, s.schemaName)}
                             disabled={previewLoading}
-                            className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-lg inline-flex items-center gap-1 transition-colors disabled:opacity-50"
+                            className="px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-lg inline-flex items-center gap-1.5 transition-colors disabled:opacity-50 whitespace-nowrap shadow-xs"
+                            title="Inspect 100 Row Data Preview"
+                            aria-label="Preview Schema Data"
                           >
-                            <Eye className="w-3.5 h-3.5" /> Preview
+                            <Eye className="w-3.5 h-3.5 text-blue-600" /> Preview
                           </button>
                         </td>
                       </tr>
