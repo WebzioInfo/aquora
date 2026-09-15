@@ -307,65 +307,38 @@ app.MapHub<DashboardHub>("/hub/dashboard");
 app.MapHub<DashboardHub>("/hubs/dashboard");
 
 // Database migration and seeding
+// Database connectivity check and optional maintenance
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     try
     {
         var platformContext = services.GetRequiredService<PlatformDbContext>();
-        var passwordHasher = services.GetRequiredService<IPasswordHasher>();
 
-        var connString = platformContext.Database.GetDbConnection().ConnectionString;
-        var builderConn = new Npgsql.NpgsqlConnectionStringBuilder(connString);
-        Log.Information("Initializing database connection. Host: {Host}, Port: {Port}, Database: {Database}, Provider: {Provider}",
-            builderConn.Host, builderConn.Port, builderConn.Database, platformContext.Database.ProviderName);
-
-        Log.Information("Verifying database connectivity (OpenConnectionAsync)...");
+        Log.Information("Aquzio API starting...");
+        Log.Information("Verifying database connectivity...");
+        
         bool canConnect = false;
         try
         {
             await platformContext.Database.OpenConnectionAsync();
-            
             using var cmd = platformContext.Database.GetDbConnection().CreateCommand();
-            cmd.CommandText = "SELECT current_database(), current_schema(), current_setting('search_path'), version(), inet_server_addr(), inet_server_port();";
-            using var reader = await cmd.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
-            {
-                Log.Information(@"
---------------------------------------------------
-PHASE 4: Active Database Instance Verification:
-  Current Database (SQL): {Db}
-  Current Schema (SQL): {Schema}
-  Search Path (SQL): {SearchPath}
-  Postgres Version: {Version}
-  Inet Server Address: {ServerAddr}
-  Inet Server Port: {ServerPort}
---------------------------------------------------",
-                    reader.IsDBNull(0) ? "" : reader.GetString(0),
-                    reader.IsDBNull(1) ? "" : reader.GetString(1),
-                    reader.IsDBNull(2) ? "" : reader.GetString(2),
-                    reader.IsDBNull(3) ? "" : reader.GetString(3),
-                    reader.IsDBNull(4) ? "" : reader.GetValue(4)?.ToString(),
-                    reader.IsDBNull(5) ? "" : reader.GetInt32(5).ToString());
-            }
-
-            canConnect = true;
+            cmd.CommandText = "SELECT 1;";
+            var result = await cmd.ExecuteScalarAsync();
+            canConnect = result != null && Convert.ToInt32(result) == 1;
             await platformContext.Database.CloseConnectionAsync();
         }
         catch (Exception connectEx)
         {
-            Log.Error(connectEx, "OpenConnectionAsync threw an exception.");
+            Log.Error(connectEx, "Database connectivity check failed.");
         }
 
         if (!canConnect)
         {
-            Log.Fatal("Database connectivity check failed. Please check credentials, host reachability, and network/SSL parameters.");
+            Log.Fatal("Database connectivity check failed. Please verify database connection credentials.");
             throw new InvalidOperationException("Database connectivity check failed.");
         }
-        Log.Information("Database connectivity verified successfully.");
-
-        var schemaValidator = services.GetRequiredService<Aquora.Persistence.Services.DatabaseSchemaValidator>();
-        await schemaValidator.EnsureAllTenantSchemasRepairedAsync(platformContext);
+        Log.Information("Database connection verified.");
 
         bool autoMigrate = builder.Configuration.GetValue<bool>("AUTO_MIGRATE_ON_STARTUP") || builder.Configuration.GetValue<bool>("Database:AutoMigrate");
         bool autoRepair = builder.Configuration.GetValue<bool>("AUTO_REPAIR_ON_STARTUP") || builder.Configuration.GetValue<bool>("Database:AutoRepair");
@@ -374,34 +347,24 @@ PHASE 4: Active Database Instance Verification:
         bool isRepairDateTimeCommand = args.Contains("repair-datetime", StringComparer.OrdinalIgnoreCase);
         bool isMaintenanceCommand = isMigrateCommand || isRepairSchemaCommand || isRepairDateTimeCommand;
 
-        Log.Information("--------------------------------------------------");
-        Log.Information("STARTUP AUDIT:");
-        Log.Information("  1. Database Connectivity: VERIFIED");
-        Log.Information("  2. Auto Migration Policy: AutoMigrate = {AutoMigrate}", autoMigrate);
-        Log.Information("  3. Auto Repair Policy: AutoRepair = {AutoRepair}", autoRepair);
-        Log.Information("  4. CLI Maintenance Command: {IsMaintenanceCommand}", isMaintenanceCommand);
-        Log.Information("  5. Background Workers: TenantProvisioningWorker, QueuedHostedService, OtpEmailWorker");
-        Log.Information("--------------------------------------------------");
-
         if (autoMigrate || autoRepair || isMaintenanceCommand)
         {
             try
             {
                 Log.Information("[DATABASE MAINTENANCE]: Running database migration and schema repair (explicitly requested)...");
+                var schemaValidator = services.GetRequiredService<Aquora.Persistence.Services.DatabaseSchemaValidator>();
+                await schemaValidator.EnsureAllTenantSchemasRepairedAsync(platformContext);
+
                 var migrationService = services.GetRequiredService<IMigrationService>();
                 await migrationService.MigrateAllAsync();
                 Log.Information("[DATABASE MAINTENANCE]: Migration and schema repair completed successfully.");
 
                 if (isMaintenanceCommand)
                 {
-                    Log.Information("[DATABASE MAINTENANCE]: CLI Maintenance Command completed successfully. Exiting process.");
+                    Log.Information("[DATABASE MAINTENANCE]: CLI Maintenance Command completed. Exiting process.");
                     Environment.Exit(0);
                     return;
                 }
-
-                var validator = services.GetRequiredService<Aquora.Persistence.Services.DatabaseSchemaValidator>();
-                await validator.ValidateSchemaAsync(platformContext, "public");
-                Log.Information("[DATABASE MAINTENANCE]: Schema validation passed successfully.");
             }
             catch (Exception migrationEx)
             {
@@ -411,23 +374,12 @@ PHASE 4: Active Database Instance Verification:
         }
         else
         {
-            Log.Information("[NORMAL RUNTIME]: Fast & Idempotent API Startup — Skipping automatic database migration, schema repair, and tenant-wide data scanning.");
+            Log.Information("Aquzio API ready.");
         }
-        Log.Information("--------------------------------------------------");
-    }
-    catch (System.Net.Sockets.SocketException socketEx)
-    {
-        Log.Fatal(socketEx, "Database connection failure: Failed to reach the database server. Check your network or firewall rules.");
-        throw;
-    }
-    catch (Npgsql.NpgsqlException npgsqlEx)
-    {
-        Log.Fatal(npgsqlEx, "PostgreSQL connection error: check your connection string, credentials, and SSL settings.");
-        throw;
     }
     catch (Exception ex)
     {
-        Log.Fatal(ex, "A fatal error occurred during database migration/seeding.");
+        Log.Fatal(ex, "A fatal error occurred during application startup.");
         throw;
     }
 }

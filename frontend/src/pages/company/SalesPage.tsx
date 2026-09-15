@@ -6,10 +6,10 @@ import {
   Search, Plus, Eye, Edit2, Trash2, X, AlertTriangle,
   User as UserIcon, Calendar, ArrowUpDown, Filter, ChevronLeft, ChevronRight, CheckCircle2,
   Package, ShoppingCart, Info, Phone, Tag, FileSpreadsheet, FileText, Landmark, Printer, Download, ArrowLeft, Send,
-  Clock, RotateCcw, Loader2, History, Coins
+  Clock, RotateCcw, Loader2, History, Coins, TrendingUp, BarChart3, Users
 } from 'lucide-react'
 import { api } from '../../services/api'
-import { salesService } from '../../services/sales'
+import { salesService, type DailySalesTrend } from '../../services/sales'
 import type { SalesTransaction, CreateSalesTransactionRequest, CollectSalesPaymentRequest, SalesPaymentRecord } from '../../services/sales'
 import { productsService } from '../../services/products'
 import { customersService } from '../../services/customers'
@@ -32,11 +32,118 @@ const PremiumLabel: React.FC<{ label: string; required?: boolean }> = ({ label, 
   );
 };
 
+const OwnerSalesTrendChart: React.FC<{ data: DailySalesTrend[]; height?: number }> = ({ data, height = 200 }) => {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
+
+  if (!data || data.length === 0 || data.every(d => d.totalSales === 0)) {
+    return (
+      <div style={{ height }} className="flex flex-col items-center justify-center text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50 p-4 select-none">
+        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center mb-2">
+          <BarChart3 className="w-5 h-5 text-slate-400" />
+        </div>
+        <p className="text-xs font-bold text-slate-600">No sales data for this period.</p>
+        <p className="text-[11px] text-slate-400 mt-0.5 font-medium">Daily sales trends will automatically plot here as transactions are logged.</p>
+      </div>
+    )
+  }
+
+  const padding = 35
+  const width = 640
+  const maxVal = Math.max(...data.map(d => d.totalSales), 1000)
+
+  const points = data.map((d, i) => {
+    let x = padding
+    if (data.length > 1) {
+      x = padding + (i / (data.length - 1)) * (width - padding * 2)
+    } else {
+      x = width / 2
+    }
+    const y = height - padding - (d.totalSales / maxVal) * (height - padding * 2)
+    return { x, y, item: d, idx: i }
+  })
+
+  let pathD = `M ${points[0].x} ${points[0].y}`
+  for (let i = 1; i < points.length; i++) {
+    pathD += ` L ${points[i].x} ${points[i].y}`
+  }
+  const areaD = `${pathD} L ${points[points.length - 1].x} ${height - padding} L ${points[0].x} ${height - padding} Z`
+
+  return (
+    <div className="w-full relative space-y-2">
+      <div style={{ height }} className="relative select-none">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
+          <defs>
+            <linearGradient id="sales-trend-gradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#1A56DB" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="#1A56DB" stopOpacity="0.01" />
+            </linearGradient>
+          </defs>
+
+          {[0, 0.33, 0.66, 1].map((ratio, i) => {
+            const y = height - padding - ratio * (height - padding * 2)
+            const val = Math.round(ratio * maxVal)
+            return (
+              <g key={i}>
+                <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#F1F5F9" strokeWidth="1" strokeDasharray="3 3" />
+                <text x={padding - 6} y={y + 3} textAnchor="end" fontSize="9" fill="#94A3B8" fontWeight="600">
+                  ₹{val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val}
+                </text>
+              </g>
+            )
+          })}
+
+          <path d={areaD} fill="url(#sales-trend-gradient)" />
+          <path d={pathD} fill="none" stroke="#1A56DB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+
+          {points.map((pt, i) => {
+            const isHovered = hoveredIdx === i
+            return (
+              <g key={i} className="cursor-pointer" onMouseEnter={() => setHoveredIdx(i)} onMouseLeave={() => setHoveredIdx(null)}>
+                <circle cx={pt.x} cy={pt.y} r={isHovered ? 6 : 3.5} fill="#FFFFFF" stroke="#1A56DB" strokeWidth={isHovered ? 3 : 2} className="transition-all duration-150" />
+              </g>
+            )
+          })}
+        </svg>
+
+        {hoveredIdx !== null && points[hoveredIdx] && (
+          <div
+            className="absolute z-30 bg-slate-900 text-white rounded-lg p-2 text-xs shadow-xl pointer-events-none -translate-x-1/2 -translate-y-full mb-2 whitespace-nowrap animate-in fade-in duration-150"
+            style={{
+              left: `${(points[hoveredIdx].x / width) * 100}%`,
+              top: `${(points[hoveredIdx].y / height) * 100}%`
+            }}
+          >
+            <div className="font-bold text-[11px] text-slate-300">{points[hoveredIdx].item.formattedDate}</div>
+            <div className="text-emerald-400 font-extrabold text-xs">₹{points[hoveredIdx].item.totalSales.toLocaleString('en-IN')}</div>
+            <div className="text-[10px] text-slate-400">{points[hoveredIdx].item.transactionCount} Orders • {points[hoveredIdx].item.totalCases} Cases</div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400 px-8 pt-1">
+        {points.filter((_, idx) => idx === 0 || idx === Math.floor(points.length / 2) || idx === points.length - 1).map((pt, i) => (
+          <span key={i}>{pt.item.formattedDate}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, type: 'success' | 'error' | 'warning' | 'info') => void }> = ({ canWrite, showToast }) => {
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
   const location = useLocation()
   const navigate = useNavigate()
+
+  const isOwner = user?.roles?.some((r: string) => r.toLowerCase() === 'owner') || !canWrite
+
+  const { data: ownerOverviewRes, isLoading: isOwnerOverviewLoading } = useQuery({
+    queryKey: ['ownerSalesOverview'],
+    queryFn: () => salesService.getOwnerOverview(),
+    enabled: isOwner
+  })
+
+  const overview = ownerOverviewRes?.data
 
   // Table parameters
   const [page, setPage] = useState(1)
@@ -1770,9 +1877,9 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     <PageContainer>
       <PageHeader
         title="Sales"
-        description="Log finished goods dispatches, returns, and damages with proper inventory adjustments."
+        description={isOwner ? "Company sales overview" : "Log finished goods dispatches, returns, and damages with proper inventory adjustments."}
         actions={
-          canWrite ? (
+          (canWrite && !isOwner) ? (
             <button
               onClick={handleOpenCreate}
               className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
@@ -1783,6 +1890,211 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
           ) : undefined
         }
       />
+
+      {/* OWNER EXECUTIVE SALES VIEW */}
+      {isOwner && (
+        <div className="space-y-6 mb-8 select-none">
+          {/* 1. SALES OVERVIEW SUMMARY CARDS */}
+          <div className="space-y-3.5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+              {/* Total Sales */}
+              <div className="bg-white border border-[#E5E7EB] rounded-[12px] p-4 shadow-2xs hover:shadow-xs transition-all">
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Total Sales</span>
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <Coins className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-xl font-black text-slate-900 font-mono">
+                  {isOwnerOverviewLoading ? '...' : `₹${(overview?.totalSales || 0).toLocaleString('en-IN')}`}
+                </div>
+                <span className="text-[10px] font-semibold text-slate-400 mt-1 block">Total sales value</span>
+              </div>
+
+              {/* Sales Today */}
+              <div className="bg-white border border-[#E5E7EB] rounded-[12px] p-4 shadow-2xs hover:shadow-xs transition-all">
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Sales Today</span>
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-xl font-black text-slate-900 font-mono">
+                  {isOwnerOverviewLoading ? '...' : `₹${(overview?.salesToday || 0).toLocaleString('en-IN')}`}
+                </div>
+                <span className="text-[10px] font-semibold text-slate-400 mt-1 block">Today's sales value</span>
+              </div>
+
+              {/* This Month */}
+              <div className="bg-white border border-[#E5E7EB] rounded-[12px] p-4 shadow-2xs hover:shadow-xs transition-all">
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">This Month</span>
+                  <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-xl font-black text-slate-900 font-mono">
+                  {isOwnerOverviewLoading ? '...' : `₹${(overview?.thisMonthSales || 0).toLocaleString('en-IN')}`}
+                </div>
+                <span className="text-[10px] font-semibold text-slate-400 mt-1 block">Current month's sales value</span>
+              </div>
+
+              {/* Total Transactions */}
+              <div className="bg-white border border-[#E5E7EB] rounded-[12px] p-4 shadow-2xs hover:shadow-xs transition-all">
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Total Transactions</span>
+                  <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <ShoppingCart className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-xl font-black text-slate-900 font-mono">
+                  {isOwnerOverviewLoading ? '...' : overview?.totalTransactions || 0}
+                </div>
+                <span className="text-[10px] font-semibold text-slate-400 mt-1 block">Total sales orders count</span>
+              </div>
+            </div>
+
+            {/* Secondary 2-card row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              {/* Average Sale */}
+              <div className="bg-white border border-[#E5E7EB] rounded-[12px] p-3.5 px-4 shadow-2xs flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Average Sale</span>
+                  <div className="text-lg font-black text-slate-900 font-mono mt-0.5">
+                    {isOwnerOverviewLoading ? '...' : `₹${(overview?.averageSale || 0).toLocaleString('en-IN')}`}
+                  </div>
+                  <span className="text-[10px] font-medium text-slate-400">Average transaction value</span>
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                  <TrendingUp className="w-4.5 h-4.5" />
+                </div>
+              </div>
+
+              {/* Month Transactions */}
+              <div className="bg-white border border-[#E5E7EB] rounded-[12px] p-3.5 px-4 shadow-2xs flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">This Month's Transactions</span>
+                  <div className="text-lg font-black text-slate-900 font-mono mt-0.5">
+                    {isOwnerOverviewLoading ? '...' : overview?.thisMonthTransactions || 0}
+                  </div>
+                  <span className="text-[10px] font-medium text-slate-400">Number of transactions this month</span>
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold">
+                  <Package className="w-4.5 h-4.5" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. SALES TREND / PERFORMANCE */}
+          <div className="bg-white border border-[#E5E7EB] rounded-[12px] p-4.5 shadow-2xs">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-100 mb-4 select-none">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-blue-600" />
+                  Sales Trend
+                </h3>
+                <p className="text-[11px] text-slate-500 font-medium">Daily sales performance overview</p>
+              </div>
+              {overview?.dailyTrend && overview.dailyTrend.length > 0 && (
+                <div className="text-right">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Period Total</span>
+                  <span className="text-xs font-black text-slate-900 font-mono">
+                    ₹{overview.dailyTrend.reduce((sum, d) => sum + d.totalSales, 0).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              )}
+            </div>
+            <OwnerSalesTrendChart data={overview?.dailyTrend || []} />
+          </div>
+
+          {/* 3. SALES BREAKDOWN */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Top Products */}
+            <div className="bg-white border border-[#E5E7EB] rounded-[12px] p-4 shadow-2xs">
+              <div className="flex justify-between items-center pb-2.5 border-b border-slate-100 mb-3 select-none">
+                <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Package className="w-4 h-4 text-indigo-600" />
+                  Top Products
+                </h3>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">By Revenue</span>
+              </div>
+              {overview?.topProducts && overview.topProducts.length > 0 ? (
+                <div className="space-y-2.5">
+                  {overview.topProducts.map((p, i) => (
+                    <div key={p.productId} className="flex justify-between items-center text-xs p-2 rounded-lg bg-slate-50/70 border border-slate-100">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 font-bold text-[10px] flex items-center justify-center shrink-0">
+                          {i + 1}
+                        </span>
+                        <div className="truncate">
+                          <span className="font-bold text-slate-800 block truncate">{p.productName}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">{p.productSku || 'SKU'} • {p.totalCases} Cases</span>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="font-black text-slate-900 font-mono block">₹{p.totalSales.toLocaleString('en-IN')}</span>
+                        <span className="text-[10px] text-slate-400">{p.transactionCount} Orders</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg">
+                  No sales recorded yet.
+                </div>
+              )}
+            </div>
+
+            {/* Top Customers */}
+            <div className="bg-white border border-[#E5E7EB] rounded-[12px] p-4 shadow-2xs">
+              <div className="flex justify-between items-center pb-2.5 border-b border-slate-100 mb-3 select-none">
+                <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-teal-600" />
+                  Top Customers
+                </h3>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">By Revenue</span>
+              </div>
+              {overview?.topCustomers && overview.topCustomers.length > 0 ? (
+                <div className="space-y-2.5">
+                  {overview.topCustomers.map((c, i) => (
+                    <div key={c.customerId} className="flex justify-between items-center text-xs p-2 rounded-lg bg-slate-50/70 border border-slate-100">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="w-5 h-5 rounded-full bg-teal-100 text-teal-800 font-bold text-[10px] flex items-center justify-center shrink-0">
+                          {i + 1}
+                        </span>
+                        <div className="truncate">
+                          <span className="font-bold text-slate-800 block truncate">{c.customerName}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">Code: {c.customerCode || 'N/A'} • {c.totalCases} Cases</span>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="font-black text-slate-900 font-mono block">₹{c.totalSales.toLocaleString('en-IN')}</span>
+                        <span className="text-[10px] text-slate-400">{c.transactionCount} Orders</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg">
+                  No customer sales recorded yet.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. HISTORICAL SALES TABLE SECTION */}
+      {isOwner && (
+        <div className="pt-2 pb-2 mb-3 border-t border-slate-200">
+          <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <FileSpreadsheet className="w-4 h-4 text-blue-600" />
+            Sales History
+          </h3>
+          <p className="text-[11px] text-slate-500 font-medium">Complete record of historical company sales transactions</p>
+        </div>
+      )}
 
       {/* FILTERS */}
       <FilterBar>

@@ -131,13 +131,59 @@ export interface SalesPaymentRecord {
   collectedBy: string
 }
 
+export interface DailySalesTrend {
+  date: string
+  formattedDate: string
+  totalSales: number
+  transactionCount: number
+  totalCases: number
+}
+
+export interface TopProductSales {
+  productId: string
+  productName: string
+  productSku: string
+  totalSales: number
+  totalCases: number
+  transactionCount: number
+}
+
+export interface TopCustomerSales {
+  customerId: string
+  customerName: string
+  customerCode: string
+  totalSales: number
+  totalCases: number
+  transactionCount: number
+}
+
+export interface SalesTypeBreakdown {
+  transactionType: string
+  totalSales: number
+  totalCases: number
+  transactionCount: number
+}
+
+export interface OwnerSalesOverview {
+  totalSales: number
+  salesToday: number
+  thisMonthSales: number
+  totalTransactions: number
+  thisMonthTransactions: number
+  averageSale: number
+  dailyTrend: DailySalesTrend[]
+  topProducts: TopProductSales[]
+  topCustomers: TopCustomerSales[]
+  typeBreakdown: SalesTypeBreakdown[]
+}
+
 export const salesService = {
   getTransactions: async (
     page: number = 1,
     limit: number = 10,
     search: string = '',
-    productId: string = '',
-    customerId: string = '',
+    product: string = '',
+    customer: string = '',
     type: string = '',
     status: string = '',
     startDate: string = '',
@@ -145,8 +191,8 @@ export const salesService = {
     sort: string = 'newest'
   ) => {
     let url = `/api/v1/sales?pageNumber=${page}&pageSize=${limit}&search=${encodeURIComponent(search)}&sort=${sort}`
-    if (productId) url += `&product=${productId}`
-    if (customerId) url += `&customer=${customerId}`
+    if (product) url += `&product=${encodeURIComponent(product)}`
+    if (customer) url += `&customer=${encodeURIComponent(customer)}`
     if (type) url += `&type=${encodeURIComponent(type)}`
     if (status) url += `&status=${encodeURIComponent(status)}`
     if (startDate) url += `&startDate=${startDate}`
@@ -224,6 +270,16 @@ export const salesService = {
 
   getDashboard: async () => {
     const res = await api.get<ApiResponse<SalesDashboard>>('/api/v1/sales/dashboard')
+    return res.data
+  },
+
+  getOwnerOverview: async (startDate?: string, endDate?: string) => {
+    let url = '/api/v1/sales/owner-overview'
+    const params = new URLSearchParams()
+    if (startDate) params.append('startDate', startDate)
+    if (endDate) params.append('endDate', endDate)
+    if (params.toString()) url += `?${params.toString()}`
+    const res = await api.get<ApiResponse<OwnerSalesOverview>>(url)
     return res.data
   }
 }

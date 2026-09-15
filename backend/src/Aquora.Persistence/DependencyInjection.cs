@@ -21,13 +21,6 @@ namespace Aquora.Persistence
                     connectionString,
                     b => b.MigrationsAssembly(typeof(PlatformDbContext).Assembly.FullName))
                        .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
-
-                var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-                if (env == "Development")
-                {
-                    options.EnableSensitiveDataLogging()
-                           .LogTo(Console.WriteLine, Microsoft.Extensions.Logging.LogLevel.Information);
-                }
             });
 
             // Register TenantDbContext (dynamic schema switching)
@@ -43,13 +36,6 @@ namespace Aquora.Persistence
                        .ReplaceService<IModelCacheKeyFactory, TenantModelCacheKeyFactory>()
                        .ReplaceService<IMigrationsSqlGenerator, TenantMigrationsSqlGenerator>()
                        .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
-
-                var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-                if (env == "Development")
-                {
-                    options.EnableSensitiveDataLogging()
-                           .LogTo(Console.WriteLine, Microsoft.Extensions.Logging.LogLevel.Information);
-                }
             });
 
             services.AddScoped<IPlatformDbContext>(provider => 

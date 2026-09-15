@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Aquora.Application.DTOs.Administration;
 using Aquora.Application.Interfaces;
 using Aquora.Application.Interfaces.Services;
@@ -19,17 +20,20 @@ namespace Aquora.Application.Services
         private readonly IPlatformBackupJobManager _jobManager;
         private readonly ICurrentUserContext _currentUserContext;
         private readonly IServiceScopeFactory _serviceScopeFactory;
+        private readonly ILogger<PlatformBackupService> _logger;
 
         public PlatformBackupService(
             IPlatformDbContext platformContext,
             IPlatformBackupJobManager jobManager,
             ICurrentUserContext currentUserContext,
-            IServiceScopeFactory serviceScopeFactory)
+            IServiceScopeFactory serviceScopeFactory,
+            ILogger<PlatformBackupService> logger)
         {
             _platformContext = platformContext;
             _jobManager = jobManager;
             _currentUserContext = currentUserContext;
             _serviceScopeFactory = serviceScopeFactory;
+            _logger = logger;
         }
 
         public async Task<PlatformBackupJobStatusDto> QueuePlatformBackupAsync(CreatePlatformBackupRequest request)
@@ -61,17 +65,19 @@ namespace Aquora.Application.Services
             // Run backup job in a completely independent background scope
             _ = Task.Run(async () =>
             {
+                var backupId = Guid.NewGuid();
+                var now = DateTime.UtcNow;
+                var backupName = string.IsNullOrWhiteSpace(request.BackupName)
+                    ? $"Platform_{request.Mode}_{now:yyyyMMdd_HHmmss}"
+                    : request.BackupName.Trim();
+
                 try
                 {
+                    _logger.LogInformation("[BACKUP_SERVICE] Starting platform backup job {JobId} for backup '{BackupName}' (Mode: {Mode})", job.JobId, backupName, request.Mode);
+
                     using var scope = _serviceScopeFactory.CreateScope();
                     var engine = scope.ServiceProvider.GetRequiredService<IPlatformBackupEngine>();
                     var platformContext = scope.ServiceProvider.GetRequiredService<IPlatformDbContext>();
-
-                    var backupId = Guid.NewGuid();
-                    var now = DateTime.UtcNow;
-                    var backupName = string.IsNullOrWhiteSpace(request.BackupName)
-                        ? $"Platform_{request.Mode}_{now:yyyyMMdd_HHmmss}"
-                        : request.BackupName.Trim();
 
                     var zipBytes = await engine.BuildPlatformBackupZipAsync(
                         job.JobId,
@@ -88,7 +94,22 @@ namespace Aquora.Application.Services
                     Directory.CreateDirectory(folderPath);
                     var filePath = Path.Combine(folderPath, $"{backupId}.zip");
 
+                    _logger.LogInformation("[BACKUP_SERVICE] Writing backup ZIP payload ({Bytes} bytes) to '{FilePath}'", zipBytes.Length, filePath);
                     await File.WriteAllBytesAsync(filePath, zipBytes);
+
+                    // ATOMIC LIFECYCLE VERIFICATION
+                    if (!File.Exists(filePath) || new FileInfo(filePath).Length == 0)
+                    {
+                        throw new InvalidOperationException($"Backup artifact file could not be verified on disk at '{filePath}'.");
+                    }
+
+                    _logger.LogInformation("[BACKUP_SERVICE] Verifying manifest and integrity of generated ZIP package...");
+                    var verifiedManifest = await engine.ReadManifestFromZipAsync(zipBytes);
+                    if (verifiedManifest == null)
+                    {
+                        throw new InvalidOperationException("Generated platform backup manifest is unreadable or corrupted.");
+                    }
+
                     string checksum = ComputeSHA256(zipBytes);
 
                     var backupEntity = new BackupHistory
@@ -100,8 +121,8 @@ namespace Aquora.Application.Services
                         Description = request.Notes ?? $"Platform Disaster Recovery Backup ({request.Mode})",
                         Format = "ZIP",
                         BackupSize = zipBytes.Length,
-                        RecordCount = 0,
-                        TableCount = targetSchemas.Count,
+                        RecordCount = verifiedManifest.TotalRecords,
+                        TableCount = verifiedManifest.TotalTables,
                         Checksum = checksum,
                         Hash = checksum,
                         FilePath = filePath,
@@ -115,10 +136,12 @@ namespace Aquora.Application.Services
                     platformContext.BackupHistories.Add(backupEntity);
                     await platformContext.SaveChangesAsync();
 
+                    _logger.LogInformation("[BACKUP_SERVICE] Backup history record persisted successfully for {BackupId}. Job COMPLETED.", backupId);
                     _jobManager.CompleteJob(job.JobId, backupId);
                 }
                 catch (Exception ex)
                 {
+                    _logger.LogError(ex, "[BACKUP_SERVICE] Failed platform backup job {JobId}: {ErrorMessage}", job.JobId, ex.Message);
                     _jobManager.FailJob(job.JobId, ex.Message);
                 }
             });
@@ -162,32 +185,60 @@ namespace Aquora.Application.Services
         public async Task<PlatformBackupManifestDto?> InspectPlatformBackupAsync(Guid id)
         {
             var entity = await _platformContext.BackupHistories.FirstOrDefaultAsync(h => h.Id == id && !h.IsDeleted);
-            if (entity == null || !File.Exists(entity.FilePath)) return null;
+            if (entity == null)
+            {
+                throw new KeyNotFoundException("Platform backup record not found.");
+            }
+
+            string? filePath = ResolveBackupFilePath(entity);
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+            {
+                _logger.LogWarning("Inspect failed for backup {BackupId}: ZIP file missing from disk", id);
+                throw new KeyNotFoundException("Backup file is no longer available on server.");
+            }
 
             using var scope = _serviceScopeFactory.CreateScope();
             var engine = scope.ServiceProvider.GetRequiredService<IPlatformBackupEngine>();
 
-            byte[] zipBytes = await File.ReadAllBytesAsync(entity.FilePath);
-            return await engine.ReadManifestFromZipAsync(zipBytes);
+            byte[] zipBytes = await File.ReadAllBytesAsync(filePath);
+            var manifest = await engine.ReadManifestFromZipAsync(zipBytes);
+            if (manifest == null)
+            {
+                throw new InvalidOperationException("Platform backup manifest is invalid or corrupted.");
+            }
+
+            return manifest;
         }
 
         public async Task<PlatformSchemaPreviewDto?> GetPlatformSchemaPreviewAsync(Guid id, string schemaName)
         {
             var entity = await _platformContext.BackupHistories.FirstOrDefaultAsync(h => h.Id == id && !h.IsDeleted);
-            if (entity == null || !File.Exists(entity.FilePath))
+            if (entity == null)
             {
                 return new PlatformSchemaPreviewDto
                 {
                     BackupId = id,
                     SchemaName = schemaName,
                     IsPreviewAvailable = false,
-                    Message = "Backup package file not found on server."
+                    Message = "Platform backup record not found."
+                };
+            }
+
+            string? filePath = ResolveBackupFilePath(entity);
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+            {
+                return new PlatformSchemaPreviewDto
+                {
+                    BackupId = id,
+                    SchemaName = schemaName,
+                    IsPreviewAvailable = false,
+                    Message = "Backup file is no longer available on server."
                 };
             }
 
             try
             {
-                using var fileStream = File.OpenRead(entity.FilePath);
+                using var fileStream = File.OpenRead(filePath);
                 using var archive = new System.IO.Compression.ZipArchive(fileStream, System.IO.Compression.ZipArchiveMode.Read);
 
                 string previewEntryPath = schemaName.Equals("public", StringComparison.OrdinalIgnoreCase)
@@ -202,7 +253,7 @@ namespace Aquora.Application.Services
                         BackupId = id,
                         SchemaName = schemaName,
                         IsPreviewAvailable = false,
-                        Message = "This backup was created with an older version and does not include preview data."
+                        Message = "This backup package does not include preview data for this schema."
                     };
                 }
 
@@ -239,16 +290,22 @@ namespace Aquora.Application.Services
         public async Task<(byte[] FileBytes, string ContentType, string FileName)> DownloadPlatformBackupAsync(Guid id)
         {
             var entity = await _platformContext.BackupHistories.FirstOrDefaultAsync(h => h.Id == id && !h.IsDeleted);
-            if (entity == null || !File.Exists(entity.FilePath))
+            if (entity == null)
             {
-                throw new KeyNotFoundException("Platform backup file not found.");
+                throw new KeyNotFoundException("Platform backup record not found.");
+            }
+
+            string? filePath = ResolveBackupFilePath(entity);
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+            {
+                throw new KeyNotFoundException("Backup file is no longer available on server.");
             }
 
             entity.DownloadCount++;
             entity.LastDownloaded = DateTime.UtcNow;
             await _platformContext.SaveChangesAsync();
 
-            byte[] bytes = await File.ReadAllBytesAsync(entity.FilePath);
+            byte[] bytes = await File.ReadAllBytesAsync(filePath);
             string fileName = $"{entity.BackupName.Replace(" ", "_")}.zip";
             return (bytes, "application/zip", fileName);
         }
@@ -300,19 +357,25 @@ namespace Aquora.Application.Services
             }
 
             var entity = await _platformContext.BackupHistories.FirstOrDefaultAsync(h => h.Id == id && !h.IsDeleted);
-            if (entity == null || !File.Exists(entity.FilePath))
+            if (entity == null)
             {
-                throw new KeyNotFoundException("Platform backup file not found.");
+                throw new KeyNotFoundException("Platform backup record not found.");
+            }
+
+            string? filePath = ResolveBackupFilePath(entity);
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+            {
+                throw new KeyNotFoundException("Backup file is no longer available on server.");
             }
 
             using var scope = _serviceScopeFactory.CreateScope();
             var engine = scope.ServiceProvider.GetRequiredService<IPlatformBackupEngine>();
 
-            byte[] zipBytes = await File.ReadAllBytesAsync(entity.FilePath);
+            byte[] zipBytes = await File.ReadAllBytesAsync(filePath);
             var manifest = await engine.ReadManifestFromZipAsync(zipBytes);
             if (manifest == null)
             {
-                throw new InvalidOperationException("Invalid platform backup archive: missing manifest.json.");
+                throw new InvalidOperationException("Invalid platform backup archive: missing or corrupted manifest.json.");
             }
 
             var schemasToRestore = request.TargetSchemas != null && request.TargetSchemas.Any()
@@ -330,9 +393,10 @@ namespace Aquora.Application.Services
             entity.IsDeleted = true;
             entity.DeletedAt = DateTime.UtcNow;
 
-            if (File.Exists(entity.FilePath))
+            string? filePath = ResolveBackupFilePath(entity);
+            if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
             {
-                try { File.Delete(entity.FilePath); } catch { }
+                try { File.Delete(filePath); } catch { }
             }
 
             await _platformContext.SaveChangesAsync();
@@ -357,6 +421,53 @@ namespace Aquora.Application.Services
             }).ToList();
         }
 
+        private static string? ResolveBackupFilePath(BackupHistory entity)
+        {
+            if (entity == null) return null;
+
+            var candidatePaths = new List<string>();
+
+            if (!string.IsNullOrWhiteSpace(entity.FilePath))
+            {
+                candidatePaths.Add(entity.FilePath);
+                if (!Path.IsPathRooted(entity.FilePath))
+                {
+                    candidatePaths.Add(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, entity.FilePath));
+                    candidatePaths.Add(Path.Combine(Directory.GetCurrentDirectory(), entity.FilePath));
+                }
+            }
+
+            var dateFolder = entity.CreatedAt == default ? DateTime.UtcNow : entity.CreatedAt;
+            candidatePaths.Add(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Backups", "Platform", dateFolder.ToString("yyyy"), dateFolder.ToString("MM"), $"{entity.Id}.zip"));
+            candidatePaths.Add(Path.Combine(Directory.GetCurrentDirectory(), "Backups", "Platform", dateFolder.ToString("yyyy"), dateFolder.ToString("MM"), $"{entity.Id}.zip"));
+            candidatePaths.Add(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Backups", "Platform", $"{entity.Id}.zip"));
+            candidatePaths.Add(Path.Combine(Directory.GetCurrentDirectory(), "Backups", "Platform", $"{entity.Id}.zip"));
+
+            foreach (var path in candidatePaths)
+            {
+                if (File.Exists(path))
+                {
+                    return path;
+                }
+            }
+
+            var rootBackupDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Backups");
+            if (Directory.Exists(rootBackupDir))
+            {
+                var files = Directory.GetFiles(rootBackupDir, $"{entity.Id}.zip", SearchOption.AllDirectories);
+                if (files.Length > 0) return files[0];
+            }
+
+            var cwdBackupDir = Path.Combine(Directory.GetCurrentDirectory(), "Backups");
+            if (Directory.Exists(cwdBackupDir))
+            {
+                var files = Directory.GetFiles(cwdBackupDir, $"{entity.Id}.zip", SearchOption.AllDirectories);
+                if (files.Length > 0) return files[0];
+            }
+
+            return null;
+        }
+
         private static string ComputeSHA256(byte[] bytes)
         {
             using var sha = SHA256.Create();
@@ -373,3 +484,4 @@ namespace Aquora.Application.Services
         }
     }
 }
+

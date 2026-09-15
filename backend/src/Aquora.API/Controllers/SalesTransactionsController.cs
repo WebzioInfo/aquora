@@ -2368,6 +2368,126 @@ namespace Aquora.API.Controllers
                 return Failure<SalesDashboardDto>(ex.Message, "Failed to load sales dashboard.");
             }
         }
+
+        // GET /api/v1/sales/owner-overview
+        [HttpGet("owner-overview")]
+        public async Task<ActionResult<ApiResponse<OwnerSalesOverviewDto>>> GetOwnerOverview(
+            [FromQuery] DateTime? startDate = null,
+            [FromQuery] DateTime? endDate = null)
+        {
+            try
+            {
+                await EnsureCustomerColumnsAsync();
+                var tenantId = _currentUserContext.TenantId;
+                var now = DateTime.UtcNow;
+                var todayStart = now.Date;
+                var monthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+                var query = _tenantContext.SalesTransactions
+                    .Include(t => t.Customer)
+                    .Include(t => t.Product)
+                    .Where(t => t.TenantId == tenantId && !t.IsDeleted && t.ParentTransactionId == null);
+
+                var allSales = await query.ToListAsync();
+
+                var salesTxns = allSales.Where(t =>
+                    t.TransactionType == "Sales Dispatch" ||
+                    t.TransactionType == "SALE" ||
+                    t.TransactionType == "DISPATCH" ||
+                    t.TransactionType == "DELIVERY").ToList();
+
+                decimal totalSales = salesTxns.Sum(t => t.TotalAmount);
+                decimal salesToday = salesTxns.Where(t => t.TransactionDate >= todayStart).Sum(t => t.TotalAmount);
+                decimal thisMonthSales = salesTxns.Where(t => t.TransactionDate >= monthStart).Sum(t => t.TotalAmount);
+
+                int totalTransactions = salesTxns.Count;
+                int thisMonthTransactions = salesTxns.Where(t => t.TransactionDate >= monthStart).Count();
+                decimal averageSale = totalTransactions > 0 ? Math.Round(totalSales / totalTransactions, 2) : 0;
+
+                // Daily trend over last 30 days or specified range
+                var trendStart = startDate ?? now.AddDays(-29).Date;
+                var trendEnd = endDate ?? now.Date;
+
+                var dailyTrend = salesTxns
+                    .Where(t => t.TransactionDate >= trendStart && t.TransactionDate <= trendEnd.AddDays(1).AddTicks(-1))
+                    .GroupBy(t => t.TransactionDate.Date)
+                    .Select(g => new DailySalesTrendDto
+                    {
+                        Date = g.Key.ToString("yyyy-MM-dd"),
+                        FormattedDate = g.Key.ToString("MMM dd"),
+                        TotalSales = g.Sum(t => t.TotalAmount),
+                        TransactionCount = g.Count(),
+                        TotalCases = (int)g.Sum(t => t.Cases)
+                    })
+                    .OrderBy(d => d.Date)
+                    .ToList();
+
+                // Top products by revenue
+                var topProducts = salesTxns
+                    .GroupBy(t => new { t.ProductId, ProductName = t.Product?.Name ?? "Unknown Product", ProductSku = t.Product?.SKU ?? "" })
+                    .Select(g => new TopProductSalesDto
+                    {
+                        ProductId = g.Key.ProductId,
+                        ProductName = g.Key.ProductName,
+                        ProductSku = g.Key.ProductSku,
+                        TotalSales = g.Sum(t => t.TotalAmount),
+                        TotalCases = (int)g.Sum(t => t.Cases),
+                        TransactionCount = g.Count()
+                    })
+                    .OrderByDescending(p => p.TotalSales)
+                    .Take(5)
+                    .ToList();
+
+                // Top customers by revenue
+                var topCustomers = salesTxns
+                    .GroupBy(t => new { t.CustomerId, CustomerName = t.Customer?.CustomerName ?? "Unknown Customer", CustomerCode = t.Customer?.CustomerCode ?? "" })
+                    .Select(g => new TopCustomerSalesDto
+                    {
+                        CustomerId = g.Key.CustomerId,
+                        CustomerName = g.Key.CustomerName,
+                        CustomerCode = g.Key.CustomerCode,
+                        TotalSales = g.Sum(t => t.TotalAmount),
+                        TotalCases = (int)g.Sum(t => t.Cases),
+                        TransactionCount = g.Count()
+                    })
+                    .OrderByDescending(c => c.TotalSales)
+                    .Take(5)
+                    .ToList();
+
+                // Sales by Transaction Type
+                var typeBreakdown = allSales
+                    .GroupBy(t => t.TransactionType)
+                    .Select(g => new SalesTypeBreakdownDto
+                    {
+                        TransactionType = g.Key,
+                        TotalSales = g.Sum(t => t.TotalAmount),
+                        TotalCases = (int)g.Sum(t => t.Cases),
+                        TransactionCount = g.Count()
+                    })
+                    .OrderByDescending(tb => tb.TotalSales)
+                    .ToList();
+
+                var result = new OwnerSalesOverviewDto
+                {
+                    TotalSales = totalSales,
+                    SalesToday = salesToday,
+                    ThisMonthSales = thisMonthSales,
+                    TotalTransactions = totalTransactions,
+                    ThisMonthTransactions = thisMonthTransactions,
+                    AverageSale = averageSale,
+                    DailyTrend = dailyTrend,
+                    TopProducts = topProducts,
+                    TopCustomers = topCustomers,
+                    TypeBreakdown = typeBreakdown
+                };
+
+                return Success(result, "Owner sales overview loaded successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<OwnerSalesOverviewDto>(ex.Message, "Failed to load owner sales overview.");
+            }
+        }
     }
 
     public class SalesTransactionDto
@@ -2506,6 +2626,57 @@ namespace Aquora.API.Controllers
         public string Description { get; set; } = string.Empty;
         public string AccountName { get; set; } = string.Empty;
         public string CollectedBy { get; set; } = string.Empty;
+    }
+
+    public class OwnerSalesOverviewDto
+    {
+        public decimal TotalSales { get; set; }
+        public decimal SalesToday { get; set; }
+        public decimal ThisMonthSales { get; set; }
+        public int TotalTransactions { get; set; }
+        public int ThisMonthTransactions { get; set; }
+        public decimal AverageSale { get; set; }
+        public List<DailySalesTrendDto> DailyTrend { get; set; } = new();
+        public List<TopProductSalesDto> TopProducts { get; set; } = new();
+        public List<TopCustomerSalesDto> TopCustomers { get; set; } = new();
+        public List<SalesTypeBreakdownDto> TypeBreakdown { get; set; } = new();
+    }
+
+    public class DailySalesTrendDto
+    {
+        public string Date { get; set; } = string.Empty;
+        public string FormattedDate { get; set; } = string.Empty;
+        public decimal TotalSales { get; set; }
+        public int TransactionCount { get; set; }
+        public int TotalCases { get; set; }
+    }
+
+    public class TopProductSalesDto
+    {
+        public Guid ProductId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public string ProductSku { get; set; } = string.Empty;
+        public decimal TotalSales { get; set; }
+        public int TotalCases { get; set; }
+        public int TransactionCount { get; set; }
+    }
+
+    public class TopCustomerSalesDto
+    {
+        public Guid CustomerId { get; set; }
+        public string CustomerName { get; set; } = string.Empty;
+        public string CustomerCode { get; set; } = string.Empty;
+        public decimal TotalSales { get; set; }
+        public int TotalCases { get; set; }
+        public int TransactionCount { get; set; }
+    }
+
+    public class SalesTypeBreakdownDto
+    {
+        public string TransactionType { get; set; } = string.Empty;
+        public decimal TotalSales { get; set; }
+        public int TotalCases { get; set; }
+        public int TransactionCount { get; set; }
     }
 }
 
