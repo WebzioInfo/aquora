@@ -1,6 +1,6 @@
 export interface UserLike {
   roles?: string[]
-  roleName?: string
+  roleName?: string | null
   primaryRole?: string
   [key: string]: any
 }

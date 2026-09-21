@@ -615,14 +615,17 @@ namespace Aquora.Application.Services
 
             await CheckAndGenerateCAPAsAsync(report);
 
-            foreach (var entry in _context.ChangeTracker.Entries<WaterTestResult>())
+            if (_context is DbContext dbContextForTracking)
             {
-                Console.WriteLine(
-                    $"[WATER TEST FINAL TRACKING] " +
-                    $"Id={entry.Entity.Id} " +
-                    $"State={entry.State} " +
-                    $"ReportId={entry.Entity.ReportId} " +
-                    $"ParameterId={entry.Entity.ParameterId}");
+                foreach (var entry in dbContextForTracking.ChangeTracker.Entries<WaterTestResult>())
+                {
+                    Console.WriteLine(
+                        $"[WATER TEST FINAL TRACKING] " +
+                        $"Id={entry.Entity.Id} " +
+                        $"State={entry.State} " +
+                        $"ReportId={entry.Entity.ReportId} " +
+                        $"ParameterId={entry.Entity.ParameterId}");
+                }
             }
 
             await _context.SaveChangesAsync();

@@ -189,7 +189,7 @@ export const ProductSelectionPage: React.FC = () => {
                   {/* Top Color Accent Line */}
                   <div
                     className="absolute top-0 left-0 right-0 h-1.5 transition-all group-hover:h-2"
-                    style={{ backgroundColor: theme.color }}
+                    style={{ backgroundColor: theme.primary }}
                   />
 
                   {/* Top Card Content */}
@@ -198,7 +198,7 @@ export const ProductSelectionPage: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <div
                           className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white text-lg shadow-sm"
-                          style={{ backgroundColor: theme.color }}
+                          style={{ backgroundColor: theme.primary }}
                         >
                           {line.name.replace(/[^0-9]/g, '') || 'L'}
                         </div>
