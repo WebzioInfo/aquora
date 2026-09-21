@@ -13,6 +13,22 @@ export interface VerifyOtpRequest {
   purpose?: string
 }
 
+export interface VerifyPasswordResetOtpResponse {
+  success: boolean
+  message: string
+  email: string
+  resetToken: string
+  expiresInMinutes: number
+}
+
+export interface ResetPasswordPayload {
+  email: string
+  resetToken?: string
+  code?: string
+  newPassword: string
+  confirmPassword?: string
+}
+
 export interface LoginRequest {
   email: string
   password: string
@@ -107,8 +123,8 @@ export const authService = {
     return response.data
   },
 
-  resendOtp: async (email: string): Promise<ApiResponse<boolean>> => {
-    const response = await api.post<ApiResponse<boolean>>('/api/v1/tenant/send-otp', { email })
+  resendOtp: async (email: string, purpose: string = 'Registration'): Promise<ApiResponse<boolean>> => {
+    const response = await api.post<ApiResponse<boolean>>('/api/v1/auth/resend-otp', { email, purpose })
     return response.data
   },
 
@@ -117,8 +133,41 @@ export const authService = {
     return response.data
   },
 
-  resetPassword: async (email: string, newPassword: string): Promise<ApiResponse<boolean>> => {
-    const response = await api.post<ApiResponse<boolean>>('/api/v1/auth/reset-password', { email, newPassword })
+  // Password Recovery Endpoints
+  forgotPassword: async (email: string): Promise<ApiResponse<boolean>> => {
+    const response = await api.post<ApiResponse<boolean>>('/api/v1/auth/forgot-password', { email })
     return response.data
   },
+
+  verifyPasswordResetOtp: async (email: string, code: string): Promise<ApiResponse<VerifyPasswordResetOtpResponse>> => {
+    const response = await api.post<ApiResponse<VerifyPasswordResetOtpResponse>>('/api/v1/auth/verify-password-reset-otp', { email, code })
+    return response.data
+  },
+
+  resetPassword: async (payload: ResetPasswordPayload | string, newPassword?: string): Promise<ApiResponse<boolean>> => {
+    let body: ResetPasswordPayload
+    if (typeof payload === 'string') {
+      body = { email: payload, newPassword: newPassword || '' }
+    } else {
+      body = payload
+    }
+    const response = await api.post<ApiResponse<boolean>>('/api/v1/auth/reset-password', body)
+    return response.data
+  },
+
+  resendPasswordResetOtp: async (email: string): Promise<ApiResponse<boolean>> => {
+    const response = await api.post<ApiResponse<boolean>>('/api/v1/auth/resend-password-reset-otp', { email, purpose: 'PasswordReset' })
+    return response.data
+  },
+
+  // Email Change Endpoints
+  requestEmailChange: async (newEmail: string): Promise<ApiResponse<boolean>> => {
+    const response = await api.post<ApiResponse<boolean>>('/api/v1/auth/request-email-change', { newEmail })
+    return response.data
+  },
+
+  verifyEmailChange: async (newEmail: string, code: string): Promise<ApiResponse<boolean>> => {
+    const response = await api.post<ApiResponse<boolean>>('/api/v1/auth/verify-email-change', { newEmail, code })
+    return response.data
+  }
 }

@@ -153,9 +153,24 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
 
       {/* Bottom controls */}
       <div className="p-3 border-t border-[#E5E9F2] flex flex-col gap-1 select-none">
+        <Link
+          to="/profile"
+          className="flex items-center gap-3.5 w-full px-3.5 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+          title="My Profile"
+        >
+          <div className="w-5 h-5 rounded-md bg-[#1A56DB] text-white flex items-center justify-center text-[10px] font-bold shrink-0 uppercase">
+            {user?.firstName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+          </div>
+          {!collapsed && (
+            <div className="flex flex-col text-left truncate">
+              <span className="truncate text-xs font-bold text-slate-800">{user?.firstName ? `${user?.firstName} ${user?.lastName || ''}`.trim() : 'My Profile'}</span>
+              <span className="text-[10px] text-slate-400 font-medium truncate">Account Profile</span>
+            </div>
+          )}
+        </Link>
         <button
           onClick={onLogout}
-          className="flex items-center gap-3.5 w-full px-3.5 py-2.5 rounded text-xs font-semibold text-error hover:bg-red-500/10 cursor-pointer transition-colors"
+          className="flex items-center gap-3.5 w-full px-3.5 py-2 rounded text-xs font-semibold text-error hover:bg-red-500/10 cursor-pointer transition-colors"
         >
           <LogOut className="w-5 h-5 shrink-0" />
           {!collapsed && <span>Sign Out</span>}

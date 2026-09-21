@@ -22,6 +22,8 @@ namespace Aquora.Application.Interfaces.Services
         Task<WaterTestParameterDto> CreateOrUpdateParameterAsync(WaterTestParameterDto request);
         Task<WaterTestReportDto> CreateWaterTestReportAsync(CreateWaterTestReportRequest request);
         Task<WaterTestReportDto?> UpdateWaterTestReportAsync(Guid id, CreateWaterTestReportRequest request);
+        Task<WaterTestReportDto?> EnterSingleParameterResultAsync(Guid reportId, Guid parameterId, EnterSingleResultRequest request);
+        Task<List<QCPendingTaskDto>> GetPendingTasksAndRemindersAsync();
         Task<bool> DeleteWaterTestReportAsync(Guid id);
         Task<WaterTestDashboardDto> GetWaterTestDashboardAsync();
 

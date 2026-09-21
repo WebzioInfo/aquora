@@ -669,6 +669,9 @@ namespace Aquora.Persistence.Migrations.Platform
                     b.Property<string>("LogoUrl")
                         .HasColumnType("text");
 
+                    b.Property<string>("LogoPublicId")
+                        .HasColumnType("text");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
@@ -733,6 +736,12 @@ namespace Aquora.Persistence.Migrations.Platform
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("SchemaName")
+                        .IsUnique();
+
+                    b.HasIndex("Subdomain")
                         .IsUnique();
 
                     b.ToTable("Tenants", "public");
@@ -926,8 +935,14 @@ namespace Aquora.Persistence.Migrations.Platform
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AssignedLabStation")
+                        .HasColumnType("text");
+
                     b.Property<Guid?>("AssignedProductionLineId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("CertificationDetails")
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -967,6 +982,9 @@ namespace Aquora.Persistence.Migrations.Platform
                     b.Property<DateTime?>("EmailVerifiedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("ExperienceYears")
+                        .HasColumnType("integer");
+
                     b.Property<string>("FirstName")
                         .HasColumnType("text");
 
@@ -998,7 +1016,16 @@ namespace Aquora.Persistence.Migrations.Platform
                     b.Property<string>("PhotoUrl")
                         .HasColumnType("text");
 
+                    b.Property<string>("PhotoPublicId")
+                        .HasColumnType("text");
+
                     b.Property<string>("PinHash")
+                        .HasColumnType("text");
+
+                    b.Property<string>("QcResponsibilities")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Qualification")
                         .HasColumnType("text");
 
                     b.Property<string>("RefreshToken")
@@ -1014,6 +1041,12 @@ namespace Aquora.Persistence.Migrations.Platform
                         .HasColumnType("numeric");
 
                     b.Property<string>("Shift")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SignatureUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SignaturePublicId")
                         .HasColumnType("text");
 
                     b.Property<Guid?>("TenantId")

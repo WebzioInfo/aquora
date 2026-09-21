@@ -151,7 +151,9 @@ namespace Aquora.Tests
                 {
                     var id = reader.GetGuid(0);
                     var email = reader.GetString(1);
-                    var name = $"{reader.GetString(2)} {reader.GetString(3)}";
+                    var firstName = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                    var lastName = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                    var name = $"{firstName} {lastName}".Trim();
                     var tenantId = reader.IsDBNull(4) ? (Guid?)null : reader.GetGuid(4);
                     var verified = reader.GetBoolean(5);
                     var active = reader.GetBoolean(6);

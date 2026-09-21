@@ -584,7 +584,8 @@ export const WaterTestReportFormPage: React.FC = () => {
               <tr className="h-10 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider bg-slate-50">
                 <th className="py-2.5 px-4">Organism Parameter</th>
                 <th className="py-2.5 px-4">Standard Requirement</th>
-                <th className="py-2.5 px-4">Result Value</th>
+                <th className="py-2.5 px-4">Incubation Timing</th>
+                <th className="py-2.5 px-4">Observation Result</th>
                 <th className="py-2.5 px-4 text-center">Evaluation</th>
               </tr>
             </thead>
@@ -595,6 +596,7 @@ export const WaterTestReportFormPage: React.FC = () => {
                 const isAmc = pName.includes('aerobic') || pName.includes('amc');
                 const is22 = pName.includes('22');
                 const stdReq = isAmc ? (is22 ? '<= 100 CFU/ml' : '<= 20 CFU/ml') : 'Absent / 250ml';
+                const duration = param.requiredDurationHours || (pName.includes('amc 22') || pName.includes('yeast') ? 72 : (pName.includes('pseudomonas') || pName.includes('clostridia') ? 48 : 24));
 
                 return (
                   <tr key={param.id} className="h-12 hover:bg-slate-50/70 transition-colors">
@@ -604,13 +606,22 @@ export const WaterTestReportFormPage: React.FC = () => {
                     <td className="py-2.5 px-4 text-slate-600 font-medium">
                       {stdReq}
                     </td>
+                    <td className="py-2.5 px-4">
+                      <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                        {duration}h Incubation
+                      </span>
+                    </td>
                     <td className="py-2.5 px-4 min-w-[280px]">
                       {renderParameterInput(param)}
                     </td>
                     <td className="py-2.5 px-4 text-center">
                       {status === 'PASS' && <EnterpriseBadge variant="success">Pass</EnterpriseBadge>}
                       {status === 'FAIL' && <EnterpriseBadge variant="danger">Fail</EnterpriseBadge>}
-                      {status === 'NOT_ENTERED' && <span className="text-slate-400 italic text-xs">Not Entered</span>}
+                      {status === 'NOT_ENTERED' && (
+                        <span className="text-indigo-600 text-xs font-semibold bg-indigo-50 px-2 py-0.5 rounded">
+                          Incubating (Pending)
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );

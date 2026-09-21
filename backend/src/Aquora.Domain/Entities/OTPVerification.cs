@@ -14,6 +14,12 @@ namespace Aquora.Domain.Entities
         public int SendCount { get; set; }
         public DateTime? LastSentAt { get; set; }
         public bool IsVerified { get; set; }
+        public DateTime? VerifiedAt { get; set; }
+        public bool IsUsed { get; set; }
+        public DateTime? UsedAt { get; set; }
+        public string? ResetToken { get; set; }
+        public DateTime? ResetTokenExpiryTime { get; set; }
+        public string? NewEmail { get; set; }
         public string RequestId { get; set; }
 
         // IAuditable implementation

@@ -24,6 +24,7 @@ namespace Aquora.API.Controllers
         private readonly ICurrentUserContext _userContext;
         private readonly IStationConfigurationService _stationConfigService;
         private readonly IPasswordHasher _passwordHasher;
+        private readonly ICloudinaryMediaService _cloudinaryService;
 
         private static readonly ConcurrentDictionary<Guid, (int FailedCount, DateTime LockoutExpiry)> _pinFailedAttempts = new();
 
@@ -32,13 +33,15 @@ namespace Aquora.API.Controllers
             IPlatformDbContext platformContext,
             ICurrentUserContext userContext,
             IStationConfigurationService stationConfigService,
-            IPasswordHasher passwordHasher)
+            IPasswordHasher passwordHasher,
+            ICloudinaryMediaService cloudinaryService)
         {
             _tenantContext = tenantContext;
             _platformContext = platformContext;
             _userContext = userContext;
             _stationConfigService = stationConfigService;
             _passwordHasher = passwordHasher;
+            _cloudinaryService = cloudinaryService;
         }
 
         private bool IsCompanyAdmin()
@@ -159,6 +162,7 @@ namespace Aquora.API.Controllers
                     GstNumber = tenant?.GstNumber ?? string.Empty,
                     Address = tenant?.Address ?? string.Empty,
                     LogoUrl = tenant?.LogoUrl ?? string.Empty,
+                    LogoPublicId = tenant?.LogoPublicId ?? string.Empty,
                     TenantId = (tenant?.Id ?? tenantId).ToString(),
                     TenantCode = tenant?.Code ?? company.Code ?? "AQUORA",
                     SchemaName = tenant?.SchemaName ?? "public",
@@ -176,6 +180,103 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 return Failure<object>($"Failed to load company settings: {ex.Message}", "InternalServerError", System.Net.HttpStatusCode.InternalServerError);
+            }
+        }
+
+        [HttpPost("logo/upload")]
+        [RequestSizeLimit(5 * 1024 * 1024)]
+        public async Task<ActionResult<ApiResponse<object>>> UploadLogo(Microsoft.AspNetCore.Http.IFormFile file)
+        {
+            if (!IsCompanyAdmin()) return StatusCode(403, Failure<object>("CompanyAdmin or Owner privileges required to update company logo.", "Forbidden"));
+
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(Failure<object>("Please select a valid image file to upload as the company logo.", "Invalid File"));
+            }
+
+            try
+            {
+                var tenantId = _userContext.TenantId;
+                var tenant = await _platformContext.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId);
+                if (tenant == null)
+                {
+                    return NotFound(Failure<object>("Tenant workspace could not be found.", "NotFound"));
+                }
+
+                var oldPublicId = tenant.LogoPublicId;
+
+                // 1. Upload logo to Cloudinary in folder: aquzio/tenants/{tenantId}/company/logo
+                using var stream = file.OpenReadStream();
+                var uploadResult = await _cloudinaryService.UploadImageAsync(
+                    stream,
+                    file.FileName,
+                    file.ContentType,
+                    Aquora.Application.DTOs.Media.MediaAssetType.CompanyLogo,
+                    tenant.Id,
+                    Guid.TryParse(_userContext.UserId, out var uid) ? uid : null);
+
+                // 2. Persist LogoUrl and LogoPublicId in Database
+                tenant.LogoUrl = uploadResult.Url;
+                tenant.LogoPublicId = uploadResult.PublicId;
+                tenant.UpdatedAt = DateTime.UtcNow;
+                tenant.UpdatedBy = _userContext.UserId?.ToString() ?? "System";
+
+                await _platformContext.SaveChangesAsync();
+
+                // 3. Compensating cleanup of previous logo asset
+                if (!string.IsNullOrWhiteSpace(oldPublicId) && oldPublicId != uploadResult.PublicId)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await _cloudinaryService.DeleteAssetAsync(oldPublicId, "image");
+                        }
+                        catch { }
+                    });
+                }
+
+                return await GetSettings();
+            }
+            catch (Exception ex)
+            {
+                return Failure<object>(ex.Message, "Failed to upload company logo.");
+            }
+        }
+
+        [HttpDelete("logo")]
+        public async Task<ActionResult<ApiResponse<object>>> RemoveLogo()
+        {
+            if (!IsCompanyAdmin()) return StatusCode(403, Failure<object>("CompanyAdmin or Owner privileges required to remove company logo.", "Forbidden"));
+
+            try
+            {
+                var tenantId = _userContext.TenantId;
+                var tenant = await _platformContext.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId);
+                if (tenant == null)
+                {
+                    return NotFound(Failure<object>("Tenant workspace could not be found.", "NotFound"));
+                }
+
+                var oldPublicId = tenant.LogoPublicId;
+
+                tenant.LogoUrl = null;
+                tenant.LogoPublicId = null;
+                tenant.UpdatedAt = DateTime.UtcNow;
+                tenant.UpdatedBy = _userContext.UserId?.ToString() ?? "System";
+
+                await _platformContext.SaveChangesAsync();
+
+                if (!string.IsNullOrWhiteSpace(oldPublicId))
+                {
+                    await _cloudinaryService.DeleteAssetAsync(oldPublicId, "image");
+                }
+
+                return await GetSettings();
+            }
+            catch (Exception ex)
+            {
+                return Failure<object>(ex.Message, "Failed to remove company logo.");
             }
         }
 

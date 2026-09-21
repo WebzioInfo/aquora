@@ -43,7 +43,9 @@ namespace Aquora.API.Middleware
                 {
                     // Look up by subdomain
                     var tenant = await platformContext.Tenants
-                        .FirstOrDefaultAsync(t => t.Subdomain.ToLower() == subdomain.ToLower() && !t.IsDeleted);
+                        .Where(t => t.Subdomain.ToLower() == subdomain.ToLower() && !t.IsDeleted)
+                        .Select(t => new { t.Id, t.SchemaName })
+                        .FirstOrDefaultAsync();
 
                     if (tenant != null)
                     {
@@ -57,7 +59,9 @@ namespace Aquora.API.Middleware
             if (resolvedTenantId == null)
             {
                 var tenant = await platformContext.Tenants
-                    .FirstOrDefaultAsync(t => t.CustomDomain != null && t.CustomDomain.ToLower() == host.ToLower() && !t.IsDeleted);
+                    .Where(t => t.CustomDomain != null && t.CustomDomain.ToLower() == host.ToLower() && !t.IsDeleted)
+                    .Select(t => new { t.Id, t.SchemaName })
+                    .FirstOrDefaultAsync();
 
                 if (tenant != null)
                 {
@@ -72,7 +76,10 @@ namespace Aquora.API.Middleware
                 if (context.Request.Headers.TryGetValue("X-Tenant-Id", out var tenantHeaderStr) && 
                     Guid.TryParse(tenantHeaderStr, out var tenantIdFromHeader))
                 {
-                    var tenant = await platformContext.Tenants.FindAsync(tenantIdFromHeader);
+                    var tenant = await platformContext.Tenants
+                        .Where(t => t.Id == tenantIdFromHeader && !t.IsDeleted)
+                        .Select(t => new { t.Id, t.SchemaName })
+                        .FirstOrDefaultAsync();
                     if (tenant != null)
                     {
                         resolvedTenantId = tenant.Id;
@@ -81,8 +88,11 @@ namespace Aquora.API.Middleware
                 }
                 else if (context.Request.Headers.TryGetValue("X-Tenant-Code", out var tenantCodeHeaderStr))
                 {
+                    var codeStr = tenantCodeHeaderStr.ToString().ToLower();
                     var tenant = await platformContext.Tenants
-                        .FirstOrDefaultAsync(t => t.Code.ToLower() == tenantCodeHeaderStr.ToString().ToLower());
+                        .Where(t => t.Code.ToLower() == codeStr && !t.IsDeleted)
+                        .Select(t => new { t.Id, t.SchemaName })
+                        .FirstOrDefaultAsync();
                     if (tenant != null)
                     {
                         resolvedTenantId = tenant.Id;
@@ -97,7 +107,10 @@ namespace Aquora.API.Middleware
                 var tenantClaim = context.User.FindFirst("tenant_id")?.Value;
                 if (Guid.TryParse(tenantClaim, out var tenantIdFromClaims))
                 {
-                    var tenant = await platformContext.Tenants.FindAsync(tenantIdFromClaims);
+                    var tenant = await platformContext.Tenants
+                        .Where(t => t.Id == tenantIdFromClaims && !t.IsDeleted)
+                        .Select(t => new { t.Id, t.SchemaName })
+                        .FirstOrDefaultAsync();
                     if (tenant != null)
                     {
                         resolvedTenantId = tenant.Id;

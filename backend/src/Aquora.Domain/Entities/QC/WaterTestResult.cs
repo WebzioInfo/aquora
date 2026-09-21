@@ -16,6 +16,13 @@ namespace Aquora.Domain.Entities.QC
         public bool IsPass { get; set; }
         public string QualityStatus { get; set; } = "PASS"; // PASS, WARNING, FAIL, PENDING
 
+        // Time-based incubation & result lifecycle
+        public int RequiredDurationHours { get; set; } = 0; // 0 for immediate, 24/48/72 for incubation/delayed
+        public DateTime? StartedAt { get; set; }
+        public DateTime? ExpectedCompletionAt { get; set; }
+        public DateTime? ActualCompletedAt { get; set; }
+        public string ResultStatus { get; set; } = "COMPLETED"; // NOT_STARTED, IN_PROGRESS, PENDING_RESULT, OVERDUE, COMPLETED, NOT_APPLICABLE
+
         // Auditable fields
         public DateTime CreatedAt { get; set; }
         public string CreatedBy { get; set; } = string.Empty;

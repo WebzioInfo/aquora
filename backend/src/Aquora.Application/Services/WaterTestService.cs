@@ -85,6 +85,7 @@ namespace Aquora.Application.Services
                     ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MaxWarning"" double precision NULL;
                     ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MinAcceptable"" double precision NULL;
                     ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""MaxAcceptable"" double precision NULL;
+                    ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""RequiredDurationHours"" integer NOT NULL DEFAULT 0;
                     ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""CreatedByIP"" text NULL;
                     ALTER TABLE ""{schema}"".""WaterTestParameters"" ADD COLUMN IF NOT EXISTS ""UpdatedByIP"" text NULL;
 
@@ -133,6 +134,11 @@ namespace Aquora.Application.Services
                         ""StringValue"" text NULL,
                         ""IsPass"" boolean NOT NULL DEFAULT true,
                         ""QualityStatus"" text NOT NULL DEFAULT 'PASS',
+                        ""RequiredDurationHours"" integer NOT NULL DEFAULT 0,
+                        ""StartedAt"" timestamp with time zone NULL,
+                        ""ExpectedCompletionAt"" timestamp with time zone NULL,
+                        ""ActualCompletedAt"" timestamp with time zone NULL,
+                        ""ResultStatus"" text NOT NULL DEFAULT 'COMPLETED',
                         ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         ""CreatedBy"" text NOT NULL DEFAULT 'System',
                         ""UpdatedAt"" timestamp with time zone NULL,
@@ -144,6 +150,12 @@ namespace Aquora.Application.Services
                     ALTER TABLE ""{schema}"".""WaterTestResults"" ADD COLUMN IF NOT EXISTS ""CreatedByIP"" text NULL;
                     ALTER TABLE ""{schema}"".""WaterTestResults"" ADD COLUMN IF NOT EXISTS ""UpdatedByIP"" text NULL;
                     ALTER TABLE ""{schema}"".""WaterTestResults"" ADD COLUMN IF NOT EXISTS ""QualityStatus"" text NOT NULL DEFAULT 'PASS';
+                    ALTER TABLE ""{schema}"".""WaterTestResults"" ADD COLUMN IF NOT EXISTS ""RequiredDurationHours"" integer NOT NULL DEFAULT 0;
+                    ALTER TABLE ""{schema}"".""WaterTestResults"" ADD COLUMN IF NOT EXISTS ""StartedAt"" timestamp with time zone NULL;
+                    ALTER TABLE ""{schema}"".""WaterTestResults"" ADD COLUMN IF NOT EXISTS ""ExpectedCompletionAt"" timestamp with time zone NULL;
+                    ALTER TABLE ""{schema}"".""WaterTestResults"" ADD COLUMN IF NOT EXISTS ""ActualCompletedAt"" timestamp with time zone NULL;
+                    ALTER TABLE ""{schema}"".""WaterTestResults"" ADD COLUMN IF NOT EXISTS ""ResultStatus"" text NOT NULL DEFAULT 'COMPLETED';
+                    UPDATE ""{schema}"".""WaterTestResults"" SET ""ResultStatus"" = 'COMPLETED' WHERE ""ResultStatus"" IS NULL OR ""ResultStatus"" = '';
                 ";
 
                 if (_context is DbContext dbContext)
@@ -223,7 +235,8 @@ namespace Aquora.Application.Services
                     MinWarning = p.MinWarning,
                     MinAcceptable = p.MinAcceptable,
                     MaxAcceptable = p.MaxAcceptable,
-                    MaxWarning = p.MaxWarning
+                    MaxWarning = p.MaxWarning,
+                    RequiredDurationHours = p.RequiredDurationHours
                 })
                 .OrderBy(p => {
                     var norm = QCDefaultParameters.NormalizeKey(p.Name);
@@ -268,9 +281,33 @@ namespace Aquora.Application.Services
                 query = query.Where(r => r.ReportType == type);
             }
 
+            var now = DateTime.UtcNow;
+            var todayStart = now.Date;
+            var todayEnd = todayStart.AddDays(1);
+
             if (!string.IsNullOrWhiteSpace(status) && !status.Equals("all", StringComparison.OrdinalIgnoreCase))
             {
-                query = query.Where(r => r.Status == status);
+                var normStatus = status.Trim().ToLower();
+                if (normStatus == "due_today" || normStatus == "due")
+                {
+                    query = query.Where(r => r.Results.Any(res => res.ResultStatus != "COMPLETED" && !res.Value.HasValue && string.IsNullOrWhiteSpace(res.StringValue) && res.ExpectedCompletionAt >= todayStart && res.ExpectedCompletionAt < todayEnd));
+                }
+                else if (normStatus == "overdue")
+                {
+                    query = query.Where(r => r.Results.Any(res => res.ResultStatus != "COMPLETED" && !res.Value.HasValue && string.IsNullOrWhiteSpace(res.StringValue) && res.ExpectedCompletionAt != null && res.ExpectedCompletionAt < now));
+                }
+                else if (normStatus == "in_progress" || normStatus == "partially_completed")
+                {
+                    query = query.Where(r => r.Results.Any(res => res.ResultStatus != "COMPLETED" && !res.Value.HasValue && string.IsNullOrWhiteSpace(res.StringValue)));
+                }
+                else if (normStatus == "completed")
+                {
+                    query = query.Where(r => r.Status == "COMPLETED" || (r.Results.Any() && r.Results.All(res => res.ResultStatus == "COMPLETED" || res.Value.HasValue || (!string.IsNullOrWhiteSpace(res.StringValue) && res.StringValue != "—"))));
+                }
+                else
+                {
+                    query = query.Where(r => r.Status == status);
+                }
             }
 
             if (startDate.HasValue)
@@ -383,12 +420,44 @@ namespace Aquora.Application.Services
                 }
             }
 
+            var now = DateTime.UtcNow;
+
             foreach (var rReq in request.Results)
             {
                 if (string.IsNullOrWhiteSpace(rReq.ParameterId)) continue;
 
                 var param = ResolveOrCreateParameter(rReq.ParameterId, parameters, parameterMap, currentUserId);
                 var qualityStatus = _evaluationService.EvaluateParameter(param, rReq.Value, rReq.StringValue);
+
+                var requiredHours = param.RequiredDurationHours;
+                var startedAt = rReq.StartedAt?.ToUniversalTime() ?? report.SampleTime ?? report.CreatedAt;
+                var expectedCompletionAt = rReq.ExpectedCompletionAt?.ToUniversalTime() ?? (requiredHours > 0 ? startedAt.AddHours(requiredHours) : startedAt);
+
+                bool hasEnteredResult = rReq.Value.HasValue || (!string.IsNullOrWhiteSpace(rReq.StringValue) && rReq.StringValue != "—" && !rReq.StringValue.Equals("pending", StringComparison.OrdinalIgnoreCase) && !rReq.StringValue.Equals("not entered", StringComparison.OrdinalIgnoreCase));
+
+                string resultStatus;
+                DateTime? actualCompletedAt = null;
+
+                if (hasEnteredResult)
+                {
+                    resultStatus = "COMPLETED";
+                    actualCompletedAt = rReq.ActualCompletedAt?.ToUniversalTime() ?? now;
+                }
+                else
+                {
+                    if (now > expectedCompletionAt)
+                    {
+                        resultStatus = "OVERDUE";
+                    }
+                    else if (requiredHours > 0)
+                    {
+                        resultStatus = "IN_PROGRESS";
+                    }
+                    else
+                    {
+                        resultStatus = "PENDING_RESULT";
+                    }
+                }
 
                 report.Results.Add(new WaterTestResult
                 {
@@ -399,6 +468,11 @@ namespace Aquora.Application.Services
                     StringValue = rReq.StringValue,
                     IsPass = qualityStatus == "PASS",
                     QualityStatus = qualityStatus,
+                    RequiredDurationHours = requiredHours,
+                    StartedAt = startedAt,
+                    ExpectedCompletionAt = expectedCompletionAt,
+                    ActualCompletedAt = actualCompletedAt,
+                    ResultStatus = resultStatus,
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = currentUserId
                 });
@@ -523,6 +597,8 @@ namespace Aquora.Application.Services
 
             var updatedResultIds = new HashSet<Guid>();
 
+            var now = DateTime.UtcNow;
+
             foreach (var (reqResultId, param, val, strVal) in deduplicatedResults)
             {
                 var qualityStatus = _evaluationService.EvaluateParameter(param, val, strVal);
@@ -541,6 +617,8 @@ namespace Aquora.Application.Services
                     existingResult = resByName;
                 }
 
+                bool hasEnteredResult = val.HasValue || (!string.IsNullOrWhiteSpace(strVal) && strVal != "—" && !strVal.Equals("pending", StringComparison.OrdinalIgnoreCase) && !strVal.Equals("not entered", StringComparison.OrdinalIgnoreCase));
+
                 if (existingResult != null)
                 {
                     existingResult.ParameterId = param.Id;
@@ -548,18 +626,80 @@ namespace Aquora.Application.Services
                     existingResult.StringValue = strVal;
                     existingResult.IsPass = qualityStatus == "PASS";
                     existingResult.QualityStatus = qualityStatus;
-                    existingResult.UpdatedAt = DateTime.UtcNow;
+                    existingResult.RequiredDurationHours = param.RequiredDurationHours > 0 ? param.RequiredDurationHours : existingResult.RequiredDurationHours;
+
+                    if (!existingResult.StartedAt.HasValue)
+                    {
+                        existingResult.StartedAt = report.SampleTime ?? report.CreatedAt;
+                    }
+                    if (!existingResult.ExpectedCompletionAt.HasValue)
+                    {
+                        existingResult.ExpectedCompletionAt = existingResult.RequiredDurationHours > 0 
+                            ? existingResult.StartedAt.Value.AddHours(existingResult.RequiredDurationHours) 
+                            : existingResult.StartedAt.Value;
+                    }
+
+                    if (hasEnteredResult)
+                    {
+                        if (existingResult.ResultStatus != "COMPLETED" || !existingResult.ActualCompletedAt.HasValue)
+                        {
+                            existingResult.ActualCompletedAt = now;
+                        }
+                        existingResult.ResultStatus = "COMPLETED";
+                    }
+                    else
+                    {
+                        existingResult.ActualCompletedAt = null;
+                        if (now > existingResult.ExpectedCompletionAt.Value)
+                        {
+                            existingResult.ResultStatus = "OVERDUE";
+                        }
+                        else if (existingResult.RequiredDurationHours > 0)
+                        {
+                            existingResult.ResultStatus = "IN_PROGRESS";
+                        }
+                        else
+                        {
+                            existingResult.ResultStatus = "PENDING_RESULT";
+                        }
+                    }
+
+                    existingResult.UpdatedAt = now;
                     existingResult.UpdatedBy = currentUserId;
                     updatedResultIds.Add(existingResult.Id);
                 }
                 else
                 {
-                    // An ID denotes an existing child. It must belong to this report;
-                    // accepting it as a new entity would create a detached/reconstructed
-                    // child with an existing key.
                     if (reqResultId.HasValue)
                     {
                         throw new InvalidOperationException($"Water test result {reqResultId.Value} does not belong to report {report.Id}.");
+                    }
+
+                    var startedAt = report.SampleTime ?? report.CreatedAt;
+                    var requiredHours = param.RequiredDurationHours;
+                    var expectedCompletionAt = requiredHours > 0 ? startedAt.AddHours(requiredHours) : startedAt;
+                    DateTime? actualCompletedAt = null;
+                    string resultStatus;
+
+                    if (hasEnteredResult)
+                    {
+                        resultStatus = "COMPLETED";
+                        actualCompletedAt = now;
+                    }
+                    else
+                    {
+                        if (now > expectedCompletionAt)
+                        {
+                            resultStatus = "OVERDUE";
+                        }
+                        else if (requiredHours > 0)
+                        {
+                            resultStatus = "IN_PROGRESS";
+                        }
+                        else
+                        {
+                            resultStatus = "PENDING_RESULT";
+                        }
                     }
 
                     var newResult = new WaterTestResult
@@ -571,13 +711,15 @@ namespace Aquora.Application.Services
                         StringValue = strVal,
                         IsPass = qualityStatus == "PASS",
                         QualityStatus = qualityStatus,
-                        CreatedAt = DateTime.UtcNow,
+                        RequiredDurationHours = requiredHours,
+                        StartedAt = startedAt,
+                        ExpectedCompletionAt = expectedCompletionAt,
+                        ActualCompletedAt = actualCompletedAt,
+                        ResultStatus = resultStatus,
+                        CreatedAt = now,
                         CreatedBy = currentUserId
                     };
 
-                    // A result without a request ID is a new database row. Register it
-                    // explicitly as Added; do not rely on a navigation-collection mutation
-                    // to infer its persistence state.
                     _context.WaterTestResults.Add(newResult);
                     updatedResultIds.Add(newResult.Id);
                 }
@@ -634,6 +776,193 @@ namespace Aquora.Application.Services
             return MapToDto(report, userNames);
         }
 
+        public async Task<WaterTestReportDto?> EnterSingleParameterResultAsync(Guid reportId, Guid parameterId, EnterSingleResultRequest request)
+        {
+            await EnsureQCSchemaAsync();
+            var tenantId = GetTenantId();
+            var currentUserId = _currentUserContext.UserId ?? "System";
+
+            var report = await _context.WaterTestReports
+                .Include(r => r.Results)
+                    .ThenInclude(res => res.Parameter)
+                .FirstOrDefaultAsync(r => r.Id == reportId && r.TenantId == tenantId && !r.IsDeleted);
+
+            if (report == null) return null;
+
+            if (!string.IsNullOrWhiteSpace(request.ConcurrencyToken) && 
+                !string.Equals(request.ConcurrencyToken, report.ConcurrencyToken, StringComparison.Ordinal))
+            {
+                throw new Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException(
+                    "This report was updated by another session or user. Please reload the latest version before saving.");
+            }
+
+            report.ConcurrencyToken = Guid.NewGuid().ToString();
+            report.UpdatedAt = DateTime.UtcNow;
+            report.UpdatedBy = currentUserId;
+
+            var param = await _context.WaterTestParameters.FirstOrDefaultAsync(p => p.Id == parameterId);
+            if (param == null)
+            {
+                throw new InvalidOperationException($"Parameter {parameterId} was not found.");
+            }
+
+            var existingResult = report.Results.FirstOrDefault(r => r.ParameterId == parameterId);
+            var qualityStatus = _evaluationService.EvaluateParameter(param, request.Value, request.StringValue);
+            var completedAt = DateTime.UtcNow;
+
+            if (existingResult != null)
+            {
+                var oldVal = existingResult.Value?.ToString() ?? existingResult.StringValue ?? "None";
+                existingResult.Value = request.Value;
+                existingResult.StringValue = request.StringValue;
+                existingResult.IsPass = qualityStatus == "PASS";
+                existingResult.QualityStatus = qualityStatus;
+                existingResult.ActualCompletedAt = completedAt;
+                existingResult.ResultStatus = "COMPLETED";
+                existingResult.UpdatedAt = DateTime.UtcNow;
+                existingResult.UpdatedBy = currentUserId;
+
+                string delayNote = "";
+                if (existingResult.ExpectedCompletionAt.HasValue && completedAt > existingResult.ExpectedCompletionAt.Value)
+                {
+                    var delayHours = Math.Round((completedAt - existingResult.ExpectedCompletionAt.Value).TotalHours, 1);
+                    delayNote = $" (Entered {delayHours}h after expected completion)";
+                }
+
+                var newVal = request.Value?.ToString() ?? request.StringValue ?? "N/A";
+                await LogQCActionAsync(report.Id, report.Id.ToString()[..8].ToUpper(), "RESULT_ENTRY", 
+                    $"Entered result for '{param.Name}': {oldVal} -> {newVal}. Status: {qualityStatus}{delayNote}");
+            }
+            else
+            {
+                var startedAt = report.SampleTime ?? report.CreatedAt;
+                var newResult = new WaterTestResult
+                {
+                    Id = Guid.NewGuid(),
+                    ReportId = report.Id,
+                    ParameterId = param.Id,
+                    Value = request.Value,
+                    StringValue = request.StringValue,
+                    IsPass = qualityStatus == "PASS",
+                    QualityStatus = qualityStatus,
+                    RequiredDurationHours = param.RequiredDurationHours,
+                    StartedAt = startedAt,
+                    ExpectedCompletionAt = startedAt.AddHours(param.RequiredDurationHours),
+                    ActualCompletedAt = completedAt,
+                    ResultStatus = "COMPLETED",
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = currentUserId
+                };
+                _context.WaterTestResults.Add(newResult);
+                report.Results.Add(newResult);
+
+                var newVal = request.Value?.ToString() ?? request.StringValue ?? "N/A";
+                await LogQCActionAsync(report.Id, report.Id.ToString()[..8].ToUpper(), "RESULT_ENTRY", 
+                    $"Recorded delayed result for '{param.Name}': {newVal}. Status: {qualityStatus}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Remarks))
+            {
+                report.Remarks = string.IsNullOrWhiteSpace(report.Remarks) 
+                    ? request.Remarks 
+                    : $"{report.Remarks} | {request.Remarks}";
+            }
+
+            // Auto-update overall report status if all parameters are now completed
+            var allResults = report.Results.ToList();
+            bool allCompleted = allResults.All(r => r.ResultStatus == "COMPLETED" || r.Value.HasValue || (!string.IsNullOrWhiteSpace(r.StringValue) && r.StringValue != "—"));
+            if (allCompleted && report.Status == "DRAFT")
+            {
+                report.Status = "COMPLETED";
+            }
+
+            await CheckAndGenerateCAPAsAsync(report);
+            await _context.SaveChangesAsync();
+
+            var userNames = await ResolveUserNamesAsync(new[] { report.CreatedBy });
+            return MapToDto(report, userNames);
+        }
+
+        public async Task<List<QCPendingTaskDto>> GetPendingTasksAndRemindersAsync()
+        {
+            await EnsureQCSchemaAsync();
+            var tenantId = GetTenantId();
+            var now = DateTime.UtcNow;
+            var todayStart = now.Date;
+            var todayEnd = todayStart.AddDays(1);
+
+            var reports = await _context.WaterTestReports
+                .Include(r => r.Results)
+                    .ThenInclude(res => res.Parameter)
+                .Where(r => r.TenantId == tenantId && !r.IsDeleted)
+                .ToListAsync();
+
+            var tasks = new List<QCPendingTaskDto>();
+
+            foreach (var r in reports)
+            {
+                foreach (var res in (r.Results ?? new List<WaterTestResult>()))
+                {
+                    bool hasResult = res.Value.HasValue || (!string.IsNullOrWhiteSpace(res.StringValue) && res.StringValue != "—" && !res.StringValue.Equals("pending", StringComparison.OrdinalIgnoreCase) && !res.StringValue.Equals("not entered", StringComparison.OrdinalIgnoreCase));
+                    if (hasResult || res.ResultStatus == "COMPLETED") continue;
+
+                    string status = "IN_PROGRESS";
+                    bool isOverdue = false;
+                    double? hoursOverdue = null;
+                    double? remainingHours = null;
+
+                    if (res.ExpectedCompletionAt.HasValue)
+                    {
+                        if (now > res.ExpectedCompletionAt.Value)
+                        {
+                            status = "OVERDUE";
+                            isOverdue = true;
+                            hoursOverdue = Math.Round((now - res.ExpectedCompletionAt.Value).TotalHours, 1);
+                        }
+                        else if (res.ExpectedCompletionAt.Value >= todayStart && res.ExpectedCompletionAt.Value < todayEnd)
+                        {
+                            status = "DUE";
+                            remainingHours = Math.Max(0, Math.Round((res.ExpectedCompletionAt.Value - now).TotalHours, 1));
+                        }
+                        else
+                        {
+                            status = "IN_PROGRESS";
+                            remainingHours = Math.Max(0, Math.Round((res.ExpectedCompletionAt.Value - now).TotalHours, 1));
+                        }
+                    }
+
+                    string urgencyLevel = isOverdue ? "OVERDUE" : (status == "DUE" ? "DUE_TODAY" : "IN_PROGRESS");
+                    double hoursRemainingOrOverdue = isOverdue ? -(hoursOverdue ?? 0) : (remainingHours ?? 0);
+
+                    tasks.Add(new QCPendingTaskDto
+                    {
+                        ReportId = r.Id,
+                        ReportNumber = r.Id.ToString().Length >= 8 ? r.Id.ToString().Substring(0, 8).ToUpper() : r.Id.ToString().ToUpper(),
+                        BatchNumber = r.BatchNumber,
+                        SampleNumber = r.SampleNumber,
+                        ParameterId = res.ParameterId,
+                        ParameterName = res.Parameter?.Name ?? "Unknown",
+                        Category = res.Parameter?.Category ?? "Unknown",
+                        Unit = res.Parameter?.Unit ?? "—",
+                        RequiredDurationHours = res.RequiredDurationHours > 0 ? res.RequiredDurationHours : (res.Parameter?.RequiredDurationHours ?? 0),
+                        StartedAt = res.StartedAt,
+                        ExpectedCompletionAt = res.ExpectedCompletionAt,
+                        Status = status,
+                        IsOverdue = isOverdue,
+                        HoursOverdue = hoursOverdue,
+                        RemainingHours = remainingHours,
+                        HoursRemainingOrOverdue = hoursRemainingOrOverdue,
+                        UrgencyLevel = urgencyLevel
+                    });
+                }
+            }
+
+            return tasks
+                .OrderByDescending(t => t.IsOverdue)
+                .ThenBy(t => t.ExpectedCompletionAt ?? DateTime.MaxValue)
+                .ToList();
+        }
+
         public async Task<bool> DeleteWaterTestReportAsync(Guid id)
         {
             var tenantId = GetTenantId();
@@ -658,7 +987,11 @@ namespace Aquora.Application.Services
                 .Where(r => r.TenantId == tenantId && !r.IsDeleted)
                 .ToListAsync();
 
-            var today = DateTime.UtcNow.Date;
+            var now = DateTime.UtcNow;
+            var today = now.Date;
+            var tomorrow = today.AddDays(1);
+
+            var allPendingTasks = await GetPendingTasksAndRemindersAsync();
 
             var stats = reports.Select(r => new {
                 Report = r,
@@ -678,10 +1011,17 @@ namespace Aquora.Application.Services
             var userNames = await ResolveUserNamesAsync(creatorIds);
 
             var recent = stats
-                .OrderByDescending(s => s.Report.SampleTime)
+                .OrderByDescending(s => s.Report.SampleTime ?? s.Report.CreatedAt)
                 .Take(10)
                 .Select(s => MapToDto(s.Report, userNames))
                 .ToList();
+
+            int dueTodayCount = allPendingTasks.Count(t => t.Status == "DUE" || (t.ExpectedCompletionAt.HasValue && t.ExpectedCompletionAt.Value >= today && t.ExpectedCompletionAt.Value < tomorrow && !t.IsOverdue));
+            int overdueCount = allPendingTasks.Count(t => t.IsOverdue);
+            int activeIncubationsCount = allPendingTasks.Count(t => t.RequiredDurationHours > 0 && !t.IsOverdue);
+            int completedTodayCount = reports
+                .SelectMany(r => r.Results ?? new List<WaterTestResult>())
+                .Count(res => res.ActualCompletedAt.HasValue && res.ActualCompletedAt.Value.Date == today);
 
             return new WaterTestDashboardDto
             {
@@ -689,7 +1029,12 @@ namespace Aquora.Application.Services
                 TodayReports = reports.Count(r => r.SampleTime?.Date == today),
                 PassedReports = stats.Count(s => s.Status == "PASS"),
                 FailedReports = stats.Count(s => s.Status == "FAIL"),
-                PendingReports = stats.Count(s => s.Status == "PENDING" || s.Report.Status == "DRAFT"),
+                PendingReports = stats.Count(s => s.Status == "PENDING" || s.Report.Status == "DRAFT" || s.Report.Status == "IN_PROGRESS" || s.Report.Status == "PARTIALLY_COMPLETED"),
+                ResultsDueTodayCount = dueTodayCount,
+                OverdueResultsCount = overdueCount,
+                ActiveIncubationsCount = activeIncubationsCount,
+                CompletedTodayCount = completedTodayCount,
+                PendingTasks = allPendingTasks.Take(15).ToList(),
                 MonthlyStats = monthlyStats,
                 RecentReports = recent
             };
@@ -712,26 +1057,61 @@ namespace Aquora.Application.Services
 
         private WaterTestReportDto MapToDto(WaterTestReport r, Dictionary<string, string> userNames)
         {
-            return new WaterTestReportDto
+            var now = DateTime.UtcNow;
+            var resultDtos = new List<WaterTestResultDto>();
+            int completedCount = 0;
+            int pendingCount = 0;
+            int overdueCount = 0;
+            bool hasOverdue = false;
+            DateTime? earliestDueAt = null;
+
+            foreach (var res in (r.Results ?? new List<WaterTestResult>()))
             {
-                Id = r.Id,
-                ReportNumber = r.Id.ToString().Length >= 8 ? r.Id.ToString().Substring(0, 8).ToUpper() : r.Id.ToString().ToUpper(),
-                BatchNumber = r.BatchNumber ?? string.Empty,
-                SampleNumber = r.SampleNumber,
-                ProductionDate = r.ProductionDate,
-                ReportType = r.ReportType ?? "DAILY",
-                Status = r.Status ?? "DRAFT",
-                SampleTime = r.SampleTime,
-                TestedBy = r.TestedBy,
-                CollectedBy = r.CollectedBy,
-                VerifiedBy = r.VerifiedBy,
-                Remarks = r.Remarks,
-                Attachments = r.Attachments,
-                ConcurrencyToken = r.ConcurrencyToken ?? string.Empty,
-                CreatedAt = r.CreatedAt,
-                CreatedBy = r.CreatedBy ?? string.Empty,
-                CreatedByName = !string.IsNullOrEmpty(r.CreatedBy) && userNames.TryGetValue(r.CreatedBy, out var name) ? name : "System",
-                Results = (r.Results ?? new List<WaterTestResult>()).Select(res => new WaterTestResultDto
+                var hasEnteredResult = res.Value.HasValue || (!string.IsNullOrWhiteSpace(res.StringValue) && res.StringValue != "—" && !res.StringValue.Equals("not entered", StringComparison.OrdinalIgnoreCase) && !res.StringValue.Equals("pending", StringComparison.OrdinalIgnoreCase));
+                
+                string runtimeStatus;
+                bool isOverdue = false;
+                double? remainingHours = null;
+                double? hoursOverdue = null;
+
+                if (hasEnteredResult || res.ResultStatus == "COMPLETED")
+                {
+                    runtimeStatus = "COMPLETED";
+                    completedCount++;
+                }
+                else if (res.ExpectedCompletionAt.HasValue && now > res.ExpectedCompletionAt.Value)
+                {
+                    runtimeStatus = "OVERDUE";
+                    isOverdue = true;
+                    hasOverdue = true;
+                    overdueCount++;
+                    hoursOverdue = Math.Round((now - res.ExpectedCompletionAt.Value).TotalHours, 1);
+                }
+                else if (res.ExpectedCompletionAt.HasValue && (res.ExpectedCompletionAt.Value - now).TotalHours <= 0)
+                {
+                    runtimeStatus = "PENDING_RESULT";
+                    pendingCount++;
+                }
+                else if (res.RequiredDurationHours > 0 || res.StartedAt.HasValue)
+                {
+                    runtimeStatus = "IN_PROGRESS";
+                    pendingCount++;
+                    if (res.ExpectedCompletionAt.HasValue)
+                    {
+                        remainingHours = Math.Max(0, Math.Round((res.ExpectedCompletionAt.Value - now).TotalHours, 1));
+                        if (!earliestDueAt.HasValue || res.ExpectedCompletionAt.Value < earliestDueAt.Value)
+                        {
+                            earliestDueAt = res.ExpectedCompletionAt.Value;
+                        }
+                    }
+                }
+                else
+                {
+                    runtimeStatus = "PENDING_RESULT";
+                    pendingCount++;
+                }
+
+                resultDtos.Add(new WaterTestResultDto
                 {
                     Id = res.Id,
                     ParameterId = res.ParameterId,
@@ -745,8 +1125,68 @@ namespace Aquora.Application.Services
                     Value = res.Value,
                     StringValue = res.StringValue,
                     IsPass = res.IsPass,
-                    QualityStatus = res.QualityStatus ?? "PASS"
-                }).ToList()
+                    QualityStatus = res.QualityStatus ?? "PASS",
+                    RequiredDurationHours = res.RequiredDurationHours > 0 ? res.RequiredDurationHours : (res.Parameter?.RequiredDurationHours ?? 0),
+                    StartedAt = res.StartedAt,
+                    ExpectedCompletionAt = res.ExpectedCompletionAt,
+                    ActualCompletedAt = res.ActualCompletedAt,
+                    ResultStatus = runtimeStatus,
+                    IsDelayed = (res.RequiredDurationHours > 0 || (res.Parameter?.RequiredDurationHours ?? 0) > 0),
+                    IsOverdue = isOverdue,
+                    RemainingHours = remainingHours,
+                    HoursOverdue = hoursOverdue
+                });
+            }
+
+            string reportCompletionStatus;
+            if (resultDtos.Count == 0 || r.Status == "DRAFT")
+            {
+                reportCompletionStatus = "DRAFT";
+            }
+            else if (completedCount == resultDtos.Count)
+            {
+                reportCompletionStatus = "COMPLETED";
+            }
+            else if (overdueCount > 0)
+            {
+                reportCompletionStatus = "RESULTS_OVERDUE";
+            }
+            else if (completedCount > 0)
+            {
+                reportCompletionStatus = "PARTIALLY_COMPLETED";
+            }
+            else
+            {
+                reportCompletionStatus = "IN_PROGRESS";
+            }
+
+            return new WaterTestReportDto
+            {
+                Id = r.Id,
+                ReportNumber = r.Id.ToString().Length >= 8 ? r.Id.ToString().Substring(0, 8).ToUpper() : r.Id.ToString().ToUpper(),
+                BatchNumber = r.BatchNumber ?? string.Empty,
+                SampleNumber = r.SampleNumber,
+                ProductionDate = r.ProductionDate,
+                ReportType = r.ReportType ?? "DAILY",
+                Status = r.Status ?? "DRAFT",
+                ReportCompletionStatus = reportCompletionStatus,
+                SampleTime = r.SampleTime,
+                TestedBy = r.TestedBy,
+                CollectedBy = r.CollectedBy,
+                VerifiedBy = r.VerifiedBy,
+                Remarks = r.Remarks,
+                Attachments = r.Attachments,
+                ConcurrencyToken = r.ConcurrencyToken ?? string.Empty,
+                CreatedAt = r.CreatedAt,
+                CreatedBy = r.CreatedBy ?? string.Empty,
+                CreatedByName = !string.IsNullOrEmpty(r.CreatedBy) && userNames.TryGetValue(r.CreatedBy, out var name) ? name : "System",
+                TotalParametersCount = resultDtos.Count,
+                CompletedParametersCount = completedCount,
+                PendingParametersCount = pendingCount,
+                OverdueParametersCount = overdueCount,
+                HasOverdueResults = hasOverdue,
+                EarliestDueAt = earliestDueAt,
+                Results = resultDtos
             };
         }
 

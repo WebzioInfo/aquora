@@ -26,6 +26,15 @@ namespace Aquora.Infrastructure
             services.AddSingleton<ITokenService, TokenService>();
             services.AddSingleton<IPasswordHasher, PasswordHasher>();
             services.AddSingleton<ICacheService, CacheService>();
+
+            // Cloudinary Media Storage Configuration & Service
+            services.Configure<Aquora.Infrastructure.Configuration.CloudinaryOptions>(options =>
+            {
+                options.CloudName = Environment.GetEnvironmentVariable("CLOUDINARY_CLOUD_NAME") ?? configuration["Cloudinary:CloudName"] ?? "dhydmxcq2";
+                options.ApiKey = Environment.GetEnvironmentVariable("CLOUDINARY_API_KEY") ?? configuration["Cloudinary:ApiKey"] ?? "715391971962435";
+                options.ApiSecret = Environment.GetEnvironmentVariable("CLOUDINARY_API_SECRET") ?? configuration["Cloudinary:ApiSecret"] ?? "LSIRWQLv_QuFNQ99NaHKnutW_qk";
+            });
+            services.AddScoped<ICloudinaryMediaService, CloudinaryMediaService>();
             string GetEnvOrConfig(params string[] keys)
             {
                 foreach (var key in keys)

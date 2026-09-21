@@ -394,16 +394,12 @@ export const LoginPage: React.FC = () => {
               <span className="text-[#6B7280] font-medium">Remember me</span>
             </label>
 
-            <button
-              type="button"
-              onClick={() => {
-                setIsForgotModalOpen(true)
-                setForgotStep('request')
-              }}
+            <Link
+              to="/forgot-password"
               className="font-semibold text-[#2563EB] hover:text-[#1D4ED8] transition-colors"
             >
               Forgot Password?
-            </button>
+            </Link>
           </div>
 
           {/* Primary Action Button (Solid Blue #2563EB, 54px Height) */}

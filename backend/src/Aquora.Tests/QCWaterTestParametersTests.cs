@@ -900,5 +900,201 @@ namespace Aquora.Tests
                 await service.UpdateWaterTestReportAsync(createdReport.Id, staleUpdateRequest);
             });
         }
+
+        [Fact]
+        public async Task WaterTestService_TimeBasedQC_ImmediateAndDelayedParameters_ShouldCalculateExpectedDeadlines()
+        {
+            var tenantId = Guid.NewGuid();
+            var companyId = Guid.NewGuid();
+            using var tenantContext = CreateInMemoryTenantContext(tenantId);
+            using var platformContext = new PlatformDbContext(new DbContextOptionsBuilder<PlatformDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+
+            var company = new Company
+            {
+                Id = companyId,
+                TenantId = tenantId,
+                Name = "Aquzio Bottling",
+                Code = "AQUZIO",
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = "System"
+            };
+            tenantContext.Companies.Add(company);
+            await tenantContext.SaveChangesAsync();
+
+            var mockTenantProvider = new Mock<ITenantProvider>();
+            mockTenantProvider.Setup(p => p.TenantId).Returns(tenantId);
+            mockTenantProvider.Setup(p => p.TenantSchemaName).Returns("tenant_test");
+
+            var mockCurrentUser = new Mock<ICurrentUserContext>();
+            mockCurrentUser.Setup(c => c.TenantId).Returns(tenantId);
+            mockCurrentUser.Setup(c => c.UserId).Returns("QC_Tester");
+
+            var service = new WaterTestService(
+                tenantContext,
+                platformContext,
+                mockTenantProvider.Object,
+                mockCurrentUser.Object,
+                new QualityEvaluationService(),
+                new Mock<IQCPdfCertificateService>().Object,
+                new Mock<ILogger<WaterTestService>>().Object
+            );
+
+            // Seed default parameters (including duration hours: pH=0, E.coli=24, Pseudomonas=48, AMC 22=72)
+            await QCDataSeeder.SeedQCDefaultParametersAsync(tenantContext, "TestSeeder");
+
+            var sampleTime = new DateTime(2026, 9, 21, 10, 0, 0, DateTimeKind.Utc);
+
+            // Create a Mixed Report: pH (Immediate with result 7.2), E.coli (24h without result), Pseudomonas (48h without result)
+            var createRequest = new CreateWaterTestReportRequest
+            {
+                BatchNumber = "BATCH-TIME-001",
+                SampleNumber = "SMP-TIME-1",
+                ReportType = "DAILY",
+                Status = "SUBMITTED",
+                SampleTime = sampleTime,
+                ProductionDate = sampleTime.Date,
+                TestedBy = "Analyst John",
+                Results = new List<CreateWaterTestResultRequest>
+                {
+                    new() { ParameterId = "pH", Value = 7.2 }, // Immediate with result
+                    new() { ParameterId = "E.coli" },           // 24h pending
+                    new() { ParameterId = "Pseudomonas" }      // 48h pending
+                }
+            };
+
+            var created = await service.CreateWaterTestReportAsync(createRequest);
+            Assert.NotNull(created);
+            Assert.Equal("BATCH-TIME-001", created.BatchNumber);
+            Assert.Equal("PARTIALLY_COMPLETED", created.CompletionStatus);
+            Assert.Equal(3, created.TotalParametersCount);
+            Assert.Equal(1, created.CompletedParametersCount);
+            Assert.Equal(2, created.PendingParametersCount);
+
+            // Check pH (Immediate)
+            var phResult = Assert.Single(created.Results, r => r.ParameterName == "pH");
+            Assert.Equal(0, phResult.RequiredDurationHours);
+            Assert.Equal("COMPLETED", phResult.ResultStatus);
+            Assert.NotNull(phResult.ActualCompletedAt);
+
+            // Check E.coli (24h)
+            var ecoliResult = Assert.Single(created.Results, r => r.ParameterName == "E.coli");
+            Assert.Equal(24, ecoliResult.RequiredDurationHours);
+            Assert.Equal(sampleTime.AddHours(24), ecoliResult.ExpectedCompletionAt);
+            Assert.Equal("IN_PROGRESS", ecoliResult.ResultStatus);
+            Assert.Null(ecoliResult.ActualCompletedAt);
+
+            // Check Pseudomonas (48h)
+            var pseudoResult = Assert.Single(created.Results, r => r.ParameterName == "Pseudomonas");
+            Assert.Equal(48, pseudoResult.RequiredDurationHours);
+            Assert.Equal(sampleTime.AddHours(48), pseudoResult.ExpectedCompletionAt);
+            Assert.Equal("IN_PROGRESS", pseudoResult.ResultStatus);
+
+            // Now enter single result for E.coli (24h delayed result)
+            var updatedReport = await service.EnterSingleParameterResultAsync(created.Id, ecoliResult.ParameterId, new EnterSingleResultRequest
+            {
+                StringValue = "Absent",
+                TestedBy = "Analyst Jane"
+            });
+
+            Assert.NotNull(updatedReport);
+            Assert.Equal("PARTIALLY_COMPLETED", updatedReport.CompletionStatus);
+            Assert.Equal(2, updatedReport.CompletedParametersCount);
+            Assert.Equal(1, updatedReport.PendingParametersCount);
+
+            var ecoliUpdated = Assert.Single(updatedReport.Results, r => r.ParameterName == "E.coli");
+            Assert.Equal("COMPLETED", ecoliUpdated.ResultStatus);
+            Assert.Equal("Absent", ecoliUpdated.StringValue);
+            Assert.NotNull(ecoliUpdated.ActualCompletedAt);
+
+            // Now enter single result for Pseudomonas (48h delayed result) to complete report!
+            var fullyCompletedReport = await service.EnterSingleParameterResultAsync(created.Id, pseudoResult.ParameterId, new EnterSingleResultRequest
+            {
+                StringValue = "Absent",
+                TestedBy = "Analyst Jane"
+            });
+
+            Assert.NotNull(fullyCompletedReport);
+            Assert.Equal("COMPLETED", fullyCompletedReport.CompletionStatus);
+            Assert.Equal(3, fullyCompletedReport.CompletedParametersCount);
+            Assert.Equal(0, fullyCompletedReport.PendingParametersCount);
+            Assert.Equal(0, fullyCompletedReport.OverdueParametersCount);
+        }
+
+        [Fact]
+        public async Task WaterTestService_PendingTasksAndOverdueCalculation_ShouldSurfaceInTaskHub()
+        {
+            var tenantId = Guid.NewGuid();
+            var companyId = Guid.NewGuid();
+            using var tenantContext = CreateInMemoryTenantContext(tenantId);
+            using var platformContext = new PlatformDbContext(new DbContextOptionsBuilder<PlatformDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+
+            var company = new Company
+            {
+                Id = companyId,
+                TenantId = tenantId,
+                Name = "Aquzio Bottling",
+                Code = "AQUZIO",
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = "System"
+            };
+            tenantContext.Companies.Add(company);
+            await tenantContext.SaveChangesAsync();
+
+            var mockTenantProvider = new Mock<ITenantProvider>();
+            mockTenantProvider.Setup(p => p.TenantId).Returns(tenantId);
+            mockTenantProvider.Setup(p => p.TenantSchemaName).Returns("tenant_test");
+
+            var mockCurrentUser = new Mock<ICurrentUserContext>();
+            mockCurrentUser.Setup(c => c.TenantId).Returns(tenantId);
+            mockCurrentUser.Setup(c => c.UserId).Returns("QC_Tester");
+
+            var service = new WaterTestService(
+                tenantContext,
+                platformContext,
+                mockTenantProvider.Object,
+                mockCurrentUser.Object,
+                new QualityEvaluationService(),
+                new Mock<IQCPdfCertificateService>().Object,
+                new Mock<ILogger<WaterTestService>>().Object
+            );
+
+            await QCDataSeeder.SeedQCDefaultParametersAsync(tenantContext, "TestSeeder");
+
+            // Create report with sample collected 30 hours ago (E.coli 24h should be OVERDUE!)
+            var pastSampleTime = DateTime.UtcNow.AddHours(-30);
+            var createRequest = new CreateWaterTestReportRequest
+            {
+                BatchNumber = "BATCH-OVERDUE-99",
+                SampleNumber = "SMP-99",
+                ReportType = "DAILY",
+                Status = "SUBMITTED",
+                SampleTime = pastSampleTime,
+                ProductionDate = pastSampleTime.Date,
+                TestedBy = "Analyst Alpha",
+                Results = new List<CreateWaterTestResultRequest>
+                {
+                    new() { ParameterId = "pH", Value = 7.0 },
+                    new() { ParameterId = "E.coli" },         // 24h duration, started 30h ago -> OVERDUE
+                    new() { ParameterId = "Pseudomonas" }    // 48h duration, started 30h ago -> DUE in 18h
+                }
+            };
+
+            var created = await service.CreateWaterTestReportAsync(createRequest);
+            Assert.NotNull(created);
+            Assert.Equal("RESULTS_OVERDUE", created.CompletionStatus);
+            Assert.Equal(1, created.OverdueParametersCount);
+
+            // Fetch pending tasks from Task Hub
+            var tasks = await service.GetPendingTasksAndRemindersAsync();
+            Assert.Equal(2, tasks.Count);
+
+            var overdueTask = Assert.Single(tasks, t => t.ParameterName == "E.coli");
+            Assert.Equal("OVERDUE", overdueTask.UrgencyLevel);
+            Assert.True(overdueTask.HoursRemainingOrOverdue < 0, "Overdue hours should be negative");
+
+            var upcomingTask = Assert.Single(tasks, t => t.ParameterName == "Pseudomonas");
+            Assert.NotEqual("OVERDUE", upcomingTask.UrgencyLevel);
+            Assert.True(upcomingTask.HoursRemainingOrOverdue > 0, "Upcoming hours should be positive");
+        }
     }
 }

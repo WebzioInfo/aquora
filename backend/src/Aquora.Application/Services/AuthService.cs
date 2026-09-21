@@ -168,12 +168,15 @@ namespace Aquora.Application.Services
             var totalSw = System.Diagnostics.Stopwatch.StartNew();
             var stepSw = System.Diagnostics.Stopwatch.StartNew();
 
+            if (string.IsNullOrWhiteSpace(request.Email))
+                throw new InvalidOperationException("Email address is required.");
+
             var email = request.Email.Trim().ToLowerInvariant();
             var rawPurpose = string.IsNullOrWhiteSpace(request.Purpose) ? "Registration" : request.Purpose.Trim();
             var purpose = rawPurpose.Equals("EmailVerification", StringComparison.OrdinalIgnoreCase) ? "Registration" : rawPurpose;
             var now = DateTime.UtcNow;
 
-            Console.WriteLine($"[SendOtp Timeline] Request received for recipient '{GetSafeEmailIdentifier(email)}'.");
+            Console.WriteLine($"[SendOtp Timeline] Request received for recipient '{GetSafeEmailIdentifier(email)}', Purpose '{purpose}'.");
 
             var user = await _platformContext.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email && !u.IsDeleted, cancellationToken);
             var userLookupMs = stepSw.ElapsedMilliseconds;
@@ -183,9 +186,11 @@ namespace Aquora.Application.Services
                 Console.WriteLine($"[SendOtp Timeline] User lookup ({userLookupMs}ms) - REJECTED: User '{GetSafeEmailIdentifier(email)}' is already verified.");
                 throw new InvalidOperationException("ALREADY_VERIFIED");
             }
+            
+            // Account enumeration defense for password reset:
             if (purpose == "PasswordReset" && user == null)
             {
-                Console.WriteLine($"[SendOtp Timeline] User lookup ({userLookupMs}ms) - SAFE IGNORE: Non-registered email.");
+                Console.WriteLine($"[SendOtp Timeline] User lookup ({userLookupMs}ms) - SAFE IGNORE: Non-registered email '{GetSafeEmailIdentifier(email)}'.");
                 return true;
             }
 
@@ -193,9 +198,10 @@ namespace Aquora.Application.Services
             var existing = await _platformContext.OTPVerifications
                 .FirstOrDefaultAsync(o => o.Email.ToLower() == email && 
                     (o.Purpose == purpose || (purpose == "Registration" && o.Purpose == "EmailVerification")) && 
-                    !o.IsVerified, cancellationToken);
+                    !o.IsUsed, cancellationToken);
             var dbLookupMs = stepSw.ElapsedMilliseconds;
 
+            // 60-second cooldown check
             if (existing != null && existing.LastSentAt.HasValue && existing.LastSentAt.Value.AddMinutes(1) > now)
             {
                 var elapsedSeconds = (int)(now - existing.LastSentAt.Value).TotalSeconds;
@@ -204,6 +210,7 @@ namespace Aquora.Application.Services
                 throw new OtpRateLimitException($"Please wait {remainingSeconds} seconds before requesting another OTP.", remainingSeconds);
             }
 
+            // Hourly send cap check (max 5)
             if (existing != null && existing.CreatedAt.AddHours(1) > now && existing.SendCount >= 5)
             {
                 var remainingMinutes = Math.Max(1, 60 - (int)(now - existing.CreatedAt).TotalMinutes);
@@ -218,13 +225,13 @@ namespace Aquora.Application.Services
             stepSw.Restart();
             try
             {
-                await _emailService.SendOtpEmailAsync(email, code, 10, cancellationToken);
+                await _emailService.SendOtpEmailAsync(email, code, 10, purpose, user?.FirstName, cancellationToken);
             }
             catch (Exception ex)
             {
                 var smtpFailMs = stepSw.ElapsedMilliseconds;
                 Console.WriteLine($"[SendOtp Timeline] SMTP send FAILED after {smtpFailMs}ms: {ex.Message}");
-                throw new InvalidOperationException($"Unable to send OTP email via SMTP. Please verify email configuration or try again later. Details: {ex.Message}");
+                throw new InvalidOperationException($"Unable to send OTP email. Please verify email configuration or try again later. Details: {ex.Message}");
             }
             var smtpMs = stepSw.ElapsedMilliseconds;
 
@@ -246,6 +253,10 @@ namespace Aquora.Application.Services
             existing.Attempts = 0;
             existing.SendCount = existing.CreatedAt.AddHours(1) > now ? existing.SendCount + 1 : 1;
             existing.LastSentAt = now;
+            existing.IsVerified = false;
+            existing.IsUsed = false;
+            existing.ResetToken = null;
+            existing.ResetTokenExpiryTime = null;
             existing.CreatedAt = existing.CreatedAt == default ? now : existing.CreatedAt;
 
             await _platformContext.SaveChangesAsync(cancellationToken);
@@ -281,6 +292,7 @@ namespace Aquora.Application.Services
             var otp = await _platformContext.OTPVerifications
                 .FirstOrDefaultAsync(o => o.Email.ToLower() == email && 
                     (o.Purpose == purpose || (purpose == "Registration" && o.Purpose == "EmailVerification")) && 
+                    !o.IsUsed &&
                     !o.IsVerified);
 
             if (otp == null)
@@ -308,8 +320,13 @@ namespace Aquora.Application.Services
             }
 
             otp.IsVerified = true;
+            otp.VerifiedAt = DateTime.UtcNow;
+            otp.IsUsed = true;
+            otp.UsedAt = DateTime.UtcNow;
+
             user.EmailVerified = true;
             user.EmailVerifiedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow;
 
             var (roles, permissions) = await GetUserRolesAndPermissionsAsync(user);
             var accessToken = _tokenService.GenerateAccessToken(user, roles, permissions);
@@ -539,18 +556,363 @@ namespace Aquora.Application.Services
             return ToLoginResponse(user, newAccessToken, newRefreshToken, roles, permissions, onboarding.IsInitialized, onboarding.Status, onboarding.Progress, onboarding.Step, onboarding.FailureReason, companyName);
         }
 
-        public async Task<bool> ResetPasswordAsync(PasswordResetRequest request)
+        public async Task<bool> ForgotPasswordAsync(ForgotPasswordRequest request, string? ipAddress = null, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(request.Email)) return false;
+            if (string.IsNullOrWhiteSpace(request.Email))
+                return true; // Safe generic response
+
+            var email = request.Email.Trim().ToLowerInvariant();
+            await SendOtpAsync(new SendOtpRequest
+            {
+                Email = email,
+                Purpose = "PasswordReset"
+            }, cancellationToken);
+
+            return true;
+        }
+
+        public async Task<VerifyPasswordResetOtpResponse> VerifyPasswordResetOtpAsync(VerifyPasswordResetOtpRequest request, string? ipAddress = null)
+        {
+            if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Code))
+                throw new InvalidOperationException("Email and verification code are required.");
+
             var email = request.Email.Trim().ToLowerInvariant();
             var user = await _platformContext.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email && !u.IsDeleted);
             if (user == null)
             {
-                return false;
+                throw new InvalidOperationException("Invalid verification code.");
             }
 
-            user.PasswordHash = _passwordHasher.HashPassword(request.NewPassword);
+            var otp = await _platformContext.OTPVerifications
+                .FirstOrDefaultAsync(o => o.Email.ToLower() == email && o.Purpose == "PasswordReset" && !o.IsUsed);
+
+            if (otp == null)
+            {
+                throw new InvalidOperationException("No active password recovery request found for this email.");
+            }
+
+            if (otp.ExpiryTime <= DateTime.UtcNow)
+            {
+                throw new InvalidOperationException("Verification code has expired. Please request a new recovery code.");
+            }
+
+            if (otp.Attempts >= 5)
+            {
+                throw new InvalidOperationException("Maximum verification attempts exceeded. Please request a new recovery code.");
+            }
+
+            if (!_passwordHasher.VerifyPassword(request.Code, otp.OtpHash))
+            {
+                otp.Attempts++;
+                await _platformContext.SaveChangesAsync();
+                throw new InvalidOperationException("Invalid verification code.");
+            }
+
+            // Generate cryptographically secure URL-safe reset token
+            var randomBytes = new byte[32];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(randomBytes);
+            }
+            var resetToken = Convert.ToBase64String(randomBytes)
+                .Replace("+", "-")
+                .Replace("/", "_")
+                .Replace("=", "");
+
+            otp.IsVerified = true;
+            otp.VerifiedAt = DateTime.UtcNow;
+            otp.ResetToken = resetToken;
+            otp.ResetTokenExpiryTime = DateTime.UtcNow.AddMinutes(15);
+            otp.UpdatedAt = DateTime.UtcNow;
+            otp.UpdatedByIP = ipAddress ?? _currentUserContext.IpAddress;
+
             await _platformContext.SaveChangesAsync();
+
+            return new VerifyPasswordResetOtpResponse
+            {
+                Success = true,
+                Message = "Verification code validated successfully.",
+                Email = email,
+                ResetToken = resetToken,
+                ExpiresInMinutes = 15
+            };
+        }
+
+        public async Task<bool> ResetPasswordAsync(PasswordResetRequest request, string? ipAddress = null)
+        {
+            if (string.IsNullOrWhiteSpace(request.Email))
+                throw new InvalidOperationException("Email address is required.");
+
+            if (string.IsNullOrWhiteSpace(request.NewPassword))
+                throw new InvalidOperationException("New password is required.");
+
+            if (request.NewPassword.Length < 8 ||
+                !Regex.IsMatch(request.NewPassword, "[A-Z]") ||
+                !Regex.IsMatch(request.NewPassword, "[a-z]") ||
+                !Regex.IsMatch(request.NewPassword, "[0-9]"))
+            {
+                throw new InvalidOperationException("Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.ConfirmPassword) && request.NewPassword != request.ConfirmPassword)
+            {
+                throw new InvalidOperationException("The new password and confirmation password do not match.");
+            }
+
+            var email = request.Email.Trim().ToLowerInvariant();
+            var user = await _platformContext.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email && !u.IsDeleted);
+            if (user == null)
+            {
+                throw new InvalidOperationException("Account could not be found.");
+            }
+
+            // Authorize password reset via ResetToken or valid OTP Code (backward compatibility)
+            OTPVerification? otp = null;
+            if (!string.IsNullOrWhiteSpace(request.ResetToken))
+            {
+                otp = await _platformContext.OTPVerifications
+                    .FirstOrDefaultAsync(o => o.Email.ToLower() == email &&
+                        o.Purpose == "PasswordReset" &&
+                        o.ResetToken == request.ResetToken &&
+                        !o.IsUsed);
+
+                if (otp == null || !otp.ResetTokenExpiryTime.HasValue || otp.ResetTokenExpiryTime.Value <= DateTime.UtcNow)
+                {
+                    throw new InvalidOperationException("Password reset authorization has expired or is invalid. Please request a new recovery code.");
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(request.Code))
+            {
+                otp = await _platformContext.OTPVerifications
+                    .FirstOrDefaultAsync(o => o.Email.ToLower() == email &&
+                        o.Purpose == "PasswordReset" &&
+                        !o.IsUsed);
+
+                if (otp == null || otp.ExpiryTime <= DateTime.UtcNow || !_passwordHasher.VerifyPassword(request.Code, otp.OtpHash))
+                {
+                    throw new InvalidOperationException("Invalid or expired verification code.");
+                }
+            }
+            else
+            {
+                throw new InvalidOperationException("Password reset authorization token or verification code is required.");
+            }
+
+            // Reject password reuse
+            if (_passwordHasher.VerifyPassword(request.NewPassword, user.PasswordHash))
+            {
+                throw new InvalidOperationException("New password cannot be the same as your current password.");
+            }
+
+            // Hash new password and invalidate active sessions
+            var newHash = _passwordHasher.HashPassword(request.NewPassword);
+            user.PasswordHash = newHash;
+            user.PinHash = newHash;
+            user.TokenVersion++;
+            user.RefreshToken = null;
+            user.RefreshTokenExpiryTime = null;
+            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedByIP = ipAddress ?? _currentUserContext.IpAddress;
+
+            // Invalidate OTP / Reset token
+            if (otp != null)
+            {
+                otp.IsUsed = true;
+                otp.UsedAt = DateTime.UtcNow;
+                otp.UpdatedAt = DateTime.UtcNow;
+                otp.ResetToken = null;
+            }
+
+            await _platformContext.SaveChangesAsync();
+
+            // Record security audit event
+            try
+            {
+                var auditLog = new PlatformAuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = user.TenantId ?? Guid.Empty,
+                    UserId = user.Id.ToString(),
+                    UserEmail = user.Email,
+                    Action = "Password_Reset_Completed",
+                    TableName = "Users",
+                    PrimaryKey = user.Id.ToString(),
+                    Timestamp = DateTime.UtcNow,
+                    IpAddress = ipAddress ?? _currentUserContext.IpAddress,
+                    Device = _currentUserContext.UserAgent,
+                    Reason = "User successfully reset account password via OTP verification.",
+                    Module = "Authentication"
+                };
+                _platformContext.PlatformAuditLogs.Add(auditLog);
+                await _platformContext.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AUTH AUDIT WARN]: Could not write password reset audit log: {ex.Message}");
+            }
+
+            // Send confirmation alert email
+            try
+            {
+                await _emailService.SendPasswordChangedNotificationAsync(user.Email, user.FirstName);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AUTH EMAIL WARN]: Password updated, but security alert email failed: {ex.Message}");
+            }
+
+            return true;
+        }
+
+        public async Task<bool> ResendOtpAsync(ResendOtpRequest request, string? ipAddress = null, CancellationToken cancellationToken = default)
+        {
+            return await SendOtpAsync(new SendOtpRequest
+            {
+                Email = request.Email,
+                Purpose = request.Purpose
+            }, cancellationToken);
+        }
+
+        public async Task<bool> RequestEmailChangeAsync(string userId, RequestEmailChangeRequest request, string? ipAddress = null, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(request.NewEmail) || !Regex.IsMatch(request.NewEmail.Trim(), @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+            {
+                throw new InvalidOperationException("A valid new email address is required.");
+            }
+
+            if (!Guid.TryParse(userId, out var guidId))
+            {
+                throw new UnauthorizedAccessException("Invalid user identifier.");
+            }
+
+            var user = await _platformContext.Users.FirstOrDefaultAsync(u => u.Id == guidId && !u.IsDeleted);
+            if (user == null)
+            {
+                throw new UnauthorizedAccessException("User profile not found.");
+            }
+
+            var newEmail = request.NewEmail.Trim().ToLowerInvariant();
+            if (string.Equals(user.Email, newEmail, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("The new email address is the same as your current email address.");
+            }
+
+            var duplicate = await _platformContext.Users.AnyAsync(u => u.Id != user.Id && u.Email.ToLower() == newEmail && !u.IsDeleted);
+            if (duplicate)
+            {
+                throw new InvalidOperationException("An account with this email address already exists.");
+            }
+
+            // Dispatch OTP to the NEW email address
+            return await SendOtpAsync(new SendOtpRequest
+            {
+                Email = newEmail,
+                Purpose = "EmailChange"
+            }, cancellationToken);
+        }
+
+        public async Task<bool> VerifyEmailChangeAsync(string userId, VerifyEmailChangeRequest request, string? ipAddress = null)
+        {
+            if (string.IsNullOrWhiteSpace(request.NewEmail) || string.IsNullOrWhiteSpace(request.Code))
+            {
+                throw new InvalidOperationException("New email address and verification code are required.");
+            }
+
+            if (!Guid.TryParse(userId, out var guidId))
+            {
+                throw new UnauthorizedAccessException("Invalid user identifier.");
+            }
+
+            var user = await _platformContext.Users.FirstOrDefaultAsync(u => u.Id == guidId && !u.IsDeleted);
+            if (user == null)
+            {
+                throw new UnauthorizedAccessException("User profile not found.");
+            }
+
+            var newEmail = request.NewEmail.Trim().ToLowerInvariant();
+            var duplicate = await _platformContext.Users.AnyAsync(u => u.Id != user.Id && u.Email.ToLower() == newEmail && !u.IsDeleted);
+            if (duplicate)
+            {
+                throw new InvalidOperationException("An account with this email address already exists.");
+            }
+
+            var otp = await _platformContext.OTPVerifications
+                .FirstOrDefaultAsync(o => o.Email.ToLower() == newEmail && o.Purpose == "EmailChange" && !o.IsUsed);
+
+            if (otp == null)
+            {
+                throw new InvalidOperationException("No active email verification request found for this email address.");
+            }
+
+            if (otp.ExpiryTime <= DateTime.UtcNow)
+            {
+                throw new InvalidOperationException("Verification code has expired. Please request a new code.");
+            }
+
+            if (otp.Attempts >= 5)
+            {
+                throw new InvalidOperationException("Maximum verification attempts exceeded. Please request a new code.");
+            }
+
+            if (!_passwordHasher.VerifyPassword(request.Code, otp.OtpHash))
+            {
+                otp.Attempts++;
+                await _platformContext.SaveChangesAsync();
+                throw new InvalidOperationException("Invalid verification code.");
+            }
+
+            var oldEmail = user.Email;
+            otp.IsVerified = true;
+            otp.VerifiedAt = DateTime.UtcNow;
+            otp.IsUsed = true;
+            otp.UsedAt = DateTime.UtcNow;
+
+            user.Email = newEmail;
+            user.EmailVerified = true;
+            user.EmailVerifiedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedByIP = ipAddress ?? _currentUserContext.IpAddress;
+
+            await _platformContext.SaveChangesAsync();
+
+            // Record security audit event
+            try
+            {
+                var auditLog = new PlatformAuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = user.TenantId ?? Guid.Empty,
+                    UserId = user.Id.ToString(),
+                    UserEmail = newEmail,
+                    Action = "Email_Changed",
+                    TableName = "Users",
+                    PrimaryKey = user.Id.ToString(),
+                    OldValues = System.Text.Json.JsonSerializer.Serialize(new { Email = oldEmail }),
+                    NewValues = System.Text.Json.JsonSerializer.Serialize(new { Email = newEmail }),
+                    Timestamp = DateTime.UtcNow,
+                    IpAddress = ipAddress ?? _currentUserContext.IpAddress,
+                    Device = _currentUserContext.UserAgent,
+                    Reason = $"User changed account email from '{oldEmail}' to '{newEmail}'.",
+                    Module = "AccountProfile"
+                };
+                _platformContext.PlatformAuditLogs.Add(auditLog);
+                await _platformContext.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AUTH AUDIT WARN]: Could not record email change audit log: {ex.Message}");
+            }
+
+            // Dispatch alert to OLD email
+            try
+            {
+                await _emailService.SendEmailChangedNotificationAsync(oldEmail, newEmail, user.FirstName);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AUTH EMAIL WARN]: Email updated, but alert notification to old email failed: {ex.Message}");
+            }
+
             return true;
         }
 

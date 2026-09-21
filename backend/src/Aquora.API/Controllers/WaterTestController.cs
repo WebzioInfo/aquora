@@ -141,6 +141,36 @@ namespace Aquora.API.Controllers
             return Ok(logs);
         }
 
+        [HttpPost("reports/{reportId}/results/{parameterId}")]
+        public async Task<IActionResult> EnterSingleResult(Guid reportId, Guid parameterId, [FromBody] EnterSingleResultRequest request)
+        {
+            if (IsReadOnlyUser()) return StatusCode(403, "Owner role is read-only.");
+            try
+            {
+                var result = await _waterTestService.EnterSingleParameterResultAsync(reportId, parameterId, request);
+                if (result == null) return NotFound("Report or Parameter not found.");
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpGet("reminders")]
+        public async Task<IActionResult> GetReminders()
+        {
+            var tasks = await _waterTestService.GetPendingTasksAndRemindersAsync();
+            return Ok(tasks);
+        }
+
+        [HttpGet("tasks")]
+        public async Task<IActionResult> GetTasks()
+        {
+            var tasks = await _waterTestService.GetPendingTasksAndRemindersAsync();
+            return Ok(tasks);
+        }
+
         [HttpGet("reports/{id}/pdf")]
         public async Task<IActionResult> DownloadReportPdf(Guid id)
         {

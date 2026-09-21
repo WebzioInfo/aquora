@@ -13,6 +13,7 @@ import ChartOfAccountsPage from '../pages/company/finance/ChartOfAccountsPage'
 import JournalEntriesPage from '../pages/company/finance/JournalEntriesPage'
 import BusinessFinanceDashboard from '../pages/company/business-finance/BusinessFinanceDashboard'
 const LoginPage = React.lazy(() => import('../pages/LoginPage'))
+const ForgotPasswordPage = React.lazy(() => import('../pages/ForgotPasswordPage'))
 const RegisterPage = React.lazy(() => import('../pages/RegisterPage'))
 const OtpVerificationPage = React.lazy(() => import('../pages/OtpVerificationPage'))
 const CompanyOnboardingPage = React.lazy(() => import('../pages/CompanyOnboardingPage'))
@@ -64,6 +65,7 @@ const OperationsIssueDetailPage = React.lazy(() => import('../pages/company/oper
 const OperatorQuickReportPage = React.lazy(() => import('../pages/company/operations/OperatorQuickReportPage'))
 const OperationsIssueFormPage = React.lazy(() => import('../pages/company/operations/OperationsIssueFormPage'))
 const ReportsPage = React.lazy(() => import('../pages/company/ReportsPage'))
+const UserProfilePage = React.lazy(() => import('../pages/profile/UserProfilePage'))
 
 export const getDefaultRouteForUser = (user: any): string => {
   const getRoute = () => {
@@ -233,6 +235,41 @@ const CompanyDashboardDispatcher: React.FC = () => {
     return <OwnerDashboardPage />
   }
   return <CompanyDashboardPage />
+}
+
+// Universal Authenticated Guard
+const AuthenticatedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, user } = useAuthStore()
+
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!user.emailVerified) {
+    return <Navigate to="/verify-otp" replace state={{ email: user.email }} />
+  }
+
+  return <>{children}</>
+}
+
+// Universal Profile Layout Dispatcher
+const UniversalProfileDispatcher: React.FC = () => {
+  const { user } = useAuthStore()
+  const roles = user?.roles || []
+
+  if (roles.some((r: string) => ['SuperAdmin', 'PlatformAdmin', 'SupportEngineer', 'PlatformOwner'].includes(r))) {
+    return <PlatformLayout />
+  }
+
+  if (roles.includes('QC')) {
+    return <QCLayout />
+  }
+
+  if (roles.includes('Operator')) {
+    return <OperatorLayout />
+  }
+
+  return <CompanyLayout />
 }
 
 // Operator Terminal Guard
@@ -435,6 +472,14 @@ export const AppRoutes: React.FC = () => {
             }
           />
           <Route
+            path="/forgot-password"
+            element={
+              <PublicRoute>
+                <ForgotPasswordPage />
+              </PublicRoute>
+            }
+          />
+          <Route
             path="/register"
             element={
               <PublicRoute>
@@ -583,6 +628,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="backups" element={<PlatformBackupCenterPage />} />
           <Route path="audit" element={<PlatformManagementPage />} />
           <Route path="settings" element={<PlatformManagementPage />} />
+          <Route path="profile" element={<UserProfilePage />} />
         </Route>
 
         <Route
@@ -631,6 +677,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="suppliers" element={<CompanyDashboardPage />} />
           <Route path="employees" element={<CompanyDashboardPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="profile" element={<UserProfilePage />} />
           <Route path="backups" element={<BackupRestorePage />} />
           <Route path="operations" element={<OperationsPage />} />
           {/* Operations Issues Module */}
@@ -666,6 +713,41 @@ export const AppRoutes: React.FC = () => {
           <Route path="compliance" element={<CompliancePage />} />
           <Route path="parameters" element={<ParametersManagementPage />} />
           <Route path="settings" element={<QCSettingsPage />} />
+          <Route path="profile" element={<UserProfilePage />} />
+        </Route>
+
+        {/* Universal Profile Routes (Accessible to ALL authenticated roles) */}
+        <Route
+          path="/profile"
+          element={
+            <AuthenticatedRoute>
+              <UniversalProfileDispatcher />
+            </AuthenticatedRoute>
+          }
+        >
+          <Route index element={<UserProfilePage />} />
+        </Route>
+
+        <Route
+          path="/me"
+          element={
+            <AuthenticatedRoute>
+              <UniversalProfileDispatcher />
+            </AuthenticatedRoute>
+          }
+        >
+          <Route index element={<UserProfilePage />} />
+        </Route>
+
+        <Route
+          path="/account"
+          element={
+            <AuthenticatedRoute>
+              <UniversalProfileDispatcher />
+            </AuthenticatedRoute>
+          }
+        >
+          <Route index element={<UserProfilePage />} />
         </Route>
 
         {/* Fallback route */}

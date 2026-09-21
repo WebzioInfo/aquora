@@ -108,15 +108,29 @@ namespace Aquora.Application.Services
         {
             if (report == null) return "DRAFT";
             if (report.Status == "DRAFT") return "DRAFT";
-            if (report.Results != null && report.Results.Count > 0)
+            
+            var results = report.Results ?? new List<WaterTestResult>();
+            if (results.Count > 0)
             {
-                if (report.Results.Any(r => r.QualityStatus == "FAIL")) return "FAIL";
-                if (report.Results.Any(r => r.QualityStatus == "WARNING")) return "WARNING";
+                if (results.Any(r => r.QualityStatus == "FAIL")) return "FAIL";
+
+                var now = DateTime.UtcNow;
+                bool hasOverdue = results.Any(r => r.ResultStatus != "COMPLETED" && !r.Value.HasValue && string.IsNullOrWhiteSpace(r.StringValue) && r.ExpectedCompletionAt.HasValue && now > r.ExpectedCompletionAt.Value);
+                if (hasOverdue) return "OVERDUE";
+
+                bool hasPending = results.Any(r => r.ResultStatus != "COMPLETED" && !r.Value.HasValue && (string.IsNullOrWhiteSpace(r.StringValue) || r.StringValue == "—" || r.StringValue.Equals("pending", StringComparison.OrdinalIgnoreCase) || r.StringValue.Equals("not entered", StringComparison.OrdinalIgnoreCase)));
+                bool hasCompleted = results.Any(r => r.ResultStatus == "COMPLETED" || r.Value.HasValue || (!string.IsNullOrWhiteSpace(r.StringValue) && r.StringValue != "—" && !r.StringValue.Equals("pending", StringComparison.OrdinalIgnoreCase) && !r.StringValue.Equals("not entered", StringComparison.OrdinalIgnoreCase)));
+
+                if (hasPending && hasCompleted) return "PARTIALLY_COMPLETED";
+                if (hasPending && !hasCompleted) return "IN_PROGRESS";
+
+                if (results.Any(r => r.QualityStatus == "WARNING")) return "WARNING";
                 return "PASS";
             }
+
             if (report.Status == "FAIL") return "FAIL";
             if (report.Status == "WARNING") return "WARNING";
-            if (report.Status == "PASS" || report.Status == "APPROVED") return "PASS";
+            if (report.Status == "PASS" || report.Status == "APPROVED" || report.Status == "COMPLETED") return "PASS";
             return "DRAFT";
         }
 
@@ -235,6 +249,22 @@ namespace Aquora.Application.Services
                 title = "NON-COMPLIANT — FAILED SPECIFICATIONS";
                 desc = "One or more measured parameters exceed maximum permissible contamination limits.";
             }
+            else if (status == "OVERDUE")
+            {
+                bgR = 1.0; bgG = 0.95; bgB = 0.95;
+                bdrR = 1.0; bdrG = 0.75; bdrB = 0.75;
+                txtR = 0.75; txtG = 0.15; txtB = 0.15;
+                title = "RESULTS OVERDUE — ACTION REQUIRED";
+                desc = "One or more microbiological or time-dependent observation periods have elapsed without recorded results.";
+            }
+            else if (status == "PARTIALLY_COMPLETED" || status == "IN_PROGRESS")
+            {
+                bgR = 0.94; bgG = 0.97; bgB = 1.0; // Blue-50
+                bdrR = 0.75; bdrG = 0.86; bdrB = 0.99; // Blue-200
+                txtR = 0.12; txtG = 0.35; txtB = 0.72; // Blue-700
+                title = "RESULTS IN PROGRESS — PROVISIONAL REPORT";
+                desc = "Physical/chemical tests are completed. Microbiological parameters are undergoing laboratory incubation.";
+            }
             else if (status == "WARNING")
             {
                 bgR = 1.0; bgG = 0.97; bgB = 0.88;
@@ -279,6 +309,8 @@ namespace Aquora.Application.Services
             RenderHeader(y);
             y -= 14;
 
+            var now = DateTime.UtcNow;
+
             for (int i = 0; i < results.Count; i++)
             {
                 if (y < 65)
@@ -300,27 +332,53 @@ namespace Aquora.Application.Services
 
                 string paramName = SanitizeText(r.Parameter?.Name ?? "Unknown");
                 string category = SanitizeText((r.Parameter?.Category ?? "CHEMICAL").ToUpperInvariant());
-                string resultVal = FormatResultValue(r.Value, r.StringValue);
                 string unit = SanitizeText(string.IsNullOrWhiteSpace(r.Parameter?.Unit) || r.Parameter?.Unit == "—" ? "—" : r.Parameter!.Unit);
                 string limits = FormatLimits(r.Parameter, category, unit);
-                string status = (r.QualityStatus ?? (r.IsPass ? "PASS" : "FAIL")).ToUpperInvariant();
+
+                bool hasEnteredResult = r.Value.HasValue || (!string.IsNullOrWhiteSpace(r.StringValue) && r.StringValue != "—" && !r.StringValue.Equals("pending", StringComparison.OrdinalIgnoreCase) && !r.StringValue.Equals("not entered", StringComparison.OrdinalIgnoreCase));
+                
+                string resultVal;
+                string stLabel;
+                double resR = 0.06, resG = 0.09, resB = 0.16;
+                double stR = 0.09, stG = 0.40, stB = 0.20;
+
+                if (hasEnteredResult || r.ResultStatus == "COMPLETED")
+                {
+                    resultVal = FormatResultValue(r.Value, r.StringValue);
+                    string status = (r.QualityStatus ?? (r.IsPass ? "PASS" : "FAIL")).ToUpperInvariant();
+                    if (status == "FAIL") { resR = 0.73; resG = 0.11; resB = 0.11; stR = 0.73; stG = 0.11; stB = 0.11; stLabel = "FAIL"; }
+                    else if (status == "WARNING") { resR = 0.71; resG = 0.33; resB = 0.04; stR = 0.71; stG = 0.33; stB = 0.04; stLabel = "WARN"; }
+                    else { stLabel = "PASS"; }
+                }
+                else if (r.ExpectedCompletionAt.HasValue && now > r.ExpectedCompletionAt.Value)
+                {
+                    resultVal = "OVERDUE";
+                    stLabel = "OVERDUE";
+                    resR = 0.73; resG = 0.11; resB = 0.11;
+                    stR = 0.73; stG = 0.11; stB = 0.11;
+                }
+                else if (r.RequiredDurationHours > 0 || (r.Parameter?.RequiredDurationHours ?? 0) > 0)
+                {
+                    int hours = r.RequiredDurationHours > 0 ? r.RequiredDurationHours : (r.Parameter?.RequiredDurationHours ?? 0);
+                    resultVal = $"[{hours}h Incubating]";
+                    stLabel = "IN PROGRESS";
+                    resR = 0.12; resG = 0.35; resB = 0.72;
+                    stR = 0.12; stG = 0.35; stB = 0.72;
+                }
+                else
+                {
+                    resultVal = "Pending";
+                    stLabel = "PENDING";
+                    resR = 0.58; resG = 0.64; resB = 0.72;
+                    stR = 0.58; stG = 0.64; stB = 0.72;
+                }
 
                 DrawText(stream, paramName, Margin + 8, rowY + 4.5, "F2", 7.5, 0.06, 0.09, 0.16);
                 DrawText(stream, category, Margin + 160, rowY + 4.5, "F1", 7, 0.39, 0.45, 0.55);
 
-                double resR = 0.06, resG = 0.09, resB = 0.16;
-                if (status == "FAIL") { resR = 0.73; resG = 0.11; resB = 0.11; }
-                else if (status == "WARNING") { resR = 0.71; resG = 0.33; resB = 0.04; }
-
                 DrawText(stream, resultVal, Margin + 255, rowY + 4.5, "F2", 8, resR, resG, resB, "center");
                 DrawText(stream, unit, Margin + 325, rowY + 4.5, "F1", 7, 0.39, 0.45, 0.55, "center");
                 DrawText(stream, limits, Margin + 415, rowY + 4.5, "F1", 7, 0.20, 0.25, 0.33, "center");
-
-                double stR = 0.09, stG = 0.40, stB = 0.20;
-                string stLabel = "PASS";
-                if (status == "FAIL") { stR = 0.73; stG = 0.11; stB = 0.11; stLabel = "FAIL"; }
-                else if (status == "WARNING") { stR = 0.71; stG = 0.33; stB = 0.04; stLabel = "WARN"; }
-                else if (status == "DRAFT" || status == "NOT_ENTERED") { stR = 0.58; stG = 0.64; stB = 0.72; stLabel = "—"; }
 
                 DrawText(stream, stLabel, Margin + 485, rowY + 4.5, "F2", 7, stR, stG, stB, "center");
 
