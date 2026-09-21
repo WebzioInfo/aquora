@@ -281,9 +281,9 @@ export const UserProfilePage: React.FC = () => {
 
   // Role detection
   const isQCRole = profile?.roles?.some(r => ['QC', 'QualityControl', 'QualityManager', 'Chemist'].includes(r)) ||
-                   authUser?.roles?.some(r => ['QC', 'QualityControl', 'QualityManager', 'Chemist'].includes(r))
+    authUser?.roles?.some(r => ['QC', 'QualityControl', 'QualityManager', 'Chemist'].includes(r))
   const isOwnerOrAdmin = profile?.roles?.some(r => ['Owner', 'CompanyAdmin', 'SuperAdmin', 'PlatformAdmin'].includes(r)) ||
-                         authUser?.roles?.some(r => ['Owner', 'CompanyAdmin', 'SuperAdmin', 'PlatformAdmin'].includes(r))
+    authUser?.roles?.some(r => ['Owner', 'CompanyAdmin', 'SuperAdmin', 'PlatformAdmin'].includes(r))
 
   if (isLoading) {
     return (
@@ -397,11 +397,10 @@ export const UserProfilePage: React.FC = () => {
           <div className="bg-white rounded-2xl border border-[#E5E9F2] p-2 shadow-xs space-y-1">
             <button
               onClick={() => setActiveTab('personal')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'personal'
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'personal'
                   ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-2xs'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
+                }`}
             >
               <User className={`w-4 h-4 ${activeTab === 'personal' ? 'text-blue-600' : 'text-slate-400'}`} />
               <span>Personal Details</span>
@@ -411,11 +410,10 @@ export const UserProfilePage: React.FC = () => {
             {(isQCRole || isOwnerOrAdmin || profile.qualification || profile.certificationDetails) && (
               <button
                 onClick={() => setActiveTab('qc')}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === 'qc'
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'qc'
                     ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-2xs'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <Beaker className={`w-4 h-4 ${activeTab === 'qc' ? 'text-blue-600' : 'text-slate-400'}`} />
@@ -431,11 +429,10 @@ export const UserProfilePage: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('account')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'account'
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'account'
                   ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-2xs'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
+                }`}
             >
               <Building2 className={`w-4 h-4 ${activeTab === 'account' ? 'text-blue-600' : 'text-slate-400'}`} />
               <span>Organization & Role</span>
@@ -443,11 +440,10 @@ export const UserProfilePage: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('security')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'security'
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'security'
                   ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-2xs'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
+                }`}
             >
               <Shield className={`w-4 h-4 ${activeTab === 'security' ? 'text-blue-600' : 'text-slate-400'}`} />
               <span>Security & Password</span>
@@ -464,12 +460,6 @@ export const UserProfilePage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span>Account:</span>
                 <span className="font-bold text-emerald-600">Active</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Tenant Isolation:</span>
-                <span className="font-semibold text-slate-800 font-mono text-[10px]">
-                  {profile.tenantSchema || 'Standard'}
-                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Last Session:</span>
@@ -995,10 +985,9 @@ export const UserProfilePage: React.FC = () => {
                       <div className="mt-2 space-y-1">
                         <div className="flex items-center justify-between text-[10px] font-bold">
                           <span className="text-slate-500">Strength:</span>
-                          <span className={`${
-                            passwordStrength.label === 'Strong' ? 'text-emerald-600' :
-                            passwordStrength.label === 'Moderate' ? 'text-amber-600' : 'text-red-500'
-                          }`}>
+                          <span className={`${passwordStrength.label === 'Strong' ? 'text-emerald-600' :
+                              passwordStrength.label === 'Moderate' ? 'text-amber-600' : 'text-red-500'
+                            }`}>
                             {passwordStrength.label}
                           </span>
                         </div>
@@ -1006,9 +995,8 @@ export const UserProfilePage: React.FC = () => {
                           {[1, 2, 3, 4, 5].map((level) => (
                             <div
                               key={level}
-                              className={`h-full flex-1 rounded-full transition-all duration-300 ${
-                                level <= passwordStrength.score ? passwordStrength.color : 'bg-slate-200'
-                              }`}
+                              className={`h-full flex-1 rounded-full transition-all duration-300 ${level <= passwordStrength.score ? passwordStrength.color : 'bg-slate-200'
+                                }`}
                             />
                           ))}
                         </div>
@@ -1111,18 +1099,16 @@ export const UserProfilePage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setAvatarMode('upload')}
-                  className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
-                    avatarMode === 'upload' ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
-                  }`}
+                  className={`px-2.5 py-1 rounded-md transition cursor-pointer ${avatarMode === 'upload' ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+                    }`}
                 >
                   Upload File
                 </button>
                 <button
                   type="button"
                   onClick={() => setAvatarMode('url')}
-                  className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
-                    avatarMode === 'url' ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
-                  }`}
+                  className={`px-2.5 py-1 rounded-md transition cursor-pointer ${avatarMode === 'url' ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+                    }`}
                 >
                   Image URL
                 </button>
@@ -1138,9 +1124,8 @@ export const UserProfilePage: React.FC = () => {
             {avatarMode === 'upload' ? (
               <div className="space-y-4">
                 <div
-                  className={`border-2 border-dashed rounded-2xl p-6 text-center transition cursor-pointer ${
-                    avatarPreview ? 'border-blue-500 bg-blue-50/20' : 'border-slate-200 hover:border-blue-400 bg-slate-50/50'
-                  }`}
+                  className={`border-2 border-dashed rounded-2xl p-6 text-center transition cursor-pointer ${avatarPreview ? 'border-blue-500 bg-blue-50/20' : 'border-slate-200 hover:border-blue-400 bg-slate-50/50'
+                    }`}
                   onClick={() => document.getElementById('avatar-file-modal-input')?.click()}
                 >
                   <input
