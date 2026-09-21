@@ -13,6 +13,13 @@ namespace Aquora.Persistence
         public static IServiceCollection AddPersistence(this IServiceCollection services, IConfiguration configuration)
         {
             var connectionString = configuration.GetConnectionString("DefaultConnection");
+            var logEfParameters = bool.TryParse(
+                configuration["EfCore:LogSensitiveData"],
+                out var configuredSensitiveDataLogging) && configuredSensitiveDataLogging;
+            var isDevelopment = string.Equals(
+                Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+                "Development",
+                StringComparison.OrdinalIgnoreCase);
 
             // Register PlatformDbContext (locked to public schema)
             services.AddDbContext<PlatformDbContext>((sp, options) =>
@@ -21,6 +28,11 @@ namespace Aquora.Persistence
                     connectionString,
                     b => b.MigrationsAssembly(typeof(PlatformDbContext).Assembly.FullName))
                        .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+
+                if (logEfParameters && isDevelopment)
+                {
+                    options.EnableDetailedErrors().EnableSensitiveDataLogging();
+                }
             });
 
             // Register TenantDbContext (dynamic schema switching)
@@ -36,6 +48,11 @@ namespace Aquora.Persistence
                        .ReplaceService<IModelCacheKeyFactory, TenantModelCacheKeyFactory>()
                        .ReplaceService<IMigrationsSqlGenerator, TenantMigrationsSqlGenerator>()
                        .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+
+                if (logEfParameters && isDevelopment)
+                {
+                    options.EnableDetailedErrors().EnableSensitiveDataLogging();
+                }
             });
 
             services.AddScoped<IPlatformDbContext>(provider => 

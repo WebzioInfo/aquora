@@ -766,5 +766,139 @@ namespace Aquora.Tests
             Assert.Contains("pH", pdfString);
             Assert.Contains("TDS", pdfString);
         }
+
+        [Fact]
+        public async Task WaterTestService_CreateAndEditReport_ShouldSucceedOnFirstAndSecondEditAndDetectGenuineConcurrencyConflict()
+        {
+            var tenantId = Guid.NewGuid();
+            var companyId = Guid.NewGuid();
+            using var tenantContext = CreateInMemoryTenantContext(tenantId);
+            using var platformContext = new PlatformDbContext(new DbContextOptionsBuilder<PlatformDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+
+            var company = new Company
+            {
+                Id = companyId,
+                TenantId = tenantId,
+                Name = "Aquzio Bottling",
+                Code = "AQUZIO",
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = "System"
+            };
+            tenantContext.Companies.Add(company);
+            await tenantContext.SaveChangesAsync();
+
+            var mockTenantProvider = new Mock<ITenantProvider>();
+            mockTenantProvider.Setup(p => p.TenantId).Returns(tenantId);
+            mockTenantProvider.Setup(p => p.TenantSchemaName).Returns("tenant_test");
+
+            var mockCurrentUser = new Mock<ICurrentUserContext>();
+            mockCurrentUser.Setup(c => c.TenantId).Returns(tenantId);
+            mockCurrentUser.Setup(c => c.UserId).Returns("QC_User_1");
+
+            var service = new WaterTestService(
+                tenantContext,
+                platformContext,
+                mockTenantProvider.Object,
+                mockCurrentUser.Object,
+                new QualityEvaluationService(),
+                new Mock<IQCPdfCertificateService>().Object,
+                new Mock<ILogger<WaterTestService>>().Object
+            );
+
+            // 1. CREATE TEST REPORT
+            var createRequest = new CreateWaterTestReportRequest
+            {
+                BatchNumber = "BATCH-INIT-001",
+                SampleNumber = "SMPL-101",
+                ReportType = "DAILY",
+                Status = "DRAFT",
+                ProductionDate = DateTime.UtcNow,
+                SampleTime = DateTime.UtcNow,
+                TestedBy = "Analyst Alpha",
+                Remarks = "Initial draft",
+                Results = new List<CreateWaterTestResultRequest>
+                {
+                    new() { ParameterId = "pH", Value = 7.0 }
+                }
+            };
+
+            var createdReport = await service.CreateWaterTestReportAsync(createRequest);
+            Assert.NotNull(createdReport);
+            Assert.False(string.IsNullOrWhiteSpace(createdReport.ConcurrencyToken));
+            Assert.Equal("BATCH-INIT-001", createdReport.BatchNumber);
+            var resultId = Assert.Single(createdReport.Results).Id;
+
+            // 2. FIRST EDIT
+            var firstEditToken = createdReport.ConcurrencyToken;
+            var updateRequest1 = new CreateWaterTestReportRequest
+            {
+                BatchNumber = "BATCH-EDIT-001",
+                SampleNumber = "SMPL-101",
+                ReportType = "DAILY",
+                Status = "SUBMITTED",
+                Remarks = "First update remarks",
+                ConcurrencyToken = firstEditToken,
+                Results = new List<CreateWaterTestResultRequest>
+                {
+                    new() { Id = resultId.ToString(), ParameterId = "pH", Value = 7.2 },
+                    // No ID: this must be inserted as a new tracked WaterTestResult.
+                    new() { ParameterId = "TDS", Value = 120.0 }
+                }
+            };
+
+            var firstUpdatedReport = await service.UpdateWaterTestReportAsync(createdReport.Id, updateRequest1);
+            Assert.NotNull(firstUpdatedReport);
+            Assert.Equal("BATCH-EDIT-001", firstUpdatedReport.BatchNumber);
+            Assert.Equal("First update remarks", firstUpdatedReport.Remarks);
+            Assert.False(string.IsNullOrWhiteSpace(firstUpdatedReport.ConcurrencyToken));
+            Assert.NotEqual(firstEditToken, firstUpdatedReport.ConcurrencyToken);
+            Assert.Equal(2, firstUpdatedReport.Results.Count);
+            var firstUpdatedResult = Assert.Single(firstUpdatedReport.Results.Where(r => r.Id == resultId));
+            Assert.Equal(resultId, firstUpdatedResult.Id);
+            Assert.Equal(7.2, firstUpdatedResult.Value);
+            var insertedResult = Assert.Single(firstUpdatedReport.Results.Where(r => r.ParameterName == "TDS"));
+            Assert.NotEqual(Guid.Empty, insertedResult.Id);
+            Assert.Equal(120.0, insertedResult.Value);
+
+            // 3. SECOND EDIT USING NEW TOKEN
+            var secondEditToken = firstUpdatedReport.ConcurrencyToken;
+            var updateRequest2 = new CreateWaterTestReportRequest
+            {
+                BatchNumber = "BATCH-EDIT-002",
+                SampleNumber = "SMPL-102",
+                ReportType = "DAILY",
+                Status = "APPROVED",
+                Remarks = "Second update remarks",
+                ConcurrencyToken = secondEditToken,
+                Results = new List<CreateWaterTestResultRequest>
+                {
+                    new() { Id = resultId.ToString(), ParameterId = "pH", Value = 7.4 },
+                    new() { Id = insertedResult.Id.ToString(), ParameterId = "TDS", Value = 125.0 }
+                }
+            };
+
+            var secondUpdatedReport = await service.UpdateWaterTestReportAsync(createdReport.Id, updateRequest2);
+            Assert.NotNull(secondUpdatedReport);
+            Assert.Equal("BATCH-EDIT-002", secondUpdatedReport.BatchNumber);
+            Assert.Equal("Second update remarks", secondUpdatedReport.Remarks);
+            Assert.Equal(2, secondUpdatedReport.Results.Count);
+            var secondUpdatedResult = Assert.Single(secondUpdatedReport.Results.Where(r => r.Id == resultId));
+            Assert.Equal(resultId, secondUpdatedResult.Id);
+            Assert.Equal(7.4, secondUpdatedResult.Value);
+            Assert.Equal(125.0, Assert.Single(secondUpdatedReport.Results.Where(r => r.Id == insertedResult.Id)).Value);
+
+            // 4. GENUINE CONCURRENCY CONFLICT TEST (User B attempts update with STALE token `firstEditToken`)
+            var staleUpdateRequest = new CreateWaterTestReportRequest
+            {
+                BatchNumber = "BATCH-STALE",
+                ConcurrencyToken = firstEditToken,
+                Results = new List<CreateWaterTestResultRequest>()
+            };
+
+            await Assert.ThrowsAsync<Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException>(async () =>
+            {
+                await service.UpdateWaterTestReportAsync(createdReport.Id, staleUpdateRequest);
+            });
+        }
     }
 }

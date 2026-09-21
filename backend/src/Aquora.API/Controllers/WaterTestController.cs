@@ -64,6 +64,7 @@ namespace Aquora.API.Controllers
         public async Task<IActionResult> UpdateReport(Guid id, [FromBody] CreateWaterTestReportRequest request)
         {
             if (IsReadOnlyUser()) return StatusCode(403, "Owner role is read-only.");
+            if (id == Guid.Empty) return BadRequest("A valid report ID is required.");
             var result = await _waterTestService.UpdateWaterTestReportAsync(id, request);
             if (result == null) return NotFound();
             return Ok(result);

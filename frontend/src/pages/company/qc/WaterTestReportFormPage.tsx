@@ -98,8 +98,9 @@ export const WaterTestReportFormPage: React.FC = () => {
   const [remarks, setRemarks] = useState('');
   const [attachments, setAttachments] = useState('');
 
-  // Parameter Results Map: key -> { value, stringValue }
-  const [results, setResults] = useState<Record<string, { value?: string; stringValue?: string }>>({});
+  // Parameter Results Map: key -> { id, value, stringValue }. The ID keeps an
+  // existing result tied to its tracked database row on subsequent edits.
+  const [results, setResults] = useState<Record<string, { id?: string; value?: string; stringValue?: string }>>({});
 
   useEffect(() => {
     loadData();
@@ -127,7 +128,7 @@ export const WaterTestReportFormPage: React.FC = () => {
         setAttachments(r.attachments || '');
         setConcurrencyToken(r.concurrencyToken || null);
 
-        const mapped: Record<string, { value?: string; stringValue?: string }> = {};
+        const mapped: Record<string, { id?: string; value?: string; stringValue?: string }> = {};
         r.results.forEach(res => {
           let strVal = res.stringValue || '';
           const valStr = res.value !== null && res.value !== undefined ? res.value.toString() : '';
@@ -139,6 +140,7 @@ export const WaterTestReportFormPage: React.FC = () => {
           }
 
           const resData = {
+            id: res.id,
             value: valStr,
             stringValue: strVal
           };
@@ -245,7 +247,7 @@ export const WaterTestReportFormPage: React.FC = () => {
     setIsSaving(true);
     try {
       const allFormParameters = [...physicalChemicalParams, ...microParams];
-      const deduplicatedPayloadMap = new Map<string, { parameterId: string; value: number | null; stringValue: string | null }>();
+      const deduplicatedPayloadMap = new Map<string, { id?: string; parameterId: string; value: number | null; stringValue: string | null }>();
 
       allFormParameters.forEach(param => {
         const res = getParamResult(param);
@@ -257,6 +259,7 @@ export const WaterTestReportFormPage: React.FC = () => {
         if ((valNum !== null && !isNaN(valNum)) || strVal !== null) {
           const key = param.id || param.name;
           deduplicatedPayloadMap.set(param.name.toLowerCase().trim(), {
+            id: (res as any)?.id || undefined,
             parameterId: key,
             value: (valNum !== null && !isNaN(valNum)) ? valNum : null,
             stringValue: strVal

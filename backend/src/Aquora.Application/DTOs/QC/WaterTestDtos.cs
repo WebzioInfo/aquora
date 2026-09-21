@@ -75,6 +75,7 @@ namespace Aquora.Application.DTOs.QC
 
     public class CreateWaterTestResultRequest
     {
+        public string? Id { get; set; }
         public string ParameterId { get; set; } = string.Empty; // Parameter name or Guid string
         public double? Value { get; set; }
         public string? StringValue { get; set; }

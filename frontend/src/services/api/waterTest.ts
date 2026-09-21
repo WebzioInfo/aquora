@@ -62,6 +62,7 @@ export interface CreateWaterTestReportRequest {
     attachments?: string | null;
     concurrencyToken?: string | null;
     results: {
+        id?: string | null;
         parameterId: string;
         value?: number | null;
         stringValue?: string | null;

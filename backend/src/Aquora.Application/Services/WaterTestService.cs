@@ -117,6 +117,9 @@ namespace Aquora.Application.Services
                     );
 
                     ALTER TABLE ""{schema}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""ConcurrencyToken"" text NULL;
+                    UPDATE ""{schema}"".""WaterTestReports"" SET ""ConcurrencyToken"" = md5(random()::text || clock_timestamp()::text) WHERE ""ConcurrencyToken"" IS NULL OR ""ConcurrencyToken"" = '';
+                    ALTER TABLE ""{schema}"".""WaterTestReports"" ALTER COLUMN ""ConcurrencyToken"" SET DEFAULT md5(random()::text || clock_timestamp()::text);
+                    ALTER TABLE ""{schema}"".""WaterTestReports"" ALTER COLUMN ""ConcurrencyToken"" SET NOT NULL;
                     ALTER TABLE ""{schema}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""CreatedByIP"" text NULL;
                     ALTER TABLE ""{schema}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""UpdatedByIP"" text NULL;
                     ALTER TABLE ""{schema}"".""WaterTestReports"" ADD COLUMN IF NOT EXISTS ""DeletedAt"" timestamp with time zone NULL;
@@ -423,24 +426,36 @@ namespace Aquora.Application.Services
 
             if (report == null) return null;
 
-            // Ensure DB report concurrency token is non-empty
+            // The report and its results are materialized by this context and remain tracked
+            // for the entire update.  Do not attach or map a detached request entity here.
+            // EnsureQCSchemaAsync establishes this invariant for both new and legacy schemas.
             if (string.IsNullOrWhiteSpace(report.ConcurrencyToken))
             {
-                report.ConcurrencyToken = Guid.NewGuid().ToString();
+                throw new InvalidOperationException(
+                    $"Water test report {id} has no concurrency token after schema validation.");
             }
 
-            // Optimistic Concurrency Protection Verification:
-            // Check if the frontend provided a concurrency token that differs from the DB's token
-            if (!string.IsNullOrWhiteSpace(request.ConcurrencyToken) && 
-                !string.Equals(request.ConcurrencyToken, report.ConcurrencyToken, StringComparison.Ordinal))
+            if (string.IsNullOrWhiteSpace(request.ConcurrencyToken))
             {
-                _logger.LogWarning("[CONCURRENCY CONFLICT DETECTED] WaterTestReport {ReportId} update rejected. Incoming Token: '{RequestToken}', DB Token: '{DbToken}', User: '{UserId}'",
+                throw new ArgumentException("A concurrency token from the current report is required.", nameof(request));
+            }
+
+            // EF keeps the database token as OriginalValue, so the generated UPDATE is scoped
+            // by both Id and the value the client read.  Compare first to return a genuine
+            // conflict before changing any tracked state.
+            if (!string.Equals(request.ConcurrencyToken, report.ConcurrencyToken, StringComparison.Ordinal))
+            {
+                _logger.LogWarning(
+                    "[CONCURRENCY CONFLICT DETECTED] WaterTestReport {ReportId} update rejected. " +
+                    "Client Token: '{RequestToken}', DB Token: '{DbToken}', User: '{UserId}'",
                     id, request.ConcurrencyToken, report.ConcurrencyToken, currentUserId);
 
-                throw new Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException("This report was updated by another session or user. Please reload the latest version before saving.");
+                throw new Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException(
+                    "This report was updated by another session or user. Please reload the latest version before saving.");
             }
 
-            var originalToken = report.ConcurrencyToken;
+            // Assigning a new value marks the token as modified. EF uses the value loaded
+            // above as its OriginalValue in the UPDATE WHERE clause.
             report.ConcurrencyToken = Guid.NewGuid().ToString();
 
             // Audit Delta Snapshot
@@ -479,19 +494,28 @@ namespace Aquora.Application.Services
             }
 
             // Deduplicate incoming request results by resolved WaterTestParameter.Id
-            var deduplicatedResults = new Dictionary<Guid, (WaterTestParameter Parameter, double? Value, string? StringValue)>();
+            var deduplicatedResults = new List<(Guid? ResultId, WaterTestParameter Parameter, double? Value, string? StringValue)>();
+            var seenParamIds = new HashSet<Guid>();
 
             foreach (var rReq in request.Results)
             {
                 if (string.IsNullOrWhiteSpace(rReq.ParameterId)) continue;
 
                 var param = ResolveOrCreateParameter(rReq.ParameterId, parameters, parameterMap, currentUserId);
-                deduplicatedResults[param.Id] = (param, rReq.Value, rReq.StringValue);
+                if (seenParamIds.Contains(param.Id)) continue;
+                seenParamIds.Add(param.Id);
+
+                Guid? reqResultId = null;
+                if (!string.IsNullOrWhiteSpace(rReq.Id) && Guid.TryParse(rReq.Id, out var parsedResultId))
+                {
+                    reqResultId = parsedResultId;
+                }
+
+                deduplicatedResults.Add((reqResultId, param, rReq.Value, rReq.StringValue));
             }
 
-            var existingResultsByParamId = report.Results
-                .GroupBy(r => r.ParameterId)
-                .ToDictionary(g => g.Key, g => g.First());
+            var existingResultsById = report.Results.ToDictionary(r => r.Id, r => r);
+            var existingResultsByParamId = report.Results.GroupBy(r => r.ParameterId).ToDictionary(g => g.Key, g => g.First());
             var existingResultsByParamName = report.Results
                 .Where(r => r.Parameter != null && !string.IsNullOrWhiteSpace(r.Parameter.Name))
                 .GroupBy(r => r.Parameter.Name.Trim().ToLower())
@@ -499,16 +523,20 @@ namespace Aquora.Application.Services
 
             var updatedResultIds = new HashSet<Guid>();
 
-            foreach (var (param, val, strVal) in deduplicatedResults.Values)
+            foreach (var (reqResultId, param, val, strVal) in deduplicatedResults)
             {
                 var qualityStatus = _evaluationService.EvaluateParameter(param, val, strVal);
                 WaterTestResult? existingResult = null;
 
-                if (existingResultsByParamId.TryGetValue(param.Id, out var resById))
+                if (reqResultId.HasValue && existingResultsById.TryGetValue(reqResultId.Value, out var resByResId))
                 {
-                    existingResult = resById;
+                    existingResult = resByResId;
                 }
-                else if (!string.IsNullOrWhiteSpace(param.Name) && existingResultsByParamName.TryGetValue(param.Name.Trim().ToLower(), out var resByName))
+                else if (!reqResultId.HasValue && existingResultsByParamId.TryGetValue(param.Id, out var resByParamId))
+                {
+                    existingResult = resByParamId;
+                }
+                else if (!reqResultId.HasValue && !string.IsNullOrWhiteSpace(param.Name) && existingResultsByParamName.TryGetValue(param.Name.Trim().ToLower(), out var resByName))
                 {
                     existingResult = resByName;
                 }
@@ -526,6 +554,14 @@ namespace Aquora.Application.Services
                 }
                 else
                 {
+                    // An ID denotes an existing child. It must belong to this report;
+                    // accepting it as a new entity would create a detached/reconstructed
+                    // child with an existing key.
+                    if (reqResultId.HasValue)
+                    {
+                        throw new InvalidOperationException($"Water test result {reqResultId.Value} does not belong to report {report.Id}.");
+                    }
+
                     var newResult = new WaterTestResult
                     {
                         Id = Guid.NewGuid(),
@@ -538,7 +574,11 @@ namespace Aquora.Application.Services
                         CreatedAt = DateTime.UtcNow,
                         CreatedBy = currentUserId
                     };
-                    report.Results.Add(newResult);
+
+                    // A result without a request ID is a new database row. Register it
+                    // explicitly as Added; do not rely on a navigation-collection mutation
+                    // to infer its persistence state.
+                    _context.WaterTestResults.Add(newResult);
                     updatedResultIds.Add(newResult.Id);
                 }
             }
@@ -559,7 +599,7 @@ namespace Aquora.Application.Services
             if (oldStatus != request.Status) changes.Add($"Status: '{oldStatus}' -> '{request.Status}'");
             if ((oldRemarks ?? "") != (request.Remarks ?? "")) changes.Add($"Remarks: '{oldRemarks ?? ""}' -> '{request.Remarks ?? ""}'");
 
-            foreach (var (param, val, strVal) in deduplicatedResults.Values)
+            foreach (var (_, param, val, strVal) in deduplicatedResults)
             {
                 var newValStr = val?.ToString() ?? strVal ?? "N/A";
                 var oldItem = oldResultsSnapshot.Values.FirstOrDefault(x => x.Name.Equals(param.Name, StringComparison.OrdinalIgnoreCase));
@@ -575,16 +615,17 @@ namespace Aquora.Application.Services
 
             await CheckAndGenerateCAPAsAsync(report);
 
-            try
+            foreach (var entry in _context.ChangeTracker.Entries<WaterTestResult>())
             {
-                await _context.SaveChangesAsync();
+                Console.WriteLine(
+                    $"[WATER TEST FINAL TRACKING] " +
+                    $"Id={entry.Entity.Id} " +
+                    $"State={entry.State} " +
+                    $"ReportId={entry.Entity.ReportId} " +
+                    $"ParameterId={entry.Entity.ParameterId}");
             }
-            catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException ex)
-            {
-                _logger.LogError(ex, "[CONCURRENCY CONFLICT SAVE FAILURE] Report ID: {ReportId}, User ID: {UserId}, Original Token: '{OriginalToken}', DB Token: '{CurrentToken}'",
-                    id, currentUserId, originalToken, report.ConcurrencyToken);
-                throw;
-            }
+
+            await _context.SaveChangesAsync();
 
             var userNames = await ResolveUserNamesAsync(new[] { report.CreatedBy });
             return MapToDto(report, userNames);
