@@ -73,6 +73,22 @@ namespace Aquora.Application.DTOs.User
         public string ConfirmPassword { get; set; } = string.Empty;
     }
 
+    public class RequestPasswordChangeOtpResponse
+    {
+        public bool Success { get; set; } = true;
+        public string Message { get; set; } = string.Empty;
+        public string MaskedEmail { get; set; } = string.Empty;
+        public int CooldownSeconds { get; set; } = 60;
+    }
+
+    public class VerifyPasswordChangeOtpRequest
+    {
+        public string CurrentPassword { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+        public string ConfirmPassword { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
+    }
+
     public class UserSecuritySummaryDto
     {
         public DateTime? LastLoginAt { get; set; }

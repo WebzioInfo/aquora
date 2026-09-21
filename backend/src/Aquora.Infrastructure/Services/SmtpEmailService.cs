@@ -141,10 +141,17 @@ namespace Aquora.Infrastructure.Services
 
             if (purpose.Equals("PasswordReset", StringComparison.OrdinalIgnoreCase))
             {
-                subject = "Reset your Aquzio password";
+                subject = "Your Aquzio password reset verification code";
                 title = "Password Reset Request";
                 description = $"We received a request to reset your Aquzio ERP account password. Use the single-use 6-digit confirmation PIN below to complete your password reset:";
                 iconColor = "#dc2626"; // Red
+            }
+            else if (purpose.Equals("PasswordChange", StringComparison.OrdinalIgnoreCase))
+            {
+                subject = "Your Aquzio password change verification code";
+                title = "Password Change Verification";
+                description = $"We received a request to change the password for your Aquzio ERP account. Enter the single-use 6-digit confirmation PIN below to authorize this password change:";
+                iconColor = "#2563eb"; // Blue
             }
             else if (purpose.Equals("EmailChange", StringComparison.OrdinalIgnoreCase))
             {

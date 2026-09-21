@@ -210,6 +210,8 @@ namespace Aquora.Application.Services
             user.PasswordHash = newHash;
             user.PinHash = newHash;
             user.TokenVersion++;
+            user.RefreshToken = null;
+            user.RefreshTokenExpiryTime = null;
             user.UpdatedAt = DateTime.UtcNow;
             user.UpdatedBy = user.Id.ToString();
             user.UpdatedByIP = _currentUserContext.IpAddress;
@@ -220,6 +222,27 @@ namespace Aquora.Application.Services
             await LogSecurityAuditEventAsync(user, "Password_Changed", "User successfully changed their account password.");
 
             return true;
+        }
+
+        public async Task<RequestPasswordChangeOtpResponse> RequestPasswordChangeOtpAsync(string userId, ChangePasswordRequest request)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
+            return await authService.RequestPasswordChangeOtpAsync(userId, request);
+        }
+
+        public async Task<bool> VerifyPasswordChangeOtpAsync(string userId, VerifyPasswordChangeOtpRequest request)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
+            return await authService.VerifyPasswordChangeOtpAsync(userId, request);
+        }
+
+        public async Task<bool> ResendPasswordChangeOtpAsync(string userId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
+            return await authService.ResendPasswordChangeOtpAsync(userId);
         }
 
         public async Task<UserSecuritySummaryDto> GetSecuritySummaryAsync(string userId)

@@ -773,6 +773,271 @@ namespace Aquora.Application.Services
             }, cancellationToken);
         }
 
+        public async Task<Aquora.Application.DTOs.User.RequestPasswordChangeOtpResponse> RequestPasswordChangeOtpAsync(string userId, Aquora.Application.DTOs.User.ChangePasswordRequest request, string? ipAddress = null, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(request.CurrentPassword))
+                throw new InvalidOperationException("Current password is required.");
+
+            if (string.IsNullOrWhiteSpace(request.NewPassword))
+                throw new InvalidOperationException("New password is required.");
+
+            if (request.NewPassword.Length < 8 ||
+                !Regex.IsMatch(request.NewPassword, "[A-Z]") ||
+                !Regex.IsMatch(request.NewPassword, "[a-z]") ||
+                !Regex.IsMatch(request.NewPassword, "[0-9]"))
+            {
+                throw new InvalidOperationException("Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.ConfirmPassword) && request.NewPassword != request.ConfirmPassword)
+            {
+                throw new InvalidOperationException("The new password and confirmation password do not match.");
+            }
+
+            if (!Guid.TryParse(userId, out var guidId))
+            {
+                throw new UnauthorizedAccessException("Invalid user identifier.");
+            }
+
+            var user = await _platformContext.Users.FirstOrDefaultAsync(u => u.Id == guidId && !u.IsDeleted, cancellationToken);
+            if (user == null)
+            {
+                throw new UnauthorizedAccessException("User account not found.");
+            }
+
+            // 1. Verify current password
+            bool passwordValid = _passwordHasher.VerifyPassword(request.CurrentPassword, user.PasswordHash);
+            bool pinValid = !string.IsNullOrEmpty(user.PinHash) && _passwordHasher.VerifyPassword(request.CurrentPassword, user.PinHash);
+
+            if (!passwordValid && !pinValid)
+            {
+                try
+                {
+                    var auditLog = new PlatformAuditLog
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = user.TenantId ?? Guid.Empty,
+                        UserId = user.Id.ToString(),
+                        UserEmail = user.Email,
+                        Action = "Password_Change_Failed",
+                        TableName = "Users",
+                        PrimaryKey = user.Id.ToString(),
+                        Timestamp = DateTime.UtcNow,
+                        IpAddress = ipAddress ?? _currentUserContext.IpAddress,
+                        Device = _currentUserContext.UserAgent,
+                        Reason = "Failed password change request due to incorrect current password.",
+                        Module = "Authentication"
+                    };
+                    _platformContext.PlatformAuditLogs.Add(auditLog);
+                    await _platformContext.SaveChangesAsync(cancellationToken);
+                }
+                catch { }
+
+                throw new InvalidOperationException("Current password is incorrect.");
+            }
+
+            // 2. Reject password reuse
+            if (_passwordHasher.VerifyPassword(request.NewPassword, user.PasswordHash))
+            {
+                throw new InvalidOperationException("New password cannot be the same as your current password.");
+            }
+
+            // 3. Dispatch OTP to user's verified account email
+            await SendOtpAsync(new SendOtpRequest
+            {
+                Email = user.Email,
+                Purpose = "PasswordChange"
+            }, cancellationToken);
+
+            // 4. Audit OTP request
+            try
+            {
+                var auditLog = new PlatformAuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = user.TenantId ?? Guid.Empty,
+                    UserId = user.Id.ToString(),
+                    UserEmail = user.Email,
+                    Action = "PASSWORD_CHANGE_OTP_REQUESTED",
+                    TableName = "Users",
+                    PrimaryKey = user.Id.ToString(),
+                    Timestamp = DateTime.UtcNow,
+                    IpAddress = ipAddress ?? _currentUserContext.IpAddress,
+                    Device = _currentUserContext.UserAgent,
+                    Reason = "User requested OTP verification code to change password.",
+                    Module = "Authentication"
+                };
+                _platformContext.PlatformAuditLogs.Add(auditLog);
+                await _platformContext.SaveChangesAsync(cancellationToken);
+            }
+            catch { }
+
+            // 5. Mask email for response
+            var email = user.Email;
+            var atIdx = email.IndexOf('@');
+            string maskedEmail = atIdx > 1 ? email[0] + new string('•', Math.Min(5, atIdx - 1)) + email.Substring(atIdx) : email;
+
+            return new Aquora.Application.DTOs.User.RequestPasswordChangeOtpResponse
+            {
+                Success = true,
+                Message = $"A 6-digit verification code has been sent to {maskedEmail}.",
+                MaskedEmail = maskedEmail,
+                CooldownSeconds = 60
+            };
+        }
+
+        public async Task<bool> VerifyPasswordChangeOtpAsync(string userId, Aquora.Application.DTOs.User.VerifyPasswordChangeOtpRequest request, string? ipAddress = null, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(request.CurrentPassword))
+                throw new InvalidOperationException("Current password is required.");
+
+            if (string.IsNullOrWhiteSpace(request.NewPassword))
+                throw new InvalidOperationException("New password is required.");
+
+            if (string.IsNullOrWhiteSpace(request.Code))
+                throw new InvalidOperationException("Verification code is required.");
+
+            if (request.NewPassword.Length < 8 ||
+                !Regex.IsMatch(request.NewPassword, "[A-Z]") ||
+                !Regex.IsMatch(request.NewPassword, "[a-z]") ||
+                !Regex.IsMatch(request.NewPassword, "[0-9]"))
+            {
+                throw new InvalidOperationException("Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.ConfirmPassword) && request.NewPassword != request.ConfirmPassword)
+            {
+                throw new InvalidOperationException("The new password and confirmation password do not match.");
+            }
+
+            if (!Guid.TryParse(userId, out var guidId))
+            {
+                throw new UnauthorizedAccessException("Invalid user identifier.");
+            }
+
+            var user = await _platformContext.Users.FirstOrDefaultAsync(u => u.Id == guidId && !u.IsDeleted, cancellationToken);
+            if (user == null)
+            {
+                throw new UnauthorizedAccessException("User account not found.");
+            }
+
+            // 1. Re-verify current password
+            bool passwordValid = _passwordHasher.VerifyPassword(request.CurrentPassword, user.PasswordHash);
+            bool pinValid = !string.IsNullOrEmpty(user.PinHash) && _passwordHasher.VerifyPassword(request.CurrentPassword, user.PinHash);
+
+            if (!passwordValid && !pinValid)
+            {
+                throw new InvalidOperationException("Current password is incorrect.");
+            }
+
+            // 2. Reject password reuse
+            if (_passwordHasher.VerifyPassword(request.NewPassword, user.PasswordHash))
+            {
+                throw new InvalidOperationException("New password cannot be the same as your current password.");
+            }
+
+            // 3. Find active PasswordChange OTP
+            var otp = await _platformContext.OTPVerifications
+                .FirstOrDefaultAsync(o => o.Email.ToLower() == user.Email.ToLower() && o.Purpose == "PasswordChange" && !o.IsUsed, cancellationToken);
+
+            if (otp == null)
+            {
+                throw new InvalidOperationException("No active password change verification code found. Please request a new code.");
+            }
+
+            if (otp.ExpiryTime <= DateTime.UtcNow)
+            {
+                throw new InvalidOperationException("Verification code has expired. Please request a new code.");
+            }
+
+            if (otp.Attempts >= 5)
+            {
+                throw new InvalidOperationException("Maximum verification attempts exceeded. Please request a new code.");
+            }
+
+            if (!_passwordHasher.VerifyPassword(request.Code, otp.OtpHash))
+            {
+                otp.Attempts++;
+                await _platformContext.SaveChangesAsync(cancellationToken);
+                throw new InvalidOperationException("Invalid verification code.");
+            }
+
+            // 4. Mark OTP as used
+            otp.IsVerified = true;
+            otp.VerifiedAt = DateTime.UtcNow;
+            otp.IsUsed = true;
+            otp.UsedAt = DateTime.UtcNow;
+            otp.UpdatedAt = DateTime.UtcNow;
+
+            // 5. Update user password, invalidate existing sessions
+            var newHash = _passwordHasher.HashPassword(request.NewPassword);
+            user.PasswordHash = newHash;
+            user.PinHash = newHash;
+            user.TokenVersion++;
+            user.RefreshToken = null;
+            user.RefreshTokenExpiryTime = null;
+            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedBy = user.Id.ToString();
+            user.UpdatedByIP = ipAddress ?? _currentUserContext.IpAddress;
+
+            await _platformContext.SaveChangesAsync(cancellationToken);
+
+            // 6. Security Audit Log
+            try
+            {
+                var auditLog = new PlatformAuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = user.TenantId ?? Guid.Empty,
+                    UserId = user.Id.ToString(),
+                    UserEmail = user.Email,
+                    Action = "PASSWORD_CHANGED",
+                    TableName = "Users",
+                    PrimaryKey = user.Id.ToString(),
+                    Timestamp = DateTime.UtcNow,
+                    IpAddress = ipAddress ?? _currentUserContext.IpAddress,
+                    Device = _currentUserContext.UserAgent,
+                    Reason = "User successfully changed password from Profile with email OTP verification.",
+                    Module = "Authentication"
+                };
+                _platformContext.PlatformAuditLogs.Add(auditLog);
+                await _platformContext.SaveChangesAsync(cancellationToken);
+            }
+            catch { }
+
+            // 7. Send Security Notification Email
+            try
+            {
+                await _emailService.SendPasswordChangedNotificationAsync(user.Email, user.FirstName, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[PASSWORD CHANGE EMAIL WARN]: Password changed, but notification email failed: {ex.Message}");
+            }
+
+            return true;
+        }
+
+        public async Task<bool> ResendPasswordChangeOtpAsync(string userId, string? ipAddress = null, CancellationToken cancellationToken = default)
+        {
+            if (!Guid.TryParse(userId, out var guidId))
+            {
+                throw new UnauthorizedAccessException("Invalid user identifier.");
+            }
+
+            var user = await _platformContext.Users.FirstOrDefaultAsync(u => u.Id == guidId && !u.IsDeleted, cancellationToken);
+            if (user == null)
+            {
+                throw new UnauthorizedAccessException("User account not found.");
+            }
+
+            return await SendOtpAsync(new SendOtpRequest
+            {
+                Email = user.Email,
+                Purpose = "PasswordChange"
+            }, cancellationToken);
+        }
+
         public async Task<bool> RequestEmailChangeAsync(string userId, RequestEmailChangeRequest request, string? ipAddress = null, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(request.NewEmail) || !Regex.IsMatch(request.NewEmail.Trim(), @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))

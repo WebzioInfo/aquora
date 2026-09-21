@@ -81,6 +81,90 @@ namespace Aquora.API.Controllers
             }
         }
 
+        [HttpPost("me/change-password/request-otp")]
+        public async Task<ActionResult<ApiResponse<RequestPasswordChangeOtpResponse>>> RequestChangePasswordOtp([FromBody] ChangePasswordRequest request)
+        {
+            var userId = GetCurrentUserId();
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(Failure<RequestPasswordChangeOtpResponse>("User identity claim not found in current token.", "Unauthorized access."));
+            }
+
+            try
+            {
+                var result = await _profileService.RequestPasswordChangeOtpAsync(userId, request);
+                return Success(result, result.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Failure<RequestPasswordChangeOtpResponse>(ex.Message, "Password Change Request Failed");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(Failure<RequestPasswordChangeOtpResponse>(ex.Message, "Unauthorized access."));
+            }
+            catch (Exception ex)
+            {
+                return Failure<RequestPasswordChangeOtpResponse>(ex.Message, "An unexpected error occurred while requesting verification code.");
+            }
+        }
+
+        [HttpPost("me/change-password/verify")]
+        public async Task<ActionResult<ApiResponse<bool>>> VerifyChangePasswordOtp([FromBody] VerifyPasswordChangeOtpRequest request)
+        {
+            var userId = GetCurrentUserId();
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(Failure<bool>("User identity claim not found in current token.", "Unauthorized access."));
+            }
+
+            try
+            {
+                var result = await _profileService.VerifyPasswordChangeOtpAsync(userId, request);
+                return Success(result, "Password changed successfully.");
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Failure<bool>(ex.Message, "Password Change Verification Failed");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(Failure<bool>(ex.Message, "Unauthorized access."));
+            }
+            catch (Exception ex)
+            {
+                return Failure<bool>(ex.Message, "An unexpected error occurred while verifying code.");
+            }
+        }
+
+        [HttpPost("me/change-password/resend-otp")]
+        public async Task<ActionResult<ApiResponse<bool>>> ResendChangePasswordOtp()
+        {
+            var userId = GetCurrentUserId();
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(Failure<bool>("User identity claim not found in current token.", "Unauthorized access."));
+            }
+
+            try
+            {
+                var result = await _profileService.ResendPasswordChangeOtpAsync(userId);
+                return Success(result, "Verification code resent successfully.");
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Failure<bool>(ex.Message, "Resend Code Failed");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(Failure<bool>(ex.Message, "Unauthorized access."));
+            }
+            catch (Exception ex)
+            {
+                return Failure<bool>(ex.Message, "An unexpected error occurred while resending code.");
+            }
+        }
+
         [HttpPost("me/change-password")]
         public async Task<ActionResult<ApiResponse<bool>>> ChangePassword([FromBody] ChangePasswordRequest request)
         {

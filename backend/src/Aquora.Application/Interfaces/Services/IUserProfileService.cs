@@ -7,6 +7,9 @@ namespace Aquora.Application.Interfaces.Services
     {
         Task<UserProfileDto> GetProfileAsync(string userId);
         Task<UserProfileDto> UpdateProfileAsync(string userId, UpdateUserProfileRequest request);
+        Task<RequestPasswordChangeOtpResponse> RequestPasswordChangeOtpAsync(string userId, ChangePasswordRequest request);
+        Task<bool> VerifyPasswordChangeOtpAsync(string userId, VerifyPasswordChangeOtpRequest request);
+        Task<bool> ResendPasswordChangeOtpAsync(string userId);
         Task<bool> ChangePasswordAsync(string userId, ChangePasswordRequest request);
         Task<UserSecuritySummaryDto> GetSecuritySummaryAsync(string userId);
         Task<UserProfileDto> UpdateAvatarAsync(string userId, string? photoUrl);

@@ -18,6 +18,11 @@ namespace Aquora.Application.Interfaces.Services
         Task<bool> ResetPasswordAsync(PasswordResetRequest request, string? ipAddress = null);
         Task<bool> ResendOtpAsync(ResendOtpRequest request, string? ipAddress = null, CancellationToken cancellationToken = default);
 
+        // Authenticated Profile Password Change with Email OTP
+        Task<Aquora.Application.DTOs.User.RequestPasswordChangeOtpResponse> RequestPasswordChangeOtpAsync(string userId, Aquora.Application.DTOs.User.ChangePasswordRequest request, string? ipAddress = null, CancellationToken cancellationToken = default);
+        Task<bool> VerifyPasswordChangeOtpAsync(string userId, Aquora.Application.DTOs.User.VerifyPasswordChangeOtpRequest request, string? ipAddress = null, CancellationToken cancellationToken = default);
+        Task<bool> ResendPasswordChangeOtpAsync(string userId, string? ipAddress = null, CancellationToken cancellationToken = default);
+
         // Account Email Change & Re-verification
         Task<bool> RequestEmailChangeAsync(string userId, RequestEmailChangeRequest request, string? ipAddress = null, CancellationToken cancellationToken = default);
         Task<bool> VerifyEmailChangeAsync(string userId, VerifyEmailChangeRequest request, string? ipAddress = null);

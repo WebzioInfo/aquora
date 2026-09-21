@@ -60,6 +60,20 @@ export interface ChangePasswordRequest {
   confirmPassword: string
 }
 
+export interface RequestPasswordChangeOtpResponse {
+  success: boolean
+  message: string
+  maskedEmail: string
+  cooldownSeconds?: number
+}
+
+export interface VerifyPasswordChangeOtpRequest {
+  currentPassword: string
+  newPassword: string
+  confirmPassword: string
+  code: string
+}
+
 export interface UserAuditEvent {
   action: string
   timestamp: string
