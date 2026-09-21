@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useNotificationStore } from '../../store/useNotificationStore'
-import { userProfileApi, type UserProfile, type UpdateUserProfileRequest, type ChangePasswordRequest } from '../../services/api/userProfile'
+import { userProfileApi, type UserProfile, type UpdateUserProfileRequest, type ChangePasswordRequest, type VerifyPasswordChangeOtpRequest } from '../../services/api/userProfile'
 import PageContainer from '../../components/ui/layout/PageContainer'
 import PageHeader from '../../components/ui/layout/PageHeader'
 import BRAND from '../../config/brand'
@@ -55,6 +55,12 @@ export const UserProfilePage: React.FC = () => {
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [showPasswordOtpModal, setShowPasswordOtpModal] = useState(false)
+  const [passwordOtp, setPasswordOtp] = useState<string[]>(Array(6).fill(''))
+  const [passwordOtpCooldown, setPasswordOtpCooldown] = useState(0)
+  const [passwordMaskedEmail, setPasswordMaskedEmail] = useState('')
+  const [passwordOtpError, setPasswordOtpError] = useState<string | null>(null)
+  const [passwordChangedSuccess, setPasswordChangedSuccess] = useState(false)
 
   // Email verification and change states
   const [showEmailChangeModal, setShowEmailChangeModal] = useState(false)
@@ -73,6 +79,14 @@ export const UserProfilePage: React.FC = () => {
     }, 1000)
     return () => clearInterval(timer)
   }, [emailCooldown])
+
+  useEffect(() => {
+    if (passwordOtpCooldown <= 0) return
+    const timer = setInterval(() => {
+      setPasswordOtpCooldown((prev) => (prev > 1 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [passwordOtpCooldown])
 
   // Query Profile Data
   const { data: profile, isLoading, isError, refetch } = useQuery<UserProfile>({
@@ -130,20 +144,42 @@ export const UserProfilePage: React.FC = () => {
     }
   })
 
-  // Change Password Mutation
-  const changePasswordMutation = useMutation({
-    mutationFn: (payload: ChangePasswordRequest) => userProfileApi.changePassword(payload),
+  // Request Password Change OTP Mutation
+  const requestPasswordOtpMutation = useMutation({
+    mutationFn: (payload: ChangePasswordRequest) => userProfileApi.requestChangePasswordOtp(payload),
+    onSuccess: (data) => {
+      setPasswordMaskedEmail(data.maskedEmail || profile?.email || '')
+      setPasswordOtpCooldown(data.cooldownSeconds || 60)
+      setPasswordOtp(Array(6).fill(''))
+      setPasswordOtpError(null)
+      setShowPasswordOtpModal(true)
+      showToast(data.message || 'Verification code sent to your email.', 'success')
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || err.message || 'Failed to request verification code.'
+      setPasswordError(msg)
+      showToast(msg, 'error')
+    }
+  })
+
+  // Verify Password Change OTP Mutation
+  const verifyPasswordOtpMutation = useMutation({
+    mutationFn: (payload: VerifyPasswordChangeOtpRequest) => userProfileApi.verifyChangePasswordOtp(payload),
     onSuccess: () => {
+      setShowPasswordOtpModal(false)
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
       setPasswordError(null)
+      setPasswordOtp(Array(6).fill(''))
+      setPasswordChangedSuccess(true)
       queryClient.invalidateQueries({ queryKey: ['userSecuritySummary'] })
-      showToast('Password changed successfully.', 'success')
+      showToast('Password changed successfully! Previous sessions invalidated.', 'success')
+      setTimeout(() => setPasswordChangedSuccess(false), 8000)
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.message || err.message || 'Failed to change password.'
-      setPasswordError(msg)
+      const msg = err.response?.data?.message || err.message || 'Invalid or expired verification code.'
+      setPasswordOtpError(msg)
       showToast(msg, 'error')
     }
   })
@@ -255,10 +291,40 @@ export const UserProfilePage: React.FC = () => {
       return
     }
 
-    changePasswordMutation.mutate({
+    requestPasswordOtpMutation.mutate({
       currentPassword,
       newPassword,
       confirmPassword
+    })
+  }
+
+  const handleResendPasswordOtp = async () => {
+    if (passwordOtpCooldown > 0) return
+    setPasswordOtpCooldown(60)
+    setPasswordOtpError(null)
+    try {
+      await userProfileApi.resendChangePasswordOtp()
+      showToast('Fresh verification PIN sent to your email.', 'success')
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to resend code.'
+      setPasswordOtpError(msg)
+      showToast(msg, 'error')
+    }
+  }
+
+  const handleVerifyPasswordOtp = (e: React.FormEvent) => {
+    e.preventDefault()
+    const code = passwordOtp.join('')
+    if (code.length < 6) {
+      setPasswordOtpError('Please enter the full 6-digit verification code.')
+      return
+    }
+    setPasswordOtpError(null)
+    verifyPasswordOtpMutation.mutate({
+      currentPassword,
+      newPassword,
+      confirmPassword,
+      code
     })
   }
 
@@ -933,12 +999,24 @@ export const UserProfilePage: React.FC = () => {
                   </div>
                 </div>
 
+                {passwordChangedSuccess && (
+                  <div className="mb-5 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                    <span>Your password has been changed successfully! All older login sessions have been invalidated.</span>
+                  </div>
+                )}
+
                 {passwordError && (
                   <div className="mb-5 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
                     <span>{passwordError}</span>
                   </div>
                 )}
+
+                <div className="mb-5 p-3 rounded-xl bg-blue-50/70 border border-blue-100 text-blue-800 text-xs flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 shrink-0 text-blue-600" />
+                  <span>For your security, a single-use 6-digit confirmation code will be sent to your registered email to authorize this change.</span>
+                </div>
 
                 <form onSubmit={handleChangePassword} className="space-y-4 max-w-lg">
                   <div>
@@ -1027,18 +1105,18 @@ export const UserProfilePage: React.FC = () => {
                   <div className="pt-3">
                     <button
                       type="submit"
-                      disabled={changePasswordMutation.isPending}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-sm cursor-pointer disabled:opacity-50"
+                      disabled={requestPasswordOtpMutation.isPending || !currentPassword || !newPassword || !confirmPassword}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-sm cursor-pointer disabled:opacity-50"
                     >
-                      {changePasswordMutation.isPending ? (
+                      {requestPasswordOtpMutation.isPending ? (
                         <>
                           <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          <span>Updating Password...</span>
+                          <span>Sending Verification Code...</span>
                         </>
                       ) : (
                         <>
                           <KeyRound className="w-3.5 h-3.5" />
-                          <span>Update Password</span>
+                          <span>Continue to Verify & Update</span>
                         </>
                       )}
                     </button>
@@ -1579,6 +1657,134 @@ export const UserProfilePage: React.FC = () => {
                   className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition cursor-pointer disabled:opacity-50"
                 >
                   {emailModalLoading ? 'Verifying...' : 'Confirm Verification'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* PASSWORD CHANGE OTP MODAL */}
+      {showPasswordOtpModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-[#E5E9F2] shadow-2xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">Authorize Password Change</h3>
+                  <p className="text-[11px] text-slate-500">
+                    Code sent to <span className="font-semibold text-slate-700">{passwordMaskedEmail || profile?.email}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPasswordOtpModal(false)
+                  setPasswordOtp(Array(6).fill(''))
+                  setPasswordOtpError(null)
+                }}
+                className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {passwordOtpError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>{passwordOtpError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleVerifyPasswordOtp} className="space-y-4 pt-1">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-2">6-Digit Security Code</label>
+                <div className="flex justify-between gap-1.5">
+                  {passwordOtp.map((digit, idx) => (
+                    <input
+                      key={idx}
+                      type="text"
+                      maxLength={1}
+                      value={digit}
+                      autoFocus={idx === 0}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '')
+                        const next = [...passwordOtp]
+                        next[idx] = val ? val[val.length - 1] : ''
+                        setPasswordOtp(next)
+                        if (val && idx < 5) {
+                          const inputs = document.querySelectorAll<HTMLInputElement>('.password-otp-input')
+                          inputs[idx + 1]?.focus()
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Backspace' && !passwordOtp[idx] && idx > 0) {
+                          const inputs = document.querySelectorAll<HTMLInputElement>('.password-otp-input')
+                          inputs[idx - 1]?.focus()
+                        }
+                      }}
+                      onPaste={(e) => {
+                        e.preventDefault()
+                        const pasted = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 6)
+                        if (pasted) {
+                          const next = [...passwordOtp]
+                          for (let i = 0; i < pasted.length; i++) {
+                            next[i] = pasted[i]
+                          }
+                          setPasswordOtp(next)
+                          const inputs = document.querySelectorAll<HTMLInputElement>('.password-otp-input')
+                          inputs[Math.min(pasted.length, 5)]?.focus()
+                        }
+                      }}
+                      className="password-otp-input w-10 h-11 text-center font-bold text-base bg-white border border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none"
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-xs pt-1">
+                <span className="text-[11px] text-slate-400">Valid for 10 minutes</span>
+                {passwordOtpCooldown > 0 ? (
+                  <span className="text-slate-400">Resend in {passwordOtpCooldown}s</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendPasswordOtp}
+                    className="text-blue-600 hover:text-blue-700 font-bold cursor-pointer"
+                  >
+                    Resend Code
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordOtpModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={verifyPasswordOtpMutation.isPending || passwordOtp.join('').length < 6}
+                  className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {verifyPasswordOtpMutation.isPending ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <>
+                      <KeyRound className="w-3.5 h-3.5" />
+                      <span>Verify & Change Password</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

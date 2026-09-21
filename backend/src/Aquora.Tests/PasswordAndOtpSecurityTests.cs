@@ -94,6 +94,213 @@ namespace Aquora.Tests
         }
 
         [Fact]
+        public async Task RequestPasswordChangeOtp_CorrectCurrentPassword_GeneratesOtpAndMasksEmail()
+        {
+            // Arrange
+            var user = new User
+            {
+                Id = Guid.NewGuid(),
+                Email = "johndoe@aquzio.com",
+                PasswordHash = "hashed_CurrentPassword123!",
+                PinHash = "hashed_CurrentPassword123!",
+                FirstName = "John",
+                LastName = "Doe",
+                IsActive = true,
+                EmailVerified = true,
+                TokenVersion = 1
+            };
+            _platformContext.Users.Add(user);
+            await _platformContext.SaveChangesAsync();
+
+            var req = new ChangePasswordRequest
+            {
+                CurrentPassword = "CurrentPassword123!",
+                NewPassword = "NewStrongPassword456!",
+                ConfirmPassword = "NewStrongPassword456!"
+            };
+
+            // Act
+            var result = await _authService.RequestPasswordChangeOtpAsync(user.Id.ToString(), req);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.Contains("••••", result.MaskedEmail);
+            Assert.Equal(60, result.CooldownSeconds);
+
+            // Verify OTP record exists with Purpose = "PasswordChange" and is NOT yet used
+            var otpRecord = await _platformContext.OTPVerifications
+                .FirstOrDefaultAsync(o => o.Email == "johndoe@aquzio.com" && o.Purpose == "PasswordChange");
+            Assert.NotNull(otpRecord);
+            Assert.False(otpRecord.IsUsed);
+
+            // Password in DB must NOT be changed yet
+            var unchangedUser = await _platformContext.Users.FindAsync(user.Id);
+            Assert.Equal("hashed_CurrentPassword123!", unchangedUser.PasswordHash);
+
+            _mockEmailService.Verify(e => e.SendOtpEmailAsync(
+                "johndoe@aquzio.com",
+                It.IsAny<string>(),
+                10,
+                "PasswordChange",
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task VerifyPasswordChangeOtp_ValidOtp_UpdatesPasswordAndInvalidatesSession()
+        {
+            // Arrange
+            var user = new User
+            {
+                Id = Guid.NewGuid(),
+                Email = "verifychange@aquzio.com",
+                PasswordHash = "hashed_OldPass123!",
+                PinHash = "hashed_OldPass123!",
+                TokenVersion = 2,
+                RefreshToken = "active_refresh_token_abc",
+                RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7),
+                IsActive = true,
+                EmailVerified = true
+            };
+            _platformContext.Users.Add(user);
+
+            var otpRecord = new OTPVerification
+            {
+                Id = Guid.NewGuid(),
+                Email = "verifychange@aquzio.com",
+                Purpose = "PasswordChange",
+                OtpHash = "hashed_654321",
+                ExpiryTime = DateTime.UtcNow.AddMinutes(10),
+                Attempts = 0,
+                IsUsed = false,
+                RequestId = Guid.NewGuid().ToString()
+            };
+            _platformContext.OTPVerifications.Add(otpRecord);
+            await _platformContext.SaveChangesAsync();
+
+            var verifyReq = new VerifyPasswordChangeOtpRequest
+            {
+                CurrentPassword = "OldPass123!",
+                NewPassword = "NewSecurePassword789!",
+                ConfirmPassword = "NewSecurePassword789!",
+                Code = "654321"
+            };
+
+            // Act
+            var result = await _authService.VerifyPasswordChangeOtpAsync(user.Id.ToString(), verifyReq);
+
+            // Assert
+            Assert.True(result);
+            var updatedUser = await _platformContext.Users.FindAsync(user.Id);
+            Assert.NotNull(updatedUser);
+            Assert.Equal("hashed_NewSecurePassword789!", updatedUser.PasswordHash);
+            Assert.Equal(3, updatedUser.TokenVersion); // Incremented TokenVersion invalidates JWTs
+            Assert.Null(updatedUser.RefreshToken); // Cleared RefreshToken
+
+            var updatedOtp = await _platformContext.OTPVerifications.FindAsync(otpRecord.Id);
+            Assert.NotNull(updatedOtp);
+            Assert.True(updatedOtp.IsUsed); // OTP marked used
+
+            _mockEmailService.Verify(e => e.SendPasswordChangedNotificationAsync(
+                "verifychange@aquzio.com",
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task VerifyPasswordChangeOtp_WrongOtp_RejectsAndDoesNotChangePassword()
+        {
+            // Arrange
+            var user = new User
+            {
+                Id = Guid.NewGuid(),
+                Email = "wrongotp@aquzio.com",
+                PasswordHash = "hashed_OldPass123!",
+                TokenVersion = 1,
+                IsActive = true,
+                EmailVerified = true
+            };
+            _platformContext.Users.Add(user);
+
+            var otpRecord = new OTPVerification
+            {
+                Id = Guid.NewGuid(),
+                Email = "wrongotp@aquzio.com",
+                Purpose = "PasswordChange",
+                OtpHash = "hashed_112233",
+                ExpiryTime = DateTime.UtcNow.AddMinutes(10),
+                Attempts = 0,
+                IsUsed = false,
+                RequestId = Guid.NewGuid().ToString()
+            };
+            _platformContext.OTPVerifications.Add(otpRecord);
+            await _platformContext.SaveChangesAsync();
+
+            var verifyReq = new VerifyPasswordChangeOtpRequest
+            {
+                CurrentPassword = "OldPass123!",
+                NewPassword = "NewSecurePassword789!",
+                ConfirmPassword = "NewSecurePassword789!",
+                Code = "999999" // Wrong code
+            };
+
+            // Act & Assert
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                _authService.VerifyPasswordChangeOtpAsync(user.Id.ToString(), verifyReq));
+
+            Assert.Contains("Invalid verification code", ex.Message);
+            var unchangedUser = await _platformContext.Users.FindAsync(user.Id);
+            Assert.Equal("hashed_OldPass123!", unchangedUser.PasswordHash);
+            Assert.Equal(1, unchangedUser.TokenVersion);
+        }
+
+        [Fact]
+        public async Task VerifyPasswordChangeOtp_ExpiredOtp_ThrowsInvalidOperationException()
+        {
+            // Arrange
+            var user = new User
+            {
+                Id = Guid.NewGuid(),
+                Email = "expiredchange@aquzio.com",
+                PasswordHash = "hashed_OldPass123!",
+                TokenVersion = 1,
+                IsActive = true,
+                EmailVerified = true
+            };
+            _platformContext.Users.Add(user);
+
+            var otpRecord = new OTPVerification
+            {
+                Id = Guid.NewGuid(),
+                Email = "expiredchange@aquzio.com",
+                Purpose = "PasswordChange",
+                OtpHash = "hashed_112233",
+                ExpiryTime = DateTime.UtcNow.AddMinutes(-2), // Expired 2 min ago
+                Attempts = 0,
+                IsUsed = false,
+                RequestId = Guid.NewGuid().ToString()
+            };
+            _platformContext.OTPVerifications.Add(otpRecord);
+            await _platformContext.SaveChangesAsync();
+
+            var verifyReq = new VerifyPasswordChangeOtpRequest
+            {
+                CurrentPassword = "OldPass123!",
+                NewPassword = "NewSecurePassword789!",
+                ConfirmPassword = "NewSecurePassword789!",
+                Code = "112233"
+            };
+
+            // Act & Assert
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                _authService.VerifyPasswordChangeOtpAsync(user.Id.ToString(), verifyReq));
+
+            Assert.Contains("expired", ex.Message);
+            var unchangedUser = await _platformContext.Users.FindAsync(user.Id);
+            Assert.Equal("hashed_OldPass123!", unchangedUser.PasswordHash);
+        }
+
+        [Fact]
         public async Task PasswordChange_CorrectCurrentPassword_SuccessfullyUpdatesAndIncrementsTokenVersion()
         {
             // Arrange

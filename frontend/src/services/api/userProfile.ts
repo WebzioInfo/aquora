@@ -114,6 +114,24 @@ export const userProfileApi = {
     return res.data?.success ?? true
   },
 
+  requestChangePasswordOtp: async (payload: ChangePasswordRequest): Promise<RequestPasswordChangeOtpResponse> => {
+    const res = await api.post('/api/v1/users/me/change-password/request-otp', payload)
+    if (res.data?.success && res.data?.data) {
+      return res.data.data
+    }
+    return res.data
+  },
+
+  verifyChangePasswordOtp: async (payload: VerifyPasswordChangeOtpRequest): Promise<boolean> => {
+    const res = await api.post('/api/v1/users/me/change-password/verify', payload)
+    return res.data?.success ?? true
+  },
+
+  resendChangePasswordOtp: async (): Promise<boolean> => {
+    const res = await api.post('/api/v1/users/me/change-password/resend-otp')
+    return res.data?.success ?? true
+  },
+
   getSecuritySummary: async (): Promise<UserSecuritySummary> => {
     const res = await api.get('/api/v1/users/me/security')
     if (res.data?.success && res.data?.data) {
