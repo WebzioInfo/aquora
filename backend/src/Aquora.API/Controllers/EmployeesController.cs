@@ -60,10 +60,44 @@ namespace Aquora.API.Controllers
             try
             {
                 var tenantId = GetTenantId();
-                var users = await _platformContext.Users
+                var usersRaw = await _platformContext.Users
+                    .AsNoTracking()
                     .Where(u => u.TenantId == tenantId && !u.IsDeleted)
                     .OrderByDescending(u => u.CreatedAt)
+                    .Select(u => new
+                    {
+                        u.Id,
+                        u.FirstName,
+                        u.LastName,
+                        u.Username,
+                        u.Email,
+                        u.RoleName,
+                        u.Department,
+                        u.CurrentSalary,
+                        u.IsActive,
+                        u.CreatedAt,
+                        u.LastLoginAt,
+                        u.IsPlatformAdmin,
+                        u.TenantId
+                    })
                     .ToListAsync();
+
+                var users = usersRaw.Select(u => new User
+                {
+                    Id = u.Id,
+                    FirstName = u.FirstName,
+                    LastName = u.LastName,
+                    Username = u.Username,
+                    Email = u.Email,
+                    RoleName = u.RoleName,
+                    Department = u.Department,
+                    CurrentSalary = u.CurrentSalary,
+                    IsActive = u.IsActive,
+                    CreatedAt = u.CreatedAt,
+                    LastLoginAt = u.LastLoginAt,
+                    IsPlatformAdmin = u.IsPlatformAdmin,
+                    TenantId = u.TenantId
+                }).ToList();
 
                 var roles = await _tenantContext.Roles.ToListAsync();
                 var roleMap = await _roleResolver.ResolveUsersRolesAsync(users, tenantId);
@@ -79,6 +113,7 @@ namespace Aquora.API.Controllers
                         Id = user.Id,
                         FullName = $"{user.FirstName} {user.LastName}".Trim(),
                         Username = user.Username ?? user.Email,
+                        Email = user.Email ?? string.Empty,
                         RoleName = resolvedRole,
                         RoleCode = matchingRole?.Code ?? resolvedRole.ToUpperInvariant().Replace(" ", "_"),
                         Department = user.Department ?? "Operations",
@@ -124,9 +159,21 @@ namespace Aquora.API.Controllers
                     return Failure<EmployeeDto>("Email is already registered.", "Validation Error");
                 }
 
+                // Enforce restriction: Company Admin cannot create or assign system Admin role
+                if (string.Equals(request.RoleCode?.Trim(), "Admin", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(request.RoleCode?.Trim(), "ADMIN", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(ApiResponse<EmployeeDto>.CreateFailure("Company administrators are not permitted to create or assign the system Admin role.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
                 // Check role existence inside tenant schema
                 var role = await _tenantContext.Roles
                     .FirstOrDefaultAsync(r => r.Code.ToUpper() == request.RoleCode.ToUpper() || r.Name.ToLower() == request.RoleCode.ToLower());
+
+                if (role != null && (role.Code.Equals("ADMIN", StringComparison.OrdinalIgnoreCase) || role.Name.Equals("Admin", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return BadRequest(ApiResponse<EmployeeDto>.CreateFailure("Company administrators are not permitted to create or assign the system Admin role.", "Validation Error", HttpContext.TraceIdentifier));
+                }
 
                 if (role == null && (request.RoleCode.Equals("OWNER", StringComparison.OrdinalIgnoreCase) || request.RoleCode.Equals("Owner", StringComparison.OrdinalIgnoreCase)))
                 {
@@ -143,6 +190,37 @@ namespace Aquora.API.Controllers
                     await _tenantContext.SaveChangesAsync();
                 }
 
+                if (role == null && (request.RoleCode.Equals("ACCOUNTANT", StringComparison.OrdinalIgnoreCase) || request.RoleCode.Equals("Accountant", StringComparison.OrdinalIgnoreCase)))
+                {
+                    role = new Role
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Accountant",
+                        Code = "ACCOUNTANT",
+                        TenantId = tenantId,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "System"
+                    };
+                    _tenantContext.Roles.Add(role);
+                    await _tenantContext.SaveChangesAsync();
+
+                    var companyAdminRole = await _tenantContext.Roles.FirstOrDefaultAsync(r => r.Code.ToUpper() == "COMPANYADMIN" || r.Name.ToLower() == "companyadmin");
+                    if (companyAdminRole != null)
+                    {
+                        var adminPerms = await _tenantContext.RolePermissions.Where(rp => rp.RoleId == companyAdminRole.Id).ToListAsync();
+                        foreach (var ap in adminPerms)
+                        {
+                            _tenantContext.RolePermissions.Add(new RolePermission
+                            {
+                                RoleId = role.Id,
+                                PermissionId = ap.PermissionId,
+                                TenantId = tenantId
+                            });
+                        }
+                        await _tenantContext.SaveChangesAsync();
+                    }
+                }
+
                 if (role == null)
                 {
                     return Failure<EmployeeDto>($"Role Code '{request.RoleCode}' is invalid or does not exist for this tenant.", "Validation Error");
@@ -153,7 +231,7 @@ namespace Aquora.API.Controllers
                 var firstName = parts.Length > 0 ? parts[0] : string.Empty;
                 var lastName = parts.Length > 1 ? parts[1] : string.Empty;
 
-                // Password/PIN hashing
+                // Secure one-way password/PIN hashing
                 var hash = _passwordHasher.HashPassword(request.PasswordOrPin);
 
                 var newUser = new User
@@ -250,6 +328,7 @@ namespace Aquora.API.Controllers
                     Id = newUser.Id,
                     FullName = request.FullName.Trim(),
                     Username = newUser.Username,
+                    Email = newUser.Email,
                     RoleName = role.Name,
                     RoleCode = role.Code,
                     Department = newUser.Department,
@@ -304,27 +383,124 @@ namespace Aquora.API.Controllers
                     return NotFound(ApiResponse<EmployeeDto>.CreateFailure("Employee not found.", "Not Found", HttpContext.TraceIdentifier));
                 }
 
+                var usernameNormalized = request.Username.Trim().ToLowerInvariant();
+                var emailNormalized = request.Email.Trim().ToLowerInvariant();
+
+                // Unique username check globally across all tenants (excluding current user)
+                var usernameExists = await _platformContext.Users
+                    .AnyAsync(u => u.Id != id && u.Username != null && u.Username.ToLower() == usernameNormalized && !u.IsDeleted);
+
+                if (usernameExists)
+                {
+                    return Failure<EmployeeDto>("Username is already taken. Please choose another username.", "Validation Error");
+                }
+
+                // Globally unique email mapping check (excluding current user)
+                var emailExists = await _platformContext.Users
+                    .AnyAsync(u => u.Id != id && u.Email.ToLower() == emailNormalized && !u.IsDeleted);
+
+                if (emailExists)
+                {
+                    return Failure<EmployeeDto>("Email is already registered.", "Validation Error");
+                }
+
+                // Enforce restriction: Company Admin cannot assign system Admin role
+                if (string.Equals(request.RoleCode?.Trim(), "Admin", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(request.RoleCode?.Trim(), "ADMIN", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(ApiResponse<EmployeeDto>.CreateFailure("Company administrators are not permitted to assign the system Admin role.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
                 // Check role
                 var role = await _tenantContext.Roles
                     .FirstOrDefaultAsync(r => r.Code.ToUpper() == request.RoleCode.ToUpper() || r.Name.ToLower() == request.RoleCode.ToLower());
+
+                if (role != null && (role.Code.Equals("ADMIN", StringComparison.OrdinalIgnoreCase) || role.Name.Equals("Admin", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return BadRequest(ApiResponse<EmployeeDto>.CreateFailure("Company administrators are not permitted to assign the system Admin role.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                if (role == null && (request.RoleCode.Equals("OWNER", StringComparison.OrdinalIgnoreCase) || request.RoleCode.Equals("Owner", StringComparison.OrdinalIgnoreCase)))
+                {
+                    role = new Role
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Owner",
+                        Code = "OWNER",
+                        TenantId = tenantId,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "System"
+                    };
+                    _tenantContext.Roles.Add(role);
+                    await _tenantContext.SaveChangesAsync();
+                }
+
+                if (role == null && (request.RoleCode.Equals("ACCOUNTANT", StringComparison.OrdinalIgnoreCase) || request.RoleCode.Equals("Accountant", StringComparison.OrdinalIgnoreCase)))
+                {
+                    role = new Role
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Accountant",
+                        Code = "ACCOUNTANT",
+                        TenantId = tenantId,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "System"
+                    };
+                    _tenantContext.Roles.Add(role);
+                    await _tenantContext.SaveChangesAsync();
+
+                    var companyAdminRole = await _tenantContext.Roles.FirstOrDefaultAsync(r => r.Code.ToUpper() == "COMPANYADMIN" || r.Name.ToLower() == "companyadmin");
+                    if (companyAdminRole != null)
+                    {
+                        var adminPerms = await _tenantContext.RolePermissions.Where(rp => rp.RoleId == companyAdminRole.Id).ToListAsync();
+                        foreach (var ap in adminPerms)
+                        {
+                            _tenantContext.RolePermissions.Add(new RolePermission
+                            {
+                                RoleId = role.Id,
+                                PermissionId = ap.PermissionId,
+                                TenantId = tenantId
+                            });
+                        }
+                        await _tenantContext.SaveChangesAsync();
+                    }
+                }
 
                 if (role == null)
                 {
                     return Failure<EmployeeDto>($"Role Code '{request.RoleCode}' is invalid.", "Validation Error");
                 }
 
+                // If new PIN is provided, securely update one-way password/PIN hash
+                if (!string.IsNullOrWhiteSpace(request.Pin))
+                {
+                    var pinTrimmed = request.Pin.Trim();
+                    if (pinTrimmed.Length < 4)
+                    {
+                        return Failure<EmployeeDto>("PIN must be at least 4 digits.", "Validation Error");
+                    }
+                    var newHash = _passwordHasher.HashPassword(pinTrimmed);
+                    user.PinHash = newHash;
+                    user.PasswordHash = newHash;
+                }
+
                 // Capture old values before mutation
                 var oldValuesJson = System.Text.Json.JsonSerializer.Serialize(new {
                     user.FirstName,
                     user.LastName,
+                    user.Username,
+                    user.Email,
                     user.Department,
-                    user.IsActive
+                    user.IsActive,
+                    user.CurrentSalary
                 });
 
                 // Update details
                 var parts = request.FullName.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
                 user.FirstName = parts.Length > 0 ? parts[0] : string.Empty;
                 user.LastName = parts.Length > 1 ? parts[1] : string.Empty;
+                user.Username = request.Username.Trim();
+                user.Email = emailNormalized;
                 user.Department = request.Department ?? "Operations";
                 user.CurrentSalary = request.CurrentSalary;
                 user.RoleName = role.Name;
@@ -376,8 +552,11 @@ namespace Aquora.API.Controllers
                         NewValues = System.Text.Json.JsonSerializer.Serialize(new {
                             FirstName = user.FirstName,
                             LastName = user.LastName,
+                            Username = user.Username,
+                            Email = user.Email,
                             Department = user.Department,
                             IsActive = user.IsActive,
+                            CurrentSalary = user.CurrentSalary,
                             RoleName = role.Name,
                             RoleCode = role.Code
                         }),
@@ -399,6 +578,7 @@ namespace Aquora.API.Controllers
                     Id = user.Id,
                     FullName = $"{user.FirstName} {user.LastName}".Trim(),
                     Username = user.Username ?? user.Email,
+                    Email = user.Email ?? string.Empty,
                     RoleName = role.Name,
                     RoleCode = role.Code,
                     Department = user.Department,
@@ -500,9 +680,9 @@ namespace Aquora.API.Controllers
             try
             {
                 var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value.ToUpperInvariant()).ToList();
-                if (!roles.Contains("COMPANYADMIN"))
+                if (!roles.Contains("COMPANYADMIN") && !roles.Contains("ACCOUNTANT") && !roles.Contains("SUPERADMIN") && !roles.Contains("PLATFORMADMIN"))
                 {
-                    return StatusCode(403, ApiResponse<bool>.CreateFailure("Only Company Admin can reset employee password.", "Forbidden", HttpContext.TraceIdentifier));
+                    return StatusCode(403, ApiResponse<bool>.CreateFailure("Only Company Admin or Accountant can reset employee password.", "Forbidden", HttpContext.TraceIdentifier));
                 }
 
                 var tenantId = GetTenantId();
@@ -515,8 +695,13 @@ namespace Aquora.API.Controllers
 
                 if (!VerifySecurityPin(tenantId, adminPin))
                 {
-                    await LogSecurityAuditAsync(tenantId, "InvalidPin", request.EmployeeId.ToString(), "Invalid Admin PIN attempt during password reset.");
+                    await LogSecurityAuditAsync(tenantId, "InvalidPin", request.EmployeeId.ToString(), "Invalid Admin PIN attempt during employee password reset.");
                     return BadRequest(ApiResponse<bool>.CreateFailure("Invalid admin PIN.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                if (string.IsNullOrWhiteSpace(request.PasswordOrPin) || request.PasswordOrPin.Trim().Length < 8)
+                {
+                    return BadRequest(ApiResponse<bool>.CreateFailure("New password must be at least 8 characters.", "Validation Error", HttpContext.TraceIdentifier));
                 }
 
                 var user = await _platformContext.Users
@@ -524,26 +709,29 @@ namespace Aquora.API.Controllers
 
                 if (user == null)
                 {
-                    return NotFound(ApiResponse<bool>.CreateFailure("Employee not found.", "Not Found", HttpContext.TraceIdentifier));
+                    return NotFound(ApiResponse<bool>.CreateFailure("Employee not found in your organization.", "Not Found", HttpContext.TraceIdentifier));
                 }
 
                 var oldValuesJson = System.Text.Json.JsonSerializer.Serialize(new {
-                    user.PasswordHash,
-                    user.PinHash
+                    user.Username,
+                    user.Email,
+                    user.Department
                 });
 
-                var hash = _passwordHasher.HashPassword(request.PasswordOrPin);
+                // Secure one-way hash computation
+                var hash = _passwordHasher.HashPassword(request.PasswordOrPin.Trim());
                 user.PasswordHash = hash;
                 user.PinHash = hash;
 
-                var encryptedPassword = EncryptPassword(request.PasswordOrPin);
-                var secrets = GetEmployeeSecrets(tenantId);
-                secrets[user.Id] = encryptedPassword;
-                SaveEmployeeSecrets(tenantId, secrets);
+                // Invalidate existing sessions / refresh tokens
+                user.TokenVersion++;
+                user.RefreshToken = null;
+                user.RefreshTokenExpiryTime = null;
 
                 await _platformContext.SaveChangesAsync();
 
-                await LogSecurityAuditAsync(tenantId, "UpdatePassword", user.Id.ToString(), $"Updated employee password for: {user.Username ?? user.Email}");
+                // Safe audit event with no credentials or secrets logged
+                await LogSecurityAuditAsync(tenantId, "ResetPassword", user.Id.ToString(), $"Employee password reset by administrator for: {user.Username ?? user.Email}");
 
                 try
                 {
@@ -558,12 +746,12 @@ namespace Aquora.API.Controllers
                         PrimaryKey = user.Id.ToString(),
                         OldValues = oldValuesJson,
                         NewValues = System.Text.Json.JsonSerializer.Serialize(new {
-                            PasswordHash = hash,
-                            PinHash = hash
+                            Action = "PasswordReset",
+                            Timestamp = DateTime.UtcNow
                         }),
                         Timestamp = DateTime.UtcNow,
                         IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
-                        Reason = "Password/PIN reset",
+                        Reason = "Employee password reset",
                         Module = "User Management"
                     };
                     _platformContext.PlatformAuditLogs.Add(auditLog);
@@ -574,7 +762,7 @@ namespace Aquora.API.Controllers
                     Console.WriteLine($"[AUDIT LOG FAILURE - NON-BLOCKING]: Failed to write employee reset password platform audit: {ex.Message}");
                 }
 
-                return Success(true, "Password and PIN reset successfully.");
+                return Success(true, "Employee password updated successfully.");
             }
             catch (Exception ex)
             {
@@ -588,9 +776,9 @@ namespace Aquora.API.Controllers
             try
             {
                 var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value.ToUpperInvariant()).ToList();
-                if (!roles.Contains("COMPANYADMIN"))
+                if (!roles.Contains("COMPANYADMIN") && !roles.Contains("ACCOUNTANT") && !roles.Contains("SUPERADMIN") && !roles.Contains("PLATFORMADMIN"))
                 {
-                    return StatusCode(403, ApiResponse<bool>.CreateFailure("Only Company Admin can set the security PIN.", "Forbidden", HttpContext.TraceIdentifier));
+                    return StatusCode(403, ApiResponse<bool>.CreateFailure("Only Company Admin or Accountant can set the security PIN.", "Forbidden", HttpContext.TraceIdentifier));
                 }
 
                 var pin = request.ResolvedAdminPin;
@@ -667,49 +855,6 @@ namespace Aquora.API.Controllers
             }
         }
 
-        [HttpPost("reveal-password")]
-        public async Task<ActionResult<ApiResponse<string>>> RevealPassword([FromBody] RevealPasswordRequest request)
-        {
-            try
-            {
-                var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value.ToUpperInvariant()).ToList();
-                if (!roles.Contains("COMPANYADMIN"))
-                {
-                    return StatusCode(403, ApiResponse<string>.CreateFailure("Only Company Admin can view employee passwords.", "Forbidden", HttpContext.TraceIdentifier));
-                }
-
-                var tenantId = GetTenantId();
-                var adminPin = request.ResolvedAdminPin;
-
-                if (string.IsNullOrWhiteSpace(adminPin))
-                {
-                    return BadRequest(ApiResponse<string>.CreateFailure("Admin PIN is required.", "Validation Error", HttpContext.TraceIdentifier));
-                }
-
-                if (!VerifySecurityPin(tenantId, adminPin))
-                {
-                    await LogSecurityAuditAsync(tenantId, "InvalidPin", request.EmployeeId.ToString(), "Invalid Admin PIN attempt during password view.");
-                    return BadRequest(ApiResponse<string>.CreateFailure("Invalid admin PIN.", "Validation Error", HttpContext.TraceIdentifier));
-                }
-
-                var secrets = GetEmployeeSecrets(tenantId);
-                if (!secrets.TryGetValue(request.EmployeeId, out var encryptedPassword))
-                {
-                    return NotFound(ApiResponse<string>.CreateFailure("Encrypted password not found for this employee.", "Not Found", HttpContext.TraceIdentifier));
-                }
-
-                var decrypted = DecryptPassword(encryptedPassword);
-
-                await LogSecurityAuditAsync(tenantId, "ViewPassword", request.EmployeeId.ToString(), "Viewed employee password.");
-
-                return Success(decrypted, "Password decrypted successfully.");
-            }
-            catch (Exception ex)
-            {
-                return Failure<string>(ex.Message, "Failed to reveal password.");
-            }
-        }
-
         private string GetSecurityPinFilePath(Guid tenantId)
         {
             var dir = System.IO.Path.Combine(AppContext.BaseDirectory, "settings");
@@ -718,16 +863,6 @@ namespace Aquora.API.Controllers
                 System.IO.Directory.CreateDirectory(dir);
             }
             return System.IO.Path.Combine(dir, $"security-settings-{tenantId}.json");
-        }
-
-        private string GetEmployeeSecretsFilePath(Guid tenantId)
-        {
-            var dir = System.IO.Path.Combine(AppContext.BaseDirectory, "settings");
-            if (!System.IO.Directory.Exists(dir))
-            {
-                System.IO.Directory.CreateDirectory(dir);
-            }
-            return System.IO.Path.Combine(dir, $"employee-secrets-{tenantId}.json");
         }
 
         private string? GetSecurityPinHash(Guid tenantId)
@@ -772,58 +907,6 @@ namespace Aquora.API.Controllers
             System.IO.File.WriteAllText(path, json);
         }
 
-        private static readonly byte[] AesKey = System.Text.Encoding.UTF8.GetBytes("AquoraSuperSecretKeyPlaceholder123").Take(32).ToArray();
-        private static readonly byte[] AesIv = System.Text.Encoding.UTF8.GetBytes("AquoraIVPlh12345").Take(16).ToArray();
-
-        private string EncryptPassword(string plainText)
-        {
-            using var aes = System.Security.Cryptography.Aes.Create();
-            aes.Key = AesKey;
-            aes.IV = AesIv;
-            using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
-            using var ms = new System.IO.MemoryStream();
-            using (var cs = new System.Security.Cryptography.CryptoStream(ms, encryptor, System.Security.Cryptography.CryptoStreamMode.Write))
-            using (var sw = new System.IO.StreamWriter(cs))
-            {
-                sw.Write(plainText);
-            }
-            return Convert.ToBase64String(ms.ToArray());
-        }
-
-        private string DecryptPassword(string cipherText)
-        {
-            using var aes = System.Security.Cryptography.Aes.Create();
-            aes.Key = AesKey;
-            aes.IV = AesIv;
-            using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
-            using var ms = new System.IO.MemoryStream(Convert.FromBase64String(cipherText));
-            using var cs = new System.Security.Cryptography.CryptoStream(ms, decryptor, System.Security.Cryptography.CryptoStreamMode.Read);
-            using var sr = new System.IO.StreamReader(cs);
-            return sr.ReadToEnd();
-        }
-
-        private Dictionary<Guid, string> GetEmployeeSecrets(Guid tenantId)
-        {
-            var path = GetEmployeeSecretsFilePath(tenantId);
-            if (!System.IO.File.Exists(path)) return new Dictionary<Guid, string>();
-            try
-            {
-                var json = System.IO.File.ReadAllText(path);
-                return System.Text.Json.JsonSerializer.Deserialize<Dictionary<Guid, string>>(json) ?? new Dictionary<Guid, string>();
-            }
-            catch
-            {
-                return new Dictionary<Guid, string>();
-            }
-        }
-
-        private void SaveEmployeeSecrets(Guid tenantId, Dictionary<Guid, string> secrets)
-        {
-            var path = GetEmployeeSecretsFilePath(tenantId);
-            var json = System.Text.Json.JsonSerializer.Serialize(secrets);
-            System.IO.File.WriteAllText(path, json);
-        }
-
         private async Task LogSecurityAuditAsync(Guid tenantId, string action, string? employeeId, string reason)
         {
             try
@@ -861,6 +944,7 @@ namespace Aquora.API.Controllers
         {
             try
             {
+                var tenantId = GetTenantId();
                 var hasOwner = await _tenantContext.Roles.AnyAsync(r => r.Code.ToUpper() == "OWNER" || r.Name.ToLower() == "owner");
                 if (!hasOwner)
                 {
@@ -869,14 +953,47 @@ namespace Aquora.API.Controllers
                         Id = Guid.NewGuid(),
                         Name = "Owner",
                         Code = "OWNER",
-                        TenantId = (await _tenantContext.Roles.Select(r => r.TenantId).FirstOrDefaultAsync()),
+                        TenantId = tenantId,
                         CreatedAt = DateTime.UtcNow,
                         CreatedBy = "System"
                     });
                     await _tenantContext.SaveChangesAsync();
                 }
 
+                var hasAccountant = await _tenantContext.Roles.AnyAsync(r => r.Code.ToUpper() == "ACCOUNTANT" || r.Name.ToLower() == "accountant");
+                if (!hasAccountant)
+                {
+                    var accountantRole = new Role
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Accountant",
+                        Code = "ACCOUNTANT",
+                        TenantId = tenantId,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "System"
+                    };
+                    _tenantContext.Roles.Add(accountantRole);
+                    await _tenantContext.SaveChangesAsync();
+
+                    var companyAdminRole = await _tenantContext.Roles.FirstOrDefaultAsync(r => r.Code.ToUpper() == "COMPANYADMIN" || r.Name.ToLower() == "companyadmin");
+                    if (companyAdminRole != null)
+                    {
+                        var adminPerms = await _tenantContext.RolePermissions.Where(rp => rp.RoleId == companyAdminRole.Id).ToListAsync();
+                        foreach (var ap in adminPerms)
+                        {
+                            _tenantContext.RolePermissions.Add(new RolePermission
+                            {
+                                RoleId = accountantRole.Id,
+                                PermissionId = ap.PermissionId,
+                                TenantId = tenantId
+                            });
+                        }
+                        await _tenantContext.SaveChangesAsync();
+                    }
+                }
+
                 var roles = await _tenantContext.Roles
+                    .Where(r => r.Code.ToUpper() != "ADMIN" && r.Name.ToLower() != "admin")
                     .OrderBy(r => r.Name)
                     .ToListAsync();
                 return Success(roles, "Roles loaded successfully.");

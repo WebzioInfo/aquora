@@ -10,7 +10,8 @@ import { setCompanyPrefs } from '../utils/dateFormatter'
 import {
   LayoutDashboard, Factory, Package, TrendingUp, Users, Truck,
   Settings, ChevronRight, Play, Plus, X, Layers, Workflow, CalendarClock,
-  Droplet, Boxes, Tag, ShoppingCart, PieChart, IdCard, Beaker
+  Droplet, Droplets, Boxes, Tag, ShoppingCart, PieChart, IdCard, Beaker,
+  Sliders, FlaskConical
 } from 'lucide-react'
 import EnterpriseSidebar from '../components/ui/EnterpriseSidebar'
 import EnterpriseTopbar from '../components/ui/EnterpriseTopbar'
@@ -41,6 +42,22 @@ export const QCLayout: React.FC = () => {
             dateFormat: data.dateFormat || 'dd MMM yyyy',
             timeFormat: data.timeFormat || '12h'
           })
+          try {
+            localStorage.setItem('aquzio_company_profile', JSON.stringify({
+              name: data.name,
+              displayName: data.displayName || data.name,
+              email: data.email,
+              phone: data.phone,
+              gstNumber: data.gstNumber,
+              address: data.address,
+              city: data.city,
+              state: data.state,
+              country: data.country,
+              pincode: data.pincode || data.postalCode,
+              logoUrl: data.logoUrl,
+              currency: data.currency
+            }))
+          } catch {}
         }
       } catch (err) {
         console.error('Failed to prefetch company settings:', err)
@@ -56,16 +73,10 @@ export const QCLayout: React.FC = () => {
   }
 
   const sidebarItems = [
-    { label: 'Dashboard', path: '/qc/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
-    {
-      label: 'Quality Control',
-      icon: <Beaker className="w-5 h-5" />,
-      children: [
-        { label: 'Water Test Reports', path: '/qc/water-tests' },
-        { label: 'Laboratory Parameters', path: '/qc/parameters' },
-        { label: 'QC Settings', path: '/qc/settings' },
-      ]
-    },
+    { label: 'Quality Control', path: '/qc/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
+    { label: 'Water Test Reports', path: '/qc/water-tests', icon: <Droplets className="w-5 h-5" /> },
+    { label: 'Laboratory Parameters', path: '/qc/parameters', icon: <Sliders className="w-5 h-5" /> },
+    { label: 'QC Settings', path: '/qc/settings', icon: <Settings className="w-5 h-5" /> },
   ]
 
   const getBreadcrumbs = () => {

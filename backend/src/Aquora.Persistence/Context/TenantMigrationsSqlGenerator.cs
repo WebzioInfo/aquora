@@ -80,6 +80,14 @@ namespace Aquora.Persistence.Context
                 // 7. DROP INDEX -> DROP INDEX IF EXISTS
                 sql = System.Text.RegularExpressions.Regex.Replace(sql, @"\bDROP\s+INDEX\b(?!\s*IF\s+EXISTS\b)", "DROP INDEX IF EXISTS", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
+                // 8. ALTER TABLE ... ADD CONSTRAINT -> Wrap in DO block to gracefully ignore duplicate_object (SQLSTATE 42710)
+                if (System.Text.RegularExpressions.Regex.IsMatch(sql, @"\bALTER\s+TABLE\s+.+\bADD\s+CONSTRAINT\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+                    && !sql.TrimStart().StartsWith("DO $$", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    var cleanSql = sql.Trim().TrimEnd(';');
+                    sql = $"DO $$ BEGIN {cleanSql}; EXCEPTION WHEN duplicate_object THEN NULL; END $$;";
+                }
+
                 if (sql != originalSql)
                 {
                     bool setSuccessful = false;
@@ -157,8 +165,12 @@ namespace Aquora.Persistence.Context
                         if (fk.Schema == "public" || string.IsNullOrEmpty(fk.Schema))
                             fk.Schema = schema;
                         
-                        // Keep platform tables in public schema
-                        if (PlatformTables.Contains(fk.PrincipalTable))
+                        // Defensive sanitization: Prevent "Id" from ever being treated as a PostgreSQL schema
+                        if (string.Equals(fk.PrincipalSchema, "Id", System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            fk.PrincipalSchema = PlatformTables.Contains(fk.PrincipalTable) ? "public" : schema;
+                        }
+                        else if (PlatformTables.Contains(fk.PrincipalTable))
                         {
                             fk.PrincipalSchema = "public";
                         }
@@ -225,7 +237,12 @@ namespace Aquora.Persistence.Context
                     if (addFk.Schema == "public" || string.IsNullOrEmpty(addFk.Schema))
                         addFk.Schema = schema;
                     
-                    if (PlatformTables.Contains(addFk.PrincipalTable))
+                    // Defensive sanitization: Prevent "Id" from ever being treated as a PostgreSQL schema
+                    if (string.Equals(addFk.PrincipalSchema, "Id", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        addFk.PrincipalSchema = PlatformTables.Contains(addFk.PrincipalTable) ? "public" : schema;
+                    }
+                    else if (PlatformTables.Contains(addFk.PrincipalTable))
                     {
                         addFk.PrincipalSchema = "public";
                     }
@@ -273,6 +290,17 @@ namespace Aquora.Persistence.Context
                 case DeleteDataOperation deleteData:
                     if (deleteData.Schema == "public" || string.IsNullOrEmpty(deleteData.Schema))
                         deleteData.Schema = schema;
+                    break;
+
+                case SqlOperation sqlOp:
+                    if (!string.IsNullOrWhiteSpace(sqlOp.Sql))
+                    {
+                        sqlOp.Sql = System.Text.RegularExpressions.Regex.Replace(
+                            sqlOp.Sql,
+                            @"\b(ALTER\s+TABLE|UPDATE|INSERT\s+INTO|FROM|JOIN)\s+""(Companies|BankLedgerEntries|OperationsIssueAffectedMachines|OperationsIssues|RawMaterials|Products|Brands)""",
+                            $"$1 \"{schema}\".\"$2\"",
+                            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    }
                     break;
             }
         }

@@ -275,5 +275,26 @@ namespace Aquora.API.Controllers
                 return Failure<System.Collections.Generic.List<Aquora.Application.DTOs.SimpleAccounts.BankLedgerAuditEntryDto>>(ex.Message, "Failed to load salary payment audit history.");
             }
         }
+
+        [HttpGet("employees/{employeeId:guid}/statement")]
+        public async Task<ActionResult<ApiResponse<EmployeeSalaryStatementReportDto>>> GetEmployeeSalaryStatement(
+            Guid employeeId,
+            [FromQuery] string? month = null)
+        {
+            try
+            {
+                var result = await _payrollService.GetEmployeeSalaryStatementReportAsync(employeeId, month);
+                return Success(result, "Employee salary statement and history loaded successfully.");
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<EmployeeSalaryStatementReportDto>.CreateFailure(ex.Message, "Not Found", HttpContext.TraceIdentifier));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load employee salary statement for employee {EmployeeId}", employeeId);
+                return Failure<EmployeeSalaryStatementReportDto>(ex.Message, "Failed to load employee salary statement.");
+            }
+        }
     }
 }

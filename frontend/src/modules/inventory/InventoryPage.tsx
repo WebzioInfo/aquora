@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../services/api'
@@ -6,6 +6,8 @@ import { productsService } from '../../services/products'
 import { rawMaterialsService } from '../../services/rawMaterials'
 import { brandService } from '../../services/brands'
 import { RAW_MATERIAL_CATEGORIES } from '../../utils/rawMaterialCategories'
+import { useAuthStore } from '../../store/useAuthStore'
+import { isOwnerUser } from '../../utils/permissions'
 import { Search, Plus, Edit2, Trash2, ChevronDown, ChevronUp, RefreshCw, RotateCcw, Package, X } from 'lucide-react'
 import EnterpriseModal from '../../components/ui/EnterpriseModal'
 import EnterpriseInput from '../../components/ui/EnterpriseInput'
@@ -332,9 +334,20 @@ interface InventoryPageProps {
 export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToast }) => {
   const queryClient = useQueryClient()
   const location = useLocation()
+  const navigate = useNavigate()
+  const { user } = useAuthStore()
+  const isOwner = isOwnerUser(user)
+
   const searchParams = new URLSearchParams(location.search)
   const queryTab = searchParams.get('tab') as 'products' | 'raw_materials' | 'brands' | null
   const inventoryTab = queryTab || 'products'
+
+  useEffect(() => {
+    if (isOwner && queryTab === 'brands') {
+      navigate('/company/dashboard', { replace: true })
+    }
+  }, [isOwner, queryTab, navigate])
+
   const [globalSearch, setGlobalSearch] = useState('')
   const [productsPage, setProductsPage] = useState(1)
   const [productsSearch, setProductsSearch] = useState('')
@@ -347,6 +360,34 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
   const [productFormIsActive, setProductFormIsActive] = useState(true)
   const [productFormOpeningStock, setProductFormOpeningStock] = useState('0')
   const [productFormCurrentStock, setProductFormCurrentStock] = useState('0')
+  const [editingCostProductId, setEditingCostProductId] = useState<string | null>(null)
+  const [editingCostValue, setEditingCostValue] = useState<string>('')
+
+  const updateCostMutation = useMutation({
+    mutationFn: ({ id, unitCost }: { id: string; unitCost: number }) => productsService.updateUnitCost(id, unitCost),
+    onSuccess: (res) => {
+      if (res.success) {
+        showToast('Product unit cost updated successfully.', 'success')
+        queryClient.invalidateQueries({ queryKey: ['productsList'] })
+        queryClient.invalidateQueries({ queryKey: ['products'] })
+        setEditingCostProductId(null)
+      } else {
+        showToast(res.message || 'Failed to update unit cost.', 'error')
+      }
+    },
+    onError: (err: any) => {
+      showToast(err?.response?.data?.message || 'Error updating unit cost.', 'error')
+    }
+  })
+
+  const handleSaveCost = (productId: string) => {
+    const cost = parseFloat(editingCostValue)
+    if (isNaN(cost) || cost < 0) {
+      showToast('Please enter a valid numeric unit cost (>= 0).', 'warning')
+      return
+    }
+    updateCostMutation.mutate({ id: productId, unitCost: cost })
+  }
   const [brandsPage, setBrandsPage] = useState(1)
   const [brandsSearch, setBrandsSearch] = useState('')
   const [isAddBrandModalOpen, setIsAddBrandModalOpen] = useState(false)
@@ -372,8 +413,8 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
   const [rawMaterialFormCurrentStock, setRawMaterialFormCurrentStock] = useState('0')
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
   const toggleRow = (id: string) => setExpandedRowId(prev => prev === id ? null : id)
-  const navigate = useNavigate()
   const switchTab = (tab: 'products' | 'raw_materials' | 'brands') => {
+    if (isOwner && tab === 'brands') return
     navigate(`?tab=${tab}`); setExpandedRowId(null); setGlobalSearch('')
     setProductsSearch(''); setRawMaterialsSearch(''); setBrandsSearch('')
   }
@@ -385,7 +426,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
   const { data: paginatedBrandsData, isLoading: brandsLoading, refetch: refetchBrands } = useQuery({
     queryKey: ['brandsPaginated', brandsPage, brandsSearch],
     queryFn: async () => (await brandService.getBrands(brandsPage, 10, brandsSearch)).data,
-    enabled: inventoryTab === 'brands'
+    enabled: !isOwner && inventoryTab === 'brands'
   })
   const { data: brands = [] } = useQuery({
     queryKey: ['brandsDropdown'],
@@ -532,6 +573,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                     <thead><tr className="bg-[#F8FAFC] border-b border-[#E5E7EB] text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none h-[36px]">
                       <th className="py-2 px-4">Product Name</th><th className="py-2 px-4">Brand</th>
                       <th className="py-2 px-4 text-right">Current Stock</th><th className="py-2 px-4">Unit</th>
+                      <th className="py-2 px-4 text-right">Unit Cost</th>
                       <th className="py-2 px-4 text-center">Status</th><th className="py-2 px-4">Last Updated</th>
                       {canWrite && <th className="py-2 px-4 text-center">Actions</th>}
                       <th className="py-2 px-4 text-center">Movements</th>
@@ -546,6 +588,58 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                               <td className="py-2 px-4 text-slate-600">{row.brandName}</td>
                               <td className="py-2 px-4 text-right font-black tabular-nums text-slate-900">{row.currentStock ?? 0}</td>
                               <td className="py-2 px-4 text-slate-500 text-[12px]">Cases</td>
+                              <td className="py-2 px-4 text-right font-semibold text-slate-800" onClick={e => e.stopPropagation()}>
+                                {editingCostProductId === row.id ? (
+                                  <div className="flex items-center justify-end gap-1">
+                                    <span className="text-xs text-slate-500 font-bold">₹</span>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      value={editingCostValue}
+                                      onChange={(e) => setEditingCostValue(e.target.value)}
+                                      className="w-20 h-7 px-1.5 text-xs font-bold border border-blue-400 rounded focus:outline-none bg-white text-right"
+                                      autoFocus
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleSaveCost(row.id)
+                                        if (e.key === 'Escape') setEditingCostProductId(null)
+                                      }}
+                                    />
+                                    <button
+                                      onClick={() => handleSaveCost(row.id)}
+                                      disabled={updateCostMutation.isPending}
+                                      className="h-7 px-2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded cursor-pointer transition-all"
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingCostProductId(null)}
+                                      className="h-7 px-1.5 text-slate-400 hover:text-slate-700 text-[10px] font-semibold rounded cursor-pointer"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <span className="font-bold tabular-nums text-slate-800">
+                                      ₹{(row.costPrice ?? row.unitCost ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                    {canWrite && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setEditingCostProductId(row.id)
+                                          setEditingCostValue((row.costPrice ?? row.unitCost ?? 0).toString())
+                                        }}
+                                        title="Edit Unit Cost"
+                                        className="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-1 rounded transition-colors cursor-pointer"
+                                      >
+                                        <Edit2 className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
                               <td className="py-2 px-4 text-center"><span className={`text-[9px] font-black px-2 py-0.5 rounded-full border uppercase tracking-wider ${row.isActive ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>{row.isActive ? 'Active' : 'Inactive'}</span></td>
                               <td className="py-2 px-4 text-slate-500 text-[12px]">{fmtDate(row.updatedAt || row.createdAt)}</td>
                               {canWrite && <td className="py-2 px-4 text-center" onClick={e => e.stopPropagation()}><div className="flex items-center justify-center gap-1">
@@ -558,7 +652,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                                 </button>
                               </td>
                             </tr>
-                            {isExp && <tr><td colSpan={canWrite ? 8 : 7} className="p-0"><ProductMovementPanel productId={row.id} currentStock={row.currentStock ?? 0} /></td></tr>}
+                            {isExp && <tr><td colSpan={canWrite ? 9 : 8} className="p-0"><ProductMovementPanel productId={row.id} currentStock={row.currentStock ?? 0} /></td></tr>}
                           </React.Fragment>
                         )
                       })}

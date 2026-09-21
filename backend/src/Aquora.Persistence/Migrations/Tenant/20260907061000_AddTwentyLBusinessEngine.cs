@@ -15,47 +15,149 @@ namespace Aquora.Persistence.Migrations.Tenant;
 [Migration("20260907061000_AddTwentyLBusinessEngine")]
 public partial class AddTwentyLBusinessEngine : Migration
 {
+    private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.CreateTable(name: "TwentyLDeliveries", schema: "public", columns: table => new
-        {
-            Id = table.Column<Guid>(nullable: false), TenantId = table.Column<Guid>(nullable: false), CompanyId = table.Column<Guid>(nullable: false),
-            CustomerId = table.Column<Guid>(nullable: false), DistributorId = table.Column<Guid>(nullable: true), ProductId = table.Column<Guid>(nullable: false), RateRuleId = table.Column<Guid>(nullable: true), SalesTransactionId = table.Column<Guid>(nullable: true),
-            RefillType = table.Column<string>(nullable: false), JarOwnerType = table.Column<string>(nullable: false), OrderedQuantity = table.Column<int>(nullable: false), FilledDeliveredQuantity = table.Column<int>(nullable: false), EmptyCollectedQuantity = table.Column<int>(nullable: false), FailedQuantity = table.Column<int>(nullable: false),
-            AppliedUnitRate = table.Column<decimal>(nullable: false), DiscountAmount = table.Column<decimal>(nullable: false), TaxAmount = table.Column<decimal>(nullable: false), TotalAmount = table.Column<decimal>(nullable: false), AmountCollected = table.Column<decimal>(nullable: false), PaymentMode = table.Column<string>(nullable: false), Status = table.Column<string>(nullable: false),
-            RouteReference = table.Column<string>(nullable: true), VehicleReference = table.Column<string>(nullable: true), DriverReference = table.Column<string>(nullable: true), DeliveredAt = table.Column<DateTime>(nullable: false), FailureReason = table.Column<string>(nullable: true), Notes = table.Column<string>(nullable: true),
-            CreatedAt = table.Column<DateTime>(nullable: false), CreatedBy = table.Column<string>(nullable: false), UpdatedAt = table.Column<DateTime>(nullable: true), UpdatedBy = table.Column<string>(nullable: true), CreatedByIP = table.Column<string>(nullable: true), UpdatedByIP = table.Column<string>(nullable: true)
-        }, constraints: table => table.PrimaryKey("PK_TwentyLDeliveries", x => x.Id));
+        migrationBuilder.Sql($@"
+            CREATE TABLE IF NOT EXISTS ""{_schema}"".""TwentyLDeliveries"" (
+                ""Id"" uuid NOT NULL PRIMARY KEY,
+                ""TenantId"" uuid NOT NULL,
+                ""CompanyId"" uuid NOT NULL,
+                ""CustomerId"" uuid NOT NULL,
+                ""DistributorId"" uuid NULL,
+                ""ProductId"" uuid NOT NULL,
+                ""RateRuleId"" uuid NULL,
+                ""SalesTransactionId"" uuid NULL,
+                ""RefillType"" text NOT NULL DEFAULT 'DIRECT_CUSTOMER_REFILL',
+                ""JarOwnerType"" text NOT NULL DEFAULT 'COMPANY',
+                ""OrderedQuantity"" integer NOT NULL DEFAULT 0,
+                ""FilledDeliveredQuantity"" integer NOT NULL DEFAULT 0,
+                ""EmptyCollectedQuantity"" integer NOT NULL DEFAULT 0,
+                ""FailedQuantity"" integer NOT NULL DEFAULT 0,
+                ""AppliedUnitRate"" numeric NOT NULL DEFAULT 0.0,
+                ""DiscountAmount"" numeric NOT NULL DEFAULT 0.0,
+                ""TaxAmount"" numeric NOT NULL DEFAULT 0.0,
+                ""TotalAmount"" numeric NOT NULL DEFAULT 0.0,
+                ""AmountCollected"" numeric NOT NULL DEFAULT 0.0,
+                ""PaymentMode"" text NOT NULL DEFAULT 'CREDIT',
+                ""Status"" text NOT NULL DEFAULT 'COMPLETED',
+                ""RouteReference"" text NULL,
+                ""VehicleReference"" text NULL,
+                ""DriverReference"" text NULL,
+                ""DeliveredAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ""FailureReason"" text NULL,
+                ""Notes"" text NULL,
+                ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                ""UpdatedAt"" timestamp with time zone NULL,
+                ""UpdatedBy"" text NULL,
+                ""CreatedByIP"" text NULL,
+                ""UpdatedByIP"" text NULL
+            );
 
-        migrationBuilder.CreateTable(name: "TwentyLDistributorProfiles", schema: "public", columns: table => new
-        {
-            Id = table.Column<Guid>(nullable: false), TenantId = table.Column<Guid>(nullable: false), CompanyId = table.Column<Guid>(nullable: false), CustomerId = table.Column<Guid>(nullable: false),
-            DistributorType = table.Column<string>(nullable: false), JarOwnershipModel = table.Column<string>(nullable: false), VehicleOwnership = table.Column<string>(nullable: false), RouteOwnership = table.Column<string>(nullable: false), PricingModel = table.Column<string>(nullable: false), CommissionModel = table.Column<string>(nullable: false), CreditLimit = table.Column<decimal>(nullable: false), SecurityDeposit = table.Column<decimal>(nullable: false), PaymentTerms = table.Column<string>(nullable: true), EffectiveFrom = table.Column<DateTime>(nullable: false), EffectiveTo = table.Column<DateTime>(nullable: true), IsActive = table.Column<bool>(nullable: false), AgreementReference = table.Column<string>(nullable: true),
-            CreatedAt = table.Column<DateTime>(nullable: false), CreatedBy = table.Column<string>(nullable: false), UpdatedAt = table.Column<DateTime>(nullable: true), UpdatedBy = table.Column<string>(nullable: true), CreatedByIP = table.Column<string>(nullable: true), UpdatedByIP = table.Column<string>(nullable: true), IsDeleted = table.Column<bool>(nullable: false), DeletedAt = table.Column<DateTime>(nullable: true), DeletedBy = table.Column<string>(nullable: true)
-        }, constraints: table => { table.PrimaryKey("PK_TwentyLDistributorProfiles", x => x.Id); table.ForeignKey("FK_TwentyLDistributorProfiles_Customers_CustomerId", x => x.CustomerId, "public", "Customers", "Id", onDelete: ReferentialAction.Cascade); });
+            CREATE TABLE IF NOT EXISTS ""{_schema}"".""TwentyLDistributorProfiles"" (
+                ""Id"" uuid NOT NULL PRIMARY KEY,
+                ""TenantId"" uuid NOT NULL,
+                ""CompanyId"" uuid NOT NULL,
+                ""CustomerId"" uuid NOT NULL,
+                ""DistributorType"" text NOT NULL DEFAULT 'EXTERNAL',
+                ""JarOwnershipModel"" text NOT NULL DEFAULT 'MIXED',
+                ""VehicleOwnership"" text NOT NULL DEFAULT 'DISTRIBUTOR',
+                ""RouteOwnership"" text NOT NULL DEFAULT 'DISTRIBUTOR',
+                ""PricingModel"" text NOT NULL DEFAULT 'RATE_CARD',
+                ""CommissionModel"" text NOT NULL DEFAULT 'NONE',
+                ""CreditLimit"" numeric NOT NULL DEFAULT 0.0,
+                ""SecurityDeposit"" numeric NOT NULL DEFAULT 0.0,
+                ""PaymentTerms"" text NULL,
+                ""EffectiveFrom"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ""EffectiveTo"" timestamp with time zone NULL,
+                ""IsActive"" boolean NOT NULL DEFAULT true,
+                ""AgreementReference"" text NULL,
+                ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                ""UpdatedAt"" timestamp with time zone NULL,
+                ""UpdatedBy"" text NULL,
+                ""CreatedByIP"" text NULL,
+                ""UpdatedByIP"" text NULL,
+                ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                ""DeletedAt"" timestamp with time zone NULL,
+                ""DeletedBy"" text NULL
+            );
 
-        migrationBuilder.CreateTable(name: "TwentyLJarMovements", schema: "public", columns: table => new
-        {
-            Id = table.Column<Guid>(nullable: false), TenantId = table.Column<Guid>(nullable: false), CompanyId = table.Column<Guid>(nullable: false), ProductId = table.Column<Guid>(nullable: true), OwnerCustomerId = table.Column<Guid>(nullable: true), FromCustomerId = table.Column<Guid>(nullable: true), ToCustomerId = table.Column<Guid>(nullable: true), OwnerType = table.Column<string>(nullable: false), FromLocationType = table.Column<string>(nullable: false), ToLocationType = table.Column<string>(nullable: false), FromLocationReference = table.Column<string>(nullable: true), ToLocationReference = table.Column<string>(nullable: true), MovementType = table.Column<string>(nullable: false), ContainerStatus = table.Column<string>(nullable: false), Quantity = table.Column<int>(nullable: false), ReferenceId = table.Column<Guid>(nullable: true), ReferenceType = table.Column<string>(nullable: true), OccurredAt = table.Column<DateTime>(nullable: false), Reason = table.Column<string>(nullable: true), Notes = table.Column<string>(nullable: true), CreatedAt = table.Column<DateTime>(nullable: false), CreatedBy = table.Column<string>(nullable: false), UpdatedAt = table.Column<DateTime>(nullable: true), UpdatedBy = table.Column<string>(nullable: true), CreatedByIP = table.Column<string>(nullable: true), UpdatedByIP = table.Column<string>(nullable: true)
-        }, constraints: table => table.PrimaryKey("PK_TwentyLJarMovements", x => x.Id));
+            CREATE TABLE IF NOT EXISTS ""{_schema}"".""TwentyLJarMovements"" (
+                ""Id"" uuid NOT NULL PRIMARY KEY,
+                ""TenantId"" uuid NOT NULL,
+                ""CompanyId"" uuid NOT NULL,
+                ""ProductId"" uuid NULL,
+                ""OwnerCustomerId"" uuid NULL,
+                ""FromCustomerId"" uuid NULL,
+                ""ToCustomerId"" uuid NULL,
+                ""OwnerType"" text NOT NULL DEFAULT 'COMPANY',
+                ""FromLocationType"" text NOT NULL DEFAULT 'PLANT',
+                ""ToLocationType"" text NOT NULL DEFAULT 'PLANT',
+                ""FromLocationReference"" text NULL,
+                ""ToLocationReference"" text NULL,
+                ""MovementType"" text NOT NULL DEFAULT '',
+                ""ContainerStatus"" text NOT NULL DEFAULT 'EMPTY',
+                ""Quantity"" integer NOT NULL DEFAULT 0,
+                ""ReferenceId"" uuid NULL,
+                ""ReferenceType"" text NULL,
+                ""OccurredAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ""Reason"" text NULL,
+                ""Notes"" text NULL,
+                ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                ""UpdatedAt"" timestamp with time zone NULL,
+                ""UpdatedBy"" text NULL,
+                ""CreatedByIP"" text NULL,
+                ""UpdatedByIP"" text NULL
+            );
 
-        migrationBuilder.CreateTable(name: "TwentyLRateRules", schema: "public", columns: table => new
-        {
-            Id = table.Column<Guid>(nullable: false), TenantId = table.Column<Guid>(nullable: false), CompanyId = table.Column<Guid>(nullable: false), ProductId = table.Column<Guid>(nullable: false), CustomerId = table.Column<Guid>(nullable: true), PartyType = table.Column<string>(nullable: false), RefillType = table.Column<string>(nullable: false), JarOwnerType = table.Column<string>(nullable: false), MinimumQuantity = table.Column<decimal>(nullable: false), UnitRate = table.Column<decimal>(nullable: false), DiscountRate = table.Column<decimal>(nullable: true), TaxRate = table.Column<decimal>(nullable: true), EffectiveFrom = table.Column<DateTime>(nullable: false), EffectiveTo = table.Column<DateTime>(nullable: true), RequiresAuthorization = table.Column<bool>(nullable: false), IsActive = table.Column<bool>(nullable: false), Notes = table.Column<string>(nullable: true), CreatedAt = table.Column<DateTime>(nullable: false), CreatedBy = table.Column<string>(nullable: false), UpdatedAt = table.Column<DateTime>(nullable: true), UpdatedBy = table.Column<string>(nullable: true), CreatedByIP = table.Column<string>(nullable: true), UpdatedByIP = table.Column<string>(nullable: true), IsDeleted = table.Column<bool>(nullable: false), DeletedAt = table.Column<DateTime>(nullable: true), DeletedBy = table.Column<string>(nullable: true)
-        }, constraints: table => table.PrimaryKey("PK_TwentyLRateRules", x => x.Id));
+            CREATE TABLE IF NOT EXISTS ""{_schema}"".""TwentyLRateRules"" (
+                ""Id"" uuid NOT NULL PRIMARY KEY,
+                ""TenantId"" uuid NOT NULL,
+                ""CompanyId"" uuid NOT NULL,
+                ""ProductId"" uuid NOT NULL,
+                ""CustomerId"" uuid NULL,
+                ""PartyType"" text NOT NULL DEFAULT 'ANY',
+                ""RefillType"" text NOT NULL DEFAULT 'COMPANY_TO_DISTRIBUTOR',
+                ""JarOwnerType"" text NOT NULL DEFAULT 'ANY',
+                ""MinimumQuantity"" numeric NOT NULL DEFAULT 1,
+                ""UnitRate"" numeric NOT NULL DEFAULT 0.0,
+                ""DiscountRate"" numeric NULL,
+                ""TaxRate"" numeric NULL,
+                ""EffectiveFrom"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ""EffectiveTo"" timestamp with time zone NULL,
+                ""RequiresAuthorization"" boolean NOT NULL DEFAULT false,
+                ""IsActive"" boolean NOT NULL DEFAULT true,
+                ""Notes"" text NULL,
+                ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                ""UpdatedAt"" timestamp with time zone NULL,
+                ""UpdatedBy"" text NULL,
+                ""CreatedByIP"" text NULL,
+                ""UpdatedByIP"" text NULL,
+                ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                ""DeletedAt"" timestamp with time zone NULL,
+                ""DeletedBy"" text NULL
+            );
 
-        migrationBuilder.CreateIndex(name: "IX_TwentyLDeliveries_TenantId_CustomerId_DeliveredAt", schema: "public", table: "TwentyLDeliveries", columns: new[] { "TenantId", "CustomerId", "DeliveredAt" });
-        migrationBuilder.CreateIndex(name: "IX_TwentyLDistributorProfiles_CustomerId", schema: "public", table: "TwentyLDistributorProfiles", column: "CustomerId");
-        migrationBuilder.CreateIndex(name: "IX_TwentyLDistributorProfiles_TenantId_CustomerId", schema: "public", table: "TwentyLDistributorProfiles", columns: new[] { "TenantId", "CustomerId" }, unique: true);
-        migrationBuilder.CreateIndex(name: "IX_TwentyLJarMovements_Ledger", schema: "public", table: "TwentyLJarMovements", columns: new[] { "TenantId", "OwnerType", "OwnerCustomerId", "ToLocationType", "ToCustomerId", "OccurredAt" });
-        migrationBuilder.CreateIndex(name: "IX_TwentyLRateRules_Effective", schema: "public", table: "TwentyLRateRules", columns: new[] { "TenantId", "ProductId", "CustomerId", "EffectiveFrom", "EffectiveTo" });
+            CREATE INDEX IF NOT EXISTS ""IX_TwentyLDeliveries_TenantId_CustomerId_DeliveredAt"" ON ""{_schema}"".""TwentyLDeliveries"" (""TenantId"", ""CustomerId"", ""DeliveredAt"");
+            CREATE INDEX IF NOT EXISTS ""IX_TwentyLDistributorProfiles_CustomerId"" ON ""{_schema}"".""TwentyLDistributorProfiles"" (""CustomerId"");
+            CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLDistributorProfiles_TenantId_CustomerId"" ON ""{_schema}"".""TwentyLDistributorProfiles"" (""TenantId"", ""CustomerId"");
+            CREATE INDEX IF NOT EXISTS ""IX_TwentyLJarMovements_Ledger"" ON ""{_schema}"".""TwentyLJarMovements"" (""TenantId"", ""OwnerType"", ""OwnerCustomerId"", ""ToLocationType"", ""ToCustomerId"", ""OccurredAt"");
+            CREATE INDEX IF NOT EXISTS ""IX_TwentyLRateRules_Effective"" ON ""{_schema}"".""TwentyLRateRules"" (""TenantId"", ""ProductId"", ""CustomerId"", ""EffectiveFrom"", ""EffectiveTo"");
+        ");
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.DropTable("TwentyLDeliveries", "public");
-        migrationBuilder.DropTable("TwentyLDistributorProfiles", "public");
-        migrationBuilder.DropTable("TwentyLJarMovements", "public");
-        migrationBuilder.DropTable("TwentyLRateRules", "public");
+        migrationBuilder.Sql($@"
+            DROP TABLE IF EXISTS ""{_schema}"".""TwentyLDeliveries"";
+            DROP TABLE IF EXISTS ""{_schema}"".""TwentyLDistributorProfiles"";
+            DROP TABLE IF EXISTS ""{_schema}"".""TwentyLJarMovements"";
+            DROP TABLE IF EXISTS ""{_schema}"".""TwentyLRateRules"";
+        ");
     }
 }

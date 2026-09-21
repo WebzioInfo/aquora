@@ -1,3 +1,5 @@
+using Aquora.Persistence.Context;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -5,14 +7,18 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Aquora.Persistence.Migrations.Tenant
 {
     /// <inheritdoc />
+    [DbContext(typeof(TenantDbContext))]
+    [Migration("20260813115500_AddCountSettingToCustomer")]
     public partial class AddCountSettingToCustomer : Migration
     {
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<int>(
                 name: "CountSetting",
-                schema: "public",
+                schema: _schema,
                 table: "Customers",
                 type: "integer",
                 nullable: false,
@@ -24,7 +30,7 @@ namespace Aquora.Persistence.Migrations.Tenant
         {
             migrationBuilder.DropColumn(
                 name: "CountSetting",
-                schema: "public",
+                schema: _schema,
                 table: "Customers");
         }
     }

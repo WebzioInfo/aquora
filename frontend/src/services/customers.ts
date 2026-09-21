@@ -98,6 +98,17 @@ export interface Customer {
   documentsJson?: string | null
 }
 
+export interface QuickCreateCustomerRequest {
+  customerName: string
+  phone: string
+  customerType?: string
+  assignedVehicle?: string
+  assignedRoute?: string
+  addressLine1?: string
+  city?: string
+  paymentTerms?: string
+}
+
 export interface CreateCustomerRequest {
   companyId: string
   customerType: string
@@ -310,6 +321,11 @@ export const customersService = {
 
   createCustomer: async (data: CreateCustomerRequest): Promise<ApiResponse<Customer>> => {
     const response = await api.post<ApiResponse<Customer>>('/api/v1/customers', data)
+    return response.data
+  },
+
+  quickCreateCustomer: async (data: QuickCreateCustomerRequest): Promise<ApiResponse<Customer>> => {
+    const response = await api.post<ApiResponse<Customer>>('/api/v1/customers/quick', data)
     return response.data
   },
 

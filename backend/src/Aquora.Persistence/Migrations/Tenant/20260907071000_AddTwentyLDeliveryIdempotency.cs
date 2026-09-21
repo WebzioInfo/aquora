@@ -1,3 +1,4 @@
+using System;
 using Aquora.Persistence.Context;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -8,14 +9,21 @@ namespace Aquora.Persistence.Migrations.Tenant;
 [Migration("20260907071000_AddTwentyLDeliveryIdempotency")]
 public partial class AddTwentyLDeliveryIdempotency : Migration
 {
+    private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.AddColumn<string>(name: "IdempotencyKey", schema: "public", table: "TwentyLDeliveries", type: "text", nullable: true);
-        migrationBuilder.CreateIndex(name: "IX_TwentyLDeliveries_TenantId_IdempotencyKey", schema: "public", table: "TwentyLDeliveries", columns: new[] { "TenantId", "IdempotencyKey" }, unique: true);
+        migrationBuilder.Sql($@"
+            ALTER TABLE ""{_schema}"".""TwentyLDeliveries"" ADD COLUMN IF NOT EXISTS ""IdempotencyKey"" text NULL;
+            CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLDeliveries_TenantId_IdempotencyKey"" ON ""{_schema}"".""TwentyLDeliveries"" (""TenantId"", ""IdempotencyKey"");
+        ");
     }
+
     protected override void Down(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.DropIndex(name: "IX_TwentyLDeliveries_TenantId_IdempotencyKey", schema: "public", table: "TwentyLDeliveries");
-        migrationBuilder.DropColumn(name: "IdempotencyKey", schema: "public", table: "TwentyLDeliveries");
+        migrationBuilder.Sql($@"
+            DROP INDEX IF EXISTS ""{_schema}"".""IX_TwentyLDeliveries_TenantId_IdempotencyKey"";
+            ALTER TABLE ""{_schema}"".""TwentyLDeliveries"" DROP COLUMN IF EXISTS ""IdempotencyKey"";
+        ");
     }
 }

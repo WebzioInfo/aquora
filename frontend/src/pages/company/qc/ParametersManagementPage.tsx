@@ -22,7 +22,7 @@ import { EnterpriseButton } from '../../../components/ui/EnterpriseButton';
 import { EnterpriseLoading } from '../../../components/ui/EnterpriseLoading';
 import EnterpriseModal from '../../../components/ui/EnterpriseModal';
 
-import { waterTestApi } from '../../../services/api/waterTest';
+import { waterTestApi, formatParameterLimitsDisplay } from '../../../services/api/waterTest';
 import type { WaterTestParameter } from '../../../services/api/waterTest';
 
 export const ParametersManagementPage: React.FC = () => {
@@ -58,6 +58,11 @@ export const ParametersManagementPage: React.FC = () => {
       return;
     }
 
+    const minWarn = editingParam.minWarning !== undefined && editingParam.minWarning !== null && String(editingParam.minWarning) !== '' ? Number(editingParam.minWarning) : null;
+    const minAcc = editingParam.minAcceptable !== undefined && editingParam.minAcceptable !== null && String(editingParam.minAcceptable) !== '' ? Number(editingParam.minAcceptable) : null;
+    const maxAcc = editingParam.maxAcceptable !== undefined && editingParam.maxAcceptable !== null && String(editingParam.maxAcceptable) !== '' ? Number(editingParam.maxAcceptable) : null;
+    const maxWarn = editingParam.maxWarning !== undefined && editingParam.maxWarning !== null && String(editingParam.maxWarning) !== '' ? Number(editingParam.maxWarning) : null;
+
     setIsSubmitting(true);
     try {
       await waterTestApi.saveParameter({
@@ -65,14 +70,17 @@ export const ParametersManagementPage: React.FC = () => {
         name: editingParam.name.trim(),
         category: editingParam.category || 'PHYSICAL',
         unit: editingParam.unit || '—',
-        minAcceptable: editingParam.minAcceptable !== undefined && editingParam.minAcceptable !== null ? Number(editingParam.minAcceptable) : null,
-        maxAcceptable: editingParam.maxAcceptable !== undefined && editingParam.maxAcceptable !== null ? Number(editingParam.maxAcceptable) : null,
+        minWarning: minWarn,
+        minAcceptable: minAcc,
+        maxAcceptable: maxAcc,
+        maxWarning: maxWarn,
       });
       toast.success(`Parameter '${editingParam.name}' saved successfully.`);
       setEditingParam(null);
       fetchParameters();
-    } catch (error) {
-      toast.error('Failed to save parameter');
+    } catch (error: any) {
+      const msg = error.response?.data?.message || 'Failed to save parameter';
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -118,21 +126,19 @@ export const ParametersManagementPage: React.FC = () => {
     },
     {
       id: 'range',
-      header: 'Standard Limits (BIS IS 14543)',
+      header: 'Standard & Warning Limits',
       cell: (row) => {
-        if (row.category === 'MICROBIOLOGY') {
-          return <span className="text-xs font-semibold text-slate-700">Absent / 250ml or &lt; 20 CFU/ml</span>;
-        }
-        if (row.minAcceptable !== null && row.maxAcceptable !== null) {
-          return <span className="text-xs font-semibold text-slate-700">{row.minAcceptable} - {row.maxAcceptable} {row.unit}</span>;
-        }
-        if (row.maxAcceptable !== null) {
-          return <span className="text-xs font-semibold text-slate-700">Max {row.maxAcceptable} {row.unit}</span>;
-        }
-        if (row.minAcceptable !== null) {
-          return <span className="text-xs font-semibold text-slate-700">Min {row.minAcceptable} {row.unit}</span>;
-        }
-        return <span className="text-xs font-medium text-slate-500">Agreeable / Unobjectionable</span>;
+        const { standardText, warningText } = formatParameterLimitsDisplay(row);
+        return (
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-semibold text-slate-800">{standardText}</span>
+            {warningText && (
+              <span className="text-[11px] font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60 inline-block w-fit">
+                {warningText}
+              </span>
+            )}
+          </div>
+        );
       }
     },
     {
@@ -174,7 +180,7 @@ export const ParametersManagementPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
           <EnterpriseHeader
             title="BIS Drinking Water Parameter Specifications"
-            description="Manage physical, chemical, and microbiological test parameters, measurement units, and acceptable standard ranges."
+            description="Manage physical, chemical, and microbiological test parameters, measurement units, acceptable standard ranges, and warning limits."
           />
 
           <EnterpriseButton
@@ -255,24 +261,51 @@ export const ParametersManagementPage: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <EnterpriseInput
-                label="Min Acceptable Limit (Optional)"
-                type="number"
-                step="0.01"
-                placeholder="e.g. 6.5"
-                value={editingParam.minAcceptable ?? ''}
-                onChange={(e) => setEditingParam({ ...editingParam, minAcceptable: e.target.value !== '' ? Number(e.target.value) : undefined })}
-              />
+            {/* 4-Field Limit Specification */}
+            <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
+                  Limit Configuration (Standard & Warning Limits)
+                </span>
+              </div>
 
-              <EnterpriseInput
-                label="Max Acceptable Limit (Optional)"
-                type="number"
-                step="0.01"
-                placeholder="e.g. 8.5 or 500"
-                value={editingParam.maxAcceptable ?? ''}
-                onChange={(e) => setEditingParam({ ...editingParam, maxAcceptable: e.target.value !== '' ? Number(e.target.value) : undefined })}
-              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <EnterpriseInput
+                  label="Min Warning Limit (Optional)"
+                  type="number"
+                  step="0.01"
+                  placeholder="e.g. 100"
+                  value={editingParam.minWarning ?? ''}
+                  onChange={(e) => setEditingParam({ ...editingParam, minWarning: e.target.value !== '' ? Number(e.target.value) : undefined })}
+                />
+
+                <EnterpriseInput
+                  label="Min Acceptable Limit (Optional)"
+                  type="number"
+                  step="0.01"
+                  placeholder="e.g. 150"
+                  value={editingParam.minAcceptable ?? ''}
+                  onChange={(e) => setEditingParam({ ...editingParam, minAcceptable: e.target.value !== '' ? Number(e.target.value) : undefined })}
+                />
+
+                <EnterpriseInput
+                  label="Max Acceptable Limit (Optional)"
+                  type="number"
+                  step="0.01"
+                  placeholder="e.g. 200"
+                  value={editingParam.maxAcceptable ?? ''}
+                  onChange={(e) => setEditingParam({ ...editingParam, maxAcceptable: e.target.value !== '' ? Number(e.target.value) : undefined })}
+                />
+
+                <EnterpriseInput
+                  label="Max Warning Limit (Optional)"
+                  type="number"
+                  step="0.01"
+                  placeholder="e.g. 250"
+                  value={editingParam.maxWarning ?? ''}
+                  onChange={(e) => setEditingParam({ ...editingParam, maxWarning: e.target.value !== '' ? Number(e.target.value) : undefined })}
+                />
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">

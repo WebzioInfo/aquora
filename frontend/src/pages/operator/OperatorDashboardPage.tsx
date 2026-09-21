@@ -231,11 +231,7 @@ export const OperatorDashboardPage: React.FC = () => {
     } else {
       if (currentView === 'entry') {
         setCurrentView('dashboard')
-        showToast('No active production batch found. Please start a batch first.', 'warning')
-      }
-      if (!sessionLoading && selectedLine?.lineId && !hasAutoOpenedModal.current) {
-        setShowStartModal(true)
-        hasAutoOpenedModal.current = true
+        showToast('No active production configuration found for this line. Please contact the production administrator.', 'warning')
       }
     }
   }, [activeSession?.id, activeSession?.canEnterProductionPage, currentView, sessionLoading, selectedLine?.lineId])
@@ -449,6 +445,7 @@ export const OperatorDashboardPage: React.FC = () => {
   const [makeupUsed, setMakeupUsed] = useState(false)
 
   // UI elements states
+  const [isSaving, setIsSaving] = useState(false)
   const [showSuccessSplash, setShowSuccessSplash] = useState(false)
   const [stockErrors, setStockErrors] = useState<{ [key: string]: string }>({})
   const [expandedEntries, setExpandedEntries] = useState<{ [key: string]: boolean }>({})
@@ -521,47 +518,46 @@ export const OperatorDashboardPage: React.FC = () => {
   }, [registerDiscardHandler])
 
   // Save handler for layout to trigger
-  const saveEntryPromise = () => {
-    return new Promise<boolean>((resolve) => {
-      if (!selectedLine?.lineId || !activeSession) {
-        resolve(false)
-        return
-      }
+  const saveEntryPromise = async () => {
+    if (isSaving || submitEntryMutation.isPending) {
+      return false
+    }
 
-      if (!casesProduced || parseInt(casesProduced) <= 0) {
-        showToast('Cases Produced must be a positive integer.', 'error')
-        resolve(false)
-        return
-      }
+    if (!selectedLine?.lineId || !activeSession) {
+      return false
+    }
 
-      const blowingEnabled = enabledStations.includes('Blowing')
-      const fillingEnabled = enabledStations.includes('Filling')
-      const labelingEnabled = enabledStations.includes('Labeling')
-      const packingEnabled = enabledStations.includes('Packing')
+    if (!casesProduced || parseInt(casesProduced) <= 0) {
+      showToast('Cases Produced must be a positive integer.', 'error')
+      return false
+    }
 
-      if (blowingEnabled && !selectedPreformId) {
-        showToast('Preform material selection is required.', 'error')
-        resolve(false)
-        return
-      }
-      if (labelingEnabled && !selectedLabelId) {
-        showToast('Label material selection is required.', 'error')
-        resolve(false)
-        return
-      }
-      if (packingEnabled && !selectedShrinkId) {
-        showToast('Shrink Film material selection is required.', 'error')
-        resolve(false)
-        return
-      }
+    const blowingEnabled = enabledStations.includes('Blowing')
+    const fillingEnabled = enabledStations.includes('Filling')
+    const labelingEnabled = enabledStations.includes('Labeling')
+    const packingEnabled = enabledStations.includes('Packing')
 
-      if (fillingEnabled && (parseFloat(capUsage) > 0 || parseFloat(capWastage) > 0) && !selectedCapId) {
-        showToast('Cap material must be selected when usage or wastage is entered.', 'error')
-        resolve(false)
-        return
-      }
+    if (blowingEnabled && !selectedPreformId) {
+      showToast('Preform material selection is required.', 'error')
+      return false
+    }
+    if (labelingEnabled && !selectedLabelId) {
+      showToast('Label material selection is required.', 'error')
+      return false
+    }
+    if (packingEnabled && !selectedShrinkId) {
+      showToast('Shrink Film material selection is required.', 'error')
+      return false
+    }
 
-      submitEntryMutation.mutate({
+    if (fillingEnabled && (parseFloat(capUsage) > 0 || parseFloat(capWastage) > 0) && !selectedCapId) {
+      showToast('Cap material must be selected when usage or wastage is entered.', 'error')
+      return false
+    }
+
+    try {
+      setIsSaving(true)
+      await submitEntryMutation.mutateAsync({
         productionLineId: selectedLine.lineId,
         casesProduced: parseInt(casesProduced),
 
@@ -589,15 +585,13 @@ export const OperatorDashboardPage: React.FC = () => {
 
         makeupMaterialId: (packingEnabled && selectedMakeupId) ? selectedMakeupId : null,
         makeupUsed: packingEnabled ? makeupUsed : false
-      }, {
-        onSuccess: () => {
-          resolve(true)
-        },
-        onError: () => {
-          resolve(false)
-        }
       })
-    })
+      return true
+    } catch {
+      return false
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   useEffect(() => {
@@ -606,6 +600,7 @@ export const OperatorDashboardPage: React.FC = () => {
     }
   }, [
     registerSaveHandler,
+    isSaving,
     casesProduced,
     selectedPreformId,
     preformUsage,
@@ -1016,8 +1011,10 @@ export const OperatorDashboardPage: React.FC = () => {
     }
   })
 
-  const handleSaveEntrySubmit = (e: React.FormEvent) => {
+  const handleSaveEntrySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (isSaving || submitEntryMutation.isPending) return
 
     if (!selectedLine?.lineId || !activeSession) return
 
@@ -1049,32 +1046,42 @@ export const OperatorDashboardPage: React.FC = () => {
       return
     }
 
-    submitEntryMutation.mutate({
-      productionLineId: selectedLine.lineId,
-      casesProduced: parseInt(casesProduced),
+    try {
+      setIsSaving(true)
+      await submitEntryMutation.mutateAsync({
+        productionLineId: selectedLine.lineId,
+        casesProduced: parseInt(casesProduced),
 
-      preformMaterialId: blowingEnabled ? selectedPreformId : null,
-      preformUsage: blowingEnabled ? (parseFloat(preformUsage) || 0) : 0,
-      preformWastage: blowingEnabled ? (parseFloat(preformWastage) || 0) : 0,
+        preformMaterialId: blowingEnabled ? selectedPreformId : null,
+        preformUsage: blowingEnabled ? (parseFloat(preformUsage) || 0) : 0,
+        preformWastage: blowingEnabled ? (parseFloat(preformWastage) || 0) : 0,
 
-      capMaterialId: (fillingEnabled && selectedCapId) ? selectedCapId : null,
-      capUsage: fillingEnabled ? (parseFloat(capUsage) || 0) : 0,
-      capWastage: fillingEnabled ? (parseFloat(capWastage) || 0) : 0,
+        capMaterialId: (fillingEnabled && selectedCapId) ? selectedCapId : null,
+        capUsage: fillingEnabled ? (parseFloat(capUsage) || 0) : 0,
+        capWastage: fillingEnabled ? (parseFloat(capWastage) || 0) : 0,
 
-      labelMaterialId: labelingEnabled ? selectedLabelId : null,
-      labelUsage: labelingEnabled ? (parseFloat(labelUsage) || 0) : 0,
-      labelWastage: labelingEnabled ? (parseFloat(labelWastage) || 0) : 0,
+        labelMaterialId: labelingEnabled ? selectedLabelId : null,
+        labelUsage: labelingEnabled ? (parseFloat(labelUsage) || 0) : 0,
+        labelWastage: labelingEnabled ? (parseFloat(labelWastage) || 0) : 0,
 
-      shrinkMaterialId: packingEnabled ? selectedShrinkId : null,
-      shrinkUsage: packingEnabled ? (parseFloat(shrinkUsage) || 0) : 0,
-      shrinkWastage: packingEnabled ? (parseFloat(shrinkWastage) || 0) : 0,
+        shrinkMaterialId: packingEnabled ? selectedShrinkId : null,
+        shrinkUsage: packingEnabled ? (parseFloat(shrinkUsage) || 0) : 0,
+        shrinkWastage: packingEnabled ? (parseFloat(shrinkWastage) || 0) : 0,
 
-      glueMaterialId: (packingEnabled && selectedGlueId) ? selectedGlueId : null,
-      glueUsage: (packingEnabled && selectedGlueId && glueUsage) ? parseFloat(glueUsage) : null,
+        glueMaterialId: (packingEnabled && selectedGlueId) ? selectedGlueId : null,
+        glueUsage: (packingEnabled && selectedGlueId && glueUsage) ? parseFloat(glueUsage) : null,
 
-      inkUsed: packingEnabled ? inkUsed : false,
-      makeupUsed: packingEnabled ? makeupUsed : false
-    })
+        inkMaterialId: (packingEnabled && selectedInkId) ? selectedInkId : null,
+        inkUsed: packingEnabled ? inkUsed : false,
+
+        makeupMaterialId: (packingEnabled && selectedMakeupId) ? selectedMakeupId : null,
+        makeupUsed: packingEnabled ? makeupUsed : false
+      })
+    } catch {
+      // Error is handled in submitEntryMutation onError callback
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   // --- MUTATION: End Production Batch ---
@@ -1450,23 +1457,23 @@ export const OperatorDashboardPage: React.FC = () => {
                 <AlertTriangle className="w-7 h-7 stroke-[2.5]" />
               </div>
               <div className="space-y-1.5">
-                <h2 className="text-lg font-bold text-[#111827]">No Active Production Batch</h2>
-                <p className="text-xs text-[#6B7280] max-w-[380px] mx-auto font-medium">
-                  There is currently no running production batch allocated on {selectedLine.name} for the current shift. You must start a batch before entries can be saved.
+                <h2 className="text-lg font-bold text-[#111827]">No Active Production Configuration</h2>
+                <p className="text-xs text-[#6B7280] max-w-[420px] mx-auto font-medium">
+                  No active production configuration found for line <strong className="text-slate-800">{selectedLine.name}</strong>. Please contact the production administrator.
                 </p>
               </div>
 
               <div className="border-t border-[#E5E7EB] pt-6 flex justify-center">
                 <button
-                  onClick={() => setShowStartModal(true)}
+                  onClick={() => resetTerminal()}
                   className="px-6 h-[44px] hover:brightness-110 transition-all duration-200 rounded-[8px] text-white text-xs font-bold uppercase tracking-wider shadow-md flex items-center gap-2 cursor-pointer"
                   style={{
                     backgroundColor: lineTheme?.primary || '#1A56DB',
                     boxShadow: lineTheme ? `0 2px 4px ${lineTheme.glow}` : 'none'
                   }}
                 >
-                  <Play className="w-4 h-4 fill-white" />
-                  <span>Start Production</span>
+                  <RefreshCw className="w-4 h-4 text-white" />
+                  <span>Select Another Line</span>
                 </button>
               </div>
             </div>
@@ -2354,14 +2361,23 @@ export const OperatorDashboardPage: React.FC = () => {
 
                 <button
                   type="submit"
-                  disabled={submitEntryMutation.isPending}
+                  disabled={isSaving || submitEntryMutation.isPending}
                   className="w-full md:w-auto h-8 px-5 rounded-[6px] text-xs font-bold text-white hover:brightness-110 transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
                     backgroundColor: lineTheme?.primary || '#1A56DB'
                   }}
                 >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>Save Batch Entry</span>
+                  {isSaving || submitEntryMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Save Batch Entry</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>

@@ -169,9 +169,16 @@ export const BatchDetailsPage: React.FC = () => {
     enabled: !!batchId
   })
 
+  const { data: directBatchData } = useQuery<any>({
+    queryKey: ['productionBatchById', batchId],
+    queryFn: async () => (await api.get(`/api/v1/production/batches/${batchId}`)).data?.data || null,
+    enabled: !!batchId
+  })
+
   // ── Batch meta resolution ─────────────────────────────────────────────────
   const allHistory = historyQueries.flatMap(q => q.data || [])
   const batchMeta =
+    directBatchData ||
     activeBatches.find(b => b.id === batchId) ||
     allHistory.find(b => b.id === batchId) ||
     (summaryData
@@ -335,7 +342,7 @@ export const BatchDetailsPage: React.FC = () => {
             </button>
             <div className="flex items-center gap-2.5">
               <StatusBadge status={isCompleted ? 'Completed' : isPaused ? 'Paused' : 'Active'} />
-              {!isCompleted && !isPaused && (
+              {canWrite && !isCompleted && !isPaused && (
                 <button
                   type="button"
                   onClick={() => { setStopError(null); setIsStopModalOpen(true); }}

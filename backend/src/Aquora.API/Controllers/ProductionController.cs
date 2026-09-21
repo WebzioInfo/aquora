@@ -85,6 +85,18 @@ namespace Aquora.API.Controllers
             return GetCurrentUserEmail().Split('@')[0];
         }
 
+        private bool IsOwnerUser()
+        {
+            return User.IsInRole("Owner")
+                || User.IsInRole("CompanyOwner")
+                || User.IsInRole("PlatformOwner")
+                || User.HasClaim(c => c.Type == System.Security.Claims.ClaimTypes.Role && (
+                    c.Value.Equals("Owner", StringComparison.OrdinalIgnoreCase) ||
+                    c.Value.Equals("CompanyOwner", StringComparison.OrdinalIgnoreCase) ||
+                    c.Value.Equals("PlatformOwner", StringComparison.OrdinalIgnoreCase)
+                ));
+        }
+
         // 1. GET api/v1/production/lines
         [HttpGet("lines")]
         public async Task<ActionResult<ApiResponse<List<ProductionLineDto>>>> GetProductionLines([FromQuery] bool includeInactive = false)
@@ -683,6 +695,137 @@ namespace Aquora.API.Controllers
             }
         }
 
+        // 2b. GET api/v1/production/batches (Complete batch register)
+        [HttpGet("batches")]
+        public async Task<ActionResult<ApiResponse<List<object>>>> GetAllBatches(
+            [FromQuery] string? status = null,
+            [FromQuery] Guid? lineId = null,
+            [FromQuery] string? search = null,
+            [FromQuery] DateTime? date = null)
+        {
+            try
+            {
+                var tenantId = GetTenantId();
+                var query = _tenantContext.ProductionBatches
+                    .Include(b => b.ProductionLine)
+                    .Where(b => !b.IsDeleted);
+
+                if (!string.IsNullOrWhiteSpace(status) && !status.Equals("All", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (status.Equals("Active", StringComparison.OrdinalIgnoreCase) || status.Equals("Running", StringComparison.OrdinalIgnoreCase))
+                    {
+                        query = query.Where(b => b.CompletedAt == null && (b.Status == "Active" || b.Status == "Running" || b.Status == "Bottling Active" || b.Status == "In Progress"));
+                    }
+                    else if (status.Equals("Paused", StringComparison.OrdinalIgnoreCase))
+                    {
+                        query = query.Where(b => b.Status == "Paused");
+                    }
+                    else if (status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                    {
+                        query = query.Where(b => b.CompletedAt != null || b.Status == "Completed");
+                    }
+                    else if (status.Equals("Cancelled", StringComparison.OrdinalIgnoreCase) || status.Equals("Stopped", StringComparison.OrdinalIgnoreCase))
+                    {
+                        query = query.Where(b => b.Status == "Cancelled" || b.Status == "Stopped");
+                    }
+                    else
+                    {
+                        query = query.Where(b => b.Status.ToLower() == status.ToLower());
+                    }
+                }
+
+                if (lineId.HasValue && lineId.Value != Guid.Empty)
+                {
+                    query = query.Where(b => b.ProductionLineId == lineId.Value);
+                }
+
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var s = search.Trim().ToLower();
+                    query = query.Where(b => b.BatchNumber.ToLower().Contains(s) ||
+                                             (b.Product != null && b.Product.ToLower().Contains(s)) ||
+                                             (b.OperatorName != null && b.OperatorName.ToLower().Contains(s)));
+                }
+
+                if (date.HasValue)
+                {
+                    var targetDate = date.Value.Date;
+                    var nextDate = targetDate.AddDays(1);
+                    query = query.Where(b => (b.StartedAt != default ? b.StartedAt : b.CreatedAt) >= targetDate &&
+                                             (b.StartedAt != default ? b.StartedAt : b.CreatedAt) < nextDate);
+                }
+
+                var batches = await query
+                    .OrderByDescending(b => b.StartedAt != default ? b.StartedAt : b.CreatedAt)
+                    .ThenByDescending(b => b.CreatedAt)
+                    .Select(b => new
+                    {
+                        b.Id,
+                        b.BatchNumber,
+                        b.Product,
+                        b.Shift,
+                        ProductionLineId = b.ProductionLineId,
+                        ProductionLineName = b.ProductionLine != null ? b.ProductionLine.Name : "Line 1",
+                        ProductionLineCode = b.ProductionLine != null ? b.ProductionLine.Code : "L001",
+                        b.OperatorId,
+                        b.OperatorName,
+                        b.StartedAt,
+                        b.CompletedAt,
+                        b.TargetQuantity,
+                        b.ProducedQuantity,
+                        b.Status,
+                        b.CreatedAt
+                    })
+                    .ToListAsync();
+
+                return Success<List<object>>(batches.Cast<object>().ToList(), "Batches loaded successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<List<object>>(ex.Message, "Failed to load batches.");
+            }
+        }
+
+        // GET api/v1/production/batches/{id:guid}
+        [HttpGet("batches/{id:guid}")]
+        public async Task<ActionResult<ApiResponse<object>>> GetBatchById(Guid id)
+        {
+            try
+            {
+                var batch = await _tenantContext.ProductionBatches
+                    .Include(b => b.ProductionLine)
+                    .Where(b => b.Id == id && !b.IsDeleted)
+                    .Select(b => new
+                    {
+                        b.Id,
+                        b.BatchNumber,
+                        b.Product,
+                        b.Shift,
+                        ProductionLineId = b.ProductionLineId,
+                        ProductionLineName = b.ProductionLine != null ? b.ProductionLine.Name : "Line 1",
+                        ProductionLineCode = b.ProductionLine != null ? b.ProductionLine.Code : "L001",
+                        b.OperatorId,
+                        b.OperatorName,
+                        b.StartedAt,
+                        b.CompletedAt,
+                        b.TargetQuantity,
+                        b.ProducedQuantity,
+                        b.Status,
+                        b.CreatedAt
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (batch == null)
+                    return Failure<object>("Batch not found.", "NotFound", System.Net.HttpStatusCode.NotFound);
+
+                return Success<object>(batch, "Batch loaded successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<object>(ex.Message, "Failed to load batch.");
+            }
+        }
+
         // 2c. GET api/v1/production/batches/active
         [HttpGet("batches/active")]
         public async Task<ActionResult<ApiResponse<List<object>>>> GetActiveBatches()
@@ -692,8 +835,9 @@ namespace Aquora.API.Controllers
                 var tenantId = GetTenantId();
                 var activeBatches = await _tenantContext.ProductionBatches
                     .Include(b => b.ProductionLine)
-                    .Where(b => !b.IsDeleted)
-                    .OrderByDescending(b => b.CreatedAt)
+                    .Where(b => !b.IsDeleted && b.CompletedAt == null && (b.Status == "Active" || b.Status == "Running" || b.Status == "Bottling Active" || b.Status == "In Progress"))
+                    .OrderByDescending(b => b.StartedAt)
+                    .ThenByDescending(b => b.CreatedAt)
                     .Select(b => new
                     {
                         b.Id,
@@ -701,7 +845,7 @@ namespace Aquora.API.Controllers
                         b.Product,
                         b.Shift,
                         ProductionLineId = b.ProductionLineId,
-                        ProductionLineName = b.ProductionLine != null ? b.ProductionLine.Name : "Unknown",
+                        ProductionLineName = b.ProductionLine != null ? b.ProductionLine.Name : "Line 1",
                         ProductionLineCode = b.ProductionLine != null ? b.ProductionLine.Code : "L001",
                         b.OperatorId,
                         b.OperatorName,
@@ -709,7 +853,8 @@ namespace Aquora.API.Controllers
                         b.CompletedAt,
                         b.TargetQuantity,
                         b.ProducedQuantity,
-                        b.Status, b.CreatedAt
+                        b.Status,
+                        b.CreatedAt
                     })
                     .ToListAsync();
 
@@ -718,6 +863,97 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 return Failure<List<object>>(ex.Message, "Failed to load active batches.");
+            }
+        }
+
+        // 2d. GET api/v1/production/batches/summary
+        [HttpGet("batches/summary")]
+        public async Task<ActionResult<ApiResponse<object>>> GetBatchesSummary([FromQuery] DateTime? dateFrom = null, [FromQuery] DateTime? dateTo = null)
+        {
+            try
+            {
+                var tenantId = GetTenantId();
+                var today = DateTime.UtcNow.Date;
+
+                var allBatches = await _tenantContext.ProductionBatches
+                    .Include(b => b.ProductionLine)
+                    .Where(b => !b.IsDeleted)
+                    .OrderByDescending(b => b.CreatedAt)
+                    .ToListAsync();
+
+                var activeList = allBatches
+                    .Where(b => b.CompletedAt == null && b.Status != "Completed" && b.Status != "Stopped" && b.Status != "Closed" && b.Status != "Cancelled" && (b.Status == "Active" || b.Status == "Running" || b.Status == "Bottling Active" || b.Status == "In Progress"))
+                    .Select(b => new
+                    {
+                        b.Id,
+                        b.BatchNumber,
+                        b.Product,
+                        b.Shift,
+                        ProductionLineId = b.ProductionLineId,
+                        ProductionLineName = b.ProductionLine != null ? b.ProductionLine.Name : "Line 1",
+                        ProductionLineCode = b.ProductionLine != null ? b.ProductionLine.Code : "L001",
+                        b.OperatorId,
+                        b.OperatorName,
+                        b.StartedAt,
+                        b.CompletedAt,
+                        b.TargetQuantity,
+                        b.ProducedQuantity,
+                        b.Status,
+                        b.CreatedAt
+                    })
+                    .ToList();
+
+                var completedList = allBatches
+                    .Where(b => b.CompletedAt != null || b.Status == "Completed")
+                    .Take(5)
+                    .Select(b => new
+                    {
+                        b.Id,
+                        b.BatchNumber,
+                        b.Product,
+                        b.Shift,
+                        ProductionLineId = b.ProductionLineId,
+                        ProductionLineName = b.ProductionLine != null ? b.ProductionLine.Name : "Line 1",
+                        ProductionLineCode = b.ProductionLine != null ? b.ProductionLine.Code : "L001",
+                        b.OperatorId,
+                        b.OperatorName,
+                        b.StartedAt,
+                        b.CompletedAt,
+                        b.TargetQuantity,
+                        b.ProducedQuantity,
+                        b.Status,
+                        b.CreatedAt
+                    })
+                    .ToList();
+
+                var from = dateFrom?.Date;
+                var to = dateTo?.Date.AddDays(1);
+
+                var periodBatches = allBatches.AsEnumerable();
+                if (from.HasValue) periodBatches = periodBatches.Where(b => (b.CompletedAt ?? b.StartedAt) >= from.Value);
+                if (to.HasValue) periodBatches = periodBatches.Where(b => (b.CompletedAt ?? b.StartedAt) < to.Value);
+
+                int activeProduced = activeList.Sum(b => b.ProducedQuantity);
+                int periodProduced = periodBatches.Sum(b => b.ProducedQuantity);
+                int todayProduced = allBatches.Where(b => (b.CompletedAt ?? b.StartedAt).Date == today).Sum(b => b.ProducedQuantity);
+                int totalProduced = allBatches.Sum(b => b.ProducedQuantity);
+
+                return Success<object>(new
+                {
+                    ActiveBatches = activeList,
+                    RecentCompletedBatches = completedList,
+                    ActiveCount = activeList.Count,
+                    CompletedCount = allBatches.Count(b => b.CompletedAt != null || b.Status == "Completed"),
+                    TotalBatchesCount = allBatches.Count,
+                    ActiveProducedQuantity = activeProduced,
+                    PeriodProducedQuantity = periodProduced,
+                    TodayProducedQuantity = todayProduced,
+                    TotalProducedQuantity = totalProduced
+                }, "Batches summary loaded successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<object>(ex.Message, "Failed to load batches summary.");
             }
         }
 
@@ -1021,6 +1257,11 @@ namespace Aquora.API.Controllers
         [HttpPost("batch/start")]
         public async Task<ActionResult<ApiResponse<object>>> StartBatch([FromBody] StartBatchRequest request)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             try
             {
                 var tenantId = GetTenantId();
@@ -1190,6 +1431,11 @@ namespace Aquora.API.Controllers
         [HttpPost("batch/{batchId}/station-data")]
         public async Task<ActionResult<ApiResponse<object>>> SubmitStationData(Guid batchId, [FromBody] SubmitStationDataRequest request)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             try
             {
                 var tenantId = GetTenantId();
@@ -1251,6 +1497,11 @@ namespace Aquora.API.Controllers
         [HttpPost("batch/{batchId}/complete")]
         public async Task<ActionResult<ApiResponse<object>>> CompleteBatch(Guid batchId)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             try
             {
                 var tenantId = GetTenantId();
@@ -1299,6 +1550,11 @@ namespace Aquora.API.Controllers
         [HttpPost("batch/{batchId}/pause")]
         public async Task<ActionResult<ApiResponse<object>>> PauseBatch(Guid batchId)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             try
             {
                 var tenantId = GetTenantId();
@@ -1335,6 +1591,11 @@ namespace Aquora.API.Controllers
         [HttpPost("batch/{batchId}/resume")]
         public async Task<ActionResult<ApiResponse<object>>> ResumeBatch(Guid batchId)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             try
             {
                 var tenantId = GetTenantId();
@@ -1409,6 +1670,11 @@ namespace Aquora.API.Controllers
         [HttpPost("lines")]
         public async Task<ActionResult<ApiResponse<object>>> CreateProductionLine([FromBody] CreateLineRequest request)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             try
             {
                 var tenantId = GetTenantId();
@@ -1469,6 +1735,11 @@ namespace Aquora.API.Controllers
         [HttpPut("lines/{id}")]
         public async Task<ActionResult<ApiResponse<object>>> UpdateProductionLine(Guid id, [FromBody] UpdateLineRequest request)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             try
             {
                 var line = await _tenantContext.ProductionLines
@@ -1540,6 +1811,11 @@ namespace Aquora.API.Controllers
         [HttpDelete("lines/{id}")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteProductionLine(Guid id)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             try
             {
                 var line = await _tenantContext.ProductionLines
@@ -1569,6 +1845,11 @@ namespace Aquora.API.Controllers
         [HttpPost("line-switch")]
         public async Task<ActionResult<ApiResponse<object>>> LogLineSwitch([FromBody] LogLineSwitchRequest request)
         {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
             try
             {
                 var tenantId = GetTenantId();

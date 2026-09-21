@@ -13,6 +13,13 @@ namespace Aquora.Persistence
         public static IServiceCollection AddPersistence(this IServiceCollection services, IConfiguration configuration)
         {
             var connectionString = configuration.GetConnectionString("DefaultConnection");
+            var logEfParameters = bool.TryParse(
+                configuration["EfCore:LogSensitiveData"],
+                out var configuredSensitiveDataLogging) && configuredSensitiveDataLogging;
+            var isDevelopment = string.Equals(
+                Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+                "Development",
+                StringComparison.OrdinalIgnoreCase);
 
             // Register PlatformDbContext (locked to public schema)
             services.AddDbContext<PlatformDbContext>((sp, options) =>
@@ -22,11 +29,9 @@ namespace Aquora.Persistence
                     b => b.MigrationsAssembly(typeof(PlatformDbContext).Assembly.FullName))
                        .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
 
-                var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-                if (env == "Development")
+                if (logEfParameters && isDevelopment)
                 {
-                    options.EnableSensitiveDataLogging()
-                           .LogTo(Console.WriteLine, Microsoft.Extensions.Logging.LogLevel.Information);
+                    options.EnableDetailedErrors().EnableSensitiveDataLogging();
                 }
             });
 
@@ -44,11 +49,9 @@ namespace Aquora.Persistence
                        .ReplaceService<IMigrationsSqlGenerator, TenantMigrationsSqlGenerator>()
                        .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
 
-                var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-                if (env == "Development")
+                if (logEfParameters && isDevelopment)
                 {
-                    options.EnableSensitiveDataLogging()
-                           .LogTo(Console.WriteLine, Microsoft.Extensions.Logging.LogLevel.Information);
+                    options.EnableDetailedErrors().EnableSensitiveDataLogging();
                 }
             });
 

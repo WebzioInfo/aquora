@@ -28,7 +28,8 @@ export const TenantModal: React.FC<TenantModalProps> = ({
     panNumber: '',
     licenseNumber: '',
     subscriptionPlan: 'Starter',
-    status: 'Active'
+    status: 'Active',
+    isBiodropsProduction: false
   })
 
   const [loading, setLoading] = useState(false)
@@ -48,7 +49,8 @@ export const TenantModal: React.FC<TenantModalProps> = ({
         panNumber: initialData.panNumber || '',
         licenseNumber: initialData.licenseNumber || '',
         subscriptionPlan: initialData.subscriptionPlan || 'Starter',
-        status: initialData.status || (initialData.isActive ? 'Active' : 'Inactive')
+        status: initialData.status || (initialData.isActive ? 'Active' : 'Inactive'),
+        isBiodropsProduction: initialData.isBiodropsProduction ?? false
       })
     } else {
       setFormData({
@@ -63,7 +65,8 @@ export const TenantModal: React.FC<TenantModalProps> = ({
         panNumber: '',
         licenseNumber: '',
         subscriptionPlan: 'Starter',
-        status: 'Active'
+        status: 'Active',
+        isBiodropsProduction: false
       })
     }
     setError(null)
@@ -243,6 +246,21 @@ export const TenantModal: React.FC<TenantModalProps> = ({
                   <option value="Enterprise">Enterprise Tier</option>
                 </select>
               </div>
+            </div>
+
+            <div className="pt-2">
+              <label className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100/80 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={formData.isBiodropsProduction}
+                  onChange={(e) => setFormData({ ...formData, isBiodropsProduction: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                />
+                <div>
+                  <span className="font-bold text-slate-900 block">BioDrops Production Manufacturer</span>
+                  <span className="text-slate-500 text-[11px] block">Expose this manufacturer to external consumers on the BioDrops Know Your Water platform API.</span>
+                </div>
+              </label>
             </div>
           </div>
 

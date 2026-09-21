@@ -121,7 +121,7 @@ const CashBookDetailsPage: React.FC = () => {
   const { user } = useAuthStore()
   const roles = user?.roles || []
   const isOwner = roles.some((r: string) => ['owner', 'companyowner', 'platformowner'].includes(r.toLowerCase())) || user?.roleName?.toLowerCase() === 'owner'
-  const isAdmin = !isOwner && (roles.includes('CompanyAdmin') || roles.includes('SuperAdmin') || roles.includes('PlatformAdmin'))
+  const isAdmin = !isOwner && (roles.includes('CompanyAdmin') || roles.includes('Accountant') || roles.includes('SuperAdmin') || roles.includes('PlatformAdmin'))
   const isManager = !isOwner && (roles.includes('Manager') || roles.includes('GeneralManager'))
 
   const canEdit = isAdmin

@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Aquora.Persistence.Context;
 
 #nullable disable
 
@@ -8,142 +9,144 @@ namespace Aquora.Persistence.Migrations.Tenant
     /// <inheritdoc />
     public partial class AddBankLedgerEntry : Migration
     {
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(
                 name: "FK_BankAccounts_Accounts_LinkedLedgerAccountId",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts");
 
             migrationBuilder.DropColumn(
                 name: "DeletedAt",
-                schema: "public",
+                schema: _schema,
                 table: "PriceLists");
 
             migrationBuilder.DropColumn(
                 name: "DeletedBy",
-                schema: "public",
+                schema: _schema,
                 table: "PriceLists");
 
             migrationBuilder.DropColumn(
                 name: "IsDeleted",
-                schema: "public",
+                schema: _schema,
                 table: "PriceLists");
 
             migrationBuilder.DropColumn(
                 name: "DeletedAt",
-                schema: "public",
+                schema: _schema,
                 table: "DiscountGroups");
 
             migrationBuilder.DropColumn(
                 name: "DeletedBy",
-                schema: "public",
+                schema: _schema,
                 table: "DiscountGroups");
 
             migrationBuilder.DropColumn(
                 name: "IsDeleted",
-                schema: "public",
+                schema: _schema,
                 table: "DiscountGroups");
 
             migrationBuilder.DropColumn(
                 name: "Address",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "ApiKey",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "AutoBatchNumber",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "AutoProductionNumber",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "AutoSKU",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "Currency",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "DateFormat",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "DefaultDispatchMethod",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "DefaultProductionLineId",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "DefaultShiftId",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "DefaultWarehouseId",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "DisplayName",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "Email",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "GstNumber",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "Language",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "LogoUrl",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "Phone",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "SecretKeyHash",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.DropColumn(
                 name: "Timezone",
-                schema: "public",
+                schema: _schema,
                 table: "Companies");
 
             migrationBuilder.AddColumn<decimal>(
                 name: "AdjustmentAmount",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions",
                 type: "numeric",
                 nullable: false,
@@ -151,7 +154,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<decimal>(
                 name: "AmountReceived",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions",
                 type: "numeric",
                 nullable: false,
@@ -159,7 +162,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<decimal>(
                 name: "DamageCost",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions",
                 type: "numeric",
                 nullable: false,
@@ -167,14 +170,14 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "DamageReason",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<bool>(
                 name: "IsReplacementRequired",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions",
                 type: "boolean",
                 nullable: false,
@@ -182,7 +185,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<decimal>(
                 name: "OutstandingAmount",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions",
                 type: "numeric",
                 nullable: false,
@@ -190,7 +193,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "PaymentStatus",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions",
                 type: "text",
                 nullable: false,
@@ -198,7 +201,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<decimal>(
                 name: "ProductValue",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions",
                 type: "numeric",
                 nullable: false,
@@ -206,7 +209,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<decimal>(
                 name: "RefundAmount",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions",
                 type: "numeric",
                 nullable: false,
@@ -214,14 +217,14 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "ReturnType",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<decimal>(
                 name: "ReturnedAmount",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions",
                 type: "numeric",
                 nullable: false,
@@ -229,7 +232,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<decimal>(
                 name: "TotalAmount",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions",
                 type: "numeric",
                 nullable: false,
@@ -237,7 +240,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<decimal>(
                 name: "CostPerUnit",
-                schema: "public",
+                schema: _schema,
                 table: "RawMaterials",
                 type: "numeric",
                 nullable: false,
@@ -245,7 +248,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<decimal>(
                 name: "CostPrice",
-                schema: "public",
+                schema: _schema,
                 table: "Products",
                 type: "numeric",
                 nullable: false,
@@ -253,7 +256,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<decimal>(
                 name: "SellingPrice",
-                schema: "public",
+                schema: _schema,
                 table: "Products",
                 type: "numeric",
                 nullable: false,
@@ -261,14 +264,14 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "Description",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionShifts",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "PaymentTerms",
-                schema: "public",
+                schema: _schema,
                 table: "Customers",
                 type: "text",
                 nullable: false,
@@ -276,7 +279,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "LinkedLedgerAccountId",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts",
                 type: "uuid",
                 nullable: true,
@@ -285,7 +288,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<decimal>(
                 name: "CurrentBalance",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts",
                 type: "numeric",
                 nullable: false,
@@ -293,21 +296,21 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "DeletedAt",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts",
                 type: "timestamp with time zone",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "DeletedBy",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "IfscCode",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts",
                 type: "text",
                 nullable: false,
@@ -315,7 +318,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<bool>(
                 name: "IsDeleted",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts",
                 type: "boolean",
                 nullable: false,
@@ -323,14 +326,14 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "Notes",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<decimal>(
                 name: "OpeningBalance",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts",
                 type: "numeric",
                 nullable: false,
@@ -338,7 +341,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "Status",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts",
                 type: "text",
                 nullable: false,
@@ -346,7 +349,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateTable(
                 name: "BankLedgerEntries",
-                schema: "public",
+                schema: _schema,
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -390,7 +393,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateTable(
                 name: "Owners",
-                schema: "public",
+                schema: _schema,
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -427,7 +430,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateTable(
                 name: "SimpleExpenses",
-                schema: "public",
+                schema: _schema,
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -473,7 +476,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateTable(
                 name: "OwnerInvestmentTransactions",
-                schema: "public",
+                schema: _schema,
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -515,91 +518,91 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.CreateIndex(
                 name: "IX_BankAccounts_TenantId",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts",
                 column: "TenantId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BankLedgerEntries_BankAccountId",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerEntries",
                 column: "BankAccountId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BankLedgerEntries_CompanyId",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerEntries",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BankLedgerEntries_TenantId",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerEntries",
                 column: "TenantId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BankLedgerEntries_TransactionDate",
-                schema: "public",
+                schema: _schema,
                 table: "BankLedgerEntries",
                 column: "TransactionDate");
 
             migrationBuilder.CreateIndex(
                 name: "IX_OwnerInvestmentTransactions_CompanyId",
-                schema: "public",
+                schema: _schema,
                 table: "OwnerInvestmentTransactions",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_OwnerInvestmentTransactions_OwnerId",
-                schema: "public",
+                schema: _schema,
                 table: "OwnerInvestmentTransactions",
                 column: "OwnerId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Owners_CompanyId",
-                schema: "public",
+                schema: _schema,
                 table: "Owners",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Owners_TenantId",
-                schema: "public",
+                schema: _schema,
                 table: "Owners",
                 column: "TenantId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SimpleExpenses_BankAccountId",
-                schema: "public",
+                schema: _schema,
                 table: "SimpleExpenses",
                 column: "BankAccountId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SimpleExpenses_Category",
-                schema: "public",
+                schema: _schema,
                 table: "SimpleExpenses",
                 column: "Category");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SimpleExpenses_CompanyId",
-                schema: "public",
+                schema: _schema,
                 table: "SimpleExpenses",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SimpleExpenses_ExpenseDate",
-                schema: "public",
+                schema: _schema,
                 table: "SimpleExpenses",
                 column: "ExpenseDate");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SimpleExpenses_TenantId",
-                schema: "public",
+                schema: _schema,
                 table: "SimpleExpenses",
                 column: "TenantId");
 
             migrationBuilder.AddForeignKey(
                 name: "FK_BankAccounts_Accounts_LinkedLedgerAccountId",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts",
                 column: "LinkedLedgerAccountId",
                 principalSchema: "public",
@@ -612,172 +615,172 @@ namespace Aquora.Persistence.Migrations.Tenant
         {
             migrationBuilder.DropForeignKey(
                 name: "FK_BankAccounts_Accounts_LinkedLedgerAccountId",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts");
 
             migrationBuilder.DropTable(
                 name: "BankLedgerEntries",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropTable(
                 name: "OwnerInvestmentTransactions",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropTable(
                 name: "SimpleExpenses",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropTable(
                 name: "Owners",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropIndex(
                 name: "IX_BankAccounts_TenantId",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts");
 
             migrationBuilder.DropColumn(
                 name: "AdjustmentAmount",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions");
 
             migrationBuilder.DropColumn(
                 name: "AmountReceived",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions");
 
             migrationBuilder.DropColumn(
                 name: "DamageCost",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions");
 
             migrationBuilder.DropColumn(
                 name: "DamageReason",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions");
 
             migrationBuilder.DropColumn(
                 name: "IsReplacementRequired",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions");
 
             migrationBuilder.DropColumn(
                 name: "OutstandingAmount",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions");
 
             migrationBuilder.DropColumn(
                 name: "PaymentStatus",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions");
 
             migrationBuilder.DropColumn(
                 name: "ProductValue",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions");
 
             migrationBuilder.DropColumn(
                 name: "RefundAmount",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions");
 
             migrationBuilder.DropColumn(
                 name: "ReturnType",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions");
 
             migrationBuilder.DropColumn(
                 name: "ReturnedAmount",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions");
 
             migrationBuilder.DropColumn(
                 name: "TotalAmount",
-                schema: "public",
+                schema: _schema,
                 table: "SalesTransactions");
 
             migrationBuilder.DropColumn(
                 name: "CostPerUnit",
-                schema: "public",
+                schema: _schema,
                 table: "RawMaterials");
 
             migrationBuilder.DropColumn(
                 name: "CostPrice",
-                schema: "public",
+                schema: _schema,
                 table: "Products");
 
             migrationBuilder.DropColumn(
                 name: "SellingPrice",
-                schema: "public",
+                schema: _schema,
                 table: "Products");
 
             migrationBuilder.DropColumn(
                 name: "Description",
-                schema: "public",
+                schema: _schema,
                 table: "ProductionShifts");
 
             migrationBuilder.DropColumn(
                 name: "PaymentTerms",
-                schema: "public",
+                schema: _schema,
                 table: "Customers");
 
             migrationBuilder.DropColumn(
                 name: "CurrentBalance",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts");
 
             migrationBuilder.DropColumn(
                 name: "DeletedAt",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts");
 
             migrationBuilder.DropColumn(
                 name: "DeletedBy",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts");
 
             migrationBuilder.DropColumn(
                 name: "IfscCode",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts");
 
             migrationBuilder.DropColumn(
                 name: "IsDeleted",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts");
 
             migrationBuilder.DropColumn(
                 name: "Notes",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts");
 
             migrationBuilder.DropColumn(
                 name: "OpeningBalance",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts");
 
             migrationBuilder.DropColumn(
                 name: "Status",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "DeletedAt",
-                schema: "public",
+                schema: _schema,
                 table: "PriceLists",
                 type: "timestamp with time zone",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "DeletedBy",
-                schema: "public",
+                schema: _schema,
                 table: "PriceLists",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<bool>(
                 name: "IsDeleted",
-                schema: "public",
+                schema: _schema,
                 table: "PriceLists",
                 type: "boolean",
                 nullable: false,
@@ -785,21 +788,21 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "DeletedAt",
-                schema: "public",
+                schema: _schema,
                 table: "DiscountGroups",
                 type: "timestamp with time zone",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "DeletedBy",
-                schema: "public",
+                schema: _schema,
                 table: "DiscountGroups",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<bool>(
                 name: "IsDeleted",
-                schema: "public",
+                schema: _schema,
                 table: "DiscountGroups",
                 type: "boolean",
                 nullable: false,
@@ -807,21 +810,21 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "Address",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "ApiKey",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<bool>(
                 name: "AutoBatchNumber",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "boolean",
                 nullable: false,
@@ -829,7 +832,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<bool>(
                 name: "AutoProductionNumber",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "boolean",
                 nullable: false,
@@ -837,7 +840,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<bool>(
                 name: "AutoSKU",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "boolean",
                 nullable: false,
@@ -845,7 +848,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "Currency",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: false,
@@ -853,7 +856,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "DateFormat",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: false,
@@ -861,56 +864,56 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "DefaultDispatchMethod",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<Guid>(
                 name: "DefaultProductionLineId",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "uuid",
                 nullable: true);
 
             migrationBuilder.AddColumn<Guid>(
                 name: "DefaultShiftId",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "uuid",
                 nullable: true);
 
             migrationBuilder.AddColumn<Guid>(
                 name: "DefaultWarehouseId",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "uuid",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "DisplayName",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "Email",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "GstNumber",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "Language",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: false,
@@ -918,28 +921,28 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<string>(
                 name: "LogoUrl",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "Phone",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "SecretKeyHash",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "Timezone",
-                schema: "public",
+                schema: _schema,
                 table: "Companies",
                 type: "text",
                 nullable: false,
@@ -947,7 +950,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "LinkedLedgerAccountId",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts",
                 type: "uuid",
                 nullable: false,
@@ -958,7 +961,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddForeignKey(
                 name: "FK_BankAccounts_Accounts_LinkedLedgerAccountId",
-                schema: "public",
+                schema: _schema,
                 table: "BankAccounts",
                 column: "LinkedLedgerAccountId",
                 principalSchema: "public",

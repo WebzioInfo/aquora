@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Aquora.Shared.Models;
+using Npgsql;
 
 namespace Aquora.API.Middleware
 {
@@ -44,6 +45,7 @@ namespace Aquora.API.Middleware
                  invEx.Message == "ALREADY_VERIFIED");
 
             var rateLimitEx = exception as Aquora.Application.Common.Exceptions.OtpRateLimitException;
+            var (isMissingRelation, relationName, schemaName, missingDetails) = DetectMissingDatabaseRelation(exception);
 
             var statusCode = exception switch
             {
@@ -77,6 +79,13 @@ namespace Aquora.API.Middleware
                 errorMessage = rateLimitEx.Message;
                 errorCode = "OTP_RATE_LIMITED";
                 errorDetails.Add(errorMessage);
+            }
+            else if (isMissingRelation)
+            {
+                errorMessage = $"Database schema error: Required database relation '{relationName ?? "table"}' does not exist in schema '{schemaName ?? "tenant"}'. Pending migrations need to be applied.";
+                errorCode = "DATABASE_SCHEMA_MISSING_TABLE";
+                errorDetails.Add(missingDetails ?? errorMessage);
+                Console.Error.WriteLine($"[DATABASE SCHEMA ERROR] {missingDetails} (TraceId: {traceId})");
             }
             else if (exception is TimeoutException or TaskCanceledException or OperationCanceledException)
             {
@@ -166,16 +175,50 @@ namespace Aquora.API.Middleware
                    lower.Contains("an error occurred while saving the entity changes");
         }
 
+        private static (bool IsMissingRelation, string? RelationName, string? SchemaName, string? Details) DetectMissingDatabaseRelation(Exception ex)
+        {
+            var current = ex;
+            while (current != null)
+            {
+                if (current is PostgresException pgEx)
+                {
+                    if (pgEx.SqlState == "42P01") // undefined_table
+                    {
+                        var rel = !string.IsNullOrWhiteSpace(pgEx.TableName) ? pgEx.TableName : pgEx.MessageText;
+                        return (true, rel, pgEx.SchemaName, $"Database table or relation '{rel}' does not exist in schema '{pgEx.SchemaName ?? "tenant"}'. Database migrations may need to be applied.");
+                    }
+                    if (pgEx.SqlState == "42703") // undefined_column
+                    {
+                        var col = !string.IsNullOrWhiteSpace(pgEx.ColumnName) ? pgEx.ColumnName : pgEx.MessageText;
+                        return (true, col, pgEx.SchemaName, $"Database column '{col}' does not exist in schema '{pgEx.SchemaName ?? "tenant"}'. Database migrations may need to be applied.");
+                    }
+                }
+
+                var msg = current.Message ?? string.Empty;
+                if (msg.Contains("42P01", StringComparison.OrdinalIgnoreCase) || 
+                    (msg.Contains("relation", StringComparison.OrdinalIgnoreCase) && msg.Contains("does not exist", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return (true, "table", null, $"Database table or relation does not exist: {msg}");
+                }
+                if (msg.Contains("42703", StringComparison.OrdinalIgnoreCase) || 
+                    (msg.Contains("column", StringComparison.OrdinalIgnoreCase) && msg.Contains("does not exist", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return (true, "column", null, $"Database column does not exist: {msg}");
+                }
+
+                current = current.InnerException;
+            }
+            return (false, null, null, null);
+        }
+
         private static bool IsUniqueConstraintViolation(Microsoft.EntityFrameworkCore.DbUpdateException ex)
         {
             var current = ex.InnerException;
             while (current != null)
             {
-                if (current.GetType().Name.Equals("PostgresException", StringComparison.OrdinalIgnoreCase))
+                if (current is PostgresException pgEx && pgEx.SqlState == "23505")
                 {
-                    var sqlStateProp = current.GetType().GetProperty("SqlState");
-                    var sqlState = sqlStateProp?.GetValue(current)?.ToString();
-                    if (sqlState == "23505") return true;
+                    return true;
                 }
                 if (current.Message.Contains("23505") || current.Message.Contains("IX_Users_Email") || current.Message.Contains("duplicate key"))
                 {

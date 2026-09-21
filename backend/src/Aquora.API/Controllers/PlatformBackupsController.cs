@@ -73,6 +73,14 @@ namespace Aquora.API.Controllers
                 if (manifest == null) return NotFound(ApiResponse<object>.CreateFailure("Platform backup manifest not found or unreadable."));
                 return Ok(ApiResponse<PlatformBackupManifestDto>.CreateSuccess(manifest, "Platform backup manifest inspected."));
             }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<object>.CreateFailure(ex.Message));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return StatusCode(422, ApiResponse<object>.CreateFailure(ex.Message));
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, ApiResponse<object>.CreateFailure(ex.Message));

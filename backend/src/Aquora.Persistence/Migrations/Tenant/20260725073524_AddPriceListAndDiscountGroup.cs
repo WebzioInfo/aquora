@@ -1,5 +1,6 @@
 using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Aquora.Persistence.Context;
 
 #nullable disable
 
@@ -8,6 +9,8 @@ namespace Aquora.Persistence.Migrations.Tenant
     /// <inheritdoc />
     public partial class AddPriceListAndDiscountGroup : Migration
     {
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -87,11 +90,11 @@ namespace Aquora.Persistence.Migrations.Tenant
         {
             migrationBuilder.DropTable(
                 name: "DiscountGroups",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropTable(
                 name: "PriceLists",
-                schema: "public");
+                schema: _schema);
         }
     }
 }

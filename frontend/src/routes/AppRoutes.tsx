@@ -1,7 +1,8 @@
 import React from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/useAuthStore'
 import { authService } from '../services/auth'
+import { isOwnerUser } from '../utils/permissions'
 import AuthLayout from '../layouts/AuthLayout'
 import PlatformLayout from '../layouts/PlatformLayout'
 import CompanyLayout from '../layouts/CompanyLayout'
@@ -19,6 +20,7 @@ const PlatformDashboardPage = React.lazy(() => import('../pages/platform/Platfor
 const PlatformManagementPage = React.lazy(() => import('../pages/platform/PlatformManagementPage'))
 const SettingsPage = React.lazy(() => import('../pages/company/SettingsPage').then(module => ({ default: module.SettingsPage })))
 const CompanyDashboardPage = React.lazy(() => import('../pages/company/CompanyDashboardPage'))
+const OwnerDashboardPage = React.lazy(() => import('../pages/company/OwnerDashboardPage'))
 const ProductionSetupPage = React.lazy(() => import('../pages/company/ProductionSetupPage'))
 const BatchDetailsPage = React.lazy(() => import('../pages/company/BatchDetailsPage'))
 const OperatorDashboardPage = React.lazy(() => import('../pages/operator/OperatorDashboardPage'))
@@ -61,6 +63,7 @@ const OperationsIssuesListPage = React.lazy(() => import('../pages/company/opera
 const OperationsIssueDetailPage = React.lazy(() => import('../pages/company/operations/OperationsIssueDetailPage'))
 const OperatorQuickReportPage = React.lazy(() => import('../pages/company/operations/OperatorQuickReportPage'))
 const OperationsIssueFormPage = React.lazy(() => import('../pages/company/operations/OperationsIssueFormPage'))
+const ReportsPage = React.lazy(() => import('../pages/company/ReportsPage'))
 
 export const getDefaultRouteForUser = (user: any): string => {
   const getRoute = () => {
@@ -89,7 +92,7 @@ export const getDefaultRouteForUser = (user: any): string => {
     if (roles.includes('Sales')) return '/sales/dashboard'
 
     if (roles.includes('Owner')) return '/company/dashboard'
-    if (roles.includes('CompanyAdmin')) return '/company/dashboard'
+    if (roles.includes('CompanyAdmin') || roles.includes('Accountant')) return '/company/dashboard'
     if (roles.includes('Manager')) return '/manager/dashboard'
     if (roles.includes('Supervisor')) return '/supervisor/dashboard'
     if (roles.includes('QC')) return '/qc/dashboard'
@@ -188,7 +191,7 @@ const CompanyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
   const roles = user.roles || []
   const hasAccess = roles.some(role =>
-    ['Owner', 'CompanyAdmin', 'GeneralManager', 'ProductionManager', 'InventoryManager', 'HRManager', 'Supervisor', 'Employee', 'Manager'].includes(role)
+    ['Owner', 'CompanyAdmin', 'Accountant', 'GeneralManager', 'ProductionManager', 'InventoryManager', 'HRManager', 'Supervisor', 'Employee', 'Manager'].includes(role)
   )
 
   if (!hasAccess && (roles.includes('Operator') || roles.some((r: string) => ['Store Keeper', 'StoreKeeper', 'STORE_KEEPER'].includes(r)) || roles.includes('Sales') || roles.includes('HR'))) {
@@ -200,6 +203,36 @@ const CompanyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   }
 
   return <>{children}</>
+}
+
+// Guard to deny access to Owner role for restricted operational modules (Production Setup, Brands)
+const OwnerRestrictedRoute: React.FC<{ children: React.ReactNode; restrictedTab?: string }> = ({ children, restrictedTab }) => {
+  const { user } = useAuthStore()
+  const location = useLocation()
+  const searchParams = new URLSearchParams(location.search)
+
+  if (isOwnerUser(user)) {
+    if (restrictedTab) {
+      if (searchParams.get('tab') === restrictedTab) {
+        return <Navigate to="/company/dashboard" replace />
+      }
+    } else {
+      return <Navigate to="/company/dashboard" replace />
+    }
+  }
+
+  return <>{children}</>
+}
+
+// Role-aware Dashboard Dispatcher for Company Dashboard
+const CompanyDashboardDispatcher: React.FC = () => {
+  const { user } = useAuthStore()
+  const isOwner = isOwnerUser(user)
+
+  if (isOwner) {
+    return <OwnerDashboardPage />
+  }
+  return <CompanyDashboardPage />
 }
 
 // Operator Terminal Guard
@@ -256,7 +289,7 @@ const QCRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const roles = user.roles || []
   const hasAccess = roles.some(role =>
-    ['QC', 'CompanyAdmin', 'Admin'].includes(role)
+    ['QC', 'CompanyAdmin', 'Accountant', 'Admin'].includes(role)
   )
 
   if (!hasAccess) {
@@ -561,11 +594,12 @@ export const AppRoutes: React.FC = () => {
           }
         >
           <Route index element={<Navigate to="/company/dashboard" replace />} />
-          <Route path="dashboard" element={<CompanyDashboardPage />} />
+          <Route path="dashboard" element={<CompanyDashboardDispatcher />} />
+          <Route path="dashboard/owner" element={<OwnerDashboardPage />} />
           <Route path="production" element={<CompanyDashboardPage />} />
-          <Route path="production-setup" element={<ProductionSetupPage />} />
+          <Route path="production-setup" element={<OwnerRestrictedRoute><ProductionSetupPage /></OwnerRestrictedRoute>} />
           <Route path="production/batches/:batchId" element={<BatchDetailsPage />} />
-          <Route path="inventory" element={<CompanyDashboardPage />} />
+          <Route path="inventory" element={<OwnerRestrictedRoute restrictedTab="brands"><CompanyDashboardPage /></OwnerRestrictedRoute>} />
           <Route path="sales" element={<CompanyDashboardPage />} />
           {/* Simple Accounts V1 Routes */}
           <Route path="accounts/dashboard" element={<AccountsDashboardPage />} />
@@ -605,11 +639,13 @@ export const AppRoutes: React.FC = () => {
           <Route path="operations-issues/new" element={<OperationsIssueFormPage />} />
           <Route path="operations-issues/:id" element={<OperationsIssueDetailPage />} />
           <Route path="operations-issues/:id/edit" element={<OperationsIssueFormPage />} />
+          {/* Reports Module */}
+          <Route path="reports" element={<ReportsPage />} />
           {/* Water Test Reports */}
           <Route path="qc/water-test" element={<WaterTestReportsListPage />} />
-          <Route path="qc/water-test/new" element={<WaterTestReportFormPage />} />
+          <Route path="qc/water-test/new" element={<OwnerRestrictedRoute><WaterTestReportFormPage /></OwnerRestrictedRoute>} />
           <Route path="qc/water-test/:id" element={<WaterTestReportDetailPage />} />
-          <Route path="qc/water-test/:id/edit" element={<WaterTestReportFormPage />} />
+          <Route path="qc/water-test/:id/edit" element={<OwnerRestrictedRoute><WaterTestReportFormPage /></OwnerRestrictedRoute>} />
         </Route>
 
         {/* QC Portal */}
@@ -624,9 +660,9 @@ export const AppRoutes: React.FC = () => {
           <Route index element={<Navigate to="/qc/dashboard" replace />} />
           <Route path="dashboard" element={<QualityDashboardPage />} />
           <Route path="water-tests" element={<WaterTestReportsListPage />} />
-          <Route path="water-tests/new" element={<WaterTestReportFormPage />} />
+          <Route path="water-tests/new" element={<OwnerRestrictedRoute><WaterTestReportFormPage /></OwnerRestrictedRoute>} />
           <Route path="water-tests/:id" element={<WaterTestReportDetailPage />} />
-          <Route path="water-tests/:id/edit" element={<WaterTestReportFormPage />} />
+          <Route path="water-tests/:id/edit" element={<OwnerRestrictedRoute><WaterTestReportFormPage /></OwnerRestrictedRoute>} />
           <Route path="compliance" element={<CompliancePage />} />
           <Route path="parameters" element={<ParametersManagementPage />} />
           <Route path="settings" element={<QCSettingsPage />} />

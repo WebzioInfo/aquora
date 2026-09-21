@@ -107,7 +107,9 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
           }
 
           const currentFullPath = location.pathname + location.search
-          const isActive = currentFullPath === item.path || (location.pathname === item.path && !location.search && !item.path?.includes('?'))
+          const isActive = currentFullPath === item.path ||
+            (location.pathname === item.path && !location.search && !item.path?.includes('?')) ||
+            (!!item.path && item.path !== '/' && item.path !== '/company' && item.path !== '/company/dashboard' && item.path !== '/qc' && item.path !== '/qc/dashboard' && location.pathname.startsWith(item.path + '/'))
           return (
             <Link
               key={item.path}

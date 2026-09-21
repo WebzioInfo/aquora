@@ -36,6 +36,8 @@ namespace Aquora.Application.Services
             _queue = queue;
         }
 
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, SemaphoreSlim> _userLocks = new();
+
         public async Task<CompanyOnboardingResponse> OnboardCompanyAsync(Guid userId, CompanyOnboardingRequest request)
         {
             if (userId == Guid.Empty)
@@ -50,23 +52,97 @@ namespace Aquora.Application.Services
 
             Validate(request);
 
-            var user = await _platformContext.Users
-                .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted && u.IsActive);
-            if (user == null)
+            // Concurrency protection: prevent race condition from rapid double-clicks or multiple tabs
+            var userLock = _userLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
+            await userLock.WaitAsync();
+            try
             {
-                throw new UnauthorizedAccessException("User not found.");
-            }
+                var user = await _platformContext.Users
+                    .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted && u.IsActive);
+                if (user == null)
+                {
+                    throw new UnauthorizedAccessException("User not found.");
+                }
 
-            if (!user.EmailVerified)
-            {
-                throw new InvalidOperationException("Email verification is required before company onboarding.");
-            }
+                if (!user.EmailVerified)
+                {
+                    throw new InvalidOperationException("Email verification is required before company onboarding.");
+                }
 
-            if (user.TenantId.HasValue)
-            {
-                var existingTenant = await _platformContext.Tenants.FirstOrDefaultAsync(t => t.Id == user.TenantId.Value && !t.IsDeleted);
+                // -------------------------------------------------------------
+                // MULTI-FACTOR EXISTING TENANT RESOLUTION (IDEMPOTENCY)
+                // -------------------------------------------------------------
+                Tenant? existingTenant = null;
+
+                // 1. Direct link on user
+                if (user.TenantId.HasValue)
+                {
+                    existingTenant = await _platformContext.Tenants
+                        .FirstOrDefaultAsync(t => t.Id == user.TenantId.Value && !t.IsDeleted);
+                }
+
+                // 2. Unfinished/failed tenant owned by this user (email or createdBy match)
+                if (existingTenant == null)
+                {
+                    var normalizedEmail = user.Email.Trim().ToLowerInvariant();
+                    var userGuidStr = user.Id.ToString();
+                    existingTenant = await _platformContext.Tenants
+                        .OrderByDescending(t => t.CreatedAt)
+                        .FirstOrDefaultAsync(t => !t.IsDeleted &&
+                            (t.OwnerEmail == normalizedEmail || t.CreatedBy == userGuidStr) &&
+                            (t.Status == "Failed" || t.Status == "Provisioning" || t.Status == "Pending" || !t.IsInitialized));
+                }
+
+                // 3. Matching company name previously created by this owner
+                if (existingTenant == null)
+                {
+                    var normalizedEmail = user.Email.Trim().ToLowerInvariant();
+                    var userGuidStr = user.Id.ToString();
+                    var normalizedCompanyName = request.CompanyName.Trim().ToLowerInvariant();
+                    existingTenant = await _platformContext.Tenants
+                        .OrderByDescending(t => t.CreatedAt)
+                        .FirstOrDefaultAsync(t => !t.IsDeleted &&
+                            (t.OwnerEmail == normalizedEmail || t.CreatedBy == userGuidStr) &&
+                            t.Name.ToLower() == normalizedCompanyName);
+                }
+
+                // 4. Fallback: UserMembership link in platform database
+                if (existingTenant == null)
+                {
+                    var membership = await _platformContext.UserMemberships
+                        .OrderByDescending(m => m.CreatedAt)
+                        .FirstOrDefaultAsync(m => m.PlatformUserId == user.Id);
+
+                    if (membership != null)
+                    {
+                        existingTenant = await _platformContext.Tenants
+                            .FirstOrDefaultAsync(t => t.Id == membership.TenantId && !t.IsDeleted);
+                    }
+                }
+
                 if (existingTenant != null)
                 {
+                    Console.WriteLine($"[ONBOARDING IDEMPOTENCY]: Found existing tenant {existingTenant.Id} ('{existingTenant.Name}', Status: {existingTenant.Status}) for user {userId}. Reusing existing tenant.");
+
+                    // Self-heal relationship
+                    if (user.TenantId != existingTenant.Id)
+                    {
+                        user.TenantId = existingTenant.Id;
+                    }
+                    if (string.IsNullOrWhiteSpace(existingTenant.OwnerEmail))
+                    {
+                        existingTenant.OwnerEmail = user.Email.Trim().ToLowerInvariant();
+                    }
+                    if (string.IsNullOrWhiteSpace(existingTenant.OwnerName))
+                    {
+                        existingTenant.OwnerName = $"{user.FirstName} {user.LastName}".Trim();
+                    }
+                    if (string.IsNullOrWhiteSpace(existingTenant.CreatedBy))
+                    {
+                        existingTenant.CreatedBy = user.Id.ToString();
+                    }
+                    await _platformContext.SaveChangesAsync();
+
                     if (existingTenant.IsInitialized || existingTenant.Status == "Completed")
                     {
                         Console.WriteLine($"[ONBOARDING]: User {userId} requested onboarding but Tenant {existingTenant.Id} is already initialized.");
@@ -87,11 +163,67 @@ namespace Aquora.Application.Services
                             Permissions = defaultPerms
                         };
                     }
+
+                    if (existingTenant.Status == "Failed")
+                    {
+                        // Safely reset failed tenant status and re-queue provisioning using the SAME tenant and schema
+                        Console.WriteLine($"[ONBOARDING RETRY]: Reusing failed tenant {existingTenant.Id} and schema {existingTenant.SchemaName} for user {userId}.");
+                        existingTenant.Name = request.CompanyName.Trim();
+                        existingTenant.Status = "Provisioning";
+                        existingTenant.Progress = 10;
+                        existingTenant.CurrentStep = "TenantCreated";
+                        existingTenant.FailureReason = null;
+                        existingTenant.StartedAt = DateTime.UtcNow;
+                        await _platformContext.SaveChangesAsync();
+
+                        _queue.QueueProvisioning(new TenantProvisioningJob
+                        {
+                            TenantId = existingTenant.Id,
+                            SchemaName = existingTenant.SchemaName,
+                            CompanyName = existingTenant.Name,
+                            CompanyCode = existingTenant.Code,
+                            OwnerUserId = user.Id,
+                            EnabledStations = request.EnabledStations
+                        });
+
+                        var defaultRoles = new System.Collections.Generic.List<string> { "Owner" };
+                        var defaultPerms = new System.Collections.Generic.List<string>
+                        {
+                            Permissions.TenantRead,
+                            Permissions.UsersRead,
+                            Permissions.RolesRead,
+                            Permissions.AuditRead,
+                            Permissions.HierarchyRead,
+                            Permissions.DashboardRead
+                        };
+                        var accToken = _tokenService.GenerateAccessToken(user, defaultRoles, defaultPerms);
+                        var refToken = _tokenService.GenerateRefreshToken();
+                        return new CompanyOnboardingResponse
+                        {
+                            TenantId = existingTenant.Id,
+                            CompanyName = existingTenant.Name,
+                            SchemaName = existingTenant.SchemaName,
+                            OwnerRole = "Owner",
+                            ProvisioningStatus = "Provisioning",
+                            AccessToken = accToken,
+                            RefreshToken = refToken,
+                            ExpiresIn = 3600,
+                            Permissions = defaultPerms
+                        };
+                    }
                     else
                     {
                         // Provisioning in progress — return active state without duplicating tenant entry
                         var defaultRoles = new System.Collections.Generic.List<string> { "Owner" };
-                        var defaultPerms = new System.Collections.Generic.List<string>();
+                        var defaultPerms = new System.Collections.Generic.List<string>
+                        {
+                            Permissions.TenantRead,
+                            Permissions.UsersRead,
+                            Permissions.RolesRead,
+                            Permissions.AuditRead,
+                            Permissions.HierarchyRead,
+                            Permissions.DashboardRead
+                        };
                         var accToken = _tokenService.GenerateAccessToken(user, defaultRoles, defaultPerms);
                         var refToken = _tokenService.GenerateRefreshToken();
                         return new CompanyOnboardingResponse
@@ -108,88 +240,103 @@ namespace Aquora.Application.Services
                         };
                     }
                 }
-            }
 
-            var companyCode = await GenerateUniqueCompanyCodeAsync(request.CompanyName);
+                Console.WriteLine($"[ONBOARDING] No existing tenant found. Creating fresh tenant for user {userId} ({request.CompanyName})");
 
-            var tenantId = Guid.NewGuid();
-            var schemaName = await _schemaNameGenerator.GenerateSchemaNameAsync(request.CompanyName);
-            var subdomain = companyCode.ToLowerInvariant();
+                var companyCode = await GenerateUniqueCompanyCodeAsync(request.CompanyName);
+                var tenantId = Guid.NewGuid();
+                var schemaName = await _schemaNameGenerator.GenerateSchemaNameAsync(request.CompanyName);
+                var subdomain = companyCode.ToLowerInvariant();
 
-            // 1. Commit Tenant Creation in Platform Db
-            await using (var transaction = await _platformContext.Database.BeginTransactionAsync())
-            {
-                try
+                Console.WriteLine($"[ONBOARDING] Tenant record created with TenantId: {tenantId}, Schema: {schemaName}, Code: {companyCode}");
+
+                // 1. Commit Tenant Creation in Platform Db with authoritative owner metadata
+                await using (var transaction = await _platformContext.Database.BeginTransactionAsync())
                 {
-                    var tenant = new Tenant
+                    try
                     {
-                        Id = tenantId,
-                        Name = request.CompanyName.Trim(),
-                        Code = companyCode.ToUpperInvariant(),
-                        SchemaName = schemaName,
-                        Subdomain = subdomain,
-                        IsInitialized = false,
-                        Status = "Provisioning",
-                        Progress = 10,
-                        CurrentStep = "Queueing provisioning",
-                        StartedAt = DateTime.UtcNow
-                    };
+                        var tenant = new Tenant
+                        {
+                            Id = tenantId,
+                            Name = request.CompanyName.Trim(),
+                            Code = companyCode.ToUpperInvariant(),
+                            SchemaName = schemaName,
+                            Subdomain = subdomain,
+                            IsInitialized = false,
+                            Status = "Provisioning",
+                            Progress = 10,
+                            CurrentStep = "TenantCreated",
+                            StartedAt = DateTime.UtcNow,
+                            OwnerEmail = user.Email.Trim().ToLowerInvariant(),
+                            OwnerName = $"{user.FirstName} {user.LastName}".Trim(),
+                            CreatedBy = user.Id.ToString(),
+                            CreatedAt = DateTime.UtcNow
+                        };
 
-                    _platformContext.Tenants.Add(tenant);
-                    user.TenantId = tenant.Id;
-                    await _platformContext.SaveChangesAsync();
-                    await transaction.CommitAsync();
+                        _platformContext.Tenants.Add(tenant);
+                        user.TenantId = tenant.Id;
+                        await _platformContext.SaveChangesAsync();
+                        await transaction.CommitAsync();
+                        Console.WriteLine($"[ONBOARDING] Tenant committed and user linked to TenantId: {tenant.Id}");
+                    }
+                    catch (Exception ex)
+                    {
+                        await transaction.RollbackAsync();
+                        Console.WriteLine($"[ONBOARDING] Transaction rolled back during tenant creation: {ex.Message}");
+                        throw;
+                    }
                 }
-                catch
+
+                // 2. Queue Background Tenant Provisioning
+                Console.WriteLine($"[ONBOARDING] Provisioning job enqueue attempted for Tenant: {tenantId}");
+                _queue.QueueProvisioning(new TenantProvisioningJob
                 {
-                    await transaction.RollbackAsync();
-                    throw;
-                }
+                    TenantId = tenantId,
+                    SchemaName = schemaName,
+                    CompanyName = request.CompanyName.Trim(),
+                    CompanyCode = companyCode,
+                    OwnerUserId = user.Id,
+                    EnabledStations = request.EnabledStations
+                });
+                Console.WriteLine($"[ONBOARDING] Provisioning job enqueue succeeded for Tenant: {tenantId}");
+
+                // 3. Generate dynamic token with default role and permission claims during provisioning
+                var roles = new System.Collections.Generic.List<string> { "Owner" };
+                var permissions = new System.Collections.Generic.List<string>
+                {
+                    Permissions.TenantRead,
+                    Permissions.UsersRead,
+                    Permissions.RolesRead,
+                    Permissions.AuditRead,
+                    Permissions.HierarchyRead,
+                    Permissions.DashboardRead
+                };
+
+                var accessToken = _tokenService.GenerateAccessToken(user, roles, permissions);
+                var refreshToken = _tokenService.GenerateRefreshToken();
+
+                user.RefreshToken = refreshToken;
+                user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                await _platformContext.SaveChangesAsync();
+
+                return new CompanyOnboardingResponse
+                {
+                    TenantId = tenantId,
+                    CompanyId = Guid.Empty, // Created asynchronously in background
+                    CompanyName = request.CompanyName.Trim(),
+                    SchemaName = schemaName,
+                    OwnerRole = "Owner",
+                    ProvisioningStatus = "Provisioning",
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken,
+                    ExpiresIn = 3600,
+                    Permissions = permissions
+                };
             }
-
-            // 2. Queue Background Tenant Provisioning
-            _queue.QueueProvisioning(new TenantProvisioningJob
+            finally
             {
-                TenantId = tenantId,
-                SchemaName = schemaName,
-                CompanyName = request.CompanyName.Trim(),
-                CompanyCode = companyCode,
-                OwnerUserId = user.Id,
-                EnabledStations = request.EnabledStations
-            });
-
-            // 3. Generate dynamic token with default role and permission claims during provisioning
-            var roles = new System.Collections.Generic.List<string> { "Owner" };
-            var permissions = new System.Collections.Generic.List<string>
-            {
-                Permissions.TenantRead,
-                Permissions.UsersRead,
-                Permissions.RolesRead,
-                Permissions.AuditRead,
-                Permissions.HierarchyRead,
-                Permissions.DashboardRead
-            };
-
-            var accessToken = _tokenService.GenerateAccessToken(user, roles, permissions);
-            var refreshToken = _tokenService.GenerateRefreshToken();
-
-            user.RefreshToken = refreshToken;
-            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
-            await _platformContext.SaveChangesAsync();
-
-            return new CompanyOnboardingResponse
-            {
-                TenantId = tenantId,
-                CompanyId = Guid.Empty, // Created asynchronously in background
-                CompanyName = request.CompanyName.Trim(),
-                SchemaName = schemaName,
-                OwnerRole = "Owner",
-                ProvisioningStatus = "Provisioning",
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
-                ExpiresIn = 3600,
-                Permissions = permissions
-            };
+                userLock.Release();
+            }
         }
 
         public async Task<CompanyOnboardingResponse> RetryOnboardingAsync(Guid userId)
@@ -206,18 +353,48 @@ namespace Aquora.Application.Services
                 throw new UnauthorizedAccessException("User not found.");
             }
 
+            // Self-heal: If user.TenantId is missing, resolve by owner identity or memberships
+            if (!user.TenantId.HasValue)
+            {
+                var normalizedEmail = user.Email.Trim().ToLowerInvariant();
+                var userGuidStr = user.Id.ToString();
+                var existingTenant = await _platformContext.Tenants
+                    .OrderByDescending(t => t.CreatedAt)
+                    .FirstOrDefaultAsync(t => !t.IsDeleted &&
+                        (t.OwnerEmail == normalizedEmail || t.CreatedBy == userGuidStr));
+
+                if (existingTenant == null)
+                {
+                    var membership = await _platformContext.UserMemberships
+                        .OrderByDescending(m => m.CreatedAt)
+                        .FirstOrDefaultAsync(m => m.PlatformUserId == user.Id);
+
+                    if (membership != null)
+                    {
+                        existingTenant = await _platformContext.Tenants
+                            .FirstOrDefaultAsync(t => t.Id == membership.TenantId && !t.IsDeleted);
+                    }
+                }
+
+                if (existingTenant != null)
+                {
+                    user.TenantId = existingTenant.Id;
+                    await _platformContext.SaveChangesAsync();
+                }
+            }
+
             if (!user.TenantId.HasValue)
             {
                 throw new InvalidOperationException("No company associated with this account. Please initialize first.");
             }
 
-            var tenant = await _platformContext.Tenants.FirstOrDefaultAsync(t => t.Id == user.TenantId.Value);
+            var tenant = await _platformContext.Tenants.FirstOrDefaultAsync(t => t.Id == user.TenantId.Value && !t.IsDeleted);
             if (tenant == null)
             {
                 throw new InvalidOperationException("Associated company details not found.");
             }
 
-            if (tenant.Status != "Failed")
+            if (tenant.Status != "Failed" && (tenant.Status != "Provisioning" || tenant.IsInitialized))
             {
                 throw new InvalidOperationException($"Cannot retry onboarding. Current status is '{tenant.Status}'.");
             }
@@ -233,8 +410,8 @@ namespace Aquora.Application.Services
 
             // Reset tenant status in platform DB
             tenant.Status = "Provisioning";
-            tenant.Progress = 5;
-            tenant.CurrentStep = "Workspace Created";
+            tenant.Progress = 10;
+            tenant.CurrentStep = "TenantCreated";
             tenant.FailureReason = null;
             tenant.StartedAt = DateTime.UtcNow;
 
@@ -295,28 +472,64 @@ namespace Aquora.Application.Services
             if (user == null)
                 throw new UnauthorizedAccessException("User not found.");
 
+            // Self-heal: If user.TenantId is missing, resolve by owner identity or memberships
+            if (!user.TenantId.HasValue)
+            {
+                var normalizedEmail = user.Email.Trim().ToLowerInvariant();
+                var userGuidStr = user.Id.ToString();
+                var fallbackTenant = await _platformContext.Tenants
+                    .OrderByDescending(t => t.CreatedAt)
+                    .FirstOrDefaultAsync(t => !t.IsDeleted &&
+                        (t.OwnerEmail == normalizedEmail || t.CreatedBy == userGuidStr));
+
+                if (fallbackTenant == null)
+                {
+                    var membership = await _platformContext.UserMemberships
+                        .OrderByDescending(m => m.CreatedAt)
+                        .FirstOrDefaultAsync(m => m.PlatformUserId == user.Id);
+
+                    if (membership != null)
+                    {
+                        fallbackTenant = await _platformContext.Tenants
+                            .FirstOrDefaultAsync(t => t.Id == membership.TenantId && !t.IsDeleted);
+                    }
+                }
+
+                if (fallbackTenant != null)
+                {
+                    user.TenantId = fallbackTenant.Id;
+                    await _platformContext.SaveChangesAsync();
+                }
+            }
+
             if (!user.TenantId.HasValue)
             {
                 return new
                 {
+                    TenantId = (Guid?)null,
                     Status = "Pending",
                     Progress = 0,
-                    Step = (string?)null,
+                    CurrentStep = (string?)null,
                     Message = "No workspace created yet.",
-                    FailureReason = (string?)null
+                    FailureReason = (string?)null,
+                    Steps = Array.Empty<object>(),
+                    EstimatedRemainingSeconds = 0
                 };
             }
 
             var tenant = await _platformContext.Tenants.FindAsync(user.TenantId.Value);
-            if (tenant == null)
+            if (tenant == null || tenant.IsDeleted)
             {
                 return new
                 {
+                    TenantId = (Guid?)null,
                     Status = "Pending",
                     Progress = 0,
-                    Step = (string?)null,
+                    CurrentStep = (string?)null,
                     Message = "Workspace record not found.",
-                    FailureReason = (string?)null
+                    FailureReason = (string?)null,
+                    Steps = Array.Empty<object>(),
+                    EstimatedRemainingSeconds = 0
                 };
             }
 
@@ -362,7 +575,7 @@ namespace Aquora.Application.Services
             }).ToList();
 
             int completedCount = stepsResult.Count(s => s.status == "Completed");
-            int calculatedProgress = isDone ? 100 : (int)Math.Round((double)completedCount / pipelineSteps.Length * 100);
+            int calculatedProgress = isDone ? 100 : Math.Max(tenant.Progress, (int)Math.Round((double)completedCount / pipelineSteps.Length * 100));
 
             return new
             {
@@ -370,10 +583,11 @@ namespace Aquora.Application.Services
                 Status = isDone ? "Completed" : (isFailed ? "Failed" : "Provisioning"),
                 Progress = calculatedProgress,
                 CurrentStep = currentStepKey,
+                FailedStep = isFailed ? currentStepKey : (string?)null,
                 Message = isDone ? "Your workspace is ready!" : (isFailed ? (tenant.FailureReason ?? "Provisioning failed.") : $"{pipelineSteps[currentStepIndex].name}..."),
                 FailureReason = tenant.FailureReason,
                 Steps = stepsResult,
-                EstimatedRemainingSeconds = isDone ? 0 : Math.Max(3, (pipelineSteps.Length - completedCount) * 2)
+                EstimatedRemainingSeconds = (isDone || isFailed) ? (int?)null : Math.Max(3, (pipelineSteps.Length - completedCount) * 2)
             };
         }
 

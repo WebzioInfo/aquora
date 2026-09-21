@@ -10,7 +10,7 @@ import { setCompanyPrefs } from '../utils/dateFormatter'
 import {
   LayoutDashboard, Factory, Package, TrendingUp, Users, Truck,
   Settings, ChevronRight, Play, Plus, X, Layers, Workflow, CalendarClock, Sliders,
-  Droplet, Droplets, Boxes, Tag, ShoppingCart, PieChart, IdCard, Beaker, Database, AlertTriangle
+  Droplet, Droplets, Boxes, Tag, ShoppingCart, PieChart, IdCard, Beaker, Database, AlertTriangle, BarChart3
 } from 'lucide-react'
 import EnterpriseSidebar from '../components/ui/EnterpriseSidebar'
 import EnterpriseTopbar from '../components/ui/EnterpriseTopbar'
@@ -20,6 +20,7 @@ import { GlobalSearchModal } from '../components/search/GlobalSearchModal'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { HubConnectionBuilder, HttpTransportType } from '@microsoft/signalr'
 import { operationsIssueApi } from '../services/api/operationsIssue'
+import { filterSidebarItemsForUser } from '../utils/permissions'
 
 export const CompanyLayout: React.FC = () => {
   const { user, clearAuth } = useAuthStore()
@@ -137,6 +138,22 @@ export const CompanyLayout: React.FC = () => {
             dateFormat: data.dateFormat || 'dd MMM yyyy',
             timeFormat: data.timeFormat || '12h'
           })
+          try {
+            localStorage.setItem('aquzio_company_profile', JSON.stringify({
+              name: data.name,
+              displayName: data.displayName || data.name,
+              email: data.email,
+              phone: data.phone,
+              gstNumber: data.gstNumber,
+              address: data.address,
+              city: data.city,
+              state: data.state,
+              country: data.country,
+              pincode: data.pincode || data.postalCode,
+              logoUrl: data.logoUrl,
+              currency: data.currency
+            }))
+          } catch {}
         }
       } catch (err) {
         console.error('Failed to prefetch company settings:', err)
@@ -168,7 +185,7 @@ export const CompanyLayout: React.FC = () => {
     navigate(`/company/operations-issues/${id}`)
   }
 
-  const sidebarItems = [
+  const rawSidebarItems = [
     { label: 'Dashboard', path: '/company/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
     { label: 'Production Batches', path: '/company/production', icon: <Layers className="w-5 h-5" /> },
     { label: 'Production Setup', path: '/company/production-setup', icon: <Sliders className="w-5 h-5" /> },
@@ -192,6 +209,7 @@ export const CompanyLayout: React.FC = () => {
       ]
     },
     { label: 'Water Test Reports', path: '/company/qc/water-test', icon: <Droplets className="w-5 h-5" /> },
+    { label: 'Reports', path: '/company/reports', icon: <BarChart3 className="w-5 h-5" /> },
     // { label: 'Business Intelligence', path: '/company/business-finance', icon: <TrendingUp className="w-5 h-5" /> },
     { label: 'Customers', path: '/company/customers', icon: <Users className="w-5 h-5" /> },
     { label: 'Employees', path: '/company/employees', icon: <IdCard className="w-5 h-5" /> },
@@ -205,6 +223,8 @@ export const CompanyLayout: React.FC = () => {
     { label: 'Company Settings', path: '/company/settings', icon: <Settings className="w-5 h-5" /> },
     { label: 'Backup & Restore', path: '/company/backups', icon: <Database className="w-5 h-5" /> },
   ]
+
+  const sidebarItems = filterSidebarItemsForUser(rawSidebarItems, user)
 
   const getBreadcrumbs = () => {
     const paths = location.pathname.split('/').filter(x => x)

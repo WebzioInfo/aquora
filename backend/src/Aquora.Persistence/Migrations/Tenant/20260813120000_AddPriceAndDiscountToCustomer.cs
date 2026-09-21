@@ -1,3 +1,5 @@
+using Aquora.Persistence.Context;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -5,19 +7,23 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Aquora.Persistence.Migrations.Tenant
 {
     /// <inheritdoc />
+    [DbContext(typeof(TenantDbContext))]
+    [Migration("20260813120000_AddPriceAndDiscountToCustomer")]
     public partial class AddPriceAndDiscountToCustomer : Migration
     {
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
                 name: "CountSetting",
-                schema: "public",
+                schema: _schema,
                 table: "Customers");
 
             migrationBuilder.AddColumn<decimal>(
                 name: "Price",
-                schema: "public",
+                schema: _schema,
                 table: "Customers",
                 type: "numeric",
                 nullable: false,
@@ -25,7 +31,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AddColumn<decimal>(
                 name: "Discount",
-                schema: "public",
+                schema: _schema,
                 table: "Customers",
                 type: "numeric",
                 nullable: false,
@@ -37,17 +43,17 @@ namespace Aquora.Persistence.Migrations.Tenant
         {
             migrationBuilder.DropColumn(
                 name: "Price",
-                schema: "public",
+                schema: _schema,
                 table: "Customers");
 
             migrationBuilder.DropColumn(
                 name: "Discount",
-                schema: "public",
+                schema: _schema,
                 table: "Customers");
 
             migrationBuilder.AddColumn<int>(
                 name: "CountSetting",
-                schema: "public",
+                schema: _schema,
                 table: "Customers",
                 type: "integer",
                 nullable: false,

@@ -1,14 +1,11 @@
 import { jsPDF } from 'jspdf'
+import {
+  drawCompanyPdfHeader,
+  drawCompanyPdfContinuationHeader
+} from './companyPdfHeader'
+import type { PDFCompanyProfile } from './companyPdfHeader'
 
-export interface PDFCompanyInfo {
-  name: string;
-  displayName?: string;
-  email?: string;
-  phone?: string;
-  gstNumber?: string;
-  address?: string;
-  logoUrl?: string;
-}
+export type PDFCompanyInfo = PDFCompanyProfile
 
 export interface PDFDocumentOptions {
   title: string;
@@ -76,64 +73,37 @@ export const generateERPDocumentPDF = (options: PDFDocumentOptions): jsPDF => {
       .toUpperCase();
   };
 
-  const drawHeader = (pageNum: number) => {
-    // 1. Company Name on Left (Strongest text in header, No Logo)
-    const companyName = (
-      options.companyInfo.displayName ||
-      options.companyInfo.name ||
-      'COMPANY'
-    ).toUpperCase();
-
-    pdf.setTextColor(15, 23, 42); // slate-900
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(13);
-    pdf.text(companyName, margin, margin + 4);
-
-    // 2. Company Address / Location on Left (Secondary text)
-    const rawAddress = options.companyInfo.address;
-    const cleanAddress =
-      rawAddress &&
-      rawAddress.trim() !== '' &&
-      rawAddress.toLowerCase() !== 'null' &&
-      rawAddress.toLowerCase() !== 'undefined'
-        ? rawAddress.trim()
-        : null;
-
-    let nextY = margin + 9;
-
-    if (cleanAddress) {
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(8.5);
-      pdf.setTextColor(71, 85, 105); // slate-600
-      
-      const splitAddress = pdf.splitTextToSize(cleanAddress, 110);
-      pdf.text(splitAddress, margin, nextY);
-      nextY += (splitAddress.length * 4);
+  const drawPageHeader = (pageNum: number) => {
+    if (pageNum === 1) {
+      const headerRes = drawCompanyPdfHeader(pdf, {
+        company: options.companyInfo,
+        docTitle: options.title,
+        docNumber: options.docNumber ? `Doc No: ${options.docNumber}` : undefined,
+        docDate: options.date ? `Date: ${options.date}` : undefined,
+        metaLines: options.companyInfo?.gstNumber ? [`GSTIN: ${options.companyInfo.gstNumber}`] : [],
+        startX: margin,
+        startY: margin,
+        contentWidth,
+        rightMarginX,
+        titleColor: [26, 86, 219],
+        maxAddressWidth: 105,
+        showDivider: true
+      })
+      return headerRes.nextY + 3
+    } else {
+      return drawCompanyPdfContinuationHeader(pdf, {
+        company: options.companyInfo,
+        docTitle: options.title,
+        docNumber: options.docNumber,
+        startX: margin,
+        startY: margin,
+        rightMarginX
+      })
     }
-
-    // 3. Document Title on Right
-    pdf.setTextColor(26, 86, 219); // Accent Blue
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(12);
-    textRight(options.title.toUpperCase(), rightMarginX, margin + 4);
-
-    // 4. Document Metadata details on Right
-    pdf.setTextColor(71, 85, 105);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8);
-    textRight(`Doc No: ${options.docNumber}`, rightMarginX, margin + 9);
-    textRight(`Date: ${options.date}`, rightMarginX, margin + 13);
-
-    // 5. Horizontal Divider Line
-    const lineY = Math.max(nextY + 3, margin + 18);
-    pdf.setDrawColor(226, 232, 240); // slate-200
-    pdf.setLineWidth(0.4);
-    pdf.line(margin, lineY, rightMarginX, lineY);
-  };
+  }
 
   // Main Page 1 Initial Setup
-  drawHeader(1);
-  let y = margin + 26;
+  let y = drawPageHeader(1)
 
   // Render Party and Invoice Details side-by-side
   pdf.setFillColor(248, 250, 252); // slate-50 background card
@@ -210,8 +180,7 @@ export const generateERPDocumentPDF = (options: PDFDocumentOptions): jsPDF => {
     const rowHeight = 7;
     if (y + rowHeight > pageHeight - bottomMargin) {
       pdf.addPage();
-      drawHeader(pdf.getNumberOfPages());
-      y = margin + 26;
+      y = drawPageHeader(pdf.getNumberOfPages());
       drawTableHeader(y);
       y += 7;
       pdf.setFont('helvetica', 'normal');
@@ -248,8 +217,7 @@ export const generateERPDocumentPDF = (options: PDFDocumentOptions): jsPDF => {
   const summaryBlockHeight = 35;
   if (y + summaryBlockHeight > pageHeight - bottomMargin) {
     pdf.addPage();
-    drawHeader(pdf.getNumberOfPages());
-    y = margin + 26;
+    y = drawPageHeader(pdf.getNumberOfPages());
   }
 
   // Draw notes / remarks (Left side)

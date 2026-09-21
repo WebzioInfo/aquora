@@ -6,8 +6,14 @@ import React, { useState, useEffect } from 'react'
 import { api } from '../../services/api'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import EnterpriseNumberInput from '../../components/ui/EnterpriseNumberInput'
-import { Truck, Clock, Package, AlertCircle, RefreshCw, Box, Layers, LogIn, CheckCircle, Search, Edit2, Zap, Settings, HelpCircle, DollarSign, Activity } from 'lucide-react'
+
+import {
+  Truck, Clock, Package, AlertCircle, RefreshCw, Box, Layers, LogIn,
+  CheckCircle, Search, Edit2, Zap, Settings, HelpCircle, DollarSign, Activity,
+  Plus, X, User, Phone, MapPin, CreditCard
+} from 'lucide-react'
 import { TwentyLOperationsHub } from './TwentyLOperationsHub'
+
 
 export const OperationsPage: React.FC = () => {
   const { showToast } = useNotificationStore()
@@ -34,11 +40,24 @@ export const OperationsPage: React.FC = () => {
   const [returnVehicle, setReturnVehicle] = useState('')
   const [returnBrand, setReturnBrand] = useState('')
   const [returnQty, setReturnQty] = useState('')
-  const [immediateReq, setImmediateReq] = useState('')
   const [laterReq, setLaterReq] = useState('')
   const [damagedQty, setDamagedQty] = useState('')
   const [returnRemarks, setReturnRemarks] = useState('')
   const [isSubmittingReturn, setIsSubmittingReturn] = useState(false)
+
+  // Quick Customer Creation Modal State
+  const [showQuickCustomerModal, setShowQuickCustomerModal] = useState(false)
+  const [quickCustLoading, setQuickCustLoading] = useState(false)
+  const [quickCustForm, setQuickCustForm] = useState({
+    customerName: '',
+    phone: '',
+    customerType: 'Distributor',
+    assignedVehicle: '',
+    assignedRoute: '',
+    addressLine1: '',
+    city: '',
+    paymentTerms: 'COD'
+  })
 
   // Form states - Section 2/3: Loading
   const [loadVisitId, setLoadVisitId] = useState<string | null>(null)
@@ -63,7 +82,7 @@ export const OperationsPage: React.FC = () => {
         api.get('/api/v1/products?pageSize=1000'),
         api.get('/api/v1/rawmaterials?pageSize=1000'),
         api.get('/api/v1/production/batches/active'),
-        api.get('/api/v1/customers?type=Distributor&pageSize=1000'),
+        api.get('/api/v1/customers?pageSize=1000'),
         api.get('/api/v1/operations/queue'),
         api.get('/api/v1/operations/dashboard')
       ])
@@ -74,7 +93,7 @@ export const OperationsPage: React.FC = () => {
       setBatches(resBatches.data?.data || [])
       
       const allDist = resDist.data?.data?.items || []
-      setDistributors(allDist.filter((c: any) => c.customerType === 'Distributor' || c.customerType === 'B2B'))
+      setDistributors(allDist)
       
       setQueue(resQueue.data?.data || [])
       
@@ -88,6 +107,78 @@ export const OperationsPage: React.FC = () => {
       })
     } catch (err: any) {
       showToast('Error loading master data.', 'error')
+    }
+  }
+
+  const handleDistributorChange = (selectedId: string) => {
+    setReturnDistributor(selectedId)
+    if (!selectedId) {
+      setReturnVehicle('')
+      return
+    }
+    const selected = distributors.find(d => (d.id || d.customerId) === selectedId)
+    if (selected && selected.assignedVehicle) {
+      setReturnVehicle(selected.assignedVehicle.trim())
+    } else {
+      setReturnVehicle('')
+    }
+  }
+
+  const handleQuickCustomerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!quickCustForm.customerName.trim()) {
+      showToast('Customer Name is required.', 'error')
+      return
+    }
+    if (!quickCustForm.phone.trim()) {
+      showToast('Phone number is required.', 'error')
+      return
+    }
+
+    setQuickCustLoading(true)
+    try {
+      const res = await api.post('/api/v1/customers/quick', {
+        customerName: quickCustForm.customerName.trim(),
+        phone: quickCustForm.phone.trim(),
+        customerType: quickCustForm.customerType || 'Distributor',
+        assignedVehicle: quickCustForm.assignedVehicle.trim() || null,
+        assignedRoute: quickCustForm.assignedRoute.trim() || null,
+        addressLine1: quickCustForm.addressLine1.trim() || null,
+        city: quickCustForm.city.trim() || null,
+        paymentTerms: quickCustForm.paymentTerms || 'COD'
+      })
+
+      const newCustomer = res.data?.data
+      showToast(`Customer "${newCustomer?.customerName || quickCustForm.customerName}" created successfully!`, 'success')
+      
+      // Refresh master data
+      await loadMasterData()
+
+      // Auto-select newly created customer
+      const newId = newCustomer?.id || newCustomer?.customerId
+      if (newId) {
+        setReturnDistributor(newId)
+        setReturnVehicle(newCustomer?.assignedVehicle || quickCustForm.assignedVehicle.trim() || '')
+      }
+
+      // Reset and close modal
+      setQuickCustForm({
+        customerName: '',
+        phone: '',
+        customerType: 'Distributor',
+        assignedVehicle: '',
+        assignedRoute: '',
+        addressLine1: '',
+        city: '',
+        paymentTerms: 'COD'
+      })
+      setShowQuickCustomerModal(false)
+    } catch (err: any) {
+      console.error('Error creating customer:', err)
+      const errorMsg = err?.response?.data?.message || err?.message || 'Failed to create customer. Please check fields and try again.'
+      showToast(errorMsg, 'error')
+    } finally {
+      setQuickCustLoading(false)
     }
   }
 
@@ -115,7 +206,7 @@ export const OperationsPage: React.FC = () => {
       await api.post(`/api/v1/operations/visit/${visitId}/unload`, {
         brandId: returnBrand,
         returnedEmptyCount: Number(returnQty),
-        immediateRequirement: Number(immediateReq || 0),
+        immediateRequirement: 0,
         laterRequirement: Number(laterReq || 0),
         scheduledRequirement: 0,
         conditions: conditions
@@ -129,7 +220,6 @@ export const OperationsPage: React.FC = () => {
       setReturnVehicle('')
       setReturnBrand('')
       setReturnQty('')
-      setImmediateReq('')
       setLaterReq('')
       setDamagedQty('')
       setReturnRemarks('')
@@ -232,31 +322,30 @@ export const OperationsPage: React.FC = () => {
 
   return (
     <PageContainer>
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-        <PageHeader
-          title="20L Operations & Business Hub"
-          description="Authoritative 20L container ledger, commercial deliveries, rate cards, and factory floor loading."
-        />
-
-        <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
-          <button
-            onClick={() => setOperationsView('business')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-              operationsView === 'business' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <DollarSign className="w-3.5 h-3.5" /> 20L Business Engine
-          </button>
-          <button
-            onClick={() => setOperationsView('floor')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-              operationsView === 'floor' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Activity className="w-3.5 h-3.5" /> Plant Floor Loading & Queue
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="20L Operations & Business Hub"
+        description="Authoritative 20L container ledger, commercial deliveries, rate cards, and factory floor loading."
+        actions={
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <button
+              onClick={() => setOperationsView('business')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                operationsView === 'business' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <DollarSign className="w-3.5 h-3.5" /> 20L Business Engine
+            </button>
+            <button
+              onClick={() => setOperationsView('floor')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                operationsView === 'floor' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5" /> Plant Floor Loading & Queue
+            </button>
+          </div>
+        }
+      />
 
       {operationsView === 'business' ? (
         <TwentyLOperationsHub />
@@ -272,28 +361,58 @@ export const OperationsPage: React.FC = () => {
                 Return Entry & Arrival
               </h2>
               <form onSubmit={handleReturnSubmit} className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-slate-700 mb-1">Distributor *</label>
-                    <select required value={returnDistributor} onChange={e => setReturnDistributor(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="">-- Select Distributor --</option>
-                      {distributors.map(d => <option key={d.id || d.customerId} value={d.id || d.customerId}>{d.customerName || d.name}</option>)}
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="text-xs font-semibold text-slate-700">Distributor / Customer *</label>
+                      <button
+                        type="button"
+                        onClick={() => setShowQuickCustomerModal(true)}
+                        className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Quick Add
+                      </button>
+                    </div>
+                    <select
+                      required
+                      value={returnDistributor}
+                      onChange={e => handleDistributorChange(e.target.value)}
+                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">-- Select Distributor / Customer --</option>
+                      {distributors.map(d => (
+                        <option key={d.id || d.customerId} value={d.id || d.customerId}>
+                          {d.customerName || d.name} {d.assignedVehicle ? `(${d.assignedVehicle})` : ''}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="flex flex-col">
                     <label className="text-xs font-semibold text-slate-700 mb-1">Vehicle Number *</label>
-                    <input required type="text" value={returnVehicle} onChange={e => setReturnVehicle(e.target.value)} placeholder="KL-XX-XXXX" className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input
+                      required
+                      type="text"
+                      value={returnVehicle}
+                      onChange={e => setReturnVehicle(e.target.value)}
+                      placeholder="KL-XX-XXXX"
+                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
                   <div className="flex flex-col">
                     <label className="text-xs font-semibold text-slate-700 mb-1">Return Brand *</label>
-                    <select required value={returnBrand} onChange={e => setReturnBrand(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <select
+                      required
+                      value={returnBrand}
+                      onChange={e => setReturnBrand(e.target.value)}
+                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
                       <option value="">-- Select Brand --</option>
                       {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                     </select>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex flex-col">
                     <EnterpriseNumberInput
                       label="Returned Empty Qty *"
@@ -302,16 +421,6 @@ export const OperationsPage: React.FC = () => {
                       min={0}
                       value={returnQty}
                       onChange={e => setReturnQty(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex flex-col">
-                    <EnterpriseNumberInput
-                      label="Immediate Req. (Queue)"
-                      placeholder="0"
-                      allowDecimals={false}
-                      min={0}
-                      value={immediateReq}
-                      onChange={e => setImmediateReq(e.target.value)}
                     />
                   </div>
                   <div className="flex flex-col">
@@ -337,7 +446,7 @@ export const OperationsPage: React.FC = () => {
                 </div>
 
                 <div className="flex justify-end pt-2">
-                  <button type="submit" disabled={isSubmittingReturn} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2 px-6 rounded-md transition-colors disabled:opacity-50">
+                  <button type="submit" disabled={isSubmittingReturn} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2 px-6 rounded-md transition-colors disabled:opacity-50 cursor-pointer">
                     {isSubmittingReturn ? 'Saving...' : 'Confirm Arrival & Queue'}
                   </button>
                 </div>
@@ -507,7 +616,153 @@ export const OperationsPage: React.FC = () => {
           </div>
 
         </div>
+
       )}
+
+
+        {/* QUICK CUSTOMER CREATION MODAL */}
+        {showQuickCustomerModal && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
+            <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/80">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Quick Add Customer</h3>
+                    <p className="text-xs text-slate-500">Create and auto-assign a distributor / customer</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowQuickCustomerModal(false)}
+                  className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleQuickCustomerSubmit} className="p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col">
+                    <label className="text-xs font-semibold text-slate-700 mb-1">Customer Name *</label>
+                    <input
+                      required
+                      type="text"
+                      placeholder="e.g. Royal Waters"
+                      value={quickCustForm.customerName}
+                      onChange={e => setQuickCustForm(prev => ({ ...prev, customerName: e.target.value }))}
+                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-xs font-semibold text-slate-700 mb-1">Phone Number *</label>
+                    <input
+                      required
+                      type="tel"
+                      placeholder="e.g. 9876543210"
+                      value={quickCustForm.phone}
+                      onChange={e => setQuickCustForm(prev => ({ ...prev, phone: e.target.value }))}
+                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col">
+                    <label className="text-xs font-semibold text-slate-700 mb-1">Customer Type</label>
+                    <select
+                      value={quickCustForm.customerType}
+                      onChange={e => setQuickCustForm(prev => ({ ...prev, customerType: e.target.value }))}
+                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    >
+                      <option value="Distributor">Distributor</option>
+                      <option value="B2B">B2B Commercial</option>
+                      <option value="B2C">B2C Retail</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-xs font-semibold text-slate-700 mb-1">Assigned Vehicle Number</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. KL-07-CD-1234"
+                      value={quickCustForm.assignedVehicle}
+                      onChange={e => setQuickCustForm(prev => ({ ...prev, assignedVehicle: e.target.value }))}
+                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col">
+                    <label className="text-xs font-semibold text-slate-700 mb-1">Assigned Route</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Route 1 - North"
+                      value={quickCustForm.assignedRoute}
+                      onChange={e => setQuickCustForm(prev => ({ ...prev, assignedRoute: e.target.value }))}
+                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-xs font-semibold text-slate-700 mb-1">Payment Terms</label>
+                    <select
+                      value={quickCustForm.paymentTerms}
+                      onChange={e => setQuickCustForm(prev => ({ ...prev, paymentTerms: e.target.value }))}
+                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    >
+                      <option value="COD">Cash on Delivery (COD)</option>
+                      <option value="Credit">Credit Account</option>
+                      <option value="Prepaid">Prepaid</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col">
+                    <label className="text-xs font-semibold text-slate-700 mb-1">Address (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="Street / Building"
+                      value={quickCustForm.addressLine1}
+                      onChange={e => setQuickCustForm(prev => ({ ...prev, addressLine1: e.target.value }))}
+                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-xs font-semibold text-slate-700 mb-1">City (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="City"
+                      value={quickCustForm.city}
+                      onChange={e => setQuickCustForm(prev => ({ ...prev, city: e.target.value }))}
+                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickCustomerModal(false)}
+                    className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={quickCustLoading}
+                    className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {quickCustLoading ? 'Creating...' : 'Create & Select'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
     </PageContainer>
   )
 }

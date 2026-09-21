@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore.Migrations;
+using Aquora.Persistence.Context;
 
 #nullable disable
 
@@ -6,6 +7,8 @@ namespace Aquora.Persistence.Migrations.Tenant
 {
     public partial class RemoveObsoleteProductPricing : Migration
     {
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(

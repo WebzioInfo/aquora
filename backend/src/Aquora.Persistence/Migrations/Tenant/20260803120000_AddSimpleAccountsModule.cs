@@ -1,5 +1,6 @@
 using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Aquora.Persistence.Context;
 
 #nullable disable
 
@@ -7,6 +8,8 @@ namespace Aquora.Persistence.Migrations.Tenant
 {
     public partial class AddSimpleAccountsModule : Migration
     {
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {

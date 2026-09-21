@@ -38,12 +38,18 @@ namespace Aquora.Application
             services.AddScoped<IQualityEvaluationService, QualityEvaluationService>();
             services.AddScoped<IQCPdfCertificateService, QCPdfCertificateService>();
             services.AddScoped<IWaterTestService, WaterTestService>();
+            services.AddScoped<IPublicWaterVerificationService, PublicWaterVerificationService>();
             services.AddScoped<IOperationsIssueService, OperationsIssueService>();
             services.AddScoped<IBackupService, BackupService>();
             services.AddScoped<IExportService, ExportService>();
             services.AddSingleton<IPlatformBackupJobManager, PlatformBackupJobManager>();
+            services.AddScoped<IPlatformBackupEngine, PlatformBackupEngine>();
             services.AddScoped<IPlatformBackupService, PlatformBackupService>();
+
             services.AddScoped<IGlobalSearchService, GlobalSearchService>();
+
+            services.AddScoped<IReportService, ReportService>();
+
 
             return services;
         }

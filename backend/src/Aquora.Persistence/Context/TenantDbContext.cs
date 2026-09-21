@@ -2,22 +2,20 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using Aquora.Application.Interfaces;
 using Aquora.Domain.Common;
 using Aquora.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace Aquora.Persistence.Context
 {
     public class TenantDbContext : DbContext, ITenantDbContext
     {
-        private readonly ITenantProvider _tenantProvider;
         private readonly ICurrentUserContext _currentUserContext;
         private readonly IDateTimeProvider _dateTimeProvider;
+        private readonly ITenantProvider _tenantProvider;
 
-        public string SchemaName => !string.IsNullOrWhiteSpace(_tenantProvider.TenantSchemaName)
-            ? _tenantProvider.TenantSchemaName
-            : "public";
+        private bool _isRecalculating = false;
 
         public TenantDbContext(
             DbContextOptions<TenantDbContext> options,
@@ -30,106 +28,296 @@ namespace Aquora.Persistence.Context
             _dateTimeProvider = dateTimeProvider ?? new DefaultDateTimeProvider();
         }
 
-        public DbSet<Company> Companies => Set<Company>();
-        public DbSet<ProductionLine> ProductionLines => Set<ProductionLine>();
-        public DbSet<Station> Stations => Set<Station>();
-        public DbSet<Role> Roles => Set<Role>();
-        public DbSet<Permission> Permissions => Set<Permission>();
-        public DbSet<UserRole> UserRoles => Set<UserRole>();
-        public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
-        public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
-        public DbSet<ProductionBatch> ProductionBatches => Set<ProductionBatch>();
-        public DbSet<ProductionStationData> ProductionStationData => Set<ProductionStationData>();
-        public DbSet<SkuProduct> SkuProducts => Set<SkuProduct>();
-        public DbSet<CaseConfiguration> CaseConfigurations => Set<CaseConfiguration>();
-        public DbSet<RawMaterial> RawMaterials => Set<RawMaterial>();
-        public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();
-        public DbSet<ProductionEntry> ProductionEntries => Set<ProductionEntry>();
-        public DbSet<ProductionSession> ProductionSessions => Set<ProductionSession>();
-        public DbSet<Brand> Brands => Set<Brand>();
-        public DbSet<Product> Products => Set<Product>();
-        public DbSet<ProductionShift> ProductionShifts => Set<ProductionShift>();
-        public DbSet<OperatorContextLog> OperatorContextLogs => Set<OperatorContextLog>();
-        public DbSet<Customer> Customers => Set<Customer>();
-        public DbSet<SalesTransaction> SalesTransactions => Set<SalesTransaction>();
-        public DbSet<PriceList> PriceLists => Set<PriceList>();
-        public DbSet<DiscountGroup> DiscountGroups => Set<DiscountGroup>();
-        
-        // 20L Operations Module
-        public DbSet<OperationsVisit> OperationsVisits => Set<OperationsVisit>();
-        public DbSet<OperationsUnloading> OperationsUnloadings => Set<OperationsUnloading>();
-        public DbSet<OperationsJarCondition> OperationsJarConditions => Set<OperationsJarCondition>();
-        public DbSet<OperationsQuarantine> OperationsQuarantines => Set<OperationsQuarantine>();
-        public DbSet<OperationsFillingQueue> OperationsFillingQueues => Set<OperationsFillingQueue>();
-        public DbSet<OperationsLoading> OperationsLoadings => Set<OperationsLoading>();
-        public DbSet<OperationsReservedJar> OperationsReservedJars => Set<OperationsReservedJar>();
-        public DbSet<OperationsWashingLog> OperationsWashingLogs => Set<OperationsWashingLog>();
-        public DbSet<OperationsFillingLog> OperationsFillingLogs => Set<OperationsFillingLog>();
-        public DbSet<TwentyLDistributorProfile> TwentyLDistributorProfiles => Set<TwentyLDistributorProfile>();
-        public DbSet<TwentyLJarMovement> TwentyLJarMovements => Set<TwentyLJarMovement>();
-        public DbSet<TwentyLJarPosition> TwentyLJarPositions => Set<TwentyLJarPosition>();
-        public DbSet<TwentyLRateRule> TwentyLRateRules => Set<TwentyLRateRule>();
-        public DbSet<TwentyLDelivery> TwentyLDeliveries => Set<TwentyLDelivery>();
-        public DbSet<TwentyLCommissionRule> TwentyLCommissionRules => Set<TwentyLCommissionRule>();
-        public DbSet<TwentyLCommissionTransaction> TwentyLCommissionTransactions => Set<TwentyLCommissionTransaction>();
-        public DbSet<TwentyLTrip> TwentyLTrips => Set<TwentyLTrip>();
-        public DbSet<TwentyLTripStop> TwentyLTripStops => Set<TwentyLTripStop>();
-        public DbSet<TwentyLOperation> TwentyLOperations => Set<TwentyLOperation>();
-        public DbSet<TwentyLJarInspection> TwentyLJarInspections => Set<TwentyLJarInspection>();
-        public DbSet<TwentyLDistributorSupply> TwentyLDistributorSupplies => Set<TwentyLDistributorSupply>();
-        public DbSet<TwentyLDistributorRoute> TwentyLDistributorRoutes => Set<TwentyLDistributorRoute>();
-        public DbSet<TwentyLDistributorVehicle> TwentyLDistributorVehicles => Set<TwentyLDistributorVehicle>();
-        public DbSet<TwentyLDistributorDriver> TwentyLDistributorDrivers => Set<TwentyLDistributorDriver>();
-        public DbSet<TwentyLDistributorCustomer> TwentyLDistributorCustomers => Set<TwentyLDistributorCustomer>();
-        public DbSet<TwentyLDistributorDelivery> TwentyLDistributorDeliveries => Set<TwentyLDistributorDelivery>();
-
         // God Mode Finance Module
         public DbSet<Aquora.Domain.Entities.Finance.AccountGroup> AccountGroups => Set<Aquora.Domain.Entities.Finance.AccountGroup>();
         public DbSet<Aquora.Domain.Entities.Finance.Account> Accounts => Set<Aquora.Domain.Entities.Finance.Account>();
+        public DbSet<Aquora.Domain.Entities.Finance.AssetHistory> AssetHistories => Set<Aquora.Domain.Entities.Finance.AssetHistory>();
+        public DbSet<Aquora.Domain.Entities.Finance.AssetMaintenanceRecord> AssetMaintenanceRecords => Set<Aquora.Domain.Entities.Finance.AssetMaintenanceRecord>();
+        public DbSet<Aquora.Domain.Entities.Finance.Asset> Assets => Set<Aquora.Domain.Entities.Finance.Asset>();
+        public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
+        // Administration & Backup Module
+        public DbSet<Aquora.Domain.Entities.Administration.BackupHistory> BackupHistories => Set<Aquora.Domain.Entities.Administration.BackupHistory>();
+        public DbSet<Aquora.Domain.Entities.Finance.BankAccount> BankAccounts => Set<Aquora.Domain.Entities.Finance.BankAccount>();
+        public DbSet<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry> BankLedgerAuditEntries => Set<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>();
+        public DbSet<Aquora.Domain.Entities.Finance.BankLedgerEntry> BankLedgerEntries => Set<Aquora.Domain.Entities.Finance.BankLedgerEntry>();
+        public DbSet<Brand> Brands => Set<Brand>();
+        public DbSet<CaseConfiguration> CaseConfigurations => Set<CaseConfiguration>();
+        public DbSet<Aquora.Domain.Entities.Finance.CashBook> CashBooks => Set<Aquora.Domain.Entities.Finance.CashBook>();
+
+        public DbSet<Company> Companies => Set<Company>();
+        public DbSet<Aquora.Domain.Entities.QC.ComplianceRecord> ComplianceRecords => Set<Aquora.Domain.Entities.QC.ComplianceRecord>();
+        public DbSet<Customer> Customers => Set<Customer>();
+        public DbSet<DiscountGroup> DiscountGroups => Set<DiscountGroup>();
+        public DbSet<Aquora.Domain.Entities.Finance.ExpenseRecord> ExpenseRecords => Set<Aquora.Domain.Entities.Finance.ExpenseRecord>();
+        public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();
         public DbSet<Aquora.Domain.Entities.Finance.JournalEntry> JournalEntries => Set<Aquora.Domain.Entities.Finance.JournalEntry>();
         public DbSet<Aquora.Domain.Entities.Finance.JournalEntryLine> JournalEntryLines => Set<Aquora.Domain.Entities.Finance.JournalEntryLine>();
-        public DbSet<Aquora.Domain.Entities.Finance.Asset> Assets => Set<Aquora.Domain.Entities.Finance.Asset>();
-        public DbSet<Aquora.Domain.Entities.Finance.AssetMaintenanceRecord> AssetMaintenanceRecords => Set<Aquora.Domain.Entities.Finance.AssetMaintenanceRecord>();
-        public DbSet<Aquora.Domain.Entities.Finance.ExpenseRecord> ExpenseRecords => Set<Aquora.Domain.Entities.Finance.ExpenseRecord>();
-        public DbSet<Aquora.Domain.Entities.Finance.BankLedgerEntry> BankLedgerEntries => Set<Aquora.Domain.Entities.Finance.BankLedgerEntry>();
-        public DbSet<Aquora.Domain.Entities.Finance.BankAccount> BankAccounts => Set<Aquora.Domain.Entities.Finance.BankAccount>();
-        public DbSet<Aquora.Domain.Entities.Finance.CashBook> CashBooks => Set<Aquora.Domain.Entities.Finance.CashBook>();
+        public DbSet<Aquora.Domain.Entities.Payroll.MonthlySalary> MonthlySalaries => Set<Aquora.Domain.Entities.Payroll.MonthlySalary>();
+        public DbSet<OperationsFillingLog> OperationsFillingLogs => Set<OperationsFillingLog>();
+        public DbSet<OperationsFillingQueue> OperationsFillingQueues => Set<OperationsFillingQueue>();
+        public DbSet<Aquora.Domain.Entities.Operations.OperationsIssueAffectedMachine> OperationsIssueAffectedMachines => Set<Aquora.Domain.Entities.Operations.OperationsIssueAffectedMachine>();
+        public DbSet<Aquora.Domain.Entities.Operations.OperationsIssueComment> OperationsIssueComments => Set<Aquora.Domain.Entities.Operations.OperationsIssueComment>();
+        public DbSet<Aquora.Domain.Entities.Operations.OperationsIssueHistory> OperationsIssueHistories => Set<Aquora.Domain.Entities.Operations.OperationsIssueHistory>();
+
+        // Operations Issue Management System Module
+        public DbSet<Aquora.Domain.Entities.Operations.OperationsIssue> OperationsIssues => Set<Aquora.Domain.Entities.Operations.OperationsIssue>();
+        public DbSet<OperationsJarCondition> OperationsJarConditions => Set<OperationsJarCondition>();
+        public DbSet<OperationsLoading> OperationsLoadings => Set<OperationsLoading>();
+        public DbSet<OperationsQuarantine> OperationsQuarantines => Set<OperationsQuarantine>();
+        public DbSet<OperationsReservedJar> OperationsReservedJars => Set<OperationsReservedJar>();
+        public DbSet<OperationsUnloading> OperationsUnloadings => Set<OperationsUnloading>();
+
+        // 20L Operations Module
+        public DbSet<OperationsVisit> OperationsVisits => Set<OperationsVisit>();
+        public DbSet<OperationsWashingLog> OperationsWashingLogs => Set<OperationsWashingLog>();
+        public DbSet<OperatorContextLog> OperatorContextLogs => Set<OperatorContextLog>();
+        public DbSet<Aquora.Domain.Entities.Finance.OwnerInvestmentTransaction> OwnerInvestmentTransactions => Set<Aquora.Domain.Entities.Finance.OwnerInvestmentTransaction>();
+        public DbSet<Aquora.Domain.Entities.Finance.Owner> Owners => Set<Aquora.Domain.Entities.Finance.Owner>();
+        public DbSet<Permission> Permissions => Set<Permission>();
         public DbSet<Aquora.Domain.Entities.Finance.PettyCashSession> PettyCashSessions => Set<Aquora.Domain.Entities.Finance.PettyCashSession>();
+        public DbSet<PriceList> PriceLists => Set<PriceList>();
+        public DbSet<ProductionBatch> ProductionBatches => Set<ProductionBatch>();
+        public DbSet<ProductionEntry> ProductionEntries => Set<ProductionEntry>();
+        public DbSet<ProductionLine> ProductionLines => Set<ProductionLine>();
+        public DbSet<ProductionSession> ProductionSessions => Set<ProductionSession>();
+        public DbSet<ProductionShift> ProductionShifts => Set<ProductionShift>();
+        public DbSet<ProductionStationData> ProductionStationData => Set<ProductionStationData>();
+        public DbSet<Product> Products => Set<Product>();
+        public DbSet<Aquora.Domain.Entities.Finance.PurchaseItem> PurchaseItems => Set<Aquora.Domain.Entities.Finance.PurchaseItem>();
+        public DbSet<Aquora.Domain.Entities.Finance.PurchasePayment> PurchasePayments => Set<Aquora.Domain.Entities.Finance.PurchasePayment>();
+        public DbSet<Aquora.Domain.Entities.Finance.PurchaseTimelineEvent> PurchaseTimelineEvents => Set<Aquora.Domain.Entities.Finance.PurchaseTimelineEvent>();
+        public DbSet<Aquora.Domain.Entities.Finance.Purchase> Purchases => Set<Aquora.Domain.Entities.Finance.Purchase>();
+        public DbSet<Aquora.Domain.Entities.QC.QCAuditLog> QCAuditLogs => Set<Aquora.Domain.Entities.QC.QCAuditLog>();
+        public DbSet<Aquora.Domain.Entities.QC.QCSettings> QCSettings => Set<Aquora.Domain.Entities.QC.QCSettings>();
+        public DbSet<RawMaterial> RawMaterials => Set<RawMaterial>();
+        public DbSet<Aquora.Domain.Entities.Administration.RestoreHistory> RestoreHistories => Set<Aquora.Domain.Entities.Administration.RestoreHistory>();
+        public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+        public DbSet<Role> Roles => Set<Role>();
+        public DbSet<Aquora.Domain.Entities.Payroll.SalaryPayment> SalaryPayments => Set<Aquora.Domain.Entities.Payroll.SalaryPayment>();
+        public DbSet<SalesTransaction> SalesTransactions => Set<SalesTransaction>();
+
+        public string SchemaName => !string.IsNullOrWhiteSpace(_tenantProvider.TenantSchemaName)
+            ? _tenantProvider.TenantSchemaName
+            : "public";
 
         // Simple Accounts V1 Module
         public DbSet<Aquora.Domain.Entities.Finance.SimpleExpense> SimpleExpenses => Set<Aquora.Domain.Entities.Finance.SimpleExpense>();
-        public DbSet<Aquora.Domain.Entities.Finance.Owner> Owners => Set<Aquora.Domain.Entities.Finance.Owner>();
-        public DbSet<Aquora.Domain.Entities.Finance.OwnerInvestmentTransaction> OwnerInvestmentTransactions => Set<Aquora.Domain.Entities.Finance.OwnerInvestmentTransaction>();
-        public DbSet<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry> BankLedgerAuditEntries => Set<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>();
-        public DbSet<Aquora.Domain.Entities.Payroll.MonthlySalary> MonthlySalaries => Set<Aquora.Domain.Entities.Payroll.MonthlySalary>();
-        public DbSet<Aquora.Domain.Entities.Payroll.SalaryPayment> SalaryPayments => Set<Aquora.Domain.Entities.Payroll.SalaryPayment>();
+        public DbSet<SkuProduct> SkuProducts => Set<SkuProduct>();
+        public DbSet<Station> Stations => Set<Station>();
+        public DbSet<TwentyLCommissionRule> TwentyLCommissionRules => Set<TwentyLCommissionRule>();
+        public DbSet<TwentyLCommissionTransaction> TwentyLCommissionTransactions => Set<TwentyLCommissionTransaction>();
+        public DbSet<TwentyLDelivery> TwentyLDeliveries => Set<TwentyLDelivery>();
+        public DbSet<TwentyLDistributorCustomer> TwentyLDistributorCustomers => Set<TwentyLDistributorCustomer>();
+        public DbSet<TwentyLDistributorDelivery> TwentyLDistributorDeliveries => Set<TwentyLDistributorDelivery>();
+        public DbSet<TwentyLDistributorDriver> TwentyLDistributorDrivers => Set<TwentyLDistributorDriver>();
+        public DbSet<TwentyLDistributorProfile> TwentyLDistributorProfiles => Set<TwentyLDistributorProfile>();
+        public DbSet<TwentyLDistributorRoute> TwentyLDistributorRoutes => Set<TwentyLDistributorRoute>();
+        public DbSet<TwentyLDistributorSupply> TwentyLDistributorSupplies => Set<TwentyLDistributorSupply>();
+        public DbSet<TwentyLDistributorVehicle> TwentyLDistributorVehicles => Set<TwentyLDistributorVehicle>();
+        public DbSet<TwentyLJarInspection> TwentyLJarInspections => Set<TwentyLJarInspection>();
+        public DbSet<TwentyLJarMovement> TwentyLJarMovements => Set<TwentyLJarMovement>();
+        public DbSet<TwentyLJarPosition> TwentyLJarPositions => Set<TwentyLJarPosition>();
+        public DbSet<TwentyLOperation> TwentyLOperations => Set<TwentyLOperation>();
+        public DbSet<TwentyLRateRule> TwentyLRateRules => Set<TwentyLRateRule>();
+        public DbSet<TwentyLTripStop> TwentyLTripStops => Set<TwentyLTripStop>();
+        public DbSet<TwentyLTrip> TwentyLTrips => Set<TwentyLTrip>();
+        public DbSet<UserRole> UserRoles => Set<UserRole>();
         public DbSet<User> Users => Set<User>();
 
         // Purchase Management & Asset History Module
         public DbSet<Aquora.Domain.Entities.Finance.Vendor> Vendors => Set<Aquora.Domain.Entities.Finance.Vendor>();
-        public DbSet<Aquora.Domain.Entities.Finance.Purchase> Purchases => Set<Aquora.Domain.Entities.Finance.Purchase>();
-        public DbSet<Aquora.Domain.Entities.Finance.PurchaseItem> PurchaseItems => Set<Aquora.Domain.Entities.Finance.PurchaseItem>();
-        public DbSet<Aquora.Domain.Entities.Finance.PurchasePayment> PurchasePayments => Set<Aquora.Domain.Entities.Finance.PurchasePayment>();
-        public DbSet<Aquora.Domain.Entities.Finance.PurchaseTimelineEvent> PurchaseTimelineEvents => Set<Aquora.Domain.Entities.Finance.PurchaseTimelineEvent>();
-        public DbSet<Aquora.Domain.Entities.Finance.AssetHistory> AssetHistories => Set<Aquora.Domain.Entities.Finance.AssetHistory>();
+        public DbSet<Aquora.Domain.Entities.QC.WaterTestParameter> WaterTestParameters => Set<Aquora.Domain.Entities.QC.WaterTestParameter>();
 
         // Quality Control Module
         public DbSet<Aquora.Domain.Entities.QC.WaterTestReport> WaterTestReports => Set<Aquora.Domain.Entities.QC.WaterTestReport>();
-        public DbSet<Aquora.Domain.Entities.QC.WaterTestParameter> WaterTestParameters => Set<Aquora.Domain.Entities.QC.WaterTestParameter>();
         public DbSet<Aquora.Domain.Entities.QC.WaterTestResult> WaterTestResults => Set<Aquora.Domain.Entities.QC.WaterTestResult>();
-        public DbSet<Aquora.Domain.Entities.QC.ComplianceRecord> ComplianceRecords => Set<Aquora.Domain.Entities.QC.ComplianceRecord>();
-        public DbSet<Aquora.Domain.Entities.QC.QCAuditLog> QCAuditLogs => Set<Aquora.Domain.Entities.QC.QCAuditLog>();
-        public DbSet<Aquora.Domain.Entities.QC.QCSettings> QCSettings => Set<Aquora.Domain.Entities.QC.QCSettings>();
 
-        // Administration & Backup Module
-        public DbSet<Aquora.Domain.Entities.Administration.BackupHistory> BackupHistories => Set<Aquora.Domain.Entities.Administration.BackupHistory>();
-        public DbSet<Aquora.Domain.Entities.Administration.RestoreHistory> RestoreHistories => Set<Aquora.Domain.Entities.Administration.RestoreHistory>();
+        public override int SaveChanges()
+        {
+            if (_isRecalculating)
+            {
+                return base.SaveChanges();
+            }
 
-        // Operations Issue Management System Module
-        public DbSet<Aquora.Domain.Entities.Operations.OperationsIssue> OperationsIssues => Set<Aquora.Domain.Entities.Operations.OperationsIssue>();
-        public DbSet<Aquora.Domain.Entities.Operations.OperationsIssueAffectedMachine> OperationsIssueAffectedMachines => Set<Aquora.Domain.Entities.Operations.OperationsIssueAffectedMachine>();
-        public DbSet<Aquora.Domain.Entities.Operations.OperationsIssueComment> OperationsIssueComments => Set<Aquora.Domain.Entities.Operations.OperationsIssueComment>();
-        public DbSet<Aquora.Domain.Entities.Operations.OperationsIssueHistory> OperationsIssueHistories => Set<Aquora.Domain.Entities.Operations.OperationsIssueHistory>();
+            LogDatabaseContextState();
+            var currentUserId = _currentUserContext.UserId ?? "System";
+            var currentTenantId = _tenantProvider.TenantId;
+            OnBeforeSaving(currentUserId, currentTenantId);
+
+            GetAffectedLedgerAccounts(out var bankAccountIds, out var cashBookIds);
+
+            var result = base.SaveChanges();
+
+            if (bankAccountIds.Any() || cashBookIds.Any())
+            {
+                RecalculateBalances(bankAccountIds, cashBookIds);
+            }
+
+            return result;
+        }
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            if (_isRecalculating)
+            {
+                return base.SaveChanges(acceptAllChangesOnSuccess);
+            }
+
+            LogDatabaseContextState();
+            var currentUserId = _currentUserContext.UserId ?? "System";
+            var currentTenantId = _tenantProvider.TenantId;
+            OnBeforeSaving(currentUserId, currentTenantId);
+
+            GetAffectedLedgerAccounts(out var bankAccountIds, out var cashBookIds);
+
+            var result = base.SaveChanges(acceptAllChangesOnSuccess);
+
+            if (bankAccountIds.Any() || cashBookIds.Any())
+            {
+                RecalculateBalances(bankAccountIds, cashBookIds);
+            }
+
+            return result;
+        }
+        public override async Task<int> SaveChangesAsync(
+    CancellationToken cancellationToken = default)
+        {
+            // Prevent recursive SaveChanges calls during balance recalculation.
+            if (_isRecalculating)
+            {
+                return await base.SaveChangesAsync(cancellationToken);
+            }
+
+            // Log the current EF Core tracking state before any preprocessing.
+            LogDatabaseContextState();
+
+            var currentUserId = _currentUserContext.UserId ?? "System";
+            var currentTenantId = _tenantProvider.TenantId;
+
+            // Apply tenant/audit/soft-delete processing.
+            OnBeforeSaving(currentUserId, currentTenantId);
+
+            // Determine affected ledger accounts before the first database save.
+            GetAffectedLedgerAccounts(
+                out var bankAccountIds,
+                out var cashBookIds);
+
+            // ============================================================
+            // AUDIT DISABLED
+            // ============================================================
+            if (AuditState.IsDisabled)
+            {
+                try
+                {
+                    var result = await base.SaveChangesAsync(cancellationToken);
+
+                    if (bankAccountIds.Any() || cashBookIds.Any())
+                    {
+                        await RecalculateBalancesAsync(
+                            bankAccountIds,
+                            cashBookIds,
+                            cancellationToken);
+                    }
+
+                    return result;
+                }
+                catch (DbUpdateException dbEx)
+                {
+                    LogDbUpdateException(dbEx);
+                    throw;
+                }
+            }
+
+            // ============================================================
+            // GENERATE AUDIT LOGS
+            // ============================================================
+            var auditLogs = GenerateAuditLogs(
+                currentUserId,
+                currentTenantId);
+
+            // ============================================================
+            // FIRST DATABASE SAVE
+            // ============================================================
+            int resultWithAudit;
+
+            try
+            {
+                resultWithAudit = await base.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException dbEx)
+            {
+                LogDbUpdateException(dbEx);
+                throw;
+            }
+
+            // ============================================================
+            // SAVE AUDIT LOGS
+            // ============================================================
+            if (auditLogs.Any())
+            {
+                foreach (var log in auditLogs)
+                {
+                    try
+                    {
+                        var logJson =
+                            System.Text.Json.JsonSerializer.Serialize(
+                                log,
+                                new System.Text.Json.JsonSerializerOptions
+                                {
+                                    WriteIndented = true
+                                });
+
+                        Console.WriteLine(
+                            $"[AUDIT LOG INSERTING]:\n{logJson}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(
+                            $"Failed to serialize audit log for console output: {ex.Message}");
+                    }
+                }
+
+                AuditLogs.AddRange(auditLogs);
+
+                try
+                {
+                    await base.SaveChangesAsync(cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    // Audit log failure must not invalidate the already
+                    // successful business transaction.
+                    Console.WriteLine(
+                        $"[AUDIT LOG FAILURE - NON-BLOCKING]: " +
+                        $"Failed to save audit logs to database: {ex.Message}");
+
+                    foreach (var log in auditLogs)
+                    {
+                        Entry(log).State = EntityState.Detached;
+                    }
+                }
+            }
+
+            // ============================================================
+            // RECALCULATE LEDGER BALANCES
+            // ============================================================
+            if (bankAccountIds.Any() || cashBookIds.Any())
+            {
+                await RecalculateBalancesAsync(
+                    bankAccountIds,
+                    cashBookIds,
+                    cancellationToken);
+            }
+
+            return resultWithAudit;
+        }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            base.OnConfiguring(optionsBuilder);
+            optionsBuilder.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -141,6 +329,15 @@ namespace Aquora.Persistence.Context
             // Explicitly map platform entities referenced via navigation to their correct table/schema
             modelBuilder.Entity<Tenant>()
                 .ToTable("Tenants", "public", t => t.ExcludeFromMigrations());
+
+            modelBuilder.Entity<Company>()
+                .Property(c => c.IsBiodropsProduction)
+                .HasDefaultValue(false);
+
+            modelBuilder.Entity<Company>()
+                .HasIndex(c => new { c.TenantId })
+                .IsUnique()
+                .HasFilter(@"""IsDeleted"" = false");
 
             modelBuilder.Entity<User>()
                 .ToTable("Users", "public", t => t.ExcludeFromMigrations());
@@ -277,6 +474,28 @@ namespace Aquora.Persistence.Context
             modelBuilder.Entity<Product>()
                 .HasIndex(p => p.SKU)
                 .IsUnique();
+
+            // CaseConfiguration configuration
+            modelBuilder.Entity<CaseConfiguration>(entity =>
+            {
+                entity.HasOne(c => c.Product)
+                      .WithMany()
+                      .HasForeignKey(c => c.ProductId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(c => new { c.TenantId, c.ProductId, c.IsDeleted, c.IsActive });
+            });
+
+            // SalesTransaction parent-child relationship configuration
+            modelBuilder.Entity<SalesTransaction>(entity =>
+            {
+                entity.HasOne(s => s.ParentTransaction)
+                      .WithMany()
+                      .HasForeignKey(s => s.ParentTransactionId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(s => s.ParentTransactionId);
+            });
 
             // RawMaterial configuration
             modelBuilder.Entity<RawMaterial>()
@@ -495,63 +714,63 @@ namespace Aquora.Persistence.Context
                 .HasForeignKey(t => t.OwnerId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
-                .Property(l => l.LedgerAccountType)
-                .IsRequired(false);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+               .Property(l => l.LedgerAccountType)
+               .IsRequired(false);
 
-             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
-                .Property(l => l.LedgerSequence)
-                .ValueGeneratedOnAdd();
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+               .Property(l => l.LedgerSequence)
+               .ValueGeneratedOnAdd();
 
-             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
-                .HasIndex(l => l.TenantId);
-             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
-                .HasIndex(l => l.CompanyId);
-             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
-                .HasIndex(l => l.BankAccountId);
-             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
-                .HasIndex(l => l.CashBookId);
-             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
-                .HasIndex(l => l.LedgerAccountType);
-             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
-                .HasIndex(l => l.TransactionDate);
-             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
-                .HasOne(l => l.BankAccount)
-                .WithMany()
-                .HasForeignKey(l => l.BankAccountId)
-                .OnDelete(DeleteBehavior.Restrict);
-             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
-                .HasOne(l => l.CashBook)
-                .WithMany()
-                .HasForeignKey(l => l.CashBookId)
-                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+               .HasIndex(l => l.TenantId);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+               .HasIndex(l => l.CompanyId);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+               .HasIndex(l => l.BankAccountId);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+               .HasIndex(l => l.CashBookId);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+               .HasIndex(l => l.LedgerAccountType);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+               .HasIndex(l => l.TransactionDate);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+               .HasOne(l => l.BankAccount)
+               .WithMany()
+               .HasForeignKey(l => l.BankAccountId)
+               .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
+               .HasOne(l => l.CashBook)
+               .WithMany()
+               .HasForeignKey(l => l.CashBookId)
+               .OnDelete(DeleteBehavior.Restrict);
 
-             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>()
-                .HasIndex(l => l.TenantId);
-             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>()
-                .HasIndex(l => l.CompanyId);
-             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>()
-                .HasIndex(l => l.BankLedgerEntryId);
-             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>()
-                .HasOne(l => l.BankLedgerEntry)
-                .WithMany()
-                .HasForeignKey(l => l.BankLedgerEntryId)
-                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>()
+               .HasIndex(l => l.TenantId);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>()
+               .HasIndex(l => l.CompanyId);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>()
+               .HasIndex(l => l.BankLedgerEntryId);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry>()
+               .HasOne(l => l.BankLedgerEntry)
+               .WithMany()
+               .HasForeignKey(l => l.BankLedgerEntryId)
+               .OnDelete(DeleteBehavior.Cascade);
 
-             // SalaryPayment configuration
-             modelBuilder.Entity<Aquora.Domain.Entities.Payroll.SalaryPayment>()
-                .HasIndex(s => s.TenantId);
-             modelBuilder.Entity<Aquora.Domain.Entities.Payroll.SalaryPayment>()
-                .HasIndex(s => s.CompanyId);
-             modelBuilder.Entity<Aquora.Domain.Entities.Payroll.SalaryPayment>()
-                .HasIndex(s => s.EmployeeId);
-             modelBuilder.Entity<Aquora.Domain.Entities.Payroll.SalaryPayment>()
-                .HasIndex(s => s.SalaryMonth);
-             modelBuilder.Entity<Aquora.Domain.Entities.Payroll.SalaryPayment>()
-                .HasOne(s => s.Employee)
-                .WithMany()
-                .HasForeignKey(s => s.EmployeeId)
-                .OnDelete(DeleteBehavior.Restrict);
+            // SalaryPayment configuration
+            modelBuilder.Entity<Aquora.Domain.Entities.Payroll.SalaryPayment>()
+               .HasIndex(s => s.TenantId);
+            modelBuilder.Entity<Aquora.Domain.Entities.Payroll.SalaryPayment>()
+               .HasIndex(s => s.CompanyId);
+            modelBuilder.Entity<Aquora.Domain.Entities.Payroll.SalaryPayment>()
+               .HasIndex(s => s.EmployeeId);
+            modelBuilder.Entity<Aquora.Domain.Entities.Payroll.SalaryPayment>()
+               .HasIndex(s => s.SalaryMonth);
+            modelBuilder.Entity<Aquora.Domain.Entities.Payroll.SalaryPayment>()
+               .HasOne(s => s.Employee)
+               .WithMany()
+               .HasForeignKey(s => s.EmployeeId)
+               .OnDelete(DeleteBehavior.Restrict);
 
             // Apply soft delete query filters
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
@@ -570,262 +789,6 @@ namespace Aquora.Persistence.Context
         private void ApplySoftDeleteFilter<T>(ModelBuilder modelBuilder) where T : class, ISoftDelete
         {
             modelBuilder.Entity<T>().HasQueryFilter(e => !e.IsDeleted);
-        }
-
-        private void LogDatabaseContextState()
-        {
-            try
-            {
-                var tenantId = _tenantProvider.TenantId;
-                var companyId = ChangeTracker.Entries()
-                    .Where(e => e.Entity is ICompanySpecific)
-                    .Select(e => ((ICompanySpecific)e.Entity).CompanyId)
-                    .FirstOrDefault();
-
-                var schemaName = SchemaName;
-                var dbConnection = Database.GetDbConnection();
-                var connectionString = dbConnection?.ConnectionString ?? "None";
-                
-                // Sanitize connection string to protect secrets in logs
-                if (connectionString != "None")
-                {
-                    try
-                    {
-                        var builder = new Npgsql.NpgsqlConnectionStringBuilder(connectionString);
-                        if (!string.IsNullOrEmpty(builder.Password))
-                        {
-                            builder.Password = "********";
-                        }
-                        connectionString = builder.ToString();
-                    }
-                    catch
-                    {
-                        connectionString = "[Sanitized]";
-                    }
-                }
-
-                var dbContextType = GetType().Name;
-                string searchPath = schemaName;
-                
-                if (dbConnection != null && dbConnection.State == System.Data.ConnectionState.Open)
-                {
-                    try
-                    {
-                        using (var cmd = dbConnection.CreateCommand())
-                        {
-                            cmd.CommandText = "SHOW search_path;";
-                            searchPath = cmd.ExecuteScalar()?.ToString() ?? schemaName;
-                        }
-                    }
-                    catch
-                    {
-                        searchPath = schemaName;
-                    }
-                }
-
-                Console.WriteLine($"[SCHEMA RESOLUTION]: TenantId={tenantId}, CompanyId={(companyId == Guid.Empty ? "Not Found" : companyId.ToString())}, ResolvedSchema={schemaName}, DbContext={dbContextType}, ConnectionString={connectionString}, SearchPath={searchPath}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[SCHEMA RESOLUTION LOGGER ERROR]: {ex.Message}");
-            }
-        }
-
-        public override int SaveChanges()
-        {
-            if (_isRecalculating)
-            {
-                return base.SaveChanges();
-            }
-
-            LogDatabaseContextState();
-            var currentUserId = _currentUserContext.UserId ?? "System";
-            var currentTenantId = _tenantProvider.TenantId;
-            OnBeforeSaving(currentUserId, currentTenantId);
-
-            GetAffectedLedgerAccounts(out var bankAccountIds, out var cashBookIds);
-
-            var result = base.SaveChanges();
-
-            if (bankAccountIds.Any() || cashBookIds.Any())
-            {
-                RecalculateBalances(bankAccountIds, cashBookIds);
-            }
-
-            return result;
-        }
-
-        public override int SaveChanges(bool acceptAllChangesOnSuccess)
-        {
-            if (_isRecalculating)
-            {
-                return base.SaveChanges(acceptAllChangesOnSuccess);
-            }
-
-            LogDatabaseContextState();
-            var currentUserId = _currentUserContext.UserId ?? "System";
-            var currentTenantId = _tenantProvider.TenantId;
-            OnBeforeSaving(currentUserId, currentTenantId);
-
-            GetAffectedLedgerAccounts(out var bankAccountIds, out var cashBookIds);
-
-            var result = base.SaveChanges(acceptAllChangesOnSuccess);
-
-            if (bankAccountIds.Any() || cashBookIds.Any())
-            {
-                RecalculateBalances(bankAccountIds, cashBookIds);
-            }
-
-            return result;
-        }
-
-        private void OnBeforeSaving(string currentUserId, Guid currentTenantId)
-        {
-            foreach (var entry in ChangeTracker.Entries())
-            {
-                if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
-                {
-                    foreach (var property in entry.Properties)
-                    {
-                        if (property.Metadata.ClrType == typeof(DateTime) || property.Metadata.ClrType == typeof(DateTime?))
-                        {
-                            if (property.CurrentValue is DateTime dt)
-                            {
-                                if (dt.Kind == DateTimeKind.Unspecified)
-                                {
-                                    property.CurrentValue = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
-                                }
-                                else if (dt.Kind == DateTimeKind.Local)
-                                {
-                                    property.CurrentValue = dt.ToUniversalTime();
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (entry.State == EntityState.Added && entry.Entity is IMultiTenant multiTenantEntity)
-                {
-                    if (multiTenantEntity.TenantId == Guid.Empty)
-                    {
-                        multiTenantEntity.TenantId = currentTenantId;
-                    }
-                }
-                if (entry.State == EntityState.Deleted && entry.Entity is ISoftDelete softDeleteEntity)
-                {
-                    entry.State = EntityState.Modified;
-                    softDeleteEntity.IsDeleted = true;
-                    softDeleteEntity.DeletedAt = _dateTimeProvider.UtcNow;
-                    softDeleteEntity.DeletedBy = currentUserId;
-                }
-
-                if (entry.Entity is IAuditable auditableEntity)
-                {
-                    if (entry.State == EntityState.Added)
-                    {
-                        if (auditableEntity.CreatedAt == default(DateTime))
-                        {
-                            auditableEntity.CreatedAt = _dateTimeProvider.UtcNow;
-                        }
-                        auditableEntity.CreatedBy = currentUserId;
-                        auditableEntity.CreatedByIP = _currentUserContext.IpAddress ?? "127.0.0.1";
-                    }
-                    else if (entry.State == EntityState.Modified)
-                    {
-                        entry.Property("CreatedAt").IsModified = false;
-                        auditableEntity.UpdatedAt = _dateTimeProvider.UtcNow;
-                        auditableEntity.UpdatedBy = currentUserId;
-                        auditableEntity.UpdatedByIP = _currentUserContext.IpAddress ?? "127.0.0.1";
-                    }
-                }
-            }
-        }
-
-        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
-            if (_isRecalculating)
-            {
-                return await base.SaveChangesAsync(cancellationToken);
-            }
-
-            LogDatabaseContextState();
-            var currentUserId = _currentUserContext.UserId ?? "System";
-            var currentTenantId = _tenantProvider.TenantId;
-
-            OnBeforeSaving(currentUserId, currentTenantId);
-
-            GetAffectedLedgerAccounts(out var bankAccountIds, out var cashBookIds);
-
-            if (AuditState.IsDisabled)
-            {
-                int result;
-                try
-                {
-                    result = await base.SaveChangesAsync(cancellationToken);
-                }
-                catch (DbUpdateException dbEx)
-                {
-                    LogDbUpdateException(dbEx);
-                    throw;
-                }
-
-                if (bankAccountIds.Any() || cashBookIds.Any())
-                {
-                    await RecalculateBalancesAsync(bankAccountIds, cashBookIds, cancellationToken);
-                }
-
-                return result;
-            }
-
-            var auditLogs = GenerateAuditLogs(currentUserId, currentTenantId);
-
-            int resultWithAudit;
-            try
-            {
-                resultWithAudit = await base.SaveChangesAsync(cancellationToken);
-            }
-            catch (DbUpdateException dbEx)
-            {
-                LogDbUpdateException(dbEx);
-                throw;
-            }
-
-            if (auditLogs.Any())
-            {
-                foreach (var log in auditLogs)
-                {
-                    try
-                    {
-                        var logJson = System.Text.Json.JsonSerializer.Serialize(log, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-                        Console.WriteLine($"[AUDIT LOG INSERTING]:\n{logJson}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Failed to serialize audit log for console output: {ex.Message}");
-                    }
-                }
-
-                AuditLogs.AddRange(auditLogs);
-                try
-                {
-                    await base.SaveChangesAsync(cancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[AUDIT LOG FAILURE - NON-BLOCKING]: Failed to save audit logs to database: {ex.Message}");
-                    foreach (var log in auditLogs)
-                    {
-                        Entry(log).State = EntityState.Detached;
-                    }
-                }
-            }
-
-            if (bankAccountIds.Any() || cashBookIds.Any())
-            {
-                await RecalculateBalancesAsync(bankAccountIds, cashBookIds, cancellationToken);
-            }
-
-            return resultWithAudit;
         }
 
         private System.Collections.Generic.List<AuditLog> GenerateAuditLogs(string userId, Guid tenantId)
@@ -853,7 +816,7 @@ namespace Aquora.Persistence.Context
                 foreach (var property in entry.Properties)
                 {
                     string propertyName = property.Metadata.Name;
-                    
+
                     if (propertyName.Equals("PasswordHash", StringComparison.OrdinalIgnoreCase) ||
                         propertyName.Equals("RefreshToken", StringComparison.OrdinalIgnoreCase))
                     {
@@ -895,46 +858,6 @@ namespace Aquora.Persistence.Context
             return logs;
         }
 
-        private void LogDbUpdateException(DbUpdateException dbEx)
-        {
-            var innerMsg = dbEx.InnerException?.Message ?? dbEx.Message;
-            Console.WriteLine($"==================================================");
-            Console.WriteLine($"[CRITICAL DB UPDATE ERROR - SCHEMA: '{SchemaName}']: {dbEx.GetType().Name} | {dbEx.Message}");
-            Console.WriteLine($"Inner Exception: {innerMsg}");
-            
-            if (dbEx.InnerException is Npgsql.PostgresException pgEx)
-            {
-                Console.WriteLine($"[NPGSQL ERROR DETAILS]: SqlState={pgEx.SqlState}, Detail={pgEx.Detail}, TableName={pgEx.TableName}, Constraint={pgEx.ConstraintName}");
-            }
-
-            if (dbEx.Entries != null && dbEx.Entries.Any())
-            {
-                foreach (var entry in dbEx.Entries)
-                {
-                    var tableName = entry.Metadata.GetTableName() ?? entry.Entity.GetType().Name;
-                    var pkProp = entry.Metadata.FindPrimaryKey()?.Properties.FirstOrDefault();
-                    var pkVal = pkProp != null ? entry.Property(pkProp.Name)?.CurrentValue : "Unknown";
-
-                    Console.WriteLine($"[FAILED CONCURRENCY ENTITY]");
-                    Console.WriteLine($"  - Table: {tableName}");
-                    Console.WriteLine($"  - Type: {entry.Entity.GetType().FullName}");
-                    Console.WriteLine($"  - Primary Key ({pkProp?.Name}): {pkVal}");
-                    Console.WriteLine($"  - EntityState: {entry.State}");
-
-                    foreach (var prop in entry.Properties)
-                    {
-                        if (prop.IsModified || entry.State == EntityState.Added || entry.State == EntityState.Deleted)
-                        {
-                            Console.WriteLine($"      Property: {prop.Metadata.Name} | IsModified: {prop.IsModified} | Orig: '{prop.OriginalValue}' | Curr: '{prop.CurrentValue}'");
-                        }
-                    }
-                }
-            }
-            Console.WriteLine($"==================================================");
-        }
-
-        private bool _isRecalculating = false;
-
         private void GetAffectedLedgerAccounts(out HashSet<Guid> bankAccountIds, out HashSet<Guid> cashBookIds)
         {
             bankAccountIds = new HashSet<Guid>();
@@ -944,7 +867,7 @@ namespace Aquora.Persistence.Context
             {
                 if (entry.State == EntityState.Added || entry.State == EntityState.Modified || entry.State == EntityState.Deleted)
                 {
-                    var bankAccountId = entry.State == EntityState.Deleted 
+                    var bankAccountId = entry.State == EntityState.Deleted
                         ? (Guid?)entry.OriginalValues[nameof(Aquora.Domain.Entities.Finance.BankLedgerEntry.BankAccountId)]
                         : entry.Entity.BankAccountId;
 
@@ -979,82 +902,170 @@ namespace Aquora.Persistence.Context
             }
         }
 
-        private async Task RecalculateBalancesAsync(HashSet<Guid> bankAccountIds, HashSet<Guid> cashBookIds, CancellationToken cancellationToken)
+        private void LogDatabaseContextState()
         {
-            if (_isRecalculating) return;
-
             try
             {
-                _isRecalculating = true;
                 var tenantId = _tenantProvider.TenantId;
+                var companyId = ChangeTracker.Entries()
+                    .Where(e => e.Entity is ICompanySpecific)
+                    .Select(e => ((ICompanySpecific)e.Entity).CompanyId)
+                    .FirstOrDefault();
 
-                foreach (var bankAccountId in bankAccountIds)
+                var schemaName = SchemaName;
+                var dbConnection = Database.GetDbConnection();
+                var connectionString = dbConnection?.ConnectionString ?? "None";
+
+                // Sanitize connection string to protect secrets in logs
+                if (connectionString != "None")
                 {
-                    var bank = await BankAccounts.FirstOrDefaultAsync(b => b.Id == bankAccountId && b.TenantId == tenantId, cancellationToken);
-                    if (bank == null) continue;
-
-                    var entries = await BankLedgerEntries
-                        .Where(x => x.TenantId == tenantId && x.BankAccountId == bankAccountId)
-                        .ToListAsync(cancellationToken);
-
-                    var sortedEntries = entries
-                        .OrderBy(x => x.CreatedAt)
-                        .ThenBy(x => x.Id)
-                        .ToList();
-
-                    decimal runningBalance = bank.OpeningBalance;
-                    foreach (var entry in sortedEntries)
+                    try
                     {
-                        if (entry.TransactionType == "Opening Balance")
+                        var builder = new Npgsql.NpgsqlConnectionStringBuilder(connectionString);
+                        if (!string.IsNullOrEmpty(builder.Password))
                         {
-                            entry.RunningBalance = bank.OpeningBalance;
-                            continue;
+                            builder.Password = "********";
                         }
-
-                        runningBalance = runningBalance - entry.Debit + entry.Credit;
-                        entry.RunningBalance = runningBalance;
+                        connectionString = builder.ToString();
                     }
-
-                    bank.CurrentBalance = runningBalance;
-                    bank.UpdatedAt = _dateTimeProvider.UtcNow;
+                    catch
+                    {
+                        connectionString = "[Sanitized]";
+                    }
                 }
 
-                foreach (var cashBookId in cashBookIds)
+                var dbContextType = GetType().Name;
+                string searchPath = schemaName;
+
+                if (dbConnection != null && dbConnection.State == System.Data.ConnectionState.Open)
                 {
-                    var cashBook = await CashBooks.FirstOrDefaultAsync(b => b.Id == cashBookId && b.TenantId == tenantId, cancellationToken);
-                    if (cashBook == null) continue;
-
-                    var entries = await BankLedgerEntries
-                        .Where(x => x.TenantId == tenantId && x.CashBookId == cashBookId && x.LedgerAccountType == "CashBook")
-                        .ToListAsync(cancellationToken);
-
-                    var sortedEntries = entries
-                        .OrderBy(x => x.CreatedAt)
-                        .ThenBy(x => x.Id)
-                        .ToList();
-
-                    decimal runningBalance = cashBook.OpeningBalance;
-                    foreach (var entry in sortedEntries)
+                    try
                     {
-                        if (entry.TransactionType == "Opening Balance")
+                        using (var cmd = dbConnection.CreateCommand())
                         {
-                            entry.RunningBalance = cashBook.OpeningBalance;
-                            continue;
+                            cmd.CommandText = "SHOW search_path;";
+                            searchPath = cmd.ExecuteScalar()?.ToString() ?? schemaName;
                         }
-
-                        runningBalance = runningBalance - entry.Debit + entry.Credit;
-                        entry.RunningBalance = runningBalance;
                     }
-
-                    cashBook.CurrentBalance = runningBalance;
-                    cashBook.UpdatedAt = _dateTimeProvider.UtcNow;
+                    catch
+                    {
+                        searchPath = schemaName;
+                    }
                 }
 
-                await base.SaveChangesAsync(cancellationToken);
+                Console.WriteLine($"[SCHEMA RESOLUTION]: TenantId={tenantId}, CompanyId={(companyId == Guid.Empty ? "Not Found" : companyId.ToString())}, ResolvedSchema={schemaName}, DbContext={dbContextType}, ConnectionString={connectionString}, SearchPath={searchPath}");
             }
-            finally
+            catch (Exception ex)
             {
-                _isRecalculating = false;
+                Console.WriteLine($"[SCHEMA RESOLUTION LOGGER ERROR]: {ex.Message}");
+            }
+        }
+
+        private void LogDbUpdateException(DbUpdateException dbEx)
+        {
+            var innerMsg = dbEx.InnerException?.Message ?? dbEx.Message;
+            Console.WriteLine($"==================================================");
+            Console.WriteLine($"[CRITICAL DB UPDATE ERROR - SCHEMA: '{SchemaName}']: {dbEx.GetType().Name} | {dbEx.Message}");
+            Console.WriteLine($"Inner Exception: {innerMsg}");
+
+            if (dbEx.InnerException is Npgsql.PostgresException pgEx)
+            {
+                Console.WriteLine($"[NPGSQL ERROR DETAILS]: SqlState={pgEx.SqlState}, Detail={pgEx.Detail}, TableName={pgEx.TableName}, Constraint={pgEx.ConstraintName}");
+            }
+
+            if (dbEx.Entries != null && dbEx.Entries.Any())
+            {
+                foreach (var entry in dbEx.Entries)
+                {
+                    var tableName = entry.Metadata.GetTableName() ?? entry.Entity.GetType().Name;
+                    var pkProp = entry.Metadata.FindPrimaryKey()?.Properties.FirstOrDefault();
+                    var pkVal = pkProp != null ? entry.Property(pkProp.Name)?.CurrentValue : "Unknown";
+
+                    Console.WriteLine($"[FAILED CONCURRENCY ENTITY]");
+                    Console.WriteLine($"  - Table: {tableName}");
+                    Console.WriteLine($"  - Type: {entry.Entity.GetType().FullName}");
+                    Console.WriteLine($"  - Primary Key ({pkProp?.Name}): {pkVal}");
+                    Console.WriteLine($"  - EntityState: {entry.State}");
+
+                    foreach (var prop in entry.Properties)
+                    {
+                        if (prop.IsModified || entry.State == EntityState.Added || entry.State == EntityState.Deleted)
+                        {
+                            Console.WriteLine($"      Property: {prop.Metadata.Name} | IsModified: {prop.IsModified} | Orig: '{prop.OriginalValue}' | Curr: '{prop.CurrentValue}'");
+                        }
+                    }
+                }
+            }
+            Console.WriteLine($"==================================================");
+        }
+
+        private void OnBeforeSaving(string   currentUserId, Guid currentTenantId)
+        {
+            foreach (var entry in ChangeTracker.Entries())
+            {
+                // ========================================================
+                // MULTI-TENANT ENTITIES
+                // ========================================================
+                if (entry.State == EntityState.Added &&
+                    entry.Entity is IMultiTenant multiTenantEntity)
+                {
+                    if (multiTenantEntity.TenantId == Guid.Empty)
+                    {
+                        multiTenantEntity.TenantId = currentTenantId;
+                    }
+                }
+
+                // ========================================================
+                // SOFT DELETE
+                // ========================================================
+                if (entry.State == EntityState.Deleted &&
+                    entry.Entity is ISoftDelete softDeleteEntity)
+                {
+                    entry.State = EntityState.Modified;
+
+                    softDeleteEntity.IsDeleted = true;
+                    softDeleteEntity.DeletedAt =
+                        _dateTimeProvider.UtcNow;
+                    softDeleteEntity.DeletedBy =
+                        currentUserId;
+                }
+
+                // ========================================================
+                // AUDITING
+                // ========================================================
+                if (entry.Entity is IAuditable auditableEntity)
+                {
+                    if (entry.State == EntityState.Added)
+                    {
+                        if (auditableEntity.CreatedAt == default(DateTime))
+                        {
+                            auditableEntity.CreatedAt =
+                                _dateTimeProvider.UtcNow;
+                        }
+
+                        auditableEntity.CreatedBy =
+                            currentUserId;
+
+                        auditableEntity.CreatedByIP =
+                            _currentUserContext.IpAddress
+                            ?? "127.0.0.1";
+                    }
+                    else if (entry.State == EntityState.Modified)
+                    {
+                        // Never modify CreatedAt when updating.
+                        entry.Property("CreatedAt").IsModified = false;
+
+                        auditableEntity.UpdatedAt =
+                            _dateTimeProvider.UtcNow;
+
+                        auditableEntity.UpdatedBy =
+                            currentUserId;
+
+                        auditableEntity.UpdatedByIP =
+                            _currentUserContext.IpAddress
+                            ?? "127.0.0.1";
+                    }
+                }
             }
         }
 
@@ -1130,6 +1141,85 @@ namespace Aquora.Persistence.Context
                 }
 
                 base.SaveChanges();
+            }
+            finally
+            {
+                _isRecalculating = false;
+            }
+        }
+
+        private async Task RecalculateBalancesAsync(HashSet<Guid> bankAccountIds, HashSet<Guid> cashBookIds, CancellationToken cancellationToken)
+        {
+            if (_isRecalculating) return;
+
+            try
+            {
+                _isRecalculating = true;
+                var tenantId = _tenantProvider.TenantId;
+
+                foreach (var bankAccountId in bankAccountIds)
+                {
+                    var bank = await BankAccounts.FirstOrDefaultAsync(b => b.Id == bankAccountId && b.TenantId == tenantId, cancellationToken);
+                    if (bank == null) continue;
+
+                    var entries = await BankLedgerEntries
+                        .Where(x => x.TenantId == tenantId && x.BankAccountId == bankAccountId)
+                        .ToListAsync(cancellationToken);
+
+                    var sortedEntries = entries
+                        .OrderBy(x => x.CreatedAt)
+                        .ThenBy(x => x.Id)
+                        .ToList();
+
+                    decimal runningBalance = bank.OpeningBalance;
+                    foreach (var entry in sortedEntries)
+                    {
+                        if (entry.TransactionType == "Opening Balance")
+                        {
+                            entry.RunningBalance = bank.OpeningBalance;
+                            continue;
+                        }
+
+                        runningBalance = runningBalance - entry.Debit + entry.Credit;
+                        entry.RunningBalance = runningBalance;
+                    }
+
+                    bank.CurrentBalance = runningBalance;
+                    bank.UpdatedAt = _dateTimeProvider.UtcNow;
+                }
+
+                foreach (var cashBookId in cashBookIds)
+                {
+                    var cashBook = await CashBooks.FirstOrDefaultAsync(b => b.Id == cashBookId && b.TenantId == tenantId, cancellationToken);
+                    if (cashBook == null) continue;
+
+                    var entries = await BankLedgerEntries
+                        .Where(x => x.TenantId == tenantId && x.CashBookId == cashBookId && x.LedgerAccountType == "CashBook")
+                        .ToListAsync(cancellationToken);
+
+                    var sortedEntries = entries
+                        .OrderBy(x => x.CreatedAt)
+                        .ThenBy(x => x.Id)
+                        .ToList();
+
+                    decimal runningBalance = cashBook.OpeningBalance;
+                    foreach (var entry in sortedEntries)
+                    {
+                        if (entry.TransactionType == "Opening Balance")
+                        {
+                            entry.RunningBalance = cashBook.OpeningBalance;
+                            continue;
+                        }
+
+                        runningBalance = runningBalance - entry.Debit + entry.Credit;
+                        entry.RunningBalance = runningBalance;
+                    }
+
+                    cashBook.CurrentBalance = runningBalance;
+                    cashBook.UpdatedAt = _dateTimeProvider.UtcNow;
+                }
+
+                await base.SaveChangesAsync(cancellationToken);
             }
             finally
             {

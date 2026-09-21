@@ -1,5 +1,6 @@
 using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Aquora.Persistence.Context;
 
 #nullable disable
 
@@ -8,6 +9,8 @@ namespace Aquora.Persistence.Migrations.Tenant
     /// <inheritdoc />
     public partial class AddFinanceModule : Migration
     {
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -442,35 +445,35 @@ namespace Aquora.Persistence.Migrations.Tenant
         {
             migrationBuilder.DropTable(
                 name: "Assets",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropTable(
                 name: "BankAccounts",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropTable(
                 name: "ExpenseRecords",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropTable(
                 name: "JournalEntryLines",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropTable(
                 name: "PettyCashSessions",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropTable(
                 name: "Accounts",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropTable(
                 name: "JournalEntries",
-                schema: "public");
+                schema: _schema);
 
             migrationBuilder.DropTable(
                 name: "AccountGroups",
-                schema: "public");
+                schema: _schema);
         }
     }
 }

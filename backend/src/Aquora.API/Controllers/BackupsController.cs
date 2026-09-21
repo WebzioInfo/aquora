@@ -11,7 +11,7 @@ namespace Aquora.API.Controllers
 {
     [ApiController]
     [Route("api/v1/backups")]
-    [Authorize(Roles = "SuperAdmin,CompanyOwner,CompanyAdmin,Admin,QC,Owner")]
+    [Authorize(Roles = "SuperAdmin,CompanyOwner,CompanyAdmin,Accountant,Admin,QC,Owner")]
     public class BackupsController : ControllerBase
     {
         private readonly IBackupService _backupService;

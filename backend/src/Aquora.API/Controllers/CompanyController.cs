@@ -44,7 +44,7 @@ namespace Aquora.API.Controllers
         private bool IsCompanyAdmin()
         {
             var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value.ToUpperInvariant()).ToList();
-            return roles.Contains("COMPANYADMIN") || roles.Contains("SUPERADMIN") || roles.Contains("PLATFORMADMIN");
+            return roles.Contains("COMPANYADMIN") || roles.Contains("ACCOUNTANT") || roles.Contains("SUPERADMIN") || roles.Contains("PLATFORMADMIN");
         }
 
         private string GetSecurityPinFilePath(Guid tenantId)

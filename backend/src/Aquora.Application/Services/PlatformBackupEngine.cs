@@ -331,14 +331,106 @@ namespace Aquora.Application.Services
 
         public async Task<PlatformBackupManifestDto?> ReadManifestFromZipAsync(byte[] zipBytes)
         {
-            using var memStream = new MemoryStream(zipBytes);
-            using var archive = new ZipArchive(memStream, ZipArchiveMode.Read);
+            if (zipBytes == null || zipBytes.Length == 0) return null;
 
-            var manifestEntry = archive.GetEntry("manifest.json");
-            if (manifestEntry == null) return null;
+            try
+            {
+                using var memStream = new MemoryStream(zipBytes);
+                using var archive = new ZipArchive(memStream, ZipArchiveMode.Read);
 
-            using var stream = manifestEntry.Open();
-            return await JsonSerializer.DeserializeAsync<PlatformBackupManifestDto>(stream);
+                var manifestEntry = archive.GetEntry("manifest.json");
+                if (manifestEntry != null)
+                {
+                    using var stream = manifestEntry.Open();
+                    var manifest = await JsonSerializer.DeserializeAsync<PlatformBackupManifestDto>(stream);
+                    if (manifest != null) return manifest;
+                }
+
+                // Fallback for legacy backups lacking manifest.json
+                _logger.LogInformation("manifest.json not found in backup ZIP. Attempting legacy fallback manifest parsing...");
+                var infoEntry = archive.GetEntry("backup-info.json");
+                Guid backupId = Guid.NewGuid();
+                string backupName = "Legacy Platform Backup";
+                DateTime backupDate = DateTime.UtcNow;
+                string createdBy = "System";
+
+                if (infoEntry != null)
+                {
+                    try
+                    {
+                        using var infoStream = infoEntry.Open();
+                        using var doc = await JsonDocument.ParseAsync(infoStream);
+                        var root = doc.RootElement;
+                        if (root.TryGetProperty("BackupId", out var idProp) && idProp.TryGetGuid(out var parsedGuid)) backupId = parsedGuid;
+                        if (root.TryGetProperty("BackupName", out var nameProp)) backupName = nameProp.GetString() ?? backupName;
+                        if (root.TryGetProperty("CreatedAt", out var dateProp) && dateProp.TryGetDateTime(out var parsedDate)) backupDate = parsedDate;
+                        if (root.TryGetProperty("CreatedBy", out var userProp)) createdBy = userProp.GetString() ?? createdBy;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to parse legacy backup-info.json inside ZIP");
+                    }
+                }
+
+                var schemas = new List<PlatformSchemaMetaDto>();
+                int totalTables = 0;
+
+                foreach (var entry in archive.Entries)
+                {
+                    if (entry.FullName.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string schemaName = "public";
+                        var parts = entry.FullName.Split('/');
+                        if (parts.Length > 1 && !parts[0].Equals("public", StringComparison.OrdinalIgnoreCase))
+                        {
+                            schemaName = parts[0];
+                        }
+
+                        schemas.Add(new PlatformSchemaMetaDto
+                        {
+                            SchemaName = schemaName,
+                            TenantName = schemaName.Equals("public", StringComparison.OrdinalIgnoreCase) ? "System Public Schema" : schemaName,
+                            TablesCount = 1,
+                            RecordsCount = 0,
+                            SizeBytes = entry.Length,
+                            FormattedSize = FormatBytes(entry.Length),
+                            SqlFileName = entry.FullName
+                        });
+                        totalTables++;
+                    }
+                }
+
+                if (!schemas.Any()) return null;
+
+                return new PlatformBackupManifestDto
+                {
+                    BackupId = backupId,
+                    BackupName = backupName,
+                    PlatformVersion = "2026.1 (Legacy)",
+                    DatabaseVersion = "PostgreSQL",
+                    EngineVersion = "v1.0",
+                    BackupDate = backupDate,
+                    CreatedBy = createdBy,
+                    CreatedByName = createdBy,
+                    CreatedMachine = Environment.MachineName,
+                    CreatedIP = "127.0.0.1",
+                    TenantCount = schemas.Count(s => !s.SchemaName.Equals("public", StringComparison.OrdinalIgnoreCase)),
+                    SchemaCount = schemas.Count,
+                    PublicIncluded = schemas.Any(s => s.SchemaName.Equals("public", StringComparison.OrdinalIgnoreCase)),
+                    Encrypted = false,
+                    TotalTables = totalTables,
+                    TotalRecords = 0,
+                    DatabaseSizeBytes = zipBytes.Length,
+                    FormattedDatabaseSize = FormatBytes(zipBytes.Length),
+                    Schemas = schemas,
+                    Checksum = ComputeSHA256(zipBytes)
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to inspect ZIP archive manifest");
+                return null;
+            }
         }
 
         public async Task<bool> VerifyZipChecksumAsync(byte[] zipBytes)

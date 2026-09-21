@@ -196,4 +196,39 @@ namespace Aquora.Application.DTOs.Payroll
         public decimal PaidViaCashThisMonth { get; set; }
         public decimal TotalPendingBalanceThisMonth { get; set; }
     }
+
+    public class EmployeeSalaryStatementReportDto
+    {
+        public EmployeeSalaryProfileDto Employee { get; set; } = new();
+        public MonthlySalaryDetailsDto CurrentStatement { get; set; } = new();
+        public List<MonthlySalaryDirectoryDto> MonthlyHistory { get; set; } = new();
+        public List<SalaryPaymentTransactionDto> AllPaymentTransactions { get; set; } = new();
+        public PayrollCompanyInfoDto Company { get; set; } = new();
+        public string ReportGeneratedAt { get; set; } = string.Empty;
+    }
+
+    public class EmployeeSalaryProfileDto
+    {
+        public Guid Id { get; set; }
+        public string FullName { get; set; } = string.Empty;
+        public string? Designation { get; set; }
+        public string? Department { get; set; }
+        public string? Email { get; set; }
+        public string? Phone { get; set; }
+        public decimal BaseSalary { get; set; }
+        public DateTime? JoiningDate { get; set; }
+    }
+
+    public class PayrollCompanyInfoDto
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? DisplayName { get; set; }
+        public string? Address { get; set; }
+        public string? Phone { get; set; }
+        public string? Email { get; set; }
+        public string? GstNumber { get; set; }
+        public string? LogoUrl { get; set; }
+        public string Currency { get; set; } = "INR";
+        public string CurrencySymbol { get; set; } = "₹";
+    }
 }

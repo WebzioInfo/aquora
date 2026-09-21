@@ -247,6 +247,11 @@ export const twentyLService = {
     return res.data?.data
   },
 
+  async getJarMovementsSummary(params?: { dateFrom?: string; dateTo?: string }) {
+    const res = await api.get('/api/v1/20l/jar-movements/summary', { params })
+    return res.data?.data
+  },
+
   async getMovements(params?: { page?: number; pageSize?: number }) {
     const res = await api.get('/api/v1/20l/ledger', { params })
     return res.data?.data

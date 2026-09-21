@@ -65,9 +65,11 @@ export interface PremiumSelectProps extends React.SelectHTMLAttributes<HTMLSelec
   label: string;
   error?: string;
   helpText?: string;
+  options?: { value: string; label: string }[];
+  placeholder?: string;
 }
 
-export const PremiumSelect: React.FC<PremiumSelectProps> = ({ label, error, helpText, required, className = '', children, ...props }) => {
+export const PremiumSelect: React.FC<PremiumSelectProps> = ({ label, error, helpText, required, className = '', children, options, placeholder, ...props }) => {
   return (
     <div className="flex flex-col w-full text-left">
       <PremiumLabel label={label} required={required} />
@@ -78,7 +80,10 @@ export const PremiumSelect: React.FC<PremiumSelectProps> = ({ label, error, help
           } ${className}`}
           {...props}
         >
-          {children}
+          {placeholder && <option value="">{placeholder}</option>}
+          {options ? options.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          )) : children}
         </select>
         <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">

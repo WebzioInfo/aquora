@@ -6,6 +6,7 @@ import {
   Download, ChevronLeft, ChevronRight, Building, Users
 } from 'lucide-react'
 import { api } from '../../services/api'
+import { toast } from '../../utils/toast'
 import EnterpriseHeader from '../../components/ui/EnterpriseHeader'
 import EnterpriseCard from '../../components/ui/EnterpriseCard'
 import EnterpriseBadge from '../../components/ui/EnterpriseBadge'
@@ -119,6 +120,35 @@ export const PlatformManagementPage: React.FC = () => {
     enabled: isUsers
   })
 
+  // BIODROPS PRODUCTION TOGGLE LOADING STATE
+  const [updatingBiodropsTenantIds, setUpdatingBiodropsTenantIds] = useState<Set<string>>(new Set())
+
+  const handleToggleBiodropsProduction = async (tenant: any) => {
+    if (!tenant?.id || updatingBiodropsTenantIds.has(tenant.id)) return
+
+    const newTargetState = !tenant.isBiodropsProduction
+
+    setUpdatingBiodropsTenantIds(prev => new Set(prev).add(tenant.id))
+
+    try {
+      await api.put(`/api/v1/platform/tenants/${tenant.id}`, {
+        isBiodropsProduction: newTargetState
+      })
+      toast.success(`BioDrops Production ${newTargetState ? 'enabled' : 'disabled'} for ${tenant.name}`)
+      queryClient.invalidateQueries({ queryKey: ['platformTenants'] })
+    } catch (err: any) {
+      const errMsg = err?.response?.data?.message || err?.message || 'Failed to update BioDrops Production setting'
+      toast.error(errMsg)
+      queryClient.invalidateQueries({ queryKey: ['platformTenants'] })
+    } finally {
+      setUpdatingBiodropsTenantIds(prev => {
+        const next = new Set(prev)
+        next.delete(tenant.id)
+        return next
+      })
+    }
+  }
+
   // TENANT ACTIONS HANDLERS
   const handleSaveTenant = async (data: any) => {
     if (editingTenant) {
@@ -149,12 +179,14 @@ export const PlatformManagementPage: React.FC = () => {
       await api.post('/api/v1/platform/users', data)
     }
     queryClient.invalidateQueries({ queryKey: ['platformUsers'] })
+    queryClient.invalidateQueries({ queryKey: ['platformTenants'] })
   }
 
   const handleDeleteUser = async () => {
     if (!deletingUser) return
     await api.delete(`/api/v1/platform/users/${deletingUser.id}`)
     queryClient.invalidateQueries({ queryKey: ['platformUsers'] })
+    queryClient.invalidateQueries({ queryKey: ['platformTenants'] })
   }
 
   const handleBulkUserAction = async (action: string, targetValue?: string) => {
@@ -166,6 +198,7 @@ export const PlatformManagementPage: React.FC = () => {
     })
     setSelectedUserIds([])
     queryClient.invalidateQueries({ queryKey: ['platformUsers'] })
+    queryClient.invalidateQueries({ queryKey: ['platformTenants'] })
   }
 
   // IMPORT / EXPORT HANDLERS
@@ -310,6 +343,7 @@ export const PlatformManagementPage: React.FC = () => {
                     <th className="py-3 px-4">Owner Contact</th>
                     <th className="py-3 px-4">Subscription Plan</th>
                     <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">BioDrops Production</th>
                     <th className="py-3 px-4">Active Users</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
@@ -348,6 +382,35 @@ export const PlatformManagementPage: React.FC = () => {
                         <EnterpriseBadge variant={t.isActive ? 'success' : 'danger'}>
                           {t.status || (t.isActive ? 'Active' : 'Inactive')}
                         </EnterpriseBadge>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={updatingBiodropsTenantIds.has(t.id)}
+                            onClick={() => handleToggleBiodropsProduction(t)}
+                            className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                              t.isBiodropsProduction ? 'bg-blue-600' : 'bg-slate-300'
+                            }`}
+                            title={t.isBiodropsProduction ? 'BioDrops Production Enabled (Click to disable)' : 'BioDrops Production Disabled (Click to enable)'}
+                          >
+                            <span className="sr-only">Toggle BioDrops Production</span>
+                            {updatingBiodropsTenantIds.has(t.id) ? (
+                              <span className="h-4 w-4 transform rounded-full bg-white shadow-sm flex items-center justify-center">
+                                <span className="animate-spin h-2.5 w-2.5 rounded-full border-b border-blue-600" />
+                              </span>
+                            ) : (
+                              <span
+                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                                  t.isBiodropsProduction ? 'translate-x-5' : 'translate-x-0'
+                                }`}
+                              />
+                            )}
+                          </button>
+                          <span className={`text-[11px] font-semibold ${t.isBiodropsProduction ? 'text-blue-700 font-bold' : 'text-slate-400'}`}>
+                            {t.isBiodropsProduction ? 'ON' : 'OFF'}
+                          </span>
+                        </div>
                       </td>
                       <td className="py-3 px-4 font-semibold text-slate-700">
                         {t.activeUsersCount !== undefined && t.activeUsersCount !== null ? `${t.activeUsersCount} Users` : 'Not Available'}

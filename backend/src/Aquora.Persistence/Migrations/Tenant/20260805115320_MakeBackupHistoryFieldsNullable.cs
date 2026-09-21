@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Aquora.Persistence.Context;
 
 #nullable disable
 
@@ -7,12 +8,14 @@ namespace Aquora.Persistence.Migrations.Tenant
     /// <inheritdoc />
     public partial class MakeBackupHistoryFieldsNullable : Migration
     {
+        private string _schema => TenantSchemaResolver.ResolveRequiredSchema();
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterColumn<string>(
                 name: "Version",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories",
                 type: "text",
                 nullable: true,
@@ -21,7 +24,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AlterColumn<string>(
                 name: "TenantName",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories",
                 type: "text",
                 nullable: true,
@@ -30,7 +33,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AlterColumn<string>(
                 name: "Format",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories",
                 type: "text",
                 nullable: true,
@@ -39,7 +42,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AlterColumn<string>(
                 name: "EngineVersion",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories",
                 type: "text",
                 nullable: true,
@@ -48,7 +51,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AlterColumn<string>(
                 name: "Encryption",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories",
                 type: "text",
                 nullable: true,
@@ -61,7 +64,7 @@ namespace Aquora.Persistence.Migrations.Tenant
         {
             migrationBuilder.AlterColumn<string>(
                 name: "Version",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories",
                 type: "text",
                 nullable: false,
@@ -72,7 +75,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AlterColumn<string>(
                 name: "TenantName",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories",
                 type: "text",
                 nullable: false,
@@ -83,7 +86,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AlterColumn<string>(
                 name: "Format",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories",
                 type: "text",
                 nullable: false,
@@ -94,7 +97,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AlterColumn<string>(
                 name: "EngineVersion",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories",
                 type: "text",
                 nullable: false,
@@ -105,7 +108,7 @@ namespace Aquora.Persistence.Migrations.Tenant
 
             migrationBuilder.AlterColumn<string>(
                 name: "Encryption",
-                schema: "public",
+                schema: _schema,
                 table: "BackupHistories",
                 type: "text",
                 nullable: false,

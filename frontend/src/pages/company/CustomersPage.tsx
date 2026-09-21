@@ -15,6 +15,7 @@ import { brandService } from '../../services/brands'
 import { rawMaterialsService } from '../../services/rawMaterials'
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown'
 import { useNotificationStore } from '../../store/useNotificationStore'
+import { isOwnerUser } from '../../utils/permissions'
 import { useAuthStore } from '../../store/useAuthStore'
 import EnterpriseHeader from '../../components/ui/EnterpriseHeader'
 import PageContainer from '../../components/ui/layout/PageContainer'
@@ -80,8 +81,8 @@ export const CustomersPage: React.FC = () => {
 
   // Permissions check based on specifications
   const userRoles = user?.roles || []
-  const isOwner = userRoles.some(r => r.toLowerCase() === 'owner')
   const isOperator = userRoles.includes('Operator') && userRoles.length === 1
+  const isOwner = isOwnerUser(user)
   const canWrite = !isOperator && !isOwner
 
   // Search & Filter State
@@ -563,7 +564,10 @@ export const CustomersPage: React.FC = () => {
   }
 
   const handleOpenEditDrawer = (customer: Customer) => {
-    if (!canWrite) return
+    if (!canWrite) {
+      showToast('You do not have write permissions to edit customer profiles.', 'warning')
+      return
+    }
     setEditingCustomerId(customer.id)
     setDrawerMode('edit')
     setFormData({
@@ -1057,6 +1061,446 @@ export const CustomersPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* SLIDE-OVER DRAWER (Create / Edit form) */}
+      {isDrawerOpen && (
+        <div className="fixed inset-0 z-50 overflow-hidden select-none">
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-xs transition-opacity" onClick={() => setIsDrawerOpen(false)} />
+          
+          <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
+            <div className="w-screen max-w-xl bg-white border-l border-[#E2E8F0] shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-250">
+              
+              {/* Drawer Header */}
+              <div className="px-8 py-5 border-b border-[#E2E8F0] flex items-center justify-between bg-[#F8FAFC]">
+                <div>
+                  <h3 className="text-[20px] font-semibold text-gray-900 tracking-tight">
+                    {drawerMode === 'create' ? 'Register New Customer' : `Modify Customer Settings`}
+                  </h3>
+                  <p className="text-[12px] text-gray-400 mt-1 font-medium">
+                    {drawerMode === 'create' ? 'Generates an auto-incremented business partner code suffix' : 'Partner ID code is read-only'}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setIsDrawerOpen(false)}
+                  className="p-1.5 rounded-[8px] text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Tab Selector */}
+              <div className="flex border-b border-[#E2E8F0] px-8 bg-[#F8FAFC]">
+                {(['general', 'address', 'financials', 'logistics'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setFormTab(tab)}
+                    className={`py-3 px-4 text-xs font-semibold uppercase tracking-wider border-b-2 -mb-[2px] transition-colors cursor-pointer ${
+                      formTab === tab
+                        ? 'border-[#1A56DB] text-[#1A56DB]'
+                        : 'border-transparent text-gray-500 hover:text-gray-900'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+
+              {/* Drawer Scrollable Body Form */}
+              <form onSubmit={handleFormSubmit} className="flex-1 overflow-y-auto p-8 space-y-8">
+                
+                {formTab === 'general' && (
+                  <GeneralTab formData={formData} handleFormChange={handleFormChange} />
+                )}
+
+                {formTab === 'address' && (
+                  <AddressTab formData={formData} handleFormChange={handleFormChange} indianStates={indianStates} />
+                )}
+
+                {formTab === 'financials' && (
+                  <div className="space-y-5 animate-in fade-in duration-200">
+                    <PremiumSectionHeading title="Financial Setup & GST Registry" />
+                    
+                    <div className="grid grid-cols-1 gap-5">
+                      <PremiumInput
+                        label={formData.customerType === 'B2B' ? "PAN Card Number *" : "PAN Card Number"}
+                        name="panNumber"
+                        value={formData.panNumber}
+                        onChange={handleFormChange}
+                        placeholder="e.g. ABCDE1234F"
+                        required={formData.customerType === 'B2B'}
+                      />
+                    </div>
+
+                    {formData.customerType === 'B2B' && (
+                      <div className="space-y-5 animate-in slide-in-from-top duration-200">
+                        <div className="grid grid-cols-2 gap-5">
+                          <PremiumInput
+                            label="GST Number *"
+                            name="gstNumber"
+                            value={formData.gstNumber}
+                            onChange={handleFormChange}
+                            placeholder="e.g. 27ABCDE1234F1Z5"
+                            required
+                          />
+                          <PremiumSelect
+                            label="GST Registered State *"
+                            name="gstState"
+                            value={formData.gstState}
+                            onChange={handleFormChange}
+                            options={indianStates.map(s => ({ value: s, label: s }))}
+                            placeholder="Select State"
+                            required
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-5">
+                          <PremiumSelect
+                            label="Business Type"
+                            name="businessType"
+                            value={formData.businessType}
+                            onChange={handleFormChange}
+                            options={[
+                              { value: 'Proprietorship', label: 'Proprietorship' },
+                              { value: 'Partnership', label: 'Partnership' },
+                              { value: 'Pvt Ltd', label: 'Pvt Ltd' },
+                              { value: 'Public Ltd', label: 'Public Ltd' },
+                              { value: 'LLP', label: 'LLP' }
+                            ]}
+                          />
+                          <PremiumInput
+                            label="Legal Business Name"
+                            name="businessName"
+                            value={formData.businessName}
+                            onChange={handleFormChange}
+                            placeholder="Full registered enterprise name"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="pt-4 border-t border-[#E2E8F0]">
+                      <PremiumSectionHeading title="Receivables & Credit Policy" />
+                      <div className="grid grid-cols-2 gap-5 mt-4">
+                        <PremiumInput
+                          label="Opening Balance (₹)"
+                          type="number"
+                          name="openingBalance"
+                          value={formData.openingBalance}
+                          onChange={handleFormChange}
+                          placeholder="0.00"
+                        />
+                        <PremiumSelect
+                          label="Balance Ledger Type"
+                          name="balanceType"
+                          value={formData.balanceType}
+                          onChange={handleFormChange}
+                          options={[
+                            { value: 'Zero', label: 'Zero Balance' },
+                            { value: 'Receivable', label: 'Receivable (Customer owes)' },
+                            { value: 'Payable', label: 'Payable (Advance deposit)' }
+                          ]}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-5 mt-4">
+                        <PremiumInput
+                          label="Credit Limit (₹)"
+                          type="number"
+                          name="creditLimit"
+                          value={formData.creditLimit}
+                          onChange={handleFormChange}
+                          placeholder="Maximum allowed unpaid credit"
+                        />
+                        <PremiumSelect
+                          label="Default Payment Terms *"
+                          name="paymentTerms"
+                          value={formData.paymentTerms}
+                          onChange={handleFormChange}
+                          options={[
+                            { value: 'COD', label: 'COD (Cash On Delivery)' },
+                            { value: 'Net 7', label: 'Net 7 Days' },
+                            { value: 'Net 15', label: 'Net 15 Days' },
+                            { value: 'Net 30', label: 'Net 30 Days' },
+                            { value: 'Advance', label: 'Advance Payment Required' }
+                          ]}
+                          required
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-5 mt-4">
+                        <PremiumInput
+                          label="Price List Override (₹)"
+                          type="number"
+                          name="price"
+                          value={formData.price}
+                          onChange={handleFormChange}
+                          placeholder="Standard rate per case"
+                        />
+                        <PremiumInput
+                          label="Discount Amount (₹)"
+                          type="number"
+                          name="discount"
+                          value={formData.discount}
+                          onChange={handleFormChange}
+                          placeholder="Discount per case"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {formTab === 'logistics' && (
+                  <div className="space-y-5 animate-in fade-in duration-200">
+                    <PremiumSectionHeading title="Logistics & Delivery Assignment" />
+                    
+                    <div className="grid grid-cols-2 gap-5">
+                      <PremiumInput
+                        label="Assigned Route"
+                        name="assignedRoute"
+                        value={formData.assignedRoute}
+                        onChange={handleFormChange}
+                        placeholder="e.g. Route A - North Sector"
+                      />
+                      <PremiumInput
+                        label="Assigned Delivery Vehicle"
+                        name="assignedVehicle"
+                        value={formData.assignedVehicle}
+                        onChange={handleFormChange}
+                        placeholder="e.g. KL-07-AB-1234"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+                      <PremiumInput
+                        label="Assigned Driver"
+                        name="assignedDriver"
+                        value={formData.assignedDriver}
+                        onChange={handleFormChange}
+                        placeholder="Driver name"
+                      />
+                      <PremiumInput
+                        label="Assigned Sales Exec"
+                        name="assignedSalesExecutive"
+                        value={formData.assignedSalesExecutive}
+                        onChange={handleFormChange}
+                        placeholder="Sales executive name"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+                      <PremiumInput
+                        label="Working Coverage Area"
+                        name="workingArea"
+                        value={formData.workingArea}
+                        onChange={handleFormChange}
+                        placeholder="e.g. Downtown Industrial Zone"
+                      />
+                      <PremiumInput
+                        label="Working Days"
+                        name="workingDays"
+                        value={formData.workingDays}
+                        placeholder="e.g. Mon, Wed, Fri"
+                      />
+                    </div>
+
+                    {formData.customerType === 'Distributor' && (
+                      <div className="pt-4 border-t border-[#E2E8F0] space-y-4">
+                        <PremiumSectionHeading title="Distributor Commercial Terms" />
+                        <div className="grid grid-cols-3 gap-4">
+                          <PremiumInput
+                            label="Commission Rate (%)"
+                            type="number"
+                            name="commissionPercentage"
+                            value={formData.commissionPercentage}
+                            onChange={handleFormChange}
+                            placeholder="0.00"
+                          />
+                          <PremiumInput
+                            label="Monthly Base Salary (₹)"
+                            type="number"
+                            name="monthlySalary"
+                            value={formData.monthlySalary}
+                            onChange={handleFormChange}
+                            placeholder="0.00"
+                          />
+                          <PremiumInput
+                            label="Security Deposit (₹)"
+                            type="number"
+                            name="securityDeposit"
+                            value={formData.securityDeposit}
+                            onChange={handleFormChange}
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="pt-4 border-t border-[#E2E8F0] space-y-4">
+                      <PremiumSectionHeading title="20L Jar Operations Parameters" />
+                      
+                      <div className="grid grid-cols-2 gap-5">
+                        <PremiumInput
+                          label="Jar Deposit Rate (₹/jar)"
+                          type="number"
+                          name="jarDeposit"
+                          value={formData.jarDeposit}
+                          onChange={handleFormChange}
+                          placeholder="Standard deposit per 20L jar"
+                        />
+                        <PremiumInput
+                          label="Max Inventory Limit (Jars)"
+                          type="number"
+                          name="maxJarLimit"
+                          value={formData.maxJarLimit}
+                          onChange={handleFormChange}
+                          placeholder="Max jars customer can hold"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-5">
+                        <SearchableDropdown
+                          label="Preferred Jar Brand"
+                          value={formData.preferredJarBrand}
+                          onChange={(val) => setFormData(prev => ({ ...prev, preferredJarBrand: val }))}
+                          options={brandItems}
+                          isLoading={isLoadingBrands}
+                          placeholder="Select Brand..."
+                        />
+                        <SearchableDropdown
+                          label="Preferred Cap Material"
+                          value={formData.preferredCapMaterial}
+                          onChange={(val) => setFormData(prev => ({ ...prev, preferredCapMaterial: val }))}
+                          options={capItems}
+                          isLoading={isLoadingMaterials}
+                          placeholder="Select Cap Material..."
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-5">
+                        <PremiumSelect
+                          label="Preferred Delivery Window"
+                          name="preferredDeliveryTime"
+                          value={formData.preferredDeliveryTime}
+                          onChange={handleFormChange}
+                          options={[
+                            { value: 'Morning', label: 'Morning (6 AM - 11 AM)' },
+                            { value: 'Afternoon', label: 'Afternoon (11 AM - 4 PM)' },
+                            { value: 'Evening', label: 'Evening (4 PM - 9 PM)' }
+                          ]}
+                        />
+                        <PremiumSelect
+                          label="Delivery Frequency"
+                          name="deliveryFrequency"
+                          value={formData.deliveryFrequency}
+                          onChange={handleFormChange}
+                          options={[
+                            { value: 'Daily', label: 'Daily Delivery' },
+                            { value: 'Alternate Days', label: 'Alternate Days' },
+                            { value: 'Weekly', label: 'Weekly Schedule' },
+                            { value: 'On Demand', label: 'On Demand Orders' }
+                          ]}
+                        />
+                      </div>
+
+                      <div className="flex gap-6 pt-2">
+                        <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            name="sealRequired"
+                            checked={formData.sealRequired}
+                            onChange={(e) => setFormData(prev => ({ ...prev, sealRequired: e.target.checked }))}
+                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                          />
+                          Cap Seal Required
+                        </label>
+                        <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            name="emergencyDelivery"
+                            checked={formData.emergencyDelivery}
+                            onChange={(e) => setFormData(prev => ({ ...prev, emergencyDelivery: e.target.checked }))}
+                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                          />
+                          Emergency Delivery Eligible
+                        </label>
+                        <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            name="priorityCustomer"
+                            checked={formData.priorityCustomer}
+                            onChange={(e) => setFormData(prev => ({ ...prev, priorityCustomer: e.target.checked }))}
+                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                          />
+                          VIP Priority Dispatch
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </form>
+
+                  {/* Drawer Footer Fixed Action Bar */}
+                  <div className="px-8 py-4 border-t border-[#E2E8F0] bg-[#F8FAFC] flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsDrawerOpen(false)}
+                        className="h-[44px] px-5 text-gray-500 hover:text-gray-900 text-sm font-semibold cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      {formTab !== 'general' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (formTab === 'address') setFormTab('general')
+                            else if (formTab === 'financials') setFormTab('address')
+                            else if (formTab === 'logistics') setFormTab('financials')
+                          }}
+                          className="h-[44px] px-5 border border-gray-300 hover:border-gray-400 rounded-[10px] bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold select-none cursor-pointer transition-all duration-150 active:scale-[0.99]"
+                        >
+                          Back
+                        </button>
+                      )}
+                      {formTab !== 'logistics' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (formTab === 'general') setFormTab('address')
+                            else if (formTab === 'address') setFormTab('financials')
+                            else if (formTab === 'financials') setFormTab('logistics')
+                          }}
+                          className="h-[44px] px-5 border border-gray-300 hover:border-gray-400 rounded-[10px] bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold select-none cursor-pointer transition-all duration-150 active:scale-[0.99]"
+                        >
+                          Next Tab
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleFormSubmit}
+                        disabled={createCustomerMutation.isPending || updateCustomerMutation.isPending}
+                        className="h-[44px] px-6 bg-[#1A56DB] hover:bg-[#1E40AF] active:bg-[#123E97] text-white text-sm font-semibold rounded-[10px] shadow-sm select-none cursor-pointer transition-all duration-150 active:scale-[0.99] disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {(createCustomerMutation.isPending || updateCustomerMutation.isPending) ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            <span>Saving...</span>
+                          </>
+                        ) : (
+                          <span>{drawerMode === 'create' ? 'Register Customer' : 'Save Changes'}</span>
+                        )}
+                      </button>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+        )}
     </>
   )
 
