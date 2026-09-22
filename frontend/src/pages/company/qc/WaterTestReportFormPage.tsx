@@ -81,7 +81,6 @@ export const WaterTestReportFormPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = React.useRef(false);
   const [concurrencyToken, setConcurrencyToken] = useState<string | null>(null);
-  const [showConflictModal, setShowConflictModal] = useState(false);
 
   const [parameters, setParameters] = useState<WaterTestParameter[]>([]);
   const [reportNumber, setReportNumber] = useState('');
@@ -300,11 +299,7 @@ export const WaterTestReportFormPage: React.FC = () => {
     } catch (error: any) {
       const errCode = error?.response?.data?.code || error?.code;
       const status = error?.response?.status;
-      if (errCode === 'CONCURRENCY_CONFLICT' || status === 409) {
-        setShowConflictModal(true);
-      } else {
-        toast.error(error);
-      }
+
     } finally {
       setIsSaving(false);
       isSavingRef.current = false;
@@ -687,48 +682,6 @@ export const WaterTestReportFormPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Concurrency Conflict Resolution Modal */}
-      {showConflictModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 border border-slate-100 space-y-4">
-            <div className="flex items-center gap-3 text-amber-600">
-              <div className="p-2.5 bg-amber-50 rounded-lg">
-                <AlertCircle className="w-6 h-6 text-amber-600" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900">Data Conflict Detected</h3>
-            </div>
-
-            <p className="text-sm text-slate-600 leading-relaxed">
-              This report was modified by another session or user. Reloading will fetch the latest version from the server.
-            </p>
-
-            <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-lg text-xs text-amber-800 font-medium">
-              ⚠️ Reloading will replace your current unsaved changes with the latest database state.
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <EnterpriseButton
-                type="button"
-                variant="secondary"
-                onClick={() => setShowConflictModal(false)}
-              >
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton
-                type="button"
-                variant="primary"
-                onClick={() => {
-                  setShowConflictModal(false);
-                  loadData();
-                  toast.info('Loaded latest report version from server.');
-                }}
-              >
-                Reload Latest Version
-              </EnterpriseButton>
-            </div>
-          </div>
-        </div>
-      )}
     </PageContainer>
   );
 };
