@@ -27,11 +27,20 @@ export const EnterpriseModal: React.FC<EnterpriseModalProps> = ({
     if (isOpen) {
       const originalStyle = window.getComputedStyle(document.body).overflow
       document.body.style.overflow = 'hidden'
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          onClose()
+        }
+      }
+      window.addEventListener('keydown', handleKeyDown)
+
       return () => {
         document.body.style.overflow = originalStyle
+        window.removeEventListener('keydown', handleKeyDown)
       }
     }
-  }, [isOpen])
+  }, [isOpen, onClose])
 
   if (!isOpen) return null
 

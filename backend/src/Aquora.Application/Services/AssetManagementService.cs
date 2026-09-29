@@ -11,18 +11,20 @@ using Aquora.Domain.Entities.Finance;
 
 namespace Aquora.Application.Services
 {
-    public class AssetManagementService : IAssetManagementService
+    public partial class AssetManagementService : IAssetManagementService
     {
         private readonly ITenantDbContext _context;
+        private readonly IPlatformDbContext? _platformContext;
         private readonly ITenantProvider _tenantProvider;
         private readonly ICurrentUserContext _userProvider;
 
         public AssetManagementService(
             ITenantDbContext context,
             ITenantProvider tenantProvider,
-            ICurrentUserContext userProvider)
+            ICurrentUserContext userProvider, IPlatformDbContext? platformContext = null)
         {
             _context = context;
+            _platformContext = platformContext;
             _tenantProvider = tenantProvider;
             _userProvider = userProvider;
         }
@@ -40,6 +42,8 @@ namespace Aquora.Application.Services
         {
             var schema = _tenantProvider.TenantSchemaName;
             if (string.IsNullOrWhiteSpace(schema)) schema = "public";
+            if (!_context.Database.IsRelational()) return;
+            if (!System.Text.RegularExpressions.Regex.IsMatch(schema, "^[a-zA-Z_][a-zA-Z0-9_]*$")) throw new InvalidOperationException("Invalid tenant schema.");
 
             if (_schemaCheckedTenants.TryGetValue(schema, out var checkedOk) && checkedOk)
             {
@@ -157,7 +161,7 @@ namespace Aquora.Application.Services
                     ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DisposalReason"" text NULL;
                     ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""SaleValue"" numeric NOT NULL DEFAULT 0.0;
                     ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DisposalCost"" numeric NOT NULL DEFAULT 0.0;
-                    ALTER TABLE ""{schema}"".""BuyerParty"" text NULL;
+                    ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""BuyerParty"" text NULL;
                     ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DisposalRefNo"" text NULL;
                     ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""DisposedBy"" text NULL;
                     ALTER TABLE ""{schema}"".""Assets"" ADD COLUMN IF NOT EXISTS ""Notes"" text NULL;
@@ -336,33 +340,25 @@ namespace Aquora.Application.Services
             return DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc);
         }
 
-        private async Task<string> GenerateAssetCodeAsync()
+        private Task<string> GenerateAssetCodeAsync()
         {
-            var tenantId = GetTenantId();
             var currentYear = DateTime.UtcNow.Year;
             var prefix = $"AST-{currentYear}-";
 
-            var count = await _context.Assets
-                .IgnoreQueryFilters()
-                .Where(a => a.TenantId == tenantId && a.AssetCode.StartsWith(prefix))
-                .CountAsync();
-
-            return $"{prefix}{(count + 1):D5}";
+            return Task.FromResult($"{prefix}{Guid.NewGuid():N}");
         }
 
-        public async Task<AssetPagedResultDto> GetAssetsAsync(
-            int pageNumber = 1,
-            int pageSize = 50,
-            string? search = null,
-            string? category = null,
-            string? status = null,
-            string? condition = null,
-            string? location = null,
-            string? department = null)
+        private IQueryable<Asset> BuildFilteredAssetQuery(
+            Guid tenantId,
+            string? search,
+            string? category,
+            string? status,
+            string? condition,
+            string? location,
+            string? department,
+            DateTime? fromDate,
+            DateTime? toDate)
         {
-            await EnsureAssetSchemaAsync();
-            var tenantId = GetTenantId();
-
             var query = _context.Assets
                 .Where(a => a.TenantId == tenantId && !a.IsDeleted)
                 .AsNoTracking();
@@ -409,6 +405,66 @@ namespace Aquora.Application.Services
                 query = query.Where(a => a.Department != null && a.Department.ToLower() == dept);
             }
 
+            if (fromDate.HasValue)
+            {
+                var fromUtc = DateTime.SpecifyKind(fromDate.Value.Date, DateTimeKind.Utc);
+                query = query.Where(a => a.PurchaseDate >= fromUtc);
+            }
+
+            if (toDate.HasValue)
+            {
+                var toUtcExclusive = DateTime.SpecifyKind(toDate.Value.Date.AddDays(1), DateTimeKind.Utc);
+                query = query.Where(a => a.PurchaseDate < toUtcExclusive);
+            }
+
+            return query;
+        }
+
+        private async Task<AssetKpiSummaryDto> CalculateKpiSummaryAsync(IQueryable<Asset> query)
+        {
+            var now = DateTime.UtcNow;
+            var thirtyDaysFromNow = now.AddDays(30);
+
+            var rows = await query.Select(a => new
+            {
+                a.CurrentStatus,
+                a.TotalCapitalizedCost,
+                a.PurchasePrice,
+                a.CurrentValue,
+                a.AccumulatedDepreciation,
+                a.WarrantyEndDate
+            }).ToListAsync();
+
+            return new AssetKpiSummaryDto
+            {
+                TotalAssetsCount = rows.Count,
+                ActiveAssetsCount = rows.Count(a => string.Equals(a.CurrentStatus, "Active", StringComparison.OrdinalIgnoreCase) || string.Equals(a.CurrentStatus, "InUse", StringComparison.OrdinalIgnoreCase)),
+                TotalAssetValue = rows.Sum(a => a.TotalCapitalizedCost > 0 ? a.TotalCapitalizedCost : a.PurchasePrice),
+                CurrentBookValue = rows.Where(a => !string.Equals(a.CurrentStatus, "Disposed", StringComparison.OrdinalIgnoreCase) && !string.Equals(a.CurrentStatus, "Retired", StringComparison.OrdinalIgnoreCase)).Sum(a => a.CurrentValue),
+                AccumulatedDepreciation = rows.Sum(a => a.AccumulatedDepreciation),
+                UnderMaintenanceCount = rows.Count(a => string.Equals(a.CurrentStatus, "UnderMaintenance", StringComparison.OrdinalIgnoreCase)),
+                DisposedCount = rows.Count(a => string.Equals(a.CurrentStatus, "Disposed", StringComparison.OrdinalIgnoreCase) || string.Equals(a.CurrentStatus, "Retired", StringComparison.OrdinalIgnoreCase)),
+                WarrantyExpiringCount = rows.Count(a => !string.Equals(a.CurrentStatus, "Disposed", StringComparison.OrdinalIgnoreCase) && !string.Equals(a.CurrentStatus, "Retired", StringComparison.OrdinalIgnoreCase) && a.WarrantyEndDate.HasValue && a.WarrantyEndDate.Value >= now && a.WarrantyEndDate.Value <= thirtyDaysFromNow)
+            };
+        }
+
+        public async Task<AssetPagedResultDto> GetAssetsAsync(
+            int pageNumber = 1,
+            int pageSize = 50,
+            string? search = null,
+            string? category = null,
+            string? status = null,
+            string? condition = null,
+            string? location = null,
+            string? department = null,
+            DateTime? fromDate = null,
+            DateTime? toDate = null)
+        {
+            await EnsureAssetSchemaAsync();
+            var tenantId = GetTenantId();
+
+            var query = BuildFilteredAssetQuery(tenantId, search, category, status, condition, location, department, fromDate, toDate);
+
             var safePageNumber = pageNumber >= 1 ? pageNumber : 1;
             var safePageSize = pageSize > 0 ? (pageSize > 200 ? 200 : pageSize) : 50;
 
@@ -419,39 +475,33 @@ namespace Aquora.Application.Services
                 .Take(safePageSize)
                 .ToListAsync();
 
+            var summary = await CalculateKpiSummaryAsync(query);
+
             return new AssetPagedResultDto
             {
                 Items = items.Select(MapToDetailedDto).ToList(),
                 TotalCount = totalCount,
                 PageNumber = safePageNumber,
-                PageSize = safePageSize
+                PageSize = safePageSize,
+                Summary = summary
             };
         }
 
-        public async Task<AssetKpiSummaryDto> GetAssetKpisAsync()
+        public async Task<AssetKpiSummaryDto> GetAssetKpisAsync(
+            string? search = null,
+            string? category = null,
+            string? status = null,
+            string? condition = null,
+            string? location = null,
+            string? department = null,
+            DateTime? fromDate = null,
+            DateTime? toDate = null)
         {
             await EnsureAssetSchemaAsync();
             var tenantId = GetTenantId();
 
-            var assets = await _context.Assets
-                .Where(a => a.TenantId == tenantId && !a.IsDeleted)
-                .AsNoTracking()
-                .ToListAsync();
-
-            var now = DateTime.UtcNow;
-            var thirtyDaysFromNow = now.AddDays(30);
-
-            return new AssetKpiSummaryDto
-            {
-                TotalAssetsCount = assets.Count,
-                ActiveAssetsCount = assets.Count(a => string.Equals(a.CurrentStatus, "Active", StringComparison.OrdinalIgnoreCase) || string.Equals(a.CurrentStatus, "InUse", StringComparison.OrdinalIgnoreCase)),
-                TotalAssetValue = assets.Sum(a => a.TotalCapitalizedCost > 0 ? a.TotalCapitalizedCost : a.PurchasePrice),
-                CurrentBookValue = assets.Where(a => !string.Equals(a.CurrentStatus, "Disposed", StringComparison.OrdinalIgnoreCase) && !string.Equals(a.CurrentStatus, "Retired", StringComparison.OrdinalIgnoreCase)).Sum(a => a.CurrentValue),
-                AccumulatedDepreciation = assets.Sum(a => a.AccumulatedDepreciation),
-                UnderMaintenanceCount = assets.Count(a => string.Equals(a.CurrentStatus, "UnderMaintenance", StringComparison.OrdinalIgnoreCase)),
-                DisposedCount = assets.Count(a => string.Equals(a.CurrentStatus, "Disposed", StringComparison.OrdinalIgnoreCase) || string.Equals(a.CurrentStatus, "Retired", StringComparison.OrdinalIgnoreCase)),
-                WarrantyExpiringCount = assets.Count(a => a.WarrantyEndDate.HasValue && a.WarrantyEndDate.Value >= now && a.WarrantyEndDate.Value <= thirtyDaysFromNow)
-            };
+            var query = BuildFilteredAssetQuery(tenantId, search, category, status, condition, location, department, fromDate, toDate);
+            return await CalculateKpiSummaryAsync(query);
         }
 
         public async Task<DetailedAssetDto?> GetAssetByIdAsync(Guid id)
@@ -467,6 +517,7 @@ namespace Aquora.Application.Services
         public async Task<DetailedAssetDto> CreateAssetAsync(CreateAssetRequest request)
         {
             await EnsureAssetSchemaAsync();
+            await using var transaction = await BeginAssetTransactionAsync();
             var tenantId = GetTenantId();
             if (string.IsNullOrWhiteSpace(request.AssetName))
                 throw new ArgumentException("Asset name is required.");
@@ -477,6 +528,12 @@ namespace Aquora.Application.Services
             if (request.PurchasePrice < 0)
                 throw new ArgumentException("Purchase cost cannot be negative.");
 
+            if (request.AssignedEmployeeId.HasValue || !string.IsNullOrWhiteSpace(request.AssignedEmployeeName))
+                throw new ArgumentException("Create the asset first, then use Assign to select an employee.");
+            if (request.TaxAmount < 0 || request.FreightCost < 0 || request.InstallationCost < 0 || request.OtherCapitalizedCost < 0 || request.ResidualValue < 0)
+                throw new ArgumentException("Capitalized costs and residual value cannot be negative.");
+            if (request.UsefulLifeYears <= 0) throw new ArgumentException("Useful life must be greater than zero.");
+            if (request.WarrantyStartDate > request.WarrantyEndDate) throw new ArgumentException("Warranty end must follow its start date.");
             var companyId = await GetCompanyIdAsync();
             var assetCode = await GenerateAssetCodeAsync();
 
@@ -496,7 +553,7 @@ namespace Aquora.Application.Services
             }
 
             var capitalizedCost = request.PurchasePrice + request.TaxAmount + request.FreightCost + request.InstallationCost + request.OtherCapitalizedCost;
-            if (capitalizedCost <= 0) capitalizedCost = request.PurchasePrice;
+            if (request.ResidualValue > capitalizedCost) throw new ArgumentException("Residual value cannot exceed capitalized cost.");
 
             var asset = new Asset
             {
@@ -567,18 +624,40 @@ namespace Aquora.Application.Services
             });
 
             await ((DbContext)_context).SaveChangesAsync();
+            if (transaction != null) await transaction.CommitAsync();
             return MapToDetailedDto(asset);
         }
 
         public async Task<DetailedAssetDto?> UpdateAssetAsync(Guid id, UpdateAssetRequest request)
         {
             await EnsureAssetSchemaAsync();
+            await using var transaction = await BeginAssetTransactionAsync();
             var tenantId = GetTenantId();
             var asset = await _context.Assets
                 .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == tenantId && !a.IsDeleted);
 
             if (asset == null) return null;
+            CheckVersion(asset, request);
+            RequireOperational(asset);
 
+            if (string.IsNullOrWhiteSpace(request.AssetName) || string.IsNullOrWhiteSpace(request.AssetCategory))
+                throw new ArgumentException("Asset name and category are required.");
+            if (request.CurrentStatus != null && request.CurrentStatus != asset.CurrentStatus)
+                throw new ArgumentException("Use the lifecycle workflow to change asset status.");
+            var before = System.Text.Json.JsonSerializer.Serialize(MapToDetailedDto(asset));
+            if (!string.IsNullOrWhiteSpace(request.AssetTag))
+            {
+                var tag = request.AssetTag.Trim().ToUpperInvariant();
+                if (await _context.Assets.AnyAsync(a => a.TenantId == tenantId && a.Id != id && a.AssetTag == tag))
+                    throw new ArgumentException("Asset tag is already assigned to another asset.");
+                asset.AssetTag = tag;
+            }
+            if (request.WarrantyStartDate > request.WarrantyEndDate) throw new ArgumentException("Warranty end must follow its start date.");
+            asset.WarrantyStartDate = EnsureUtc(request.WarrantyStartDate);
+            asset.WarrantyEndDate = EnsureUtc(request.WarrantyEndDate);
+            asset.WarrantyProvider = request.WarrantyProvider?.Trim();
+            asset.WarrantyNumber = request.WarrantyNumber?.Trim();
+            asset.WarrantyNotes = request.WarrantyNotes?.Trim();
             var oldStatus = asset.CurrentStatus;
             var oldCondition = asset.Condition;
             var oldLocation = asset.Location;
@@ -590,15 +669,38 @@ namespace Aquora.Application.Services
             asset.ModelNumber = request.ModelNumber?.Trim();
             asset.Manufacturer = request.Manufacturer?.Trim();
             asset.Description = request.Description?.Trim();
+            var changes = new List<string>();
             asset.Location = request.Location?.Trim() ?? asset.Location;
-            asset.Department = request.Department?.Trim() ?? asset.Department;
+            if (!asset.AssignedEmployeeId.HasValue) asset.Department = request.Department?.Trim() ?? asset.Department;
+            if (request.PurchaseDate.HasValue)
+            {
+                var newDate = EnsureUtc(request.PurchaseDate.Value).Date;
+                if (newDate < new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc))
+                    throw new ArgumentException("Purchase date cannot be earlier than 1970.");
+                if (newDate > DateTime.UtcNow.AddYears(1).Date)
+                    throw new ArgumentException("Purchase date cannot be in the distant future.");
+
+                if (newDate != asset.PurchaseDate.Date)
+                {
+                    if (asset.AccumulatedDepreciation > 0)
+                        throw new ArgumentException("Purchase date cannot be modified after depreciation has been posted.");
+                    if (await _context.Purchases.IgnoreQueryFilters().AnyAsync(p => p.AssetId == asset.Id))
+                        throw new ArgumentException("Purchase date cannot be modified for assets originating from Accounts Payable purchase orders.");
+                    if (asset.CurrentStatus.Equals("Disposed", StringComparison.OrdinalIgnoreCase) ||
+                        asset.CurrentStatus.Equals("Retired", StringComparison.OrdinalIgnoreCase))
+                        throw new ArgumentException("Disposed assets are historical records and cannot perform this operation.");
+
+                    var oldDateStr = asset.PurchaseDate.ToString("yyyy-MM-dd");
+                    asset.PurchaseDate = DateTime.SpecifyKind(newDate, DateTimeKind.Utc);
+                    changes.Add($"Purchase Date: {oldDateStr} → {asset.PurchaseDate:yyyy-MM-dd}");
+                }
+            }
             asset.Condition = request.Condition ?? asset.Condition;
             asset.CurrentStatus = request.CurrentStatus ?? asset.CurrentStatus;
             asset.Notes = request.Notes?.Trim() ?? asset.Notes;
             asset.UpdatedAt = DateTime.UtcNow;
             asset.UpdatedBy = GetCurrentUserId();
 
-            var changes = new List<string>();
             if (oldStatus != asset.CurrentStatus) changes.Add($"Status: {oldStatus} → {asset.CurrentStatus}");
             if (oldCondition != asset.Condition) changes.Add($"Condition: {oldCondition} → {asset.Condition}");
             if (oldLocation != asset.Location) changes.Add($"Location: {oldLocation} → {asset.Location}");
@@ -609,66 +711,77 @@ namespace Aquora.Application.Services
                 Date = DateTime.UtcNow,
                 Action = "Asset Updated",
                 PerformedBy = GetCurrentUserId(),
-                PreviousValue = oldStatus,
-                NewValue = asset.CurrentStatus,
+                PreviousValue = before,
+                NewValue = System.Text.Json.JsonSerializer.Serialize(MapToDetailedDto(asset)),
                 Remarks = changes.Count > 0 ? string.Join("; ", changes) : "Updated asset specifications."
             });
 
             await ((DbContext)_context).SaveChangesAsync();
+            if (transaction != null) await transaction.CommitAsync();
             return MapToDetailedDto(asset);
         }
 
         public async Task<DetailedAssetDto?> AssignAssetAsync(Guid id, AssignAssetRequest request)
         {
             await EnsureAssetSchemaAsync();
+            await using var transaction = await BeginAssetTransactionAsync();
             var tenantId = GetTenantId();
             var asset = await _context.Assets
                 .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == tenantId && !a.IsDeleted);
 
             if (asset == null) return null;
+            CheckVersion(asset, request);
+            RequireOperational(asset);
 
-            var oldEmployee = asset.AssignedEmployeeName ?? "Unassigned";
-            var newEmployee = string.IsNullOrWhiteSpace(request.EmployeeName) ? "Unassigned" : request.EmployeeName.Trim();
+            if (request.AssignmentDate.Date < asset.PurchaseDate.Date || request.AssignmentDate.Date > DateTime.UtcNow.Date) throw new ArgumentException("Assignment date must be between purchase date and today.");
+            var oldEmployee = $"{asset.AssignedEmployeeId}: {asset.AssignedEmployeeName ?? "Unassigned"}";
+            var employee = await RequireEmployeeAsync(request.EmployeeId);
+            var newEmployee = $"{employee.FirstName} {employee.LastName}".Trim();
 
             asset.AssignedEmployeeId = request.EmployeeId;
-            asset.AssignedEmployeeName = newEmployee == "Unassigned" ? null : newEmployee;
-            asset.Department = !string.IsNullOrWhiteSpace(request.Department) ? request.Department.Trim() : asset.Department;
-            asset.AssignedDate = request.AssignmentDate;
-            asset.CurrentStatus = newEmployee != "Unassigned" ? "InUse" : "Available";
+            asset.AssignedEmployeeName = newEmployee;
+            asset.Department = employee.Department;
+            asset.AssignedDate = EnsureUtc(request.AssignmentDate);
+            asset.CurrentStatus = "InUse";
             asset.UpdatedAt = DateTime.UtcNow;
             asset.UpdatedBy = GetCurrentUserId();
 
             _context.AssetHistories.Add(new AssetHistory
             {
                 AssetId = asset.Id,
-                Date = DateTime.UtcNow,
+                Date = EnsureUtc(request.AssignmentDate),
                 Action = "Asset Assigned",
                 PerformedBy = GetCurrentUserId(),
                 PreviousValue = oldEmployee,
-                NewValue = newEmployee,
+                NewValue = $"{employee.Id}: {newEmployee}",
                 Remarks = $"Assigned to {newEmployee} ({asset.Department ?? "General"}). {request.Notes}".Trim()
             });
 
             await ((DbContext)_context).SaveChangesAsync();
+            if (transaction != null) await transaction.CommitAsync();
             return MapToDetailedDto(asset);
         }
 
         public async Task<DetailedAssetDto?> TransferAssetAsync(Guid id, TransferAssetRequest request)
         {
             await EnsureAssetSchemaAsync();
+            await using var transaction = await BeginAssetTransactionAsync();
             var tenantId = GetTenantId();
             var asset = await _context.Assets
                 .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == tenantId && !a.IsDeleted);
 
             if (asset == null) return null;
+            CheckVersion(asset, request);
+            RequireOperational(asset);
 
+            if (string.IsNullOrWhiteSpace(request.ToLocation) || string.IsNullOrWhiteSpace(request.Reason)) throw new ArgumentException("Destination and transfer reason are required.");
             var oldLocation = asset.Location ?? "Main Site";
             var newLocation = request.ToLocation.Trim();
 
             asset.Location = newLocation;
             if (!string.IsNullOrWhiteSpace(request.ToEmployee))
             {
-                asset.AssignedEmployeeName = request.ToEmployee.Trim();
+                throw new ArgumentException("Use Assign to select a database employee when changing the assignee.");
             }
             asset.UpdatedAt = DateTime.UtcNow;
             asset.UpdatedBy = GetCurrentUserId();
@@ -685,19 +798,24 @@ namespace Aquora.Application.Services
             });
 
             await ((DbContext)_context).SaveChangesAsync();
+            if (transaction != null) await transaction.CommitAsync();
             return MapToDetailedDto(asset);
         }
 
         public async Task<AssetMaintenanceRecordDto?> RecordMaintenanceAsync(Guid id, RecordMaintenanceRequest request)
         {
             await EnsureAssetSchemaAsync();
+            await using var transaction = await BeginAssetTransactionAsync();
             var tenantId = GetTenantId();
             var asset = await _context.Assets
                 .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == tenantId && !a.IsDeleted);
 
             if (asset == null) return null;
+            CheckVersion(asset, request);
+            RequireOperational(asset);
 
             var companyId = await GetCompanyIdAsync();
+            if (request.PartsCost < 0 || request.LabourCost < 0 || request.OtherCost < 0 || string.IsNullOrWhiteSpace(request.ServiceProvider) || string.IsNullOrWhiteSpace(request.Description)) throw new ArgumentException("Provide a service provider, description and non-negative maintenance costs.");
             var totalCost = request.PartsCost + request.LabourCost + request.OtherCost;
 
             var record = new AssetMaintenanceRecord
@@ -706,14 +824,14 @@ namespace Aquora.Application.Services
                 CompanyId = companyId,
                 AssetId = asset.Id,
                 MaintenanceType = request.MaintenanceType,
-                MaintenanceDate = request.MaintenanceDate,
+                MaintenanceDate = EnsureUtc(request.MaintenanceDate),
                 ServiceProvider = request.ServiceProvider.Trim(),
                 Description = request.Description.Trim(),
                 PartsCost = request.PartsCost,
                 LabourCost = request.LabourCost,
                 OtherCost = request.OtherCost,
                 TotalCost = totalCost,
-                NextMaintenanceDate = request.NextMaintenanceDate,
+                NextMaintenanceDate = EnsureUtc(request.NextMaintenanceDate),
                 IsWarrantyClaim = request.IsWarrantyClaim,
                 TechnicianName = request.TechnicianName?.Trim(),
                 Notes = request.Notes?.Trim(),
@@ -724,8 +842,8 @@ namespace Aquora.Application.Services
             _context.AssetMaintenanceRecords.Add(record);
 
             // Update asset maintenance metrics
-            asset.LastMaintenanceDate = request.MaintenanceDate;
-            asset.NextMaintenanceDate = request.NextMaintenanceDate;
+            asset.LastMaintenanceDate = EnsureUtc(request.MaintenanceDate);
+            asset.NextMaintenanceDate = EnsureUtc(request.NextMaintenanceDate);
             asset.TotalMaintenanceCost += totalCost;
             asset.CurrentStatus = request.NextMaintenanceDate.HasValue && request.NextMaintenanceDate.Value > DateTime.UtcNow ? "Active" : asset.CurrentStatus;
             asset.UpdatedAt = DateTime.UtcNow;
@@ -742,6 +860,7 @@ namespace Aquora.Application.Services
             });
 
             await ((DbContext)_context).SaveChangesAsync();
+            if (transaction != null) await transaction.CommitAsync();
 
             return new AssetMaintenanceRecordDto
             {
@@ -795,81 +914,65 @@ namespace Aquora.Application.Services
             }).ToList();
         }
 
-        public async Task<DetailedAssetDto?> CalculateDepreciationAsync(Guid id)
+        public async Task<DetailedAssetDto?> CalculateDepreciationAsync(Guid id, DepreciateAssetRequest request)
         {
             await EnsureAssetSchemaAsync();
-            var tenantId = GetTenantId();
-            var asset = await _context.Assets
-                .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == tenantId && !a.IsDeleted);
-
-            if (asset == null || asset.CurrentStatus == "Disposed") return null;
-
-            var capitalized = asset.TotalCapitalizedCost > 0 ? asset.TotalCapitalizedCost : asset.PurchasePrice;
-            var usefulLife = asset.UsefulLifeYears > 0 ? asset.UsefulLifeYears : 5;
-            var residual = asset.ResidualValue >= 0 ? asset.ResidualValue : 0;
-            var depreciableAmount = Math.Max(0, capitalized - residual);
-
-            var startDate = asset.DepreciationStartDate ?? asset.PurchaseDate;
-            var now = DateTime.UtcNow;
-            var elapsedYears = (decimal)(now - startDate).TotalDays / 365.25m;
-
-            if (elapsedYears <= 0) elapsedYears = 0;
-
-            decimal newAccumulatedDepreciation = 0;
-
-            if (asset.DepreciationMethod == "StraightLine")
-            {
-                var annualDepreciation = depreciableAmount / usefulLife;
-                newAccumulatedDepreciation = Math.Min(depreciableAmount, annualDepreciation * elapsedYears);
-            }
-            else
-            {
-                // Written Down Value (WDV) rate
-                var rate = (asset.DepreciationRate > 0 ? asset.DepreciationRate : (100m / usefulLife)) / 100m;
-                var currentBook = capitalized;
-                for (int i = 0; i < (int)Math.Floor(elapsedYears); i++)
-                {
-                    var annual = currentBook * rate;
-                    currentBook -= annual;
-                }
-                newAccumulatedDepreciation = Math.Min(depreciableAmount, capitalized - currentBook);
-            }
-
-            var previousDep = asset.AccumulatedDepreciation;
-            asset.AccumulatedDepreciation = Math.Round(newAccumulatedDepreciation, 2);
-            asset.CurrentValue = Math.Max(residual, Math.Round(capitalized - asset.AccumulatedDepreciation, 2));
+            await using var transaction = await BeginAssetTransactionAsync();
+            var asset = await _context.Assets.FirstOrDefaultAsync(a => a.Id == id && a.TenantId == GetTenantId() && !a.IsDeleted);
+            if (asset == null) return null;
+            CheckVersion(asset, request);
+            RequireOperational(asset);
+            if (request.Percentage <= 0 || request.Percentage > 100 || decimal.Round(request.Percentage, 4) != request.Percentage)
+                throw new ArgumentException("Depreciation percentage must be greater than 0 and at most 100, with up to four decimal places.");
+            var date = EnsureUtc(request.EffectiveDate);
+            if (date == default || date.Date < asset.PurchaseDate.Date || date.Date > DateTime.UtcNow.Date)
+                throw new ArgumentException("Effective date must be between purchase date and today.");
+            if (await _context.AssetHistories.AnyAsync(h => h.AssetId == id && h.Action == "Depreciation Applied" && h.Date > date))
+                throw new ArgumentException("Effective date cannot precede the last depreciation event.");
+            var previous = asset.CurrentValue;
+            var amount = decimal.Round(previous * request.Percentage / 100m, 2, MidpointRounding.AwayFromZero);
+            if (amount <= 0 || previous - amount < asset.ResidualValue)
+                throw new ArgumentException("Depreciation must be positive and cannot reduce book value below residual value.");
+            asset.CurrentValue = previous - amount;
+            asset.AccumulatedDepreciation += amount;
             asset.UpdatedAt = DateTime.UtcNow;
             asset.UpdatedBy = GetCurrentUserId();
-
             _context.AssetHistories.Add(new AssetHistory
             {
-                AssetId = asset.Id,
-                Date = DateTime.UtcNow,
-                Action = "Depreciation Calculated",
-                PerformedBy = GetCurrentUserId(),
-                PreviousValue = $"Book Value: ₹{capitalized - previousDep:N2}",
-                NewValue = $"Book Value: ₹{asset.CurrentValue:N2}",
-                Remarks = $"Accumulated Depreciation updated to ₹{asset.AccumulatedDepreciation:N2} via {asset.DepreciationMethod} method."
+                AssetId = id, Date = date, Action = "Depreciation Applied", PerformedBy = GetCurrentUserId(),
+                PreviousValue = previous.ToString("F2", System.Globalization.CultureInfo.InvariantCulture),
+                NewValue = asset.CurrentValue.ToString("F2", System.Globalization.CultureInfo.InvariantCulture),
+                Remarks = System.Text.Json.JsonSerializer.Serialize(new { PreviousBookValue = previous, request.Percentage,
+                    DepreciationAmount = amount, NewBookValue = asset.CurrentValue, EffectiveDate = date, request.Notes,
+                    CreatedBy = GetCurrentUserId(), CreatedAt = DateTime.UtcNow })
             });
-
             await ((DbContext)_context).SaveChangesAsync();
+            if (transaction != null) await transaction.CommitAsync();
             return MapToDetailedDto(asset);
         }
 
         public async Task<DetailedAssetDto?> DisposeAssetAsync(Guid id, DisposeAssetRequest request)
         {
             await EnsureAssetSchemaAsync();
+            await using var transaction = await BeginAssetTransactionAsync();
             var tenantId = GetTenantId();
             var asset = await _context.Assets
                 .FirstOrDefaultAsync(a => a.Id == id && a.TenantId == tenantId && !a.IsDeleted);
 
             if (asset == null) return null;
+            CheckVersion(asset, request);
+            RequireOperational(asset);
 
             if (asset.CurrentStatus == "Disposed")
                 throw new InvalidOperationException("Asset has already been disposed.");
 
+            if (string.IsNullOrWhiteSpace(request.Reason) || request.SaleValue < 0 || request.DisposalCost < 0 ||
+                !new[] { "Sold", "Scrapped", "WrittenOff", "Donated", "Lost", "Other" }.Contains(request.DisposalMethod))
+                throw new ArgumentException("Provide a disposal reason, valid method and non-negative amounts.");
+            if (request.DisposalDate.Date < asset.PurchaseDate.Date || request.DisposalDate.Date > DateTime.UtcNow.Date)
+                throw new ArgumentException("Disposal date must be between purchase date and today.");
             asset.CurrentStatus = "Disposed";
-            asset.DisposalDate = request.DisposalDate;
+            asset.DisposalDate = EnsureUtc(request.DisposalDate);
             asset.DisposalMethod = request.DisposalMethod;
             asset.DisposalReason = request.Reason.Trim();
             asset.SaleValue = request.SaleValue;
@@ -877,27 +980,29 @@ namespace Aquora.Application.Services
             asset.BuyerParty = request.BuyerParty?.Trim();
             asset.DisposalRefNo = request.ReferenceNumber?.Trim();
             asset.DisposedBy = GetCurrentUserId();
-            asset.CurrentValue = 0;
             asset.UpdatedAt = DateTime.UtcNow;
             asset.UpdatedBy = GetCurrentUserId();
 
             _context.AssetHistories.Add(new AssetHistory
             {
                 AssetId = asset.Id,
-                Date = request.DisposalDate,
+                Date = EnsureUtc(request.DisposalDate),
                 Action = "Asset Disposed",
                 PerformedBy = GetCurrentUserId(),
                 NewValue = $"Disposed via {request.DisposalMethod}",
-                Remarks = $"Sale Value: ₹{request.SaleValue:N2}, Disposal Cost: ₹{request.DisposalCost:N2}. Reason: {request.Reason}"
+                PreviousValue = $"Book value: {asset.CurrentValue:F2}; accumulated depreciation: {asset.AccumulatedDepreciation:F2}",
+                Remarks = $"Sale Value: ₹{request.SaleValue:N2}, Disposal Cost: ₹{request.DisposalCost:N2}. Reason: {request.Reason}. Notes: {request.Notes}"
             });
 
             await ((DbContext)_context).SaveChangesAsync();
+            if (transaction != null) await transaction.CommitAsync();
             return MapToDetailedDto(asset);
         }
 
         public async Task<List<AssetHistoryDto>> GetAssetHistoryAsync(Guid id)
         {
             await EnsureAssetSchemaAsync();
+            if (!await _context.Assets.AnyAsync(a => a.Id == id && a.TenantId == GetTenantId() && !a.IsDeleted)) return new();
             var histories = await _context.AssetHistories
                 .Where(h => h.AssetId == id)
                 .OrderByDescending(h => h.Date)
@@ -922,13 +1027,17 @@ namespace Aquora.Application.Services
             if (request.AssetIds == null || request.AssetIds.Count == 0) return false;
 
             await EnsureAssetSchemaAsync();
+            await using var transaction = await BeginAssetTransactionAsync();
             var tenantId = GetTenantId();
             var assets = await _context.Assets
                 .Where(a => request.AssetIds.Contains(a.Id) && a.TenantId == tenantId && !a.IsDeleted)
                 .ToListAsync();
 
+            if (!new[] { "Active", "Available", "UnderMaintenance", "Damaged", "Lost", "UnderTransfer", "Idle" }.Contains(request.Status)) throw new ArgumentException("Use the disposal workflow for disposal or retirement.");
             foreach (var asset in assets)
             {
+                RequireOperational(asset);
+                CheckVersion(asset, new AssetMutationRequest { ExpectedVersion = request.ExpectedVersions.GetValueOrDefault(asset.Id) ?? string.Empty });
                 var oldStatus = asset.CurrentStatus;
                 asset.CurrentStatus = request.Status;
                 if (!string.IsNullOrWhiteSpace(request.Location)) asset.Location = request.Location.Trim();
@@ -948,6 +1057,7 @@ namespace Aquora.Application.Services
             }
 
             await ((DbContext)_context).SaveChangesAsync();
+            if (transaction != null) await transaction.CommitAsync();
             return true;
         }
 
@@ -961,6 +1071,7 @@ namespace Aquora.Application.Services
             if (rows.Count == 0) return result;
 
             await EnsureAssetSchemaAsync();
+            await using var transaction = await BeginAssetTransactionAsync();
             var tenantId = GetTenantId();
             var companyId = await GetCompanyIdAsync();
 
@@ -987,6 +1098,12 @@ namespace Aquora.Application.Services
                     continue;
                 }
 
+                var importStatus = string.IsNullOrWhiteSpace(row.Status) ? "Active" : row.Status.Trim();
+                if (!new[] { "Active", "Available", "UnderMaintenance", "Damaged", "Lost", "UnderTransfer", "Idle" }.Contains(importStatus))
+                {
+                    result.RowErrors.Add($"Row {rowNum}: Use the assignment or disposal workflow to create lifecycle history for this status.");
+                    continue;
+                }
                 var assetCode = await GenerateAssetCodeAsync();
                 var tag = !string.IsNullOrWhiteSpace(row.AssetTag) ? row.AssetTag.Trim().ToUpper() : $"TAG-{assetCode}";
 
@@ -1022,7 +1139,7 @@ namespace Aquora.Application.Services
                     CurrentValue = row.PurchaseCost,
                     Location = string.IsNullOrWhiteSpace(row.Location) ? "Main Site" : row.Location.Trim(),
                     Department = row.Department?.Trim(),
-                    CurrentStatus = string.IsNullOrWhiteSpace(row.Status) ? "Active" : row.Status.Trim(),
+                    CurrentStatus = importStatus,
                     Condition = string.IsNullOrWhiteSpace(row.Condition) ? "Good" : row.Condition.Trim(),
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = GetCurrentUserId()
@@ -1046,6 +1163,7 @@ namespace Aquora.Application.Services
             if (result.ImportedCount > 0)
             {
                 await ((DbContext)_context).SaveChangesAsync();
+            if (transaction != null) await transaction.CommitAsync();
             }
 
             return result;
@@ -1062,6 +1180,7 @@ namespace Aquora.Application.Services
             return new DetailedAssetDto
             {
                 Id = a.Id,
+                Version = VersionOf(a),
                 AssetCode = a.AssetCode,
                 AssetTag = a.AssetTag,
                 AssetName = a.AssetName,

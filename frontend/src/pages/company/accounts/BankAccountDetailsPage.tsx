@@ -52,9 +52,11 @@ const EXPENSE_CATEGORIES = [
   'Maintenance',
   'Vehicle',
   'Rent',
-  'Office',
+  'Infrastructure',
   'Purchase Related',
-  'Miscellaneous'
+  'Miscellaneous',
+  'Tax',
+  'Stationary',
 ]
 
 export const BankAccountDetailsPage: React.FC = () => {

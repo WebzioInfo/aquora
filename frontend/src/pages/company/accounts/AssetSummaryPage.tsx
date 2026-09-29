@@ -12,6 +12,20 @@ import {
   type DisposeAssetInput,
   type AssetMaintenanceRecord
 } from '../../../services/assets'
+import AssetHistoryDetails from './components/AssetHistoryDetails'
+import AssetFormModal from './components/AssetFormModal'
+import AssetDepreciationModal from './components/AssetDepreciationModal'
+import AssetEmployeeSelect from './components/AssetEmployeeSelect'
+import AssetRowActions from './components/AssetRowActions'
+import AssetDetailsModal from './components/AssetDetailsModal'
+import AssetAssignmentModal from './components/AssetAssignmentModal'
+import AssetDisposalModal from './components/AssetDisposalModal'
+import AssetDeleteConfirmationModal from './components/AssetDeleteConfirmationModal'
+import AssetTransferModal from './components/AssetTransferModal'
+import AssetMaintenanceModal from './components/AssetMaintenanceModal'
+import { AssetDateFilterPopover, type AssetDateFilterState, computeDateRange } from './components/AssetDateFilterPopover'
+import { useAuthStore } from '../../../store/useAuthStore'
+import { isAxiosError } from 'axios'
 import { simpleAccountsService } from '../../../services/simpleAccounts'
 import { productsService } from '../../../services/products'
 import { rawMaterialsService } from '../../../services/rawMaterials'
@@ -39,6 +53,7 @@ import {
   Wrench,
   TrendingDown,
   Trash2,
+  Archive,
   History,
   ShieldCheck,
   ShieldAlert,
@@ -58,6 +73,33 @@ import {
 
 export const AssetSummaryPage: React.FC = () => {
   const queryClient = useQueryClient()
+  const user = useAuthStore(state => state.user)
+  const canManage = user?.roles.some(role => ['SuperAdmin', 'CompanyOwner', 'CompanyAdmin', 'Accountant', 'Admin', 'Owner'].includes(role)) ?? false
+  const canDelete = user?.roles.some(role => ['SuperAdmin', 'CompanyOwner', 'CompanyAdmin', 'Admin', 'Owner'].includes(role)) ?? false
+  const isHistorical = (asset: DetailedAsset) => ['disposed', 'retired'].includes(asset.currentStatus.toLowerCase())
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [deleteBlocked, setDeleteBlocked] = useState(false)
+  const [deleteBlockedReason, setDeleteBlockedReason] = useState<string | undefined>(undefined)
+  const [checkingHistory, setCheckingHistory] = useState(false)
+  const [isDepreciationModalOpen, setIsDepreciationModalOpen] = useState(false)
+  const refreshAssets = () => {
+    queryClient.invalidateQueries({ queryKey: ['assetsList'] })
+    queryClient.invalidateQueries({ queryKey: ['assetKpis'] })
+  }
+  const mutationError = (error: unknown) => {
+    if (isAxiosError<{ code?: string; message?: string }>(error)) {
+      const msg = error.response?.data?.message
+      const code = error.response?.data?.code
+      if (code === 'AssetHistoryExists' || msg === 'AssetHistoryExists' || msg?.toLowerCase().includes('assethistoryexists')) {
+        showToast('This asset contains historical records and cannot be permanently deleted. Mark it as Disposed instead.', 'warning')
+        return
+      }
+      showToast(msg || 'Unable to complete asset request. Please try again.', 'error')
+      return
+    }
+    showToast('Unable to complete asset request. Please try again.', 'error')
+  }
+
 
   // Tab State
   const [activeTab, setActiveTab] = useState<'register' | 'inventory' | 'maintenance' | 'reports'>('register')
@@ -70,6 +112,40 @@ export const AssetSummaryPage: React.FC = () => {
   const [locationFilter, setLocationFilter] = useState('ALL')
   const [departmentFilter, setDepartmentFilter] = useState('ALL')
   const [pageNumber, setPageNumber] = useState(1)
+
+  const currentDateObj = new Date()
+  const [dateFilter, setDateFilter] = useState<AssetDateFilterState>({
+    mode: 'all',
+    selectedMonth: currentDateObj.getMonth() + 1,
+    selectedYear: currentDateObj.getFullYear(),
+    fromDate: '',
+    toDate: ''
+  })
+
+  const activeDateRange = computeDateRange(
+    dateFilter.mode,
+    dateFilter.selectedMonth,
+    dateFilter.selectedYear,
+    dateFilter.fromDate,
+    dateFilter.toDate
+  )
+
+  const handleResetFilters = () => {
+    setSearch('')
+    setCategoryFilter('ALL')
+    setStatusFilter('ALL')
+    setConditionFilter('ALL')
+    setLocationFilter('ALL')
+    setDepartmentFilter('ALL')
+    setDateFilter({
+      mode: 'all',
+      selectedMonth: currentDateObj.getMonth() + 1,
+      selectedYear: currentDateObj.getFullYear(),
+      fromDate: '',
+      toDate: ''
+    })
+    setPageNumber(1)
+  }
 
   // Selected Asset & Modals
   const [selectedAsset, setSelectedAsset] = useState<DetailedAsset | null>(null)
@@ -116,12 +192,14 @@ export const AssetSummaryPage: React.FC = () => {
   })
 
   const [assignForm, setAssignForm] = useState<AssignAssetInput>({
+    expectedVersion: '',
     employeeName: '',
     department: '',
     notes: ''
   })
 
   const [transferForm, setTransferForm] = useState<TransferAssetInput>({
+    expectedVersion: '',
     fromLocation: '',
     toLocation: '',
     fromEmployee: '',
@@ -131,6 +209,7 @@ export const AssetSummaryPage: React.FC = () => {
   })
 
   const [maintenanceForm, setMaintenanceForm] = useState<RecordMaintenanceInput>({
+    expectedVersion: '',
     maintenanceType: 'Preventive',
     serviceProvider: '',
     description: '',
@@ -142,6 +221,7 @@ export const AssetSummaryPage: React.FC = () => {
   })
 
   const [disposeForm, setDisposeForm] = useState<DisposeAssetInput>({
+    expectedVersion: '',
     disposalMethod: 'Scrapped',
     reason: '',
     saleValue: 0,
@@ -219,19 +299,64 @@ export const AssetSummaryPage: React.FC = () => {
     error: assetsError,
     refetch: refetchAssets
   } = useQuery({
-    queryKey: ['assetsList', pageNumber, search, categoryFilter, statusFilter, conditionFilter, locationFilter, departmentFilter],
-    queryFn: () => assetService.getAssets(pageNumber, 50, search, categoryFilter, statusFilter, conditionFilter, locationFilter, departmentFilter)
+    queryKey: [
+      'assetsList',
+      pageNumber,
+      search,
+      categoryFilter,
+      statusFilter,
+      conditionFilter,
+      locationFilter,
+      departmentFilter,
+      activeDateRange.fromDate,
+      activeDateRange.toDate
+    ],
+    queryFn: () =>
+      assetService.getAssets(
+        pageNumber,
+        50,
+        search,
+        categoryFilter,
+        statusFilter,
+        conditionFilter,
+        locationFilter,
+        departmentFilter,
+        activeDateRange.fromDate || undefined,
+        activeDateRange.toDate || undefined
+      )
   })
 
   const {
-    data: kpis,
+    data: fallbackKpis,
     isLoading: isKpisLoading,
     isError: isKpisError,
     refetch: refetchKpis
   } = useQuery({
-    queryKey: ['assetKpis'],
-    queryFn: () => assetService.getKpis()
+    queryKey: [
+      'assetKpis',
+      search,
+      categoryFilter,
+      statusFilter,
+      conditionFilter,
+      locationFilter,
+      departmentFilter,
+      activeDateRange.fromDate,
+      activeDateRange.toDate
+    ],
+    queryFn: () =>
+      assetService.getKpis(
+        search,
+        categoryFilter,
+        statusFilter,
+        conditionFilter,
+        locationFilter,
+        departmentFilter,
+        activeDateRange.fromDate || undefined,
+        activeDateRange.toDate || undefined
+      )
   })
+
+  const kpis = pagedAssets?.summary ?? fallbackKpis
 
   const { data: assetSummary } = useQuery({
     queryKey: ['inventoryAssetSummary'],
@@ -308,11 +433,12 @@ export const AssetSummaryPage: React.FC = () => {
   })
 
   const calculateDepreciationMutation = useMutation({
-    mutationFn: (id: string) => assetService.calculateDepreciation(id),
+    mutationFn: ({ id, data }: { id: string; data: import('../../../services/assets').DepreciateAssetInput }) => assetService.calculateDepreciation(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assetsList'] })
       queryClient.invalidateQueries({ queryKey: ['assetKpis'] })
-      showToast('Depreciation recalculated', 'success')
+      setIsDepreciationModalOpen(false)
+      showToast('Depreciation applied', 'success')
     },
     onError: (err: any) => {
       showToast(err.response?.data?.message || 'Failed to calculate depreciation', 'error')
@@ -332,6 +458,66 @@ export const AssetSummaryPage: React.FC = () => {
     }
   })
 
+  const updateAssetMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateAssetInput }) => assetService.updateAsset(id, data),
+    onSuccess: () => { refreshAssets(); setIsEditModalOpen(false); showToast('Asset updated successfully', 'success') },
+    onError: mutationError
+  })
+  const deleteAssetMutation = useMutation({
+    mutationFn: (asset: DetailedAsset) => assetService.deleteAsset(asset.id, asset.version),
+    onSuccess: () => {
+      refreshAssets()
+      setIsDeleteModalOpen(false)
+      showToast('Asset permanently removed', 'success')
+    },
+    onError: (error: unknown) => {
+      refreshAssets()
+      if (isAxiosError<{ code?: string; message?: string }>(error)) {
+        const errData = error.response?.data
+        const code = errData?.code
+        const msg = errData?.message || ''
+        if (code === 'AssetHistoryExists' || msg.includes('historical records') || msg.toLowerCase().includes('assethistoryexists')) {
+          setDeleteBlocked(true)
+          setDeleteBlockedReason(msg.includes('historical records') ? msg : 'This asset contains historical records and cannot be permanently deleted. Mark it as Disposed instead.')
+          showToast('This asset contains historical records and cannot be permanently deleted. Mark it as Disposed instead.', 'warning')
+          return
+        }
+      }
+      mutationError(error)
+    }
+  })
+  const openAssetAction = async (row: DetailedAsset, mode: 'edit' | 'delete' | 'depreciation') => {
+    try {
+      const asset = await assetService.getAssetById(row.id)
+      setSelectedAsset(asset)
+      if (mode === 'edit') {
+        const { currentStatus: _status, ...fields } = asset
+        setCreateForm({ ...fields, purchaseDate: fields.purchaseDate.slice(0, 10) })
+        setIsEditModalOpen(true)
+      } else if (mode === 'delete') {
+        const alreadyDisposed = ['disposed', 'retired'].includes(asset.currentStatus.toLowerCase()) || Boolean(asset.disposalDate)
+        setDeleteBlocked(alreadyDisposed)
+        setDeleteBlockedReason(alreadyDisposed ? 'This asset is marked as disposed and must be preserved in historical records.' : undefined)
+        setIsDeleteModalOpen(true)
+
+        setCheckingHistory(true)
+        try {
+          const check = await assetService.checkAssetHistoryExists(asset.id)
+          setDeleteBlocked(check.hasHistory)
+          if (check.reason) setDeleteBlockedReason(check.reason)
+        } catch {
+          // Keep modal open, fallback to safe local state
+        } finally {
+          setCheckingHistory(false)
+        }
+      } else {
+        setIsDepreciationModalOpen(true)
+      }
+    } catch (error) {
+      mutationError(error)
+    }
+  }
+
   // Handlers
   const handleOpenDetailModal = async (asset: DetailedAsset, defaultTab: 'overview' | 'financial' | 'assignment' | 'maintenance' | 'warranty' | 'depreciation' | 'history' = 'overview') => {
     setSelectedAsset(asset)
@@ -339,13 +525,16 @@ export const AssetSummaryPage: React.FC = () => {
     setIsDetailModalOpen(true)
     setLoadingModalData(true)
     try {
-      const [maint, hist] = await Promise.all([
+      const [maint, hist, fresh] = await Promise.all([
         assetService.getMaintenanceRecords(asset.id),
-        assetService.getAssetHistory(asset.id)
+        assetService.getAssetHistory(asset.id),
+        assetService.getAssetById(asset.id)
       ])
+      setSelectedAsset(fresh)
       setMaintenanceHistory(maint)
       setTimelineHistory(hist)
     } catch {
+      showToast('Unable to load asset history. Please try again.', 'error')
       setMaintenanceHistory([])
       setTimelineHistory([])
     } finally {
@@ -353,9 +542,13 @@ export const AssetSummaryPage: React.FC = () => {
     }
   }
 
-  const handleOpenAssignModal = (asset: DetailedAsset) => {
+  const handleOpenAssignModal = async (row: DetailedAsset) => {
+    let asset: DetailedAsset
+    try { asset = await assetService.getAssetById(row.id) } catch (error) { mutationError(error); return }
     setSelectedAsset(asset)
     setAssignForm({
+      expectedVersion: asset.version,
+      employeeId: asset.assignedEmployeeId,
       employeeName: asset.assignedEmployeeName || '',
       department: asset.department || '',
       notes: ''
@@ -363,9 +556,12 @@ export const AssetSummaryPage: React.FC = () => {
     setIsAssignModalOpen(true)
   }
 
-  const handleOpenTransferModal = (asset: DetailedAsset) => {
+  const handleOpenTransferModal = async (row: DetailedAsset) => {
+    let asset: DetailedAsset
+    try { asset = await assetService.getAssetById(row.id) } catch (error) { mutationError(error); return }
     setSelectedAsset(asset)
     setTransferForm({
+      expectedVersion: asset.version,
       fromLocation: asset.location || 'Main Site',
       toLocation: '',
       fromEmployee: asset.assignedEmployeeName || 'Unassigned',
@@ -376,9 +572,12 @@ export const AssetSummaryPage: React.FC = () => {
     setIsTransferModalOpen(true)
   }
 
-  const handleOpenMaintenanceModal = (asset: DetailedAsset) => {
+  const handleOpenMaintenanceModal = async (row: DetailedAsset) => {
+    let asset: DetailedAsset
+    try { asset = await assetService.getAssetById(row.id) } catch (error) { mutationError(error); return }
     setSelectedAsset(asset)
     setMaintenanceForm({
+      expectedVersion: asset.version,
       maintenanceType: 'Preventive',
       serviceProvider: '',
       description: '',
@@ -391,9 +590,12 @@ export const AssetSummaryPage: React.FC = () => {
     setIsMaintenanceModalOpen(true)
   }
 
-  const handleOpenDisposeModal = (asset: DetailedAsset) => {
+  const handleOpenDisposeModal = async (row: DetailedAsset) => {
+    let asset: DetailedAsset
+    try { asset = await assetService.getAssetById(row.id) } catch (error) { mutationError(error); return }
     setSelectedAsset(asset)
     setDisposeForm({
+      expectedVersion: asset.version,
       disposalMethod: 'Scrapped',
       reason: '',
       saleValue: 0,
@@ -463,7 +665,7 @@ export const AssetSummaryPage: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <EnterpriseButton onClick={() => setIsAddModalOpen(true)} variant="primary">
+          <EnterpriseButton disabled={!canManage} onClick={() => { setCreateForm({ assetName: '', assetCategory: 'Machinery', purchasePrice: 0, purchaseDate: new Date().toISOString().slice(0, 10), condition: 'Good', usefulLifeYears: 5, residualValue: 0 }); setIsAddModalOpen(true) }} variant="primary">
             <Plus className="w-4 h-4 mr-1.5" /> Add Asset
           </EnterpriseButton>
           <EnterpriseButton onClick={() => setIsImportModalOpen(true)} variant="secondary">
@@ -562,15 +764,18 @@ export const AssetSummaryPage: React.FC = () => {
       {activeTab === 'register' && (
         <EnterpriseCard className="p-6 space-y-4">
           {/* SEARCH & FILTER BAR */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2.5 items-center">
             {/* Search */}
-            <div className="relative lg:col-span-2">
+            <div className="relative sm:col-span-2 lg:col-span-2">
               <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search Asset Name, Tag, SN, Model..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  setPageNumber(1)
+                }}
                 className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-[#1A56DB] bg-slate-50/50"
               />
             </div>
@@ -578,7 +783,10 @@ export const AssetSummaryPage: React.FC = () => {
             {/* Category Filter */}
             <select
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value)
+                setPageNumber(1)
+              }}
               className="px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50/50 font-medium text-slate-700"
             >
               <option value="ALL">All Categories</option>
@@ -595,7 +803,10 @@ export const AssetSummaryPage: React.FC = () => {
             {/* Status Filter */}
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value)
+                setPageNumber(1)
+              }}
               className="px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50/50 font-medium text-slate-700"
             >
               <option value="ALL">All Statuses</option>
@@ -610,7 +821,10 @@ export const AssetSummaryPage: React.FC = () => {
             {/* Condition Filter */}
             <select
               value={conditionFilter}
-              onChange={(e) => setConditionFilter(e.target.value)}
+              onChange={(e) => {
+                setConditionFilter(e.target.value)
+                setPageNumber(1)
+              }}
               className="px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50/50 font-medium text-slate-700"
             >
               <option value="ALL">All Conditions</option>
@@ -621,21 +835,107 @@ export const AssetSummaryPage: React.FC = () => {
               <option value="Critical">Critical</option>
             </select>
 
+            {/* Date Filter Popover */}
+            <AssetDateFilterPopover
+              value={dateFilter}
+              onChange={(newFilter) => {
+                setDateFilter(newFilter)
+                setPageNumber(1)
+              }}
+            />
+
             {/* Reset Filters */}
             <EnterpriseButton
-              onClick={() => {
-                setSearch('')
-                setCategoryFilter('ALL')
-                setStatusFilter('ALL')
-                setConditionFilter('ALL')
-                setLocationFilter('ALL')
-                setDepartmentFilter('ALL')
-              }}
+              onClick={handleResetFilters}
               variant="secondary"
             >
               <RefreshCw className="w-3.5 h-3.5 mr-1" /> Reset
             </EnterpriseButton>
           </div>
+
+          {/* ACTIVE FILTER INDICATORS & SUMMARY */}
+          {(dateFilter.mode !== 'all' || categoryFilter !== 'ALL' || statusFilter !== 'ALL' || conditionFilter !== 'ALL' || search.trim() !== '') && (
+            <div className="flex flex-wrap items-center gap-2 pt-2 text-xs">
+              <span className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider">Active Filters:</span>
+              {dateFilter.mode !== 'all' && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-[#1A56DB] border border-blue-200 font-semibold text-xs shadow-sm">
+                  <Calendar className="w-3.5 h-3.5 text-[#1A56DB]" />
+                  <span>Date: {activeDateRange.label}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDateFilter((prev) => ({ ...prev, mode: 'all', fromDate: '', toDate: '' }))
+                      setPageNumber(1)
+                    }}
+                    className="p-0.5 hover:bg-blue-100 rounded text-blue-600 transition-colors cursor-pointer ml-0.5"
+                    title="Clear date filter"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              )}
+              {categoryFilter !== 'ALL' && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 font-semibold text-xs">
+                  <span>Category: {categoryFilter}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCategoryFilter('ALL')
+                      setPageNumber(1)
+                    }}
+                    className="p-0.5 hover:bg-slate-200 rounded text-slate-500 transition-colors cursor-pointer ml-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              )}
+              {statusFilter !== 'ALL' && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 font-semibold text-xs">
+                  <span>Status: {statusFilter}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStatusFilter('ALL')
+                      setPageNumber(1)
+                    }}
+                    className="p-0.5 hover:bg-slate-200 rounded text-slate-500 transition-colors cursor-pointer ml-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              )}
+              {conditionFilter !== 'ALL' && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 font-semibold text-xs">
+                  <span>Condition: {conditionFilter}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConditionFilter('ALL')
+                      setPageNumber(1)
+                    }}
+                    className="p-0.5 hover:bg-slate-200 rounded text-slate-500 transition-colors cursor-pointer ml-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              )}
+              {search.trim() !== '' && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 font-semibold text-xs">
+                  <span>Search: "{search}"</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('')
+                      setPageNumber(1)
+                    }}
+                    className="p-0.5 hover:bg-slate-200 rounded text-slate-500 transition-colors cursor-pointer ml-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
 
           {/* ASSETS REGISTER TABLE */}
           <div className="overflow-x-auto border border-slate-200/80 rounded-xl">
@@ -689,11 +989,29 @@ export const AssetSummaryPage: React.FC = () => {
                   <tr>
                     <td colSpan={10} className="p-12 text-center text-slate-400">
                       <Cpu className="w-10 h-10 mx-auto text-slate-300 mb-2" />
-                      <p className="font-bold text-slate-700 text-sm">No assets registered yet</p>
-                      <p className="text-xs text-slate-400 mt-1">Add your first fixed asset to start tracking ownership, value, maintenance and lifecycle history.</p>
-                      <EnterpriseButton onClick={() => setIsAddModalOpen(true)} variant="primary" className="mt-4">
-                        + Add First Asset
-                      </EnterpriseButton>
+                      {dateFilter.mode !== 'all' || categoryFilter !== 'ALL' || statusFilter !== 'ALL' || conditionFilter !== 'ALL' || search.trim() !== '' ? (
+                        <div className="space-y-2">
+                          <p className="font-bold text-slate-700 text-sm">
+                            {dateFilter.mode !== 'all'
+                              ? `No assets found for ${activeDateRange.label}`
+                              : 'No assets matching the selected filters'}
+                          </p>
+                          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                            Try adjusting your search keywords, category, status, or date range to view registered assets.
+                          </p>
+                          <EnterpriseButton onClick={handleResetFilters} variant="secondary" className="mt-3">
+                            <RefreshCw className="w-3.5 h-3.5 mr-1" /> Reset All Filters
+                          </EnterpriseButton>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="font-bold text-slate-700 text-sm">No assets registered yet</p>
+                          <p className="text-xs text-slate-400 mt-1">Add your first fixed asset to start tracking ownership, value, maintenance and lifecycle history.</p>
+                          <EnterpriseButton disabled={!canManage} onClick={() => { setCreateForm({ assetName: '', assetCategory: 'Machinery', purchasePrice: 0, purchaseDate: new Date().toISOString().slice(0, 10), condition: 'Good', usefulLifeYears: 5, residualValue: 0 }); setIsAddModalOpen(true) }} variant="primary" className="mt-4">
+                            + Add First Asset
+                          </EnterpriseButton>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ) : (
@@ -701,7 +1019,16 @@ export const AssetSummaryPage: React.FC = () => {
                     <tr key={asset.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="p-3">
                         <span className="font-bold text-slate-900 block">{asset.assetName}</span>
-                        {asset.serialNumber && <span className="text-[10px] text-slate-400 font-mono">SN: {asset.serialNumber}</span>}
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          {asset.assetTag && <span className="text-[10px] text-slate-500 font-mono">{asset.assetTag}</span>}
+                          {asset.purchaseDate && (
+                            <span className="text-[10px] text-slate-400 font-medium inline-flex items-center gap-0.5" title="Purchase / Acquisition Date">
+                              <Calendar className="w-2.5 h-2.5 text-slate-400" />
+                              {new Date(asset.purchaseDate).toLocaleDateString('en-IN')}
+                            </span>
+                          )}
+                          {asset.serialNumber && <span className="text-[10px] text-slate-400 font-mono">SN: {asset.serialNumber}</span>}
+                        </div>
                       </td>
                       <td className="p-3">
                         <EnterpriseBadge variant="info">{asset.assetCategory}</EnterpriseBadge>
@@ -726,19 +1053,30 @@ export const AssetSummaryPage: React.FC = () => {
                         {formatCurrency(asset.currentValue)}
                       </td>
                       <td className="p-3 text-center">
-                        <EnterpriseBadge
-                          variant={
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
                             asset.currentStatus === 'Active' || asset.currentStatus === 'InUse'
-                              ? 'success'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                               : asset.currentStatus === 'UnderMaintenance'
-                                ? 'warning'
+                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
                                 : asset.currentStatus === 'Disposed'
-                                  ? 'danger'
-                                  : 'gray'
-                          }
+                                  ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                  : 'bg-slate-100 text-slate-700 border border-slate-200'
+                          }`}
                         >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              asset.currentStatus === 'Active' || asset.currentStatus === 'InUse'
+                                ? 'bg-emerald-500'
+                                : asset.currentStatus === 'UnderMaintenance'
+                                  ? 'bg-amber-500'
+                                  : asset.currentStatus === 'Disposed'
+                                    ? 'bg-rose-500'
+                                    : 'bg-slate-400'
+                            }`}
+                          />
                           {asset.currentStatus}
-                        </EnterpriseBadge>
+                        </span>
                       </td>
                       <td className="p-3 text-center">
                         <span
@@ -753,52 +1091,19 @@ export const AssetSummaryPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="p-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => handleOpenDetailModal(asset)}
-                            title="View Asset Details"
-                            className="p-1.5 text-slate-500 hover:text-[#1A56DB] hover:bg-blue-50 rounded-lg transition-colors"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleOpenAssignModal(asset)}
-                            title="Assign to Employee"
-                            className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                          >
-                            <UserCheck className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleOpenTransferModal(asset)}
-                            title="Transfer Location"
-                            className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                          >
-                            <Truck className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleOpenMaintenanceModal(asset)}
-                            title="Log Maintenance"
-                            className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                          >
-                            <Wrench className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => calculateDepreciationMutation.mutate(asset.id)}
-                            title="Calculate Depreciation"
-                            className="p-1.5 text-slate-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                          >
-                            <TrendingDown className="w-4 h-4" />
-                          </button>
-                          {asset.currentStatus !== 'Disposed' && (
-                            <button
-                              onClick={() => handleOpenDisposeModal(asset)}
-                              title="Dispose / Retire Asset"
-                              className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
+                        <AssetRowActions
+                          asset={asset}
+                          canManage={canManage}
+                          canDelete={canDelete}
+                          onView={() => handleOpenDetailModal(asset)}
+                          onEdit={() => openAssetAction(asset, 'edit')}
+                          onAssign={() => handleOpenAssignModal(asset)}
+                          onTransfer={() => handleOpenTransferModal(asset)}
+                          onMaintenance={() => handleOpenMaintenanceModal(asset)}
+                          onDepreciation={() => openAssetAction(asset, 'depreciation')}
+                          onDispose={() => handleOpenDisposeModal(asset)}
+                          onDelete={() => openAssetAction(asset, 'delete')}
+                        />
                       </td>
                     </tr>
                   ))
@@ -970,7 +1275,7 @@ export const AssetSummaryPage: React.FC = () => {
                       )}
                     </td>
                     <td className="p-3 text-right">
-                      <EnterpriseButton onClick={() => handleOpenMaintenanceModal(asset)} variant="secondary">
+                      <EnterpriseButton disabled={!canManage || isHistorical(asset)} onClick={() => handleOpenMaintenanceModal(asset)} variant="secondary">
                         <Wrench className="w-3.5 h-3.5 mr-1" /> Log Maintenance
                       </EnterpriseButton>
                     </td>
@@ -1023,603 +1328,178 @@ export const AssetSummaryPage: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL 1: ADD ASSET MODAL */}
-      {isAddModalOpen && (
-        <EnterpriseModal
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          title="Register New Fixed Capital Asset"
-        >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              createAssetMutation.mutate(createForm)
-            }}
-            className="space-y-5 text-xs max-h-[75vh] overflow-y-auto pr-1"
-          >
-            {/* SECTION 1: BASIC INFORMATION */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-              <h4 className="font-bold text-slate-900 uppercase text-[11px] tracking-wider text-[#1A56DB]">
-                Section 1 — Basic Information
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Asset Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. RO Water Treatment Plant"
-                    value={createForm.assetName}
-                    onChange={(e) => setCreateForm({ ...createForm, assetName: e.target.value })}
-                    className="w-full p-2 border border-slate-200 rounded-lg bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Asset Category *</label>
-                  <select
-                    value={createForm.assetCategory}
-                    onChange={(e) => setCreateForm({ ...createForm, assetCategory: e.target.value })}
-                    className="w-full p-2 border border-slate-200 rounded-lg bg-white font-medium"
-                  >
-                    <option value="Machinery">Machinery & Equipment</option>
-                    <option value="Vehicles">Vehicles & Transport</option>
-                    <option value="Computers">Computers & Laptops</option>
-                    <option value="Printers">Printers & Scanners</option>
-                    <option value="Furniture">Furniture & Fixtures</option>
-                    <option value="Office Equipment">Office Equipment</option>
-                    <option value="Buildings">Buildings & Real Estate</option>
-                    <option value="Other">Other Capital Asset</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Asset Tag (Unique)</label>
-                  <input
-                    type="text"
-                    placeholder="Auto-generated if blank (e.g. MCH-001)"
-                    value={createForm.assetTag}
-                    onChange={(e) => setCreateForm({ ...createForm, assetTag: e.target.value })}
-                    className="w-full p-2 border border-slate-200 rounded-lg bg-white font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Serial Number</label>
-                  <input
-                    type="text"
-                    placeholder="SN12345678"
-                    value={createForm.serialNumber}
-                    onChange={(e) => setCreateForm({ ...createForm, serialNumber: e.target.value })}
-                    className="w-full p-2 border border-slate-200 rounded-lg bg-white font-mono"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* SECTION 2: PURCHASE & FINANCIAL CAPITALIZATION */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-              <h4 className="font-bold text-slate-900 uppercase text-[11px] tracking-wider text-[#1A56DB]">
-                Section 2 — Purchase & Capitalized Cost
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Purchase Date *</label>
-                  <input
-                    type="date"
-                    required
-                    value={createForm.purchaseDate}
-                    onChange={(e) => setCreateForm({ ...createForm, purchaseDate: e.target.value })}
-                    className="w-full p-2 border border-slate-200 rounded-lg bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Purchase Price (₹) *</label>
-                  <input
-                    type="number"
-                    min="0"
-                    required
-                    value={createForm.purchasePrice}
-                    onChange={(e) => setCreateForm({ ...createForm, purchasePrice: parseFloat(e.target.value) || 0 })}
-                    className="w-full p-2 border border-slate-200 rounded-lg bg-white font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Tax / GST (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={createForm.taxAmount}
-                    onChange={(e) => setCreateForm({ ...createForm, taxAmount: parseFloat(e.target.value) || 0 })}
-                    className="w-full p-2 border border-slate-200 rounded-lg bg-white font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Freight / Transport (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={createForm.freightCost}
-                    onChange={(e) => setCreateForm({ ...createForm, freightCost: parseFloat(e.target.value) || 0 })}
-                    className="w-full p-2 border border-slate-200 rounded-lg bg-white font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Installation Cost (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={createForm.installationCost}
-                    onChange={(e) => setCreateForm({ ...createForm, installationCost: parseFloat(e.target.value) || 0 })}
-                    className="w-full p-2 border border-slate-200 rounded-lg bg-white font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Calculated Capitalized Cost</label>
-                  <div className="p-2 bg-blue-100/70 border border-blue-200 rounded-lg font-mono font-black text-slate-900 text-sm">
-                    {formatCurrency(
-                      (createForm.purchasePrice || 0) +
-                      (createForm.taxAmount || 0) +
-                      (createForm.freightCost || 0) +
-                      (createForm.installationCost || 0) +
-                      (createForm.otherCapitalizedCost || 0)
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* SECTION 3: LOCATION & ASSIGNMENT */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-              <h4 className="font-bold text-slate-900 uppercase text-[11px] tracking-wider text-[#1A56DB]">
-                Section 3 — Location & Department
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Location / Plant</label>
-                  <input
-                    type="text"
-                    value={createForm.location}
-                    onChange={(e) => setCreateForm({ ...createForm, location: e.target.value })}
-                    className="w-full p-2 border border-slate-200 rounded-lg bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Department</label>
-                  <input
-                    type="text"
-                    value={createForm.department}
-                    onChange={(e) => setCreateForm({ ...createForm, department: e.target.value })}
-                    className="w-full p-2 border border-slate-200 rounded-lg bg-white"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* MODAL ACTIONS */}
-            <div className="flex gap-2 justify-end pt-2">
-              <EnterpriseButton onClick={() => setIsAddModalOpen(false)} variant="secondary">
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton loading={createAssetMutation.isPending} variant="primary" type="submit">
-                Register Fixed Asset
-              </EnterpriseButton>
-            </div>
-          </form>
-        </EnterpriseModal>
+      {/* 1. ADD / EDIT ASSET MODAL */}
+      {(isAddModalOpen || isEditModalOpen) && (
+        <AssetFormModal
+          editing={isEditModalOpen}
+          pending={createAssetMutation.isPending || updateAssetMutation.isPending}
+          isDateLocked={
+            isEditModalOpen &&
+            Boolean(
+              selectedAsset &&
+                (Number(selectedAsset.accumulatedDepreciation) > 0 ||
+                  ['disposed', 'retired'].includes(selectedAsset.currentStatus.toLowerCase()))
+            )
+          }
+          lockedReason={
+            isEditModalOpen && selectedAsset
+              ? Number(selectedAsset.accumulatedDepreciation) > 0
+                ? 'Original acquisition date is locked because financial depreciation has already been recorded.'
+                : ['disposed', 'retired'].includes(selectedAsset.currentStatus.toLowerCase())
+                ? 'Original acquisition date is an archived record for disposed assets.'
+                : undefined
+              : undefined
+          }
+          createForm={createForm}
+          setCreateForm={setCreateForm}
+          onClose={() => {
+            if (!createAssetMutation.isPending && !updateAssetMutation.isPending) {
+              setIsAddModalOpen(false)
+              setIsEditModalOpen(false)
+            }
+          }}
+          onSave={(form) => {
+            if (isEditModalOpen && selectedAsset) {
+              updateAssetMutation.mutate({
+                id: selectedAsset.id,
+                data: {
+                  assetName: form.assetName,
+                  assetCategory: form.assetCategory,
+                  assetTag: form.assetTag,
+                  assetType: form.assetType,
+                  serialNumber: form.serialNumber,
+                  modelNumber: form.modelNumber,
+                  manufacturer: form.manufacturer,
+                  description: form.description,
+                  location: form.location,
+                  department: form.department,
+                  purchaseDate: form.purchaseDate,
+                  condition: form.condition,
+                  notes: form.notes,
+                  warrantyStartDate: form.warrantyStartDate,
+                  warrantyEndDate: form.warrantyEndDate,
+                  warrantyProvider: form.warrantyProvider,
+                  warrantyNumber: form.warrantyNumber,
+                  warrantyNotes: form.warrantyNotes,
+                  expectedVersion: selectedAsset.version
+                }
+              })
+            } else {
+              createAssetMutation.mutate(form)
+            }
+          }}
+        />
       )}
 
-      {/* MODAL 2: ASSET DETAIL VIEW (8 STRUCTURED TABS) */}
+      {/* 2. ASSET DETAILS MODAL */}
       {isDetailModalOpen && selectedAsset && (
-        <EnterpriseModal
+        <AssetDetailsModal
           isOpen={isDetailModalOpen}
+          asset={selectedAsset}
+          canManage={canManage}
+          maintenanceHistory={maintenanceHistory}
+          timelineHistory={timelineHistory}
+          loadingData={loadingModalData}
+          defaultTab={detailTab}
           onClose={() => setIsDetailModalOpen(false)}
-          title={`Asset Master Detail — ${selectedAsset.assetName} (${selectedAsset.assetCode})`}
-        >
-          <div className="space-y-4 max-h-[80vh] overflow-y-auto pr-1 select-none text-xs">
-            {/* SUB-HEADER BADGES */}
-            <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
-              <div className="flex items-center gap-2">
-                <span className="font-mono font-extrabold text-[#1A56DB] text-sm">{selectedAsset.assetTag}</span>
-                <EnterpriseBadge variant="info">{selectedAsset.assetCategory}</EnterpriseBadge>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-slate-500 font-medium">Status:</span>
-                <EnterpriseBadge variant={selectedAsset.currentStatus === 'Active' ? 'success' : 'warning'}>
-                  {selectedAsset.currentStatus}
-                </EnterpriseBadge>
-              </div>
-            </div>
-
-            {/* DETAIL TABS */}
-            <div className="border-b border-slate-200 flex gap-4 text-xs font-bold uppercase">
-              <button
-                onClick={() => setDetailTab('overview')}
-                className={`pb-2 border-b-2 ${detailTab === 'overview' ? 'border-[#1A56DB] text-[#1A56DB]' : 'border-transparent text-slate-500'}`}
-              >
-                Overview
-              </button>
-              <button
-                onClick={() => setDetailTab('financial')}
-                className={`pb-2 border-b-2 ${detailTab === 'financial' ? 'border-[#1A56DB] text-[#1A56DB]' : 'border-transparent text-slate-500'}`}
-              >
-                Financial & Cost
-              </button>
-              <button
-                onClick={() => setDetailTab('maintenance')}
-                className={`pb-2 border-b-2 ${detailTab === 'maintenance' ? 'border-[#1A56DB] text-[#1A56DB]' : 'border-transparent text-slate-500'}`}
-              >
-                Maintenance Log
-              </button>
-              <button
-                onClick={() => setDetailTab('history')}
-                className={`pb-2 border-b-2 ${detailTab === 'history' ? 'border-[#1A56DB] text-[#1A56DB]' : 'border-transparent text-slate-500'}`}
-              >
-                Timeline History
-              </button>
-            </div>
-
-            {/* TAB CONTENT: OVERVIEW */}
-            {detailTab === 'overview' && (
-              <div className="grid grid-cols-2 gap-4 bg-white p-4 rounded-xl border border-slate-100">
-                <div>
-                  <span className="text-slate-400 block font-semibold">Asset Tag</span>
-                  <span className="font-mono font-bold text-slate-900">{selectedAsset.assetTag}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-semibold">Serial Number</span>
-                  <span className="font-mono text-slate-900">{selectedAsset.serialNumber || 'N/A'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-semibold">Location</span>
-                  <span className="font-medium text-slate-900">{selectedAsset.location || 'Main Site'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-semibold">Assigned Employee</span>
-                  <span className="font-medium text-slate-900">{selectedAsset.assignedEmployeeName || 'Unassigned'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-semibold">Purchase Date</span>
-                  <span className="font-medium text-slate-900">{new Date(selectedAsset.purchaseDate).toLocaleDateString('en-IN')}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-semibold">Condition</span>
-                  <span className="font-bold text-emerald-700">{selectedAsset.condition}</span>
-                </div>
-              </div>
-            )}
-
-            {/* TAB CONTENT: FINANCIAL */}
-            {detailTab === 'financial' && (
-              <div className="space-y-3 bg-white p-4 rounded-xl border border-slate-100">
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="p-3 bg-slate-50 rounded-lg">
-                    <span className="text-slate-500 font-semibold block text-[10px]">PURCHASE COST</span>
-                    <span className="font-mono font-bold text-slate-900">{formatCurrency(selectedAsset.purchasePrice)}</span>
-                  </div>
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <span className="text-blue-700 font-semibold block text-[10px]">CAPITALIZED COST</span>
-                    <span className="font-mono font-bold text-blue-900">{formatCurrency(selectedAsset.totalCapitalizedCost)}</span>
-                  </div>
-                  <div className="p-3 bg-emerald-50 rounded-lg">
-                    <span className="text-emerald-700 font-semibold block text-[10px]">CURRENT BOOK VALUE</span>
-                    <span className="font-mono font-bold text-emerald-900">{formatCurrency(selectedAsset.currentValue)}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB CONTENT: MAINTENANCE */}
-            {detailTab === 'maintenance' && (
-              <div className="space-y-3">
-                {maintenanceHistory.length === 0 ? (
-                  <p className="text-center py-6 text-slate-400">No maintenance records logged yet for this asset.</p>
-                ) : (
-                  maintenanceHistory.map((m) => (
-                    <div key={m.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <div className="flex justify-between font-bold text-slate-900">
-                        <span>[{m.maintenanceType}] {m.description}</span>
-                        <span className="font-mono text-[#1A56DB]">{formatCurrency(m.totalCost)}</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 mt-1">Provider: {m.serviceProvider} | Date: {new Date(m.maintenanceDate).toLocaleDateString('en-IN')}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-
-            {/* TAB CONTENT: TIMELINE HISTORY */}
-            {detailTab === 'history' && (
-              <div className="relative border-l-2 border-blue-200 ml-3 space-y-4 py-2">
-                {timelineHistory.map((h) => (
-                  <div key={h.id} className="relative pl-5">
-                    <div className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-[#1A56DB] border-2 border-white" />
-                    <span className="font-bold text-slate-900 block">{h.action}</span>
-                    <span className="text-[10px] text-slate-400 font-mono block">{new Date(h.date).toLocaleString('en-IN')} by {h.performedBy}</span>
-                    <p className="text-slate-600 mt-0.5">{h.remarks || h.newValue}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </EnterpriseModal>
+          onEdit={() => openAssetAction(selectedAsset, 'edit')}
+          onAssign={() => handleOpenAssignModal(selectedAsset)}
+        />
       )}
 
-      {/* MODAL 3: ASSIGN ASSET MODAL */}
+      {/* 3. ASSIGN ASSET MODAL */}
       {isAssignModalOpen && selectedAsset && (
-        <EnterpriseModal
+        <AssetAssignmentModal
           isOpen={isAssignModalOpen}
-          onClose={() => setIsAssignModalOpen(false)}
-          title={`Assign Asset — ${selectedAsset.assetName}`}
-        >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              assignAssetMutation.mutate({ id: selectedAsset.id, data: assignForm })
-            }}
-            className="space-y-4 text-xs"
-          >
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">Employee / Assignee Name *</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. John Doe"
-                value={assignForm.employeeName}
-                onChange={(e) => setAssignForm({ ...assignForm, employeeName: e.target.value })}
-                className="w-full p-2 border border-slate-200 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">Department</label>
-              <input
-                type="text"
-                placeholder="e.g. Accounts / IT"
-                value={assignForm.department}
-                onChange={(e) => setAssignForm({ ...assignForm, department: e.target.value })}
-                className="w-full p-2 border border-slate-200 rounded-lg"
-              />
-            </div>
-            <div className="flex gap-2 justify-end pt-2">
-              <EnterpriseButton onClick={() => setIsAssignModalOpen(false)} variant="secondary">
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton loading={assignAssetMutation.isPending} variant="primary" type="submit">
-                Save Assignment
-              </EnterpriseButton>
-            </div>
-          </form>
-        </EnterpriseModal>
+          asset={selectedAsset}
+          assignForm={assignForm}
+          setAssignForm={setAssignForm}
+          pending={assignAssetMutation.isPending}
+          onClose={() => {
+            if (!assignAssetMutation.isPending) setIsAssignModalOpen(false)
+          }}
+          onSave={(data) => assignAssetMutation.mutate({ id: selectedAsset.id, data })}
+        />
       )}
 
-      {/* MODAL 4: TRANSFER ASSET MODAL */}
+      {/* 4. TRANSFER ASSET MODAL */}
       {isTransferModalOpen && selectedAsset && (
-        <EnterpriseModal
+        <AssetTransferModal
           isOpen={isTransferModalOpen}
-          onClose={() => setIsTransferModalOpen(false)}
-          title={`Transfer Location — ${selectedAsset.assetName}`}
-        >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              transferAssetMutation.mutate({ id: selectedAsset.id, data: transferForm })
-            }}
-            className="space-y-4 text-xs"
-          >
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">From Location</label>
-              <input
-                type="text"
-                disabled
-                value={transferForm.fromLocation}
-                className="w-full p-2 border border-slate-200 rounded-lg bg-slate-100 text-slate-500"
-              />
-            </div>
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">New Location / Plant *</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Plant B / Bottling Unit 2"
-                value={transferForm.toLocation}
-                onChange={(e) => setTransferForm({ ...transferForm, toLocation: e.target.value })}
-                className="w-full p-2 border border-slate-200 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">Reason for Transfer *</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Reassigned to Plant B line upgrade"
-                value={transferForm.reason}
-                onChange={(e) => setTransferForm({ ...transferForm, reason: e.target.value })}
-                className="w-full p-2 border border-slate-200 rounded-lg"
-              />
-            </div>
-            <div className="flex gap-2 justify-end pt-2">
-              <EnterpriseButton onClick={() => setIsTransferModalOpen(false)} variant="secondary">
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton loading={transferAssetMutation.isPending} variant="primary" type="submit">
-                Execute Transfer
-              </EnterpriseButton>
-            </div>
-          </form>
-        </EnterpriseModal>
+          asset={selectedAsset}
+          transferForm={transferForm}
+          setTransferForm={setTransferForm}
+          pending={transferAssetMutation.isPending}
+          onClose={() => {
+            if (!transferAssetMutation.isPending) setIsTransferModalOpen(false)
+          }}
+          onSave={(data) => transferAssetMutation.mutate({ id: selectedAsset.id, data })}
+        />
       )}
 
-      {/* MODAL 5: LOG MAINTENANCE MODAL */}
+      {/* 5. LOG MAINTENANCE MODAL */}
       {isMaintenanceModalOpen && selectedAsset && (
-        <EnterpriseModal
+        <AssetMaintenanceModal
           isOpen={isMaintenanceModalOpen}
-          onClose={() => setIsMaintenanceModalOpen(false)}
-          title={`Log Maintenance — ${selectedAsset.assetName}`}
-        >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              recordMaintenanceMutation.mutate({ id: selectedAsset.id, data: maintenanceForm })
-            }}
-            className="space-y-4 text-xs"
-          >
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Maintenance Type *</label>
-                <select
-                  value={maintenanceForm.maintenanceType}
-                  onChange={(e) => setMaintenanceForm({ ...maintenanceForm, maintenanceType: e.target.value })}
-                  className="w-full p-2 border border-slate-200 rounded-lg"
-                >
-                  <option value="Preventive">Preventive</option>
-                  <option value="Corrective">Corrective</option>
-                  <option value="Scheduled">Scheduled</option>
-                  <option value="Repair">Repair</option>
-                </select>
-              </div>
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Service Provider / Agency *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. AquaCare Services Ltd"
-                  value={maintenanceForm.serviceProvider}
-                  onChange={(e) => setMaintenanceForm({ ...maintenanceForm, serviceProvider: e.target.value })}
-                  className="w-full p-2 border border-slate-200 rounded-lg"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">Description *</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Replaced RO Membrane Filters & Pump Servicing"
-                value={maintenanceForm.description}
-                onChange={(e) => setMaintenanceForm({ ...maintenanceForm, description: e.target.value })}
-                className="w-full p-2 border border-slate-200 rounded-lg"
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Parts Cost (₹)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={maintenanceForm.partsCost}
-                  onChange={(e) => setMaintenanceForm({ ...maintenanceForm, partsCost: parseFloat(e.target.value) || 0 })}
-                  className="w-full p-2 border border-slate-200 rounded-lg font-mono"
-                />
-              </div>
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Labour Cost (₹)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={maintenanceForm.labourCost}
-                  onChange={(e) => setMaintenanceForm({ ...maintenanceForm, labourCost: parseFloat(e.target.value) || 0 })}
-                  className="w-full p-2 border border-slate-200 rounded-lg font-mono"
-                />
-              </div>
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Next Maintenance Due</label>
-                <input
-                  type="date"
-                  value={maintenanceForm.nextMaintenanceDate || ''}
-                  onChange={(e) => setMaintenanceForm({ ...maintenanceForm, nextMaintenanceDate: e.target.value })}
-                  className="w-full p-2 border border-slate-200 rounded-lg font-mono"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end pt-2">
-              <EnterpriseButton onClick={() => setIsMaintenanceModalOpen(false)} variant="secondary">
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton loading={recordMaintenanceMutation.isPending} variant="primary" type="submit">
-                Log Maintenance Record
-              </EnterpriseButton>
-            </div>
-          </form>
-        </EnterpriseModal>
+          asset={selectedAsset}
+          maintenanceForm={maintenanceForm}
+          setMaintenanceForm={setMaintenanceForm}
+          pending={recordMaintenanceMutation.isPending}
+          onClose={() => {
+            if (!recordMaintenanceMutation.isPending) setIsMaintenanceModalOpen(false)
+          }}
+          onSave={(data) => recordMaintenanceMutation.mutate({ id: selectedAsset.id, data })}
+        />
       )}
 
-      {/* MODAL 6: DISPOSE ASSET MODAL */}
+      {/* 6. RECORD DEPRECIATION MODAL */}
+      {isDepreciationModalOpen && selectedAsset && (
+        <AssetDepreciationModal
+          asset={selectedAsset}
+          pending={calculateDepreciationMutation.isPending}
+          onClose={() => {
+            if (!calculateDepreciationMutation.isPending) setIsDepreciationModalOpen(false)
+          }}
+          onSave={(data) => calculateDepreciationMutation.mutate({ id: selectedAsset.id, data })}
+        />
+      )}
+
+      {/* 7. DISPOSE ASSET MODAL */}
       {isDisposeModalOpen && selectedAsset && (
-        <EnterpriseModal
+        <AssetDisposalModal
           isOpen={isDisposeModalOpen}
-          onClose={() => setIsDisposeModalOpen(false)}
-          title={`Dispose / Retire Asset — ${selectedAsset.assetName}`}
-        >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              disposeAssetMutation.mutate({ id: selectedAsset.id, data: disposeForm })
-            }}
-            className="space-y-4 text-xs"
-          >
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-900 text-xs">
-              <strong className="font-bold block mb-0.5">Warning: Permanent Lifecycle Change</strong>
-              Disposing this asset will change its status to <strong>Disposed</strong>, zero its current book value, and record a financial audit entry.
-            </div>
+          asset={selectedAsset}
+          disposeForm={disposeForm}
+          setDisposeForm={setDisposeForm}
+          pending={disposeAssetMutation.isPending}
+          onClose={() => {
+            if (!disposeAssetMutation.isPending) setIsDisposeModalOpen(false)
+          }}
+          onSave={(data) => disposeAssetMutation.mutate({ id: selectedAsset.id, data })}
+        />
+      )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Disposal Method *</label>
-                <select
-                  value={disposeForm.disposalMethod}
-                  onChange={(e) => setDisposeForm({ ...disposeForm, disposalMethod: e.target.value })}
-                  className="w-full p-2 border border-slate-200 rounded-lg"
-                >
-                  <option value="Scrapped">Scrapped</option>
-                  <option value="Sold">Sold</option>
-                  <option value="WrittenOff">Written Off</option>
-                  <option value="Donated">Donated</option>
-                  <option value="Lost">Lost / Stolen</option>
-                </select>
-              </div>
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Disposal Reason *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. End of useful lifespan / Damaged beyond repair"
-                  value={disposeForm.reason}
-                  onChange={(e) => setDisposeForm({ ...disposeForm, reason: e.target.value })}
-                  className="w-full p-2 border border-slate-200 rounded-lg"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Sale Value Realized (₹)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={disposeForm.saleValue}
-                  onChange={(e) => setDisposeForm({ ...disposeForm, saleValue: parseFloat(e.target.value) || 0 })}
-                  className="w-full p-2 border border-slate-200 rounded-lg font-mono"
-                />
-              </div>
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Disposal Cost Incurred (₹)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={disposeForm.disposalCost}
-                  onChange={(e) => setDisposeForm({ ...disposeForm, disposalCost: parseFloat(e.target.value) || 0 })}
-                  className="w-full p-2 border border-slate-200 rounded-lg font-mono"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end pt-2">
-              <EnterpriseButton onClick={() => setIsDisposeModalOpen(false)} variant="secondary">
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton loading={disposeAssetMutation.isPending} variant="danger" type="submit">
-                Dispose Asset
-              </EnterpriseButton>
-            </div>
-          </form>
-        </EnterpriseModal>
+      {/* 8. DELETE ASSET CONFIRMATION MODAL */}
+      {isDeleteModalOpen && selectedAsset && (
+        <AssetDeleteConfirmationModal
+          isOpen={isDeleteModalOpen}
+          asset={selectedAsset}
+          deleteBlocked={deleteBlocked}
+          blockedReason={deleteBlockedReason}
+          checkingHistory={checkingHistory}
+          pending={deleteAssetMutation.isPending}
+          canManage={canManage}
+          onClose={() => {
+            if (!deleteAssetMutation.isPending) setIsDeleteModalOpen(false)
+          }}
+          onConfirmDelete={() => {
+            if (!deleteAssetMutation.isPending) deleteAssetMutation.mutate(selectedAsset)
+          }}
+          onMarkDisposed={() => {
+            setIsDeleteModalOpen(false)
+            handleOpenDisposeModal(selectedAsset)
+          }}
+        />
       )}
 
       {/* EDIT UNIT PRICE MODAL */}

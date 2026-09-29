@@ -1114,6 +1114,7 @@ namespace Aquora.Persistence.Migrations.Tenant
                         .HasColumnType("numeric");
 
                     b.Property<DateTime?>("UpdatedAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("UpdatedBy")

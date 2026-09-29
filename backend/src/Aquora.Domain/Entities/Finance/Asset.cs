@@ -84,6 +84,7 @@ namespace Aquora.Domain.Entities.Finance
 
         public DateTime CreatedAt { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
+        [System.ComponentModel.DataAnnotations.ConcurrencyCheck]
         public DateTime? UpdatedAt { get; set; }
         public string? UpdatedBy { get; set; }
         public string? CreatedByIP { get; set; }

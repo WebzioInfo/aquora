@@ -1,6 +1,7 @@
 import { api } from './api'
 
 export interface DetailedAsset {
+  version: string
   id: string
   assetCode: string
   assetTag: string
@@ -128,7 +129,18 @@ export interface CreateAssetInput {
   notes?: string
 }
 
-export interface UpdateAssetInput {
+export interface AssetMutationInput { expectedVersion: string }
+
+export interface DepreciateAssetInput extends AssetMutationInput { percentage: number; effectiveDate: string; notes?: string }
+export interface AssetEmployee { id: string; fullName: string; username?: string; department?: string }
+
+export interface UpdateAssetInput extends AssetMutationInput {
+  assetTag?: string
+  warrantyStartDate?: string
+  warrantyEndDate?: string
+  warrantyProvider?: string
+  warrantyNumber?: string
+  warrantyNotes?: string
   assetName: string
   assetCategory: string
   assetType?: string
@@ -138,12 +150,13 @@ export interface UpdateAssetInput {
   description?: string
   location?: string
   department?: string
+  purchaseDate?: string
   condition?: string
   currentStatus?: string
   notes?: string
 }
 
-export interface AssignAssetInput {
+export interface AssignAssetInput extends AssetMutationInput {
   employeeId?: string
   employeeName: string
   department?: string
@@ -151,7 +164,7 @@ export interface AssignAssetInput {
   notes?: string
 }
 
-export interface TransferAssetInput {
+export interface TransferAssetInput extends AssetMutationInput {
   fromLocation: string
   toLocation: string
   fromEmployee?: string
@@ -161,7 +174,7 @@ export interface TransferAssetInput {
   notes?: string
 }
 
-export interface RecordMaintenanceInput {
+export interface RecordMaintenanceInput extends AssetMutationInput {
   maintenanceType: string
   maintenanceDate?: string
   serviceProvider: string
@@ -194,7 +207,7 @@ export interface AssetMaintenanceRecord {
   createdBy: string
 }
 
-export interface DisposeAssetInput {
+export interface DisposeAssetInput extends AssetMutationInput {
   disposalDate?: string
   disposalMethod: string
   reason: string
@@ -229,9 +242,27 @@ export interface AssetPagedResult {
   totalCount: number
   pageNumber: number
   pageSize: number
+  summary?: AssetKpiSummary
+}
+
+export interface AssetHistoryExistsResult {
+  hasHistory: boolean
+  reason?: string
+  isDisposed?: boolean
 }
 
 export const assetService = {
+  searchEmployees: async (search: string, signal?: AbortSignal) => {
+    const res = await api.get<{ data: AssetEmployee[] }>('/api/v1/assets/employees/search', { params: { search }, signal })
+    return res.data.data
+  },
+  checkAssetHistoryExists: async (id: string): Promise<AssetHistoryExistsResult> => {
+    const res = await api.get<{ data: AssetHistoryExistsResult }>(`/api/v1/assets/${id}/history-exists`)
+    return res.data?.data ?? { hasHistory: false }
+  },
+  deleteAsset: async (id: string, expectedVersion: string) => {
+    await api.delete(`/api/v1/assets/${id}`, { params: { expectedVersion } })
+  },
   getAssets: async (
     pageNumber = 1,
     pageSize = 50,
@@ -240,7 +271,9 @@ export const assetService = {
     status?: string,
     condition?: string,
     location?: string,
-    department?: string
+    department?: string,
+    fromDate?: string,
+    toDate?: string
   ) => {
     const params = new URLSearchParams()
     params.append('pageNumber', pageNumber.toString())
@@ -251,13 +284,35 @@ export const assetService = {
     if (condition) params.append('condition', condition)
     if (location) params.append('location', location)
     if (department) params.append('department', department)
+    if (fromDate) params.append('fromDate', fromDate)
+    if (toDate) params.append('toDate', toDate)
 
     const res = await api.get<{ data: AssetPagedResult }>(`/api/v1/assets?${params.toString()}`)
     return res.data?.data
   },
 
-  getKpis: async () => {
-    const res = await api.get<{ data: AssetKpiSummary }>('/api/v1/assets/kpis')
+  getKpis: async (
+    search?: string,
+    category?: string,
+    status?: string,
+    condition?: string,
+    location?: string,
+    department?: string,
+    fromDate?: string,
+    toDate?: string
+  ) => {
+    const params = new URLSearchParams()
+    if (search) params.append('search', search)
+    if (category) params.append('category', category)
+    if (status) params.append('status', status)
+    if (condition) params.append('condition', condition)
+    if (location) params.append('location', location)
+    if (department) params.append('department', department)
+    if (fromDate) params.append('fromDate', fromDate)
+    if (toDate) params.append('toDate', toDate)
+
+    const query = params.toString()
+    const res = await api.get<{ data: AssetKpiSummary }>(`/api/v1/assets/kpis${query ? `?${query}` : ''}`)
     return res.data?.data
   },
 
@@ -296,8 +351,8 @@ export const assetService = {
     return res.data?.data || []
   },
 
-  calculateDepreciation: async (id: string) => {
-    const res = await api.post<{ data: DetailedAsset }>(`/api/v1/assets/${id}/depreciation`)
+  calculateDepreciation: async (id: string, data: DepreciateAssetInput) => {
+    const res = await api.post<{ data: DetailedAsset }>(`/api/v1/assets/${id}/depreciation`, data)
     return res.data?.data
   },
 
@@ -311,13 +366,13 @@ export const assetService = {
     return res.data?.data || []
   },
 
-  bulkUpdateStatus: async (assetIds: string[], status: string, location?: string, reason?: string) => {
-    const res = await api.post<{ data: boolean }>('/api/v1/assets/bulk-status', { assetIds, status, location, reason })
+  bulkUpdateStatus: async (assetIds: string[], status: string, expectedVersions: Record<string, string>, location?: string, reason?: string) => {
+    const res = await api.post<{ data: boolean }>('/api/v1/assets/bulk-status', { assetIds, status, expectedVersions, location, reason })
     return res.data?.data
   },
 
   importAssets: async (rows: AssetImportRow[]) => {
-    const res = await api.post<{ data: AssetImportResult }>('/api/v1/import', rows)
+    const res = await api.post<{ data: AssetImportResult }>('/api/v1/assets/import', rows)
     return res.data?.data
   }
 }

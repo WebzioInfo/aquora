@@ -54,7 +54,9 @@ const EXPENSE_CATEGORIES = [
   'Insurance',
   'Office Supplies',
   'Travel & Entertainment',
-  'Miscellaneous'
+  'Miscellaneous',
+  'Tax',
+  'Stationary',
 ]
 
 const CashBookDetailsPage: React.FC = () => {
@@ -566,8 +568,8 @@ const CashBookDetailsPage: React.FC = () => {
         icon={Wallet}
         badge={
           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${cashBook.status === 'Active'
-              ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-              : 'bg-slate-100 text-slate-700 border border-slate-200'
+            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+            : 'bg-slate-100 text-slate-700 border border-slate-200'
             }`}>
             {cashBook.status}
           </span>
@@ -1134,8 +1136,8 @@ const CashBookDetailsPage: React.FC = () => {
                       <div className="flex items-center justify-between font-bold text-slate-900 mb-0.5">
                         <span
                           className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] uppercase font-semibold ${isCreated
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                              : 'bg-blue-50 text-blue-700 border border-blue-100'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                            : 'bg-blue-50 text-blue-700 border border-blue-100'
                             }`}
                         >
                           {item.action}

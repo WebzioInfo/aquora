@@ -17,9 +17,22 @@ namespace Aquora.Application.Interfaces.Services
             string? status = null,
             string? condition = null,
             string? location = null,
-            string? department = null);
+            string? department = null,
+            DateTime? fromDate = null,
+            DateTime? toDate = null);
 
-        Task<AssetKpiSummaryDto> GetAssetKpisAsync();
+        Task<List<AssetEmployeeDto>> SearchEmployeesAsync(string? search);
+        Task<AssetHistoryExistsDto> CheckAssetHistoryExistsAsync(Guid id);
+        Task<bool> DeleteAssetAsync(Guid id, AssetMutationRequest request);
+        Task<AssetKpiSummaryDto> GetAssetKpisAsync(
+            string? search = null,
+            string? category = null,
+            string? status = null,
+            string? condition = null,
+            string? location = null,
+            string? department = null,
+            DateTime? fromDate = null,
+            DateTime? toDate = null);
         Task<DetailedAssetDto?> GetAssetByIdAsync(Guid id);
         Task<DetailedAssetDto> CreateAssetAsync(CreateAssetRequest request);
         Task<DetailedAssetDto?> UpdateAssetAsync(Guid id, UpdateAssetRequest request);
@@ -27,7 +40,7 @@ namespace Aquora.Application.Interfaces.Services
         Task<DetailedAssetDto?> TransferAssetAsync(Guid id, TransferAssetRequest request);
         Task<AssetMaintenanceRecordDto?> RecordMaintenanceAsync(Guid id, RecordMaintenanceRequest request);
         Task<List<AssetMaintenanceRecordDto>> GetMaintenanceRecordsAsync(Guid id);
-        Task<DetailedAssetDto?> CalculateDepreciationAsync(Guid id);
+        Task<DetailedAssetDto?> CalculateDepreciationAsync(Guid id, DepreciateAssetRequest request);
         Task<DetailedAssetDto?> DisposeAssetAsync(Guid id, DisposeAssetRequest request);
         Task<List<AssetHistoryDto>> GetAssetHistoryAsync(Guid id);
         Task<bool> BulkUpdateStatusAsync(BulkAssetStatusRequest request);

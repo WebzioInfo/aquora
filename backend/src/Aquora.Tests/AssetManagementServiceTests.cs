@@ -15,7 +15,7 @@ using Aquora.Persistence.Context;
 
 namespace Aquora.Tests
 {
-    public class AssetManagementServiceTests
+    public partial class AssetManagementServiceTests
     {
         private (TenantDbContext context, Mock<ITenantProvider> tenantProvider, Mock<ICurrentUserContext> userProvider, Guid tenantId, Guid companyId) CreateTestContext()
         {
@@ -352,6 +352,162 @@ namespace Aquora.Tests
             Assert.Equal("AST-2026-00007", result.Items[0].AssetCode);
             Assert.NotNull(detailed);
             Assert.Equal("AST-2026-00007", detailed.AssetCode);
+        }
+
+        [Fact]
+        public async Task GetAssetsAsync_And_GetAssetKpisAsync_ShouldFilterByPurchaseDate_AndRecalculateKpis()
+        {
+            // Arrange
+            var (context, tenantProvider, userProvider, tenantId, companyId) = CreateTestContext();
+            var service = new AssetManagementService(context, tenantProvider.Object, userProvider.Object);
+
+            // Asset 1: Jan 15, 2026, Active, Cost 10000, Value 9000, Dep 1000
+            context.Assets.Add(new Asset
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                AssetCode = "AST-JAN-01",
+                AssetTag = "TAG-JAN-01",
+                AssetName = "January Machine",
+                AssetCategory = "Machinery",
+                PurchaseDate = new DateTime(2026, 1, 15, 10, 0, 0, DateTimeKind.Utc),
+                PurchasePrice = 10000m,
+                TotalCapitalizedCost = 10000m,
+                CurrentValue = 9000m,
+                AccumulatedDepreciation = 1000m,
+                CurrentStatus = "Active",
+                Condition = "Good",
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = "System",
+                IsDeleted = false
+            });
+
+            // Asset 2: March 01, 2026, Active, Cost 25000, Value 24500, Dep 500
+            context.Assets.Add(new Asset
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                AssetCode = "AST-MAR-01",
+                AssetTag = "TAG-MAR-01",
+                AssetName = "March Pump",
+                AssetCategory = "Machinery",
+                PurchaseDate = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc),
+                PurchasePrice = 25000m,
+                TotalCapitalizedCost = 25000m,
+                CurrentValue = 24500m,
+                AccumulatedDepreciation = 500m,
+                CurrentStatus = "Active",
+                Condition = "Good",
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = "System",
+                IsDeleted = false
+            });
+
+            // Asset 3: March 31, 2026, UnderMaintenance, Cost 15000, Value 15000, Dep 0
+            context.Assets.Add(new Asset
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                AssetCode = "AST-MAR-02",
+                AssetTag = "TAG-MAR-02",
+                AssetName = "March Vehicle",
+                AssetCategory = "Vehicles",
+                PurchaseDate = new DateTime(2026, 3, 31, 23, 30, 0, DateTimeKind.Utc),
+                PurchasePrice = 15000m,
+                TotalCapitalizedCost = 15000m,
+                CurrentValue = 15000m,
+                AccumulatedDepreciation = 0m,
+                CurrentStatus = "UnderMaintenance",
+                Condition = "Fair",
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = "System",
+                IsDeleted = false
+            });
+
+            // Asset 4: April 01, 2026, Disposed, Cost 5000, Value 0, Dep 5000
+            context.Assets.Add(new Asset
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                AssetCode = "AST-APR-01",
+                AssetTag = "TAG-APR-01",
+                AssetName = "April Asset",
+                AssetCategory = "Office Equipment",
+                PurchaseDate = new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc),
+                PurchasePrice = 5000m,
+                TotalCapitalizedCost = 5000m,
+                CurrentValue = 0m,
+                AccumulatedDepreciation = 5000m,
+                CurrentStatus = "Disposed",
+                Condition = "Critical",
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = "System",
+                IsDeleted = false
+            });
+
+            await context.SaveChangesAsync();
+
+            // Test 1: All Dates
+            var allResult = await service.GetAssetsAsync();
+            Assert.Equal(4, allResult.TotalCount);
+            Assert.NotNull(allResult.Summary);
+            Assert.Equal(4, allResult.Summary.TotalAssetsCount);
+            Assert.Equal(2, allResult.Summary.ActiveAssetsCount);
+            Assert.Equal(1, allResult.Summary.UnderMaintenanceCount);
+            Assert.Equal(1, allResult.Summary.DisposedCount);
+            Assert.Equal(55000m, allResult.Summary.TotalAssetValue);
+            Assert.Equal(48500m, allResult.Summary.CurrentBookValue); // 9000 + 24500 + 15000 (disposed excluded)
+            Assert.Equal(6500m, allResult.Summary.AccumulatedDepreciation);
+
+            // Test 2: Month Filter - March 2026 (01/03/2026 to 31/03/2026 inclusive)
+            var marchFrom = new DateTime(2026, 3, 1);
+            var marchTo = new DateTime(2026, 3, 31);
+            var marchResult = await service.GetAssetsAsync(fromDate: marchFrom, toDate: marchTo);
+
+            Assert.Equal(2, marchResult.TotalCount);
+            Assert.Contains(marchResult.Items, a => a.AssetCode == "AST-MAR-01");
+            Assert.Contains(marchResult.Items, a => a.AssetCode == "AST-MAR-02");
+            Assert.DoesNotContain(marchResult.Items, a => a.AssetCode == "AST-JAN-01");
+            Assert.DoesNotContain(marchResult.Items, a => a.AssetCode == "AST-APR-01");
+
+            // Recalculated March KPIs
+            Assert.NotNull(marchResult.Summary);
+            Assert.Equal(2, marchResult.Summary.TotalAssetsCount);
+            Assert.Equal(1, marchResult.Summary.ActiveAssetsCount);
+            Assert.Equal(1, marchResult.Summary.UnderMaintenanceCount);
+            Assert.Equal(0, marchResult.Summary.DisposedCount);
+            Assert.Equal(40000m, marchResult.Summary.TotalAssetValue); // 25000 + 15000
+            Assert.Equal(39500m, marchResult.Summary.CurrentBookValue); // 24500 + 15000
+            Assert.Equal(500m, marchResult.Summary.AccumulatedDepreciation);
+
+            // Standalone GetAssetKpisAsync with same date filter
+            var marchKpis = await service.GetAssetKpisAsync(fromDate: marchFrom, toDate: marchTo);
+            Assert.Equal(2, marchKpis.TotalAssetsCount);
+            Assert.Equal(40000m, marchKpis.TotalAssetValue);
+            Assert.Equal(39500m, marchKpis.CurrentBookValue);
+
+            // Test 3: Empty Month - February 2028 (no assets)
+            var emptyResult = await service.GetAssetsAsync(fromDate: new DateTime(2028, 2, 1), toDate: new DateTime(2028, 2, 29));
+            Assert.Equal(0, emptyResult.TotalCount);
+            Assert.Empty(emptyResult.Items);
+            Assert.NotNull(emptyResult.Summary);
+            Assert.Equal(0, emptyResult.Summary.TotalAssetsCount);
+            Assert.Equal(0, emptyResult.Summary.ActiveAssetsCount);
+            Assert.Equal(0m, emptyResult.Summary.TotalAssetValue);
+            Assert.Equal(0m, emptyResult.Summary.CurrentBookValue);
+            Assert.Equal(0m, emptyResult.Summary.AccumulatedDepreciation);
+
+            // Test 4: Combined Filter - March 2026 + Category "Vehicles"
+            var combinedResult = await service.GetAssetsAsync(category: "Vehicles", fromDate: marchFrom, toDate: marchTo);
+            Assert.Single(combinedResult.Items);
+            Assert.Equal("AST-MAR-02", combinedResult.Items[0].AssetCode);
+            Assert.NotNull(combinedResult.Summary);
+            Assert.Equal(1, combinedResult.Summary.TotalAssetsCount);
+            Assert.Equal(15000m, combinedResult.Summary.TotalAssetValue);
         }
     }
 }

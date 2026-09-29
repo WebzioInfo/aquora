@@ -5,6 +5,7 @@ namespace Aquora.Application.DTOs
 {
     public class DetailedAssetDto
     {
+        public string Version { get; set; } = string.Empty;
         public Guid Id { get; set; }
         public string AssetCode { get; set; } = string.Empty;
         public string AssetTag { get; set; } = string.Empty;
@@ -122,8 +123,35 @@ namespace Aquora.Application.DTOs
         public string? Notes { get; set; }
     }
 
-    public class UpdateAssetRequest
+    public class AssetMutationRequest
     {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string ExpectedVersion { get; set; } = string.Empty;
+    }
+
+    public class DepreciateAssetRequest : AssetMutationRequest
+    {
+        public decimal Percentage { get; set; }
+        public DateTime EffectiveDate { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    public class AssetEmployeeDto
+    {
+        public Guid Id { get; set; }
+        public string FullName { get; set; } = string.Empty;
+        public string? Username { get; set; }
+        public string? Department { get; set; }
+    }
+
+    public class UpdateAssetRequest : AssetMutationRequest
+    {
+        public string? AssetTag { get; set; }
+        public DateTime? WarrantyStartDate { get; set; }
+        public DateTime? WarrantyEndDate { get; set; }
+        public string? WarrantyProvider { get; set; }
+        public string? WarrantyNumber { get; set; }
+        public string? WarrantyNotes { get; set; }
         public string AssetName { get; set; } = string.Empty;
         public string AssetCategory { get; set; } = string.Empty;
         public string? AssetType { get; set; }
@@ -133,12 +161,13 @@ namespace Aquora.Application.DTOs
         public string? Description { get; set; }
         public string? Location { get; set; }
         public string? Department { get; set; }
+        public DateTime? PurchaseDate { get; set; }
         public string Condition { get; set; } = "Good";
-        public string CurrentStatus { get; set; } = "Active";
+        public string? CurrentStatus { get; set; }
         public string? Notes { get; set; }
     }
 
-    public class AssignAssetRequest
+    public class AssignAssetRequest : AssetMutationRequest
     {
         public Guid? EmployeeId { get; set; }
         public string EmployeeName { get; set; } = string.Empty;
@@ -147,7 +176,7 @@ namespace Aquora.Application.DTOs
         public string? Notes { get; set; }
     }
 
-    public class TransferAssetRequest
+    public class TransferAssetRequest : AssetMutationRequest
     {
         public string FromLocation { get; set; } = string.Empty;
         public string ToLocation { get; set; } = string.Empty;
@@ -158,7 +187,7 @@ namespace Aquora.Application.DTOs
         public string? Notes { get; set; }
     }
 
-    public class RecordMaintenanceRequest
+    public class RecordMaintenanceRequest : AssetMutationRequest
     {
         public string MaintenanceType { get; set; } = "Preventive"; // Scheduled, Preventive, Corrective, Repair
         public DateTime MaintenanceDate { get; set; } = DateTime.UtcNow;
@@ -193,7 +222,7 @@ namespace Aquora.Application.DTOs
         public string CreatedBy { get; set; } = string.Empty;
     }
 
-    public class DisposeAssetRequest
+    public class DisposeAssetRequest : AssetMutationRequest
     {
         public DateTime DisposalDate { get; set; } = DateTime.UtcNow;
         public string DisposalMethod { get; set; } = "Scrapped"; // Sold, Scrapped, WrittenOff, Donated, Lost, Other
@@ -207,6 +236,7 @@ namespace Aquora.Application.DTOs
 
     public class BulkAssetStatusRequest
     {
+        public Dictionary<Guid, string> ExpectedVersions { get; set; } = new();
         public List<Guid> AssetIds { get; set; } = new();
         public string Status { get; set; } = "Active";
         public string? Location { get; set; }
@@ -252,5 +282,13 @@ namespace Aquora.Application.DTOs
         public int TotalCount { get; set; }
         public int PageNumber { get; set; }
         public int PageSize { get; set; }
+        public AssetKpiSummaryDto? Summary { get; set; }
+    }
+
+    public class AssetHistoryExistsDto
+    {
+        public bool HasHistory { get; set; }
+        public string? Reason { get; set; }
+        public bool IsDisposed { get; set; }
     }
 }

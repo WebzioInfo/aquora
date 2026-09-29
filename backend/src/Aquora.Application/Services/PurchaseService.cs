@@ -584,6 +584,8 @@ namespace Aquora.Application.Services
             var oldGrandTotal = purchase.GrandTotal;
 
             var newGrandTotal = Math.Round(request.GrandTotal, 2);
+            if (purchase.AssetId.HasValue && newGrandTotal != oldGrandTotal)
+                throw new ArgumentException("This purchase is linked to a registered asset. Its acquisition amount cannot be overwritten through purchase editing.");
             var newAmountPaid = Math.Round(request.AmountPaid, 2);
             if (newAmountPaid > newGrandTotal) newAmountPaid = newGrandTotal;
             var newBalanceAmount = Math.Round(newGrandTotal - newAmountPaid, 2);
@@ -950,18 +952,8 @@ namespace Aquora.Application.Services
                 }
             }
 
-            // 5. Asset price update
-            if (purchase.AssetId.HasValue)
-            {
-                var asset = await _context.Assets.FirstOrDefaultAsync(a => a.Id == purchase.AssetId.Value);
-                if (asset != null)
-                {
-                    asset.PurchasePrice = newGrandTotal;
-                    asset.CurrentValue = newGrandTotal;
-                    asset.UpdatedAt = DateTime.UtcNow;
-                    asset.UpdatedBy = currentUser;
-                }
-            }
+            // Acquisition amounts on a registered asset are immutable in this general purchase edit.
+            // In particular, payment or note edits must never reset depreciation/book value.
 
             // 6. Timeline and audit log entry
             var detailsString = $"Updated purchase {purchase.PurchaseNo}. Total: ₹{newGrandTotal:N2}.";

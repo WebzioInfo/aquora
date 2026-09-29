@@ -60,7 +60,21 @@ export function mapErrorToUserFriendly(error: any): UserFriendlyError {
     msgLower.includes('econnrefused') ||
     msgLower.includes('an error occurred while saving the entity changes')
 
-  // 3. Category & Message Mapping
+  // Asset History Exists Guard
+  if (
+    code === 'AssetHistoryExists' ||
+    code === 'ASSET_HISTORY_EXISTS' ||
+    msgLower.includes('assethistoryexists') ||
+    msgLower.includes('historical records')
+  ) {
+    return {
+      title: 'Cannot Permanently Delete',
+      message: 'This asset contains historical records and cannot be permanently deleted. Mark it as Disposed instead.',
+      category: 'validation',
+      canUserFix: true,
+      code: 'ASSET_HISTORY_EXISTS',
+    }
+  }
 
   // 409 Conflict Handling
   if (statusCode === 409 || code === 'CONCURRENCY_CONFLICT' || code === 'DUPLICATE_RECORD') {
