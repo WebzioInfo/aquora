@@ -27,6 +27,7 @@ namespace Aquora.Domain.Entities
         public string Currency { get; set; } = "INR";
         public string Language { get; set; } = "en";
         public string? LogoUrl { get; set; }
+        public string? LogoPublicId { get; set; }
         public string Theme { get; set; } = "light";
         public double StorageUsedMb { get; set; } = 0.0;
         public int ActiveUsersCount { get; set; } = 0;

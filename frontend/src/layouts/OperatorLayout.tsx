@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
-import { Outlet, useNavigate, useLocation } from 'react-router-dom'
+import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuthStore } from '../store/useAuthStore'
 import { useThemeStore } from '../store/useThemeStore'
 import { useNotificationStore } from '../store/useNotificationStore'
@@ -417,7 +417,7 @@ export const OperatorLayout: React.FC = () => {
         {/* Right side: Operator name, End Batch, and Logout */}
         <div className="flex items-center gap-3">
           {/* Operator Avatar and Details */}
-          <div className="flex items-center gap-2">
+          <Link to="/profile" className="flex items-center gap-2 hover:opacity-85 transition cursor-pointer" title="My Profile">
             <div 
               className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-[10px] shadow-sm transition-colors duration-300"
               style={{
@@ -433,7 +433,7 @@ export const OperatorLayout: React.FC = () => {
                 {user?.companyName || user?.tenantName || BRAND.name}
               </span>
             </div>
-          </div>
+          </Link>
 
           <span className="text-white/20 select-none hidden md:inline">|</span>
 

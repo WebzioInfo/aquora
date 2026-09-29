@@ -62,6 +62,7 @@ export const ParametersManagementPage: React.FC = () => {
     const minAcc = editingParam.minAcceptable !== undefined && editingParam.minAcceptable !== null && String(editingParam.minAcceptable) !== '' ? Number(editingParam.minAcceptable) : null;
     const maxAcc = editingParam.maxAcceptable !== undefined && editingParam.maxAcceptable !== null && String(editingParam.maxAcceptable) !== '' ? Number(editingParam.maxAcceptable) : null;
     const maxWarn = editingParam.maxWarning !== undefined && editingParam.maxWarning !== null && String(editingParam.maxWarning) !== '' ? Number(editingParam.maxWarning) : null;
+    const durationHours = editingParam.requiredDurationHours !== undefined && editingParam.requiredDurationHours !== null && String(editingParam.requiredDurationHours) !== '' ? Number(editingParam.requiredDurationHours) : 0;
 
     setIsSubmitting(true);
     try {
@@ -74,6 +75,7 @@ export const ParametersManagementPage: React.FC = () => {
         minAcceptable: minAcc,
         maxAcceptable: maxAcc,
         maxWarning: maxWarn,
+        requiredDurationHours: durationHours
       });
       toast.success(`Parameter '${editingParam.name}' saved successfully.`);
       setEditingParam(null);
@@ -117,6 +119,21 @@ export const ParametersManagementPage: React.FC = () => {
           {row.category}
         </EnterpriseBadge>
       )
+    },
+    {
+      id: 'duration',
+      header: 'Incubation / Duration',
+      cell: (row) => {
+        const hours = row.requiredDurationHours || 0;
+        if (hours === 0) {
+          return <span className="text-xs text-slate-500 font-medium">Immediate (0h)</span>;
+        }
+        return (
+          <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+            {hours} Hours Incubation
+          </span>
+        );
+      }
     },
     {
       id: 'unit',
@@ -241,11 +258,20 @@ export const ParametersManagementPage: React.FC = () => {
               required
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <EnterpriseSelect
                 label="Category"
                 value={editingParam.category || 'PHYSICAL'}
-                onChange={(e) => setEditingParam({ ...editingParam, category: e.target.value })}
+                onChange={(e) => {
+                  const cat = e.target.value;
+                  let defHours = editingParam.requiredDurationHours;
+                  if (cat === 'MICROBIOLOGY' && (!defHours || defHours === 0)) {
+                    defHours = 24;
+                  } else if (cat !== 'MICROBIOLOGY') {
+                    defHours = 0;
+                  }
+                  setEditingParam({ ...editingParam, category: cat, requiredDurationHours: defHours });
+                }}
                 options={[
                   { value: 'PHYSICAL', label: 'Physical' },
                   { value: 'CHEMICAL', label: 'Chemical' },
@@ -258,6 +284,16 @@ export const ParametersManagementPage: React.FC = () => {
                 placeholder="e.g. mg/L, NTU, CFU/ml"
                 value={editingParam.unit || ''}
                 onChange={(e) => setEditingParam({ ...editingParam, unit: e.target.value })}
+              />
+
+              <EnterpriseInput
+                label="Incubation Duration (Hours)"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="0 = Immediate, 24, 48, 72"
+                value={editingParam.requiredDurationHours ?? 0}
+                onChange={(e) => setEditingParam({ ...editingParam, requiredDurationHours: Number(e.target.value) })}
               />
             </div>
 

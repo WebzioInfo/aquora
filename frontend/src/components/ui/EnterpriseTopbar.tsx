@@ -1,4 +1,5 @@
-import { Menu, Bell, LogOut, Search, Command } from 'lucide-react'
+import { Menu, Bell, LogOut, Search, User as UserIcon } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import BRAND from '../../config/brand'
 import { useSearchStore } from '../../store/useSearchStore'
 
@@ -168,22 +169,39 @@ export const EnterpriseTopbar: React.FC<EnterpriseTopbarProps> = ({
           </button>
 
           {profileMenuOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white border border-[#E5E9F2] shadow-lg py-1 rounded-[8px] text-xs z-50 animate-in fade-in slide-in-from-top-1 duration-100">
-              <div className="px-4 py-2 border-b border-[#E5E9F2]">
-                <span className="font-bold block text-[#101828] truncate">
+            <div className="absolute right-0 mt-2 w-56 bg-white border border-[#E5E9F2] shadow-xl py-1.5 rounded-xl text-xs z-50 animate-in fade-in slide-in-from-top-1 duration-100">
+              <div className="px-4 py-2.5 border-b border-[#E5E9F2] bg-slate-50/60">
+                <span className="font-extrabold block text-[#101828] truncate text-xs">
                   {user?.firstName} {user?.lastName}
                 </span>
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide truncate block mt-0.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate block mt-0.5">
                   {user?.roles?.[0] || 'User'}
                 </span>
+                {user?.email && (
+                  <span className="text-[10px] text-slate-500 truncate block mt-0.5 font-medium">
+                    {user.email}
+                  </span>
+                )}
               </div>
-              <button 
-                onClick={onLogout}
-                className="w-full text-left px-4 py-2.5 text-[#F04438] hover:bg-red-500/10 cursor-pointer flex items-center gap-2 font-semibold"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Sign Out</span>
-              </button>
+              <div className="py-1">
+                <Link
+                  to="/profile"
+                  onClick={onToggleProfileMenu}
+                  className="w-full text-left px-4 py-2 text-slate-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer flex items-center gap-2.5 font-bold transition"
+                >
+                  <UserIcon className="w-4 h-4 text-blue-600" />
+                  <span>My Profile & Account</span>
+                </Link>
+              </div>
+              <div className="border-t border-[#E5E9F2] pt-1">
+                <button 
+                  onClick={onLogout}
+                  className="w-full text-left px-4 py-2 text-[#F04438] hover:bg-red-50 cursor-pointer flex items-center gap-2.5 font-semibold transition"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
             </div>
           )}
         </div>

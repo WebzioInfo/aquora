@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react'
 import { api } from '../../../services/api'
 import { useNotificationStore } from '../../../store/useNotificationStore'
-import { Building2, Mail, Phone, MapPin, Globe2, Calendar, ShieldCheck, Database, Layers } from 'lucide-react'
+import {
+  Building2, Mail, Phone, MapPin, Globe2, Calendar, ShieldCheck, Database, Layers,
+  Upload, Trash2, Camera, RefreshCw, CheckCircle2
+} from 'lucide-react'
 import { setCompanyPrefs } from '../../../utils/dateFormatter'
 
 export const CompanyProfileForm: React.FC = () => {
   const { showToast } = useNotificationStore()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
   const [profile, setProfile] = useState<any>(null)
 
   // Editable fields state
@@ -23,6 +27,7 @@ export const CompanyProfileForm: React.FC = () => {
   const [dateFormat, setDateFormat] = useState('dd MMM yyyy')
   const [timeFormat, setTimeFormat] = useState('12h')
   const [logoUrl, setLogoUrl] = useState('')
+  const [logoFile, setLogoFile] = useState<File | null>(null)
 
   const fetchProfile = async () => {
     try {
@@ -80,6 +85,50 @@ export const CompanyProfileForm: React.FC = () => {
     fetchProfile()
   }, [])
 
+  const handleLogoUpload = async (file: File) => {
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Logo file size must be less than 5 MB.', 'error')
+      return
+    }
+
+    try {
+      setUploadingLogo(true)
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await api.post('/api/v1/company/logo/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+      if (res.data?.success && res.data?.data) {
+        showToast('Company logo uploaded to Cloudinary successfully.', 'success')
+        fetchProfile()
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to upload company logo.', 'error')
+    } finally {
+      setUploadingLogo(false)
+      setLogoFile(null)
+    }
+  }
+
+  const handleLogoRemove = async () => {
+    try {
+      setUploadingLogo(true)
+      const res = await api.delete('/api/v1/company/logo')
+      if (res.data?.success) {
+        setLogoUrl('')
+        showToast('Company logo removed successfully.', 'success')
+        fetchProfile()
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to remove company logo.', 'error')
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -123,15 +172,46 @@ export const CompanyProfileForm: React.FC = () => {
       <div className="lg:col-span-1">
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden sticky top-6">
           <div className="p-6 text-center border-b border-slate-100 bg-slate-50/50">
-            <div className="relative w-24 h-24 mx-auto mb-4 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center overflow-hidden">
+            <div className="relative w-24 h-24 mx-auto mb-4 bg-slate-100 rounded-2xl border border-slate-200 flex items-center justify-center overflow-hidden group shadow-2xs">
               {logoUrl ? (
-                <img src={logoUrl} alt="Company Logo" className="w-full h-full object-cover" />
+                <img src={logoUrl} alt="Company Logo" className="w-full h-full object-contain p-1" />
               ) : (
                 <Building2 className="w-12 h-12 text-slate-400" />
               )}
+
+              <label
+                htmlFor="sidebar-logo-file-input"
+                className="absolute inset-0 bg-slate-900/60 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                title="Change Logo"
+              >
+                <Camera className="w-5 h-5 mb-0.5" />
+                <span className="text-[9px] font-bold">Change</span>
+              </label>
+              <input
+                type="file"
+                id="sidebar-logo-file-input"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                className="hidden"
+                disabled={uploadingLogo}
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleLogoUpload(file)
+                }}
+              />
             </div>
             <h3 className="text-base font-bold text-slate-800">{displayName || name || 'Aquzio Company'}</h3>
             <p className="text-xs text-slate-500 font-mono mt-1">Code: {profile?.tenantCode || 'N/A'}</p>
+            {logoUrl && (
+              <button
+                type="button"
+                onClick={handleLogoRemove}
+                disabled={uploadingLogo}
+                className="mt-2 text-[11px] font-bold text-red-600 hover:text-red-700 hover:underline cursor-pointer inline-flex items-center gap-1"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>Remove Logo</span>
+              </button>
+            )}
           </div>
 
           <div className="p-4 space-y-3.5 text-xs text-slate-600">
@@ -220,15 +300,68 @@ export const CompanyProfileForm: React.FC = () => {
                   placeholder="e.g. Aquzio"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Company Logo URL</label>
-                <input
-                  type="url"
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  className="w-full text-sm border-slate-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg p-2.5 border"
-                  placeholder="https://example.com/logo.png"
-                />
+              <div className="md:col-span-2">
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>Company Logo (Cloudinary Storage)</span>
+                  {logoUrl && (
+                    <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Logo Configured
+                    </span>
+                  )}
+                </label>
+                
+                <div className="flex flex-col sm:flex-row items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <input
+                    type="file"
+                    id="form-logo-file-input"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    className="hidden"
+                    disabled={uploadingLogo}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleLogoUpload(file)
+                    }}
+                  />
+                  <label
+                    htmlFor="form-logo-file-input"
+                    className="px-4 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-xs font-bold text-slate-700 shadow-2xs transition cursor-pointer flex items-center gap-2"
+                  >
+                    {uploadingLogo ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Upload New Logo (PNG / JPG / WebP)</span>
+                      </>
+                    )}
+                  </label>
+
+                  {logoUrl && (
+                    <button
+                      type="button"
+                      onClick={handleLogoRemove}
+                      disabled={uploadingLogo}
+                      className="px-3 py-2 rounded-lg text-xs font-bold text-red-600 hover:bg-red-50 transition cursor-pointer flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Remove</span>
+                    </button>
+                  )}
+
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="url"
+                      value={logoUrl}
+                      onChange={(e) => setLogoUrl(e.target.value)}
+                      className="w-full text-xs border-slate-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg p-2 border bg-white text-slate-500 truncate"
+                      placeholder="Or enter direct image URL"
+                    />
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">GST Number</label>

@@ -81,21 +81,20 @@ export const WaterTestReportsListPage: React.FC = () => {
   const totalCount = reportsData?.totalCount || 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
-  const getStatusBadge = (statusStr: string) => {
-    switch (statusStr) {
-      case 'PASS':
-      case 'APPROVED':
-        return <EnterpriseBadge variant="success">Passed</EnterpriseBadge>;
-      case 'WARNING':
-        return <EnterpriseBadge variant="warning">Warning</EnterpriseBadge>;
-      case 'FAIL':
-        return <EnterpriseBadge variant="danger">Failed</EnterpriseBadge>;
+  const getCompletionBadge = (report: WaterTestReport) => {
+    const comp = report.completionStatus || 'COMPLETED';
+    switch (comp) {
+      case 'RESULTS_OVERDUE':
+        return <EnterpriseBadge variant="danger">Overdue</EnterpriseBadge>;
+      case 'PARTIALLY_COMPLETED':
+        return <EnterpriseBadge variant="warning">Partially Done</EnterpriseBadge>;
+      case 'IN_PROGRESS':
+        return <EnterpriseBadge variant="info">Incubating</EnterpriseBadge>;
       case 'DRAFT':
         return <EnterpriseBadge variant="gray">Draft</EnterpriseBadge>;
-      case 'SUBMITTED':
-        return <EnterpriseBadge variant="info">Submitted</EnterpriseBadge>;
+      case 'COMPLETED':
       default:
-        return <EnterpriseBadge variant="gray">{statusStr}</EnterpriseBadge>;
+        return <EnterpriseBadge variant="success">Completed</EnterpriseBadge>;
     }
   };
 
@@ -134,23 +133,39 @@ export const WaterTestReportsListPage: React.FC = () => {
       cell: (row: WaterTestReport) => row.sampleTime ? format(new Date(row.sampleTime), 'dd MMM yyyy, hh:mm a') : (row.createdAt ? format(new Date(row.createdAt), 'dd MMM yyyy, hh:mm a') : '—')
     },
     {
+      id: 'progress',
+      header: 'Parameters',
+      cell: (row: WaterTestReport) => {
+        const total = row.totalParametersCount ?? row.results?.length ?? 0;
+        const completed = row.completedParametersCount ?? (row.results ? row.results.filter(r => r.resultStatus === 'COMPLETED' || (r.value !== null && r.value !== undefined) || (r.stringValue && r.stringValue.trim() !== '')).length : 0);
+        const overdue = row.overdueParametersCount ?? 0;
+
+        return (
+          <div className="flex flex-col gap-1 min-w-[110px]">
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <span className="text-slate-700">{completed}/{total}</span>
+              {overdue > 0 && <span className="text-rose-600 text-[10px] font-bold">{overdue} Overdue</span>}
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+              <div 
+                className={`h-full rounded-full ${overdue > 0 ? 'bg-rose-500' : (completed === total ? 'bg-emerald-500' : 'bg-blue-500')}`}
+                style={{ width: `${total > 0 ? (completed / total) * 100 : 0}%` }}
+              />
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      id: 'completionStatus',
+      header: 'Lifecycle Status',
+      cell: (row: WaterTestReport) => getCompletionBadge(row)
+    },
+    {
       id: 'testedBy',
       header: 'Tested By',
       accessorKey: 'testedBy',
       cell: (row: WaterTestReport) => row.testedBy || row.createdByName || '—'
-    },
-    {
-      id: 'status',
-      header: 'Quality Status',
-      accessorKey: 'status',
-      cell: (row: WaterTestReport) => {
-        let currentStatus = row.status === 'DRAFT' ? 'DRAFT' : 'PASS';
-        if (row.results && row.results.length > 0 && row.status !== 'DRAFT') {
-          if (row.results.some((r: any) => r.qualityStatus === 'FAIL')) currentStatus = 'FAIL';
-          else if (row.results.some((r: any) => r.qualityStatus === 'WARNING')) currentStatus = 'WARNING';
-        }
-        return getStatusBadge(currentStatus);
-      }
     },
     {
       id: 'actions',
@@ -230,9 +245,11 @@ export const WaterTestReportsListPage: React.FC = () => {
             }}
             options={[
               { value: '', label: 'All Statuses' },
-              { value: 'DRAFT', label: 'Draft' },
-              { value: 'SUBMITTED', label: 'Submitted' },
-              { value: 'APPROVED', label: 'Approved' }
+              { value: 'due_today', label: '⏰ Results Due Today' },
+              { value: 'overdue', label: '⚠ Overdue Results' },
+              { value: 'in_progress', label: '🔬 Incubating / In Progress' },
+              { value: 'completed', label: '✓ Completed' },
+              { value: 'DRAFT', label: 'Draft' }
             ]}
           />
         </div>

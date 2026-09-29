@@ -77,9 +77,9 @@ namespace Aquora.Application.Services
                         changed = true;
                     }
 
-                    if (!existing.MaxWarning.HasValue && def.MaxWarning.HasValue)
+                    if (existing.RequiredDurationHours == 0 && def.RequiredDurationHours > 0)
                     {
-                        existing.MaxWarning = def.MaxWarning;
+                        existing.RequiredDurationHours = def.RequiredDurationHours;
                         changed = true;
                     }
 
@@ -103,6 +103,7 @@ namespace Aquora.Application.Services
                         MinAcceptable = def.MinAcceptable,
                         MaxAcceptable = def.MaxAcceptable,
                         MaxWarning = def.MaxWarning,
+                        RequiredDurationHours = def.RequiredDurationHours,
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow,
                         CreatedBy = createdBy

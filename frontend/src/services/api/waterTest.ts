@@ -9,7 +9,10 @@ export interface WaterTestParameter {
     minAcceptable?: number | null;
     maxAcceptable?: number | null;
     maxWarning?: number | null;
+    requiredDurationHours?: number;
 }
+
+export type ParameterResultLifecycleStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'PENDING_RESULT' | 'OVERDUE' | 'COMPLETED' | 'NOT_APPLICABLE';
 
 export interface WaterTestResult {
     id: string;
@@ -25,6 +28,11 @@ export interface WaterTestResult {
     stringValue?: string | null;
     isPass: boolean;
     qualityStatus: string;
+    requiredDurationHours?: number;
+    startedAt?: string | null;
+    expectedCompletionAt?: string | null;
+    actualCompletedAt?: string | null;
+    resultStatus?: ParameterResultLifecycleStatus;
 }
 
 export interface WaterTestReport {
@@ -45,6 +53,12 @@ export interface WaterTestReport {
     createdAt: string;
     createdBy: string;
     createdByName: string;
+    completionStatus?: string;
+    totalParametersCount?: number;
+    completedParametersCount?: number;
+    pendingParametersCount?: number;
+    overdueParametersCount?: number;
+    earliestPendingDueDate?: string | null;
     results: WaterTestResult[];
 }
 
@@ -66,7 +80,38 @@ export interface CreateWaterTestReportRequest {
         parameterId: string;
         value?: number | null;
         stringValue?: string | null;
+        startedAt?: string | null;
+        expectedCompletionAt?: string | null;
+        actualCompletedAt?: string | null;
+        resultStatus?: ParameterResultLifecycleStatus;
+        requiredDurationHours?: number;
     }[];
+}
+
+export interface EnterSingleResultRequest {
+    value?: number | null;
+    stringValue?: string | null;
+    testedBy?: string | null;
+    remarks?: string | null;
+    startedAt?: string | null;
+}
+
+export interface QCPendingTask {
+    reportId: string;
+    reportNumber: string;
+    batchNumber: string;
+    sampleNumber?: string | null;
+    reportType: string;
+    parameterId: string;
+    parameterName: string;
+    parameterCategory: string;
+    unit: string;
+    requiredDurationHours: number;
+    startedAt?: string | null;
+    expectedCompletionAt?: string | null;
+    status: string;
+    hoursRemainingOrOverdue: number;
+    urgencyLevel: 'OVERDUE' | 'DUE_TODAY' | 'UPCOMING' | 'IN_PROGRESS';
 }
 
 export interface MonthlyReportStat {
@@ -81,6 +126,10 @@ export interface WaterTestDashboard {
     passedReports: number;
     failedReports: number;
     pendingReports: number;
+    overdueTasksCount?: number;
+    dueTodayTasksCount?: number;
+    inProgressTasksCount?: number;
+    pendingTasks?: QCPendingTask[];
     monthlyStats: MonthlyReportStat[];
     recentReports: WaterTestReport[];
 }
@@ -159,6 +208,13 @@ export const waterTestApi = {
     updateReport: (id: string, data: CreateWaterTestReportRequest) => api.put<WaterTestReport>(`/api/v1/qc/water-test/reports/${id}`, data),
     
     deleteReport: (id: string) => api.delete(`/api/v1/qc/water-test/reports/${id}`),
+
+    enterSingleResult: (reportId: string, parameterId: string, data: EnterSingleResultRequest) =>
+        api.post<WaterTestReport>(`/api/v1/qc/water-test/reports/${reportId}/results/${parameterId}`, data),
+
+    getTasks: () => api.get<QCPendingTask[]>('/api/v1/qc/water-test/tasks'),
+
+    getReminders: () => api.get<QCPendingTask[]>('/api/v1/qc/water-test/reminders'),
     
     getParameters: () => api.get<WaterTestParameter[]>('/api/v1/qc/water-test/parameters'),
  

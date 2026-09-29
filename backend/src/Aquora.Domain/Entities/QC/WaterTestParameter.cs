@@ -13,6 +13,7 @@ namespace Aquora.Domain.Entities.QC
         public double? MinAcceptable { get; set; }
         public double? MaxAcceptable { get; set; }
         public double? MaxWarning { get; set; }
+        public int RequiredDurationHours { get; set; } = 0; // 0 for immediate, 24/48/72 for incubation/delayed
         public bool IsActive { get; set; } = true;
 
         public virtual ICollection<WaterTestResult> Results { get; set; } = new List<WaterTestResult>();

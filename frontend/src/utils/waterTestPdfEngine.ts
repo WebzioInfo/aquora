@@ -163,8 +163,17 @@ export const generateWaterTestReportPDF = (options: WaterTestPdfOptions): jsPDF 
   }
 
   // Resolve overall report status
-  const resolveOverallStatus = (): 'PASS' | 'WARNING' | 'FAIL' | 'DRAFT' => {
+  const resolveOverallStatus = (): 'PASS' | 'WARNING' | 'FAIL' | 'DRAFT' | 'IN_PROGRESS' | 'PARTIALLY_COMPLETED' | 'RESULTS_OVERDUE' => {
     if (!report) return 'DRAFT'
+    if (report.completionStatus === 'RESULTS_OVERDUE' || (report.results && report.results.some(r => r.resultStatus === 'OVERDUE'))) {
+      return 'RESULTS_OVERDUE'
+    }
+    if (report.completionStatus === 'IN_PROGRESS' || report.completionStatus === 'PARTIALLY_COMPLETED' || (report.results && report.results.some(r => r.resultStatus === 'IN_PROGRESS' || r.resultStatus === 'PENDING_RESULT' || r.resultStatus === 'NOT_STARTED'))) {
+      if (report.results && report.results.some(r => r.resultStatus === 'COMPLETED')) {
+        return 'PARTIALLY_COMPLETED'
+      }
+      return 'IN_PROGRESS'
+    }
     if (report.status === 'DRAFT') return 'DRAFT'
     if (report.results && report.results.length > 0) {
       if (report.results.some(r => r.qualityStatus === 'FAIL')) return 'FAIL'
@@ -229,6 +238,7 @@ export const generateWaterTestReportPDF = (options: WaterTestPdfOptions): jsPDF 
   // ==========================================
   // 2. SECTION 1: REPORT & SAMPLE INFORMATION
   // ==========================================
+  const compStatusLabel = report.completionStatus ? report.completionStatus.replace(/_/g, ' ') : (report.status || 'DRAFT')
   const infoItems: Array<{ label: string; value: string }> = [
     { label: 'Report Number', value: reportNumber },
     { label: 'Report Type', value: report.reportType || 'DAILY' },
@@ -237,7 +247,7 @@ export const generateWaterTestReportPDF = (options: WaterTestPdfOptions): jsPDF 
     { label: 'Production Date', value: formatDateStr(report.productionDate) },
     { label: 'Collection Time', value: formatDateStr(report.sampleTime || report.createdAt, true) },
     { label: 'Tested By (Analyst)', value: cleanPersonName(report.testedBy || report.createdByName) },
-    { label: 'QC Verifier', value: cleanPersonName(report.verifiedBy) }
+    { label: 'Completion Status', value: compStatusLabel }
   ]
 
   // Filter out completely missing values
@@ -276,17 +286,35 @@ export const generateWaterTestReportPDF = (options: WaterTestPdfOptions): jsPDF 
   // ==========================================
   // 3. SECTION 2: OVERALL QUALITY STATUS BANNER
   // ==========================================
-  const statusBg = overallStatus === 'PASS' ? C_GREEN_BG : (overallStatus === 'WARNING' ? C_AMBER_BG : (overallStatus === 'FAIL' ? C_RED_BG : C_BG_LIGHT))
-  const statusBorder = overallStatus === 'PASS' ? C_GREEN_BORDER : (overallStatus === 'WARNING' ? C_AMBER_BORDER : (overallStatus === 'FAIL' ? C_RED_BORDER : C_BORDER))
-  const statusText = overallStatus === 'PASS' ? C_GREEN : (overallStatus === 'WARNING' ? C_AMBER : (overallStatus === 'FAIL' ? C_RED : C_MUTED))
-  const statusLabel = overallStatus === 'PASS' ? 'QUALITY COMPLIANT — PASSED' : (overallStatus === 'WARNING' ? 'WARNING — ACTION REQUIRED' : (overallStatus === 'FAIL' ? 'NON-COMPLIANT — FAILED' : 'DRAFT REPORT'))
-  const statusDesc = overallStatus === 'PASS'
-    ? 'All measured parameters comply with BIS IS 14543 Drinking Water Standards.'
-    : (overallStatus === 'WARNING'
-      ? 'One or more parameters are within warning threshold limits. Immediate attention recommended.'
-      : (overallStatus === 'FAIL'
-        ? 'One or more parameters failed standard limits. Water batch must not be dispatched.'
-        : 'Quality analysis is currently in draft state.'))
+  const isOverdue = overallStatus === 'RESULTS_OVERDUE'
+  const isInProgress = overallStatus === 'IN_PROGRESS' || overallStatus === 'PARTIALLY_COMPLETED'
+  const isPass = overallStatus === 'PASS'
+  const isFail = overallStatus === 'FAIL'
+  const isWarn = overallStatus === 'WARNING'
+
+  const statusBg = isPass ? C_GREEN_BG : (isWarn ? C_AMBER_BG : (isFail || isOverdue ? C_RED_BG : (isInProgress ? [239, 246, 255] : C_BG_LIGHT)))
+  const statusBorder = isPass ? C_GREEN_BORDER : (isWarn ? C_AMBER_BORDER : (isFail || isOverdue ? C_RED_BORDER : (isInProgress ? [191, 219, 254] : C_BORDER)))
+  const statusText = isPass ? C_GREEN : (isWarn ? C_AMBER : (isFail || isOverdue ? C_RED : (isInProgress ? C_PRIMARY : C_MUTED)))
+  
+  let statusLabel = 'DRAFT REPORT'
+  let statusDesc = 'Quality analysis is currently in draft state.'
+
+  if (isOverdue) {
+    statusLabel = 'OVERDUE QC RESULTS — IMMEDIATE ACTION REQUIRED'
+    statusDesc = 'One or more required microbiological/observation results have exceeded their expected incubation period.'
+  } else if (isInProgress) {
+    statusLabel = overallStatus === 'PARTIALLY_COMPLETED' ? 'PARTIALLY COMPLETED — INCUBATION IN PROGRESS' : 'RESULTS IN PROGRESS — INCUBATING'
+    statusDesc = 'Physical/chemical parameters recorded. Microbiological parameters are under active incubation.'
+  } else if (isPass) {
+    statusLabel = 'QUALITY COMPLIANT — PASSED'
+    statusDesc = 'All measured parameters comply with BIS IS 14543 Drinking Water Standards.'
+  } else if (isWarn) {
+    statusLabel = 'WARNING — ACTION REQUIRED'
+    statusDesc = 'One or more parameters are within warning threshold limits. Immediate attention recommended.'
+  } else if (isFail) {
+    statusLabel = 'NON-COMPLIANT — FAILED'
+    statusDesc = 'One or more parameters failed standard limits. Water batch must not be dispatched.'
+  }
 
   pdf.setFillColor(statusBg[0], statusBg[1], statusBg[2])
   pdf.setDrawColor(statusBorder[0], statusBorder[1], statusBorder[2])
@@ -389,7 +417,19 @@ export const generateWaterTestReportPDF = (options: WaterTestPdfOptions): jsPDF 
 
     const paramName = r.parameterName || 'Unknown Parameter'
     const category = (r.parameterCategory || 'CHEMICAL').toUpperCase()
-    const resultVal = formatResultValue(r.value, r.stringValue)
+    const isResultOverdue = r.resultStatus === 'OVERDUE'
+    const isResultPending = r.resultStatus === 'IN_PROGRESS' || r.resultStatus === 'PENDING_RESULT'
+    const isResultNotStarted = r.resultStatus === 'NOT_STARTED'
+    
+    let resultVal = formatResultValue(r.value, r.stringValue)
+    if (isResultOverdue) {
+      resultVal = 'OVERDUE'
+    } else if (isResultPending) {
+      resultVal = 'INCUBATING'
+    } else if (isResultNotStarted) {
+      resultVal = 'PENDING'
+    }
+
     const unit = r.parameterUnit && r.parameterUnit !== '—' ? r.parameterUnit : '—'
     const refLimits = formatReferenceLimits(r.minAcceptable, r.maxAcceptable, r.minWarning, r.maxWarning, r.parameterCategory, r.parameterUnit)
     const rowStatus = r.qualityStatus?.toUpperCase() || (r.isPass ? 'PASS' : 'FAIL')
@@ -413,8 +453,10 @@ export const generateWaterTestReportPDF = (options: WaterTestPdfOptions): jsPDF 
     xCursor += colCatW
     pdf.setFont('helvetica', 'bold')
     pdf.setFontSize(8)
-    if (rowStatus === 'FAIL') {
+    if (isResultOverdue || rowStatus === 'FAIL') {
       pdf.setTextColor(C_RED[0], C_RED[1], C_RED[2])
+    } else if (isResultPending) {
+      pdf.setTextColor(C_PRIMARY[0], C_PRIMARY[1], C_PRIMARY[2])
     } else if (rowStatus === 'WARNING') {
       pdf.setTextColor(C_AMBER[0], C_AMBER[1], C_AMBER[2])
     } else {
@@ -440,7 +482,16 @@ export const generateWaterTestReportPDF = (options: WaterTestPdfOptions): jsPDF 
     xCursor += colRefW
     pdf.setFont('helvetica', 'bold')
     pdf.setFontSize(6.5)
-    if (rowStatus === 'PASS' || rowStatus === 'APPROVED') {
+    if (isResultOverdue) {
+      pdf.setTextColor(C_RED[0], C_RED[1], C_RED[2])
+      textCenter('OVERDUE', xCursor + (colStatusW / 2), y + 4.2)
+    } else if (isResultPending) {
+      pdf.setTextColor(C_PRIMARY[0], C_PRIMARY[1], C_PRIMARY[2])
+      textCenter('PENDING', xCursor + (colStatusW / 2), y + 4.2)
+    } else if (isResultNotStarted) {
+      pdf.setTextColor(C_LIGHT_MUTED[0], C_LIGHT_MUTED[1], C_LIGHT_MUTED[2])
+      textCenter('QUEUED', xCursor + (colStatusW / 2), y + 4.2)
+    } else if (rowStatus === 'PASS' || rowStatus === 'APPROVED') {
       pdf.setTextColor(C_GREEN[0], C_GREEN[1], C_GREEN[2])
       textCenter('PASS', xCursor + (colStatusW / 2), y + 4.2)
     } else if (rowStatus === 'WARNING') {

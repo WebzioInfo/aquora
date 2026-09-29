@@ -49,6 +49,7 @@ namespace Aquora.Application
             services.AddScoped<IGlobalSearchService, GlobalSearchService>();
 
             services.AddScoped<IReportService, ReportService>();
+            services.AddScoped<IUserProfileService, UserProfileService>();
 
 
             return services;

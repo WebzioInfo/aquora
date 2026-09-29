@@ -65,6 +65,7 @@ namespace Aquora.Persistence.Services
                 ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""Currency"" text NOT NULL DEFAULT 'USD';
                 ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""Language"" text NOT NULL DEFAULT 'en';
                 ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""LogoUrl"" text NULL;
+                ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""LogoPublicId"" text NULL;
                 ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""Theme"" text NOT NULL DEFAULT 'light';
                 ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""StorageUsedMb"" double precision NOT NULL DEFAULT 0.0;
                 ALTER TABLE public.""Tenants"" ADD COLUMN IF NOT EXISTS ""ActiveUsersCount"" integer NOT NULL DEFAULT 0;
@@ -77,8 +78,28 @@ namespace Aquora.Persistence.Services
                 ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""Salary"" numeric NULL;
                 ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""JoiningDate"" timestamp with time zone NULL;
                 ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""PhotoUrl"" text NULL;
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""PhotoPublicId"" text NULL;
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""SignatureUrl"" text NULL;
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""SignaturePublicId"" text NULL;
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""Qualification"" text NULL;
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""CertificationDetails"" text NULL;
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""ExperienceYears"" integer NULL;
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""AssignedLabStation"" text NULL;
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""QcResponsibilities"" text NULL;
                 ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""DevicesCount"" integer NOT NULL DEFAULT 1;
                 ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""CurrentSalary"" numeric NULL;
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""PinHash"" text NULL;
+                ALTER TABLE public.""Users"" ADD COLUMN IF NOT EXISTS ""TokenVersion"" integer NOT NULL DEFAULT 0;
+
+                ALTER TABLE public.""OTPVerifications"" ADD COLUMN IF NOT EXISTS ""VerifiedAt"" timestamp with time zone NULL;
+                ALTER TABLE public.""OTPVerifications"" ADD COLUMN IF NOT EXISTS ""IsUsed"" boolean NOT NULL DEFAULT false;
+                ALTER TABLE public.""OTPVerifications"" ADD COLUMN IF NOT EXISTS ""UsedAt"" timestamp with time zone NULL;
+                ALTER TABLE public.""OTPVerifications"" ADD COLUMN IF NOT EXISTS ""ResetToken"" text NULL;
+                ALTER TABLE public.""OTPVerifications"" ADD COLUMN IF NOT EXISTS ""ResetTokenExpiryTime"" timestamp with time zone NULL;
+                ALTER TABLE public.""OTPVerifications"" ADD COLUMN IF NOT EXISTS ""NewEmail"" text NULL;
+                ALTER TABLE public.""OTPVerifications"" ADD COLUMN IF NOT EXISTS ""Attempts"" integer NOT NULL DEFAULT 0;
+                ALTER TABLE public.""OTPVerifications"" ADD COLUMN IF NOT EXISTS ""SendCount"" integer NOT NULL DEFAULT 0;
+                ALTER TABLE public.""OTPVerifications"" ADD COLUMN IF NOT EXISTS ""LastSentAt"" timestamp with time zone NULL;
 
                 CREATE TABLE IF NOT EXISTS public.""SubscriptionPlans"" (
                     ""Id"" uuid NOT NULL PRIMARY KEY,

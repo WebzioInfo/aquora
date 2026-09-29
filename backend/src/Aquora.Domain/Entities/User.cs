@@ -31,7 +31,17 @@ namespace Aquora.Domain.Entities
         public decimal? CurrentSalary { get; set; }
         public DateTime? JoiningDate { get; set; }
         public string? PhotoUrl { get; set; }
+        public string? PhotoPublicId { get; set; }
         public int DevicesCount { get; set; } = 1;
+
+        // Professional & QC Metadata
+        public string? Qualification { get; set; }
+        public string? CertificationDetails { get; set; }
+        public int? ExperienceYears { get; set; }
+        public string? AssignedLabStation { get; set; }
+        public string? QcResponsibilities { get; set; }
+        public string? SignatureUrl { get; set; }
+        public string? SignaturePublicId { get; set; }
 
         public Guid? TenantId { get; set; }
         public virtual Tenant Tenant { get; set; }
