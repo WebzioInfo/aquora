@@ -95,6 +95,16 @@ export interface PagedVendorsResponse {
   pageSize: number
 }
 
+export interface RecordVendorPaymentRequest {
+  amount: number
+  paymentDate?: string
+  paymentMethod: 'BankAccount' | 'Cash' | string
+  bankAccountId?: string
+  cashBookId?: string
+  referenceNumber?: string
+  notes?: string
+}
+
 export const vendorService = {
   getVendors: async (params?: {
     pageNumber?: number
@@ -138,5 +148,10 @@ export const vendorService = {
   deleteVendor: async (id: string) => {
     const res = await api.delete(`/api/v1/vendors/${id}`)
     return res.data
+  },
+
+  recordPayment: async (id: string, request: RecordVendorPaymentRequest) => {
+    const res = await api.post<{ data: Vendor }>(`/api/v1/vendors/${id}/payments`, request)
+    return res.data.data
   }
 }

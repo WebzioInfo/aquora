@@ -527,5 +527,91 @@ export const simpleAccountsService = {
   deleteCashDeposit: async (ledgerEntryId: string) => {
     const res = await api.delete<{ data: boolean }>(`/api/v1/cash-books/deposit/${ledgerEntryId}`)
     return res.data.data
+  },
+
+  // Unified Accounts Ledger
+  getUnifiedLedger: async (params?: UnifiedLedgerFilter) => {
+    const res = await api.get<{ data: { items: UnifiedLedgerEntry[], totalCount: number, pageNumber: number, pageSize: number, totalPages: number } }>('/api/v1/accounts-ledger/transactions', { params })
+    return res.data.data
+  },
+
+  getUnifiedLedgerSummary: async (params?: UnifiedLedgerFilter) => {
+    const res = await api.get<{ data: UnifiedLedgerSummary }>('/api/v1/accounts-ledger/summary', { params })
+    return res.data.data
+  },
+
+  getAccountsMetadata: async () => {
+    const res = await api.get<{ data: AccountsMetadata }>('/api/v1/accounts-ledger/accounts')
+    return res.data.data
   }
 }
+
+export interface UnifiedLedgerEntry {
+  id: string
+  accountType: 'BANK' | 'CASH'
+  bankAccountId?: string
+  cashBookId?: string
+  accountName: string
+  bankName?: string
+  accountNumber?: string
+  transactionDate: string
+  referenceNumber: string
+  transactionType: string
+  eventType?: string
+  eventLabel?: string
+  auditNotes?: string
+  description: string
+  debit: number
+  credit: number
+  amount: number
+  runningBalance: number
+  relatedEntityId?: string
+  relatedEntityType?: string
+  ledgerSequence: number
+  createdAt: string
+  createdBy: string
+}
+
+export interface UnifiedLedgerFilter {
+  accountType?: 'ALL' | 'BANK' | 'CASH'
+  bankAccountId?: string
+  cashBookId?: string
+  search?: string
+  dateFrom?: string
+  dateTo?: string
+  transactionType?: string
+  createdBy?: string
+  minAmount?: number
+  maxAmount?: number
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
+  pageNumber?: number
+  pageSize?: number
+}
+
+export interface UnifiedLedgerSummary {
+  accountType: string
+  selectedAccountId?: string
+  totalBalance: number
+  totalBankBalance: number
+  totalCashBalance: number
+  activeBankAccountsCount: number
+  activeCashBooksCount: number
+  totalTransactions: number
+  totalMoneyReceived: number
+  totalMoneyPaid: number
+  netCashFlow: number
+  todaysTransactions: number
+  thisMonthTransactions: number
+}
+
+export interface AccountsMetadata {
+  bankAccounts: BankAccountDropdown[]
+  cashBooks: CashBookDropdown[]
+  totalBankBalance: number
+  totalCashBalance: number
+  totalBalance: number
+  activeBankAccountsCount: number
+  activeCashBooksCount: number
+}
+

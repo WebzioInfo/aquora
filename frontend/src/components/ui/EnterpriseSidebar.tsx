@@ -37,6 +37,18 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
   const location = useLocation()
   const [openSubMenus, setOpenSubMenus] = React.useState<Record<string, boolean>>({})
 
+  // Automatically keep submenu open if any child route is active
+  React.useEffect(() => {
+    items.forEach((item) => {
+      if (item.children && item.children.length > 0) {
+        const isAnyChildActive = item.children.some(child => location.pathname === child.path || location.pathname.startsWith(child.path + '/'))
+        if (isAnyChildActive) {
+          setOpenSubMenus(prev => ({ ...prev, [item.label]: true }))
+        }
+      }
+    })
+  }, [location.pathname, items])
+
   const toggleSubMenu = (label: string) => {
     setOpenSubMenus(prev => ({ ...prev, [label]: !prev[label] }))
   }

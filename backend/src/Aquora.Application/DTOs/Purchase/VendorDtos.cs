@@ -98,4 +98,15 @@ namespace Aquora.Application.DTOs.Purchase
         public List<VendorLedgerEntryDto> Ledger { get; set; } = new();
         public List<VendorTimelineEventDto> Timeline { get; set; } = new();
     }
+
+    public class RecordVendorPaymentRequest
+    {
+        public decimal Amount { get; set; }
+        public DateTime PaymentDate { get; set; } = DateTime.UtcNow;
+        public string PaymentMethod { get; set; } = "BankAccount"; // "BankAccount" or "Cash"
+        public Guid? BankAccountId { get; set; }
+        public Guid? CashBookId { get; set; }
+        public string? ReferenceNumber { get; set; }
+        public string? Notes { get; set; }
+    }
 }

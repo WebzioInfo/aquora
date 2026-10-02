@@ -552,8 +552,8 @@ export const BankAccountDetailsPage: React.FC = () => {
         </div>
         <h2 className="text-lg font-bold text-slate-900 mb-1">Bank account not found.</h2>
         <p className="text-xs text-slate-500 mb-4 max-w-xs">The requested bank account does not exist or was removed.</p>
-        <EnterpriseButton variant="primary" onClick={() => navigate('/company/accounts/bank-accounts')}>
-          Back to Bank Accounts
+        <EnterpriseButton variant="primary" onClick={() => navigate('/company/accounts/ledger?type=bank')}>
+          Back to Accounts Ledger
         </EnterpriseButton>
       </div>
     )
@@ -612,7 +612,7 @@ export const BankAccountDetailsPage: React.FC = () => {
             >
               <PlusCircle className="w-4 h-4" /> Add Money
             </EnterpriseButton>
-            <EnterpriseButton variant="secondary" onClick={() => navigate('/company/accounts/bank-accounts')}>
+            <EnterpriseButton variant="secondary" onClick={() => navigate('/company/accounts/ledger?type=bank')}>
               <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
             </EnterpriseButton>
           </div>

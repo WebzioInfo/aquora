@@ -39,6 +39,7 @@ const PayrollPage = React.lazy(() => import('../pages/company/accounts/PayrollPa
 const BankAccountsPage = React.lazy(() => import('../pages/company/accounts/BankAccountsPage'))
 const BankAccountDetailsPage = React.lazy(() => import('../pages/company/accounts/BankAccountDetailsPage'))
 const LedgerPage = React.lazy(() => import('../pages/company/accounts/LedgerPage'))
+const UnifiedTransactionsPage = React.lazy(() => import('../pages/company/accounts/UnifiedTransactionsPage'))
 const CashBooksPage = React.lazy(() => import('../pages/company/accounts/CashBooksPage'))
 const CashBookDetailsPage = React.lazy(() => import('../pages/company/accounts/CashBookDetailsPage'))
 const OwnerListPage = React.lazy(() => import('../pages/company/accounts/OwnerListPage'))
@@ -657,12 +658,11 @@ export const AppRoutes: React.FC = () => {
           <Route path="accounts/vendors" element={<VendorsPage />} />
           <Route path="accounts/vendors/:id" element={<VendorDetailsPage />} />
           <Route path="accounts/payroll" element={<PayrollPage />} />
-          <Route path="accounts/ledger" element={<LedgerPage />}>
-            <Route index element={<Navigate to="/company/accounts/ledger/bank-accounts" replace />} />
-            <Route path="bank-accounts" element={<BankAccountsPage />} />
-            <Route path="cash-books" element={<CashBooksPage />} />
-          </Route>
-          <Route path="accounts/bank-accounts" element={<Navigate to="/company/accounts/ledger/bank-accounts" replace />} />
+          <Route path="accounts/ledger" element={<UnifiedTransactionsPage />} />
+          <Route path="accounts/ledger/bank-accounts" element={<Navigate to="/company/accounts/ledger?type=bank" replace />} />
+          <Route path="accounts/ledger/cash-books" element={<Navigate to="/company/accounts/ledger?type=cash" replace />} />
+          <Route path="accounts/bank-accounts" element={<Navigate to="/company/accounts/ledger?type=bank" replace />} />
+          <Route path="accounts/cash-books" element={<Navigate to="/company/accounts/ledger?type=cash" replace />} />
           <Route path="accounts/bank-accounts/:id" element={<BankAccountDetailsPage />} />
           <Route path="accounts/cash-books/:id" element={<CashBookDetailsPage />} />
           <Route path="accounts/owners" element={<OwnerListPage />} />

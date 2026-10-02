@@ -28,5 +28,9 @@ namespace Aquora.Application.Interfaces.Services
             decimal oldNetSalary,
             decimal newNetSalary,
             string auditRemarks);
+
+        Task<PagedResult<UnifiedLedgerEntryDto>> GetUnifiedLedgerAsync(UnifiedLedgerFilterDto filter);
+        Task<UnifiedLedgerSummaryDto> GetUnifiedLedgerSummaryAsync(UnifiedLedgerFilterDto filter);
+        Task<AccountsMetadataDto> GetAccountsMetadataAsync();
     }
 }

@@ -237,6 +237,28 @@ namespace Aquora.Application.Services
                 }
             }
 
+            // Direct vendor payments
+            var directPayments = await _context.BankLedgerEntries
+                .Where(e => e.RelatedEntityType == "Vendor" && e.RelatedEntityId == id)
+                .ToListAsync();
+
+            foreach (var dp in directPayments)
+            {
+                runningBal -= dp.Debit;
+                ledger.Add(new VendorLedgerEntryDto
+                {
+                    Id = dp.Id,
+                    Date = dp.TransactionDate,
+                    TransactionType = "Vendor Payment",
+                    VoucherNo = dp.ReferenceNumber,
+                    Credit = 0,
+                    Debit = dp.Debit,
+                    RunningBalance = runningBal,
+                    Reference = dp.ReferenceNumber,
+                    Remarks = dp.Description
+                });
+            }
+
             // Construct Timeline Events
             var timeline = new List<VendorTimelineEventDto>
             {
@@ -249,6 +271,18 @@ namespace Aquora.Application.Services
                     Details = $"Registered vendor {vendorDto.Name} with opening balance ₹{vendorDto.OpeningBalance:N2}"
                 }
             };
+
+            foreach (var dp in directPayments)
+            {
+                timeline.Add(new VendorTimelineEventDto
+                {
+                    Id = Guid.NewGuid(),
+                    EventDate = dp.TransactionDate,
+                    Action = "Direct Payment Recorded",
+                    PerformedByName = dp.CreatedBy ?? "Company Administrator",
+                    Details = $"Paid ₹{dp.Debit:N2}. Ref: {dp.ReferenceNumber}"
+                });
+            }
 
             foreach (var p in purchases)
             {
@@ -383,6 +417,138 @@ namespace Aquora.Application.Services
             await _context.SaveChangesAsync();
 
             return true;
+        }
+
+        public async Task<VendorDto> RecordPaymentAsync(Guid id, RecordVendorPaymentRequest request)
+        {
+            var vendor = await _context.Vendors.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+            if (vendor == null)
+            {
+                throw new ArgumentException("Vendor record not found.");
+            }
+
+            if (request.Amount <= 0)
+            {
+                throw new ArgumentException("Payment amount must be greater than zero.");
+            }
+
+            if (vendor.CurrentBalance <= 0)
+            {
+                throw new ArgumentException("Vendor has no outstanding balance to pay.");
+            }
+
+            if (request.Amount > vendor.CurrentBalance)
+            {
+                throw new ArgumentException($"Payment amount (₹{request.Amount:N2}) cannot exceed current outstanding balance of ₹{vendor.CurrentBalance:N2}.");
+            }
+
+            var tenantId = GetTenantId();
+            var companyId = await GetCompanyIdAsync();
+            var randomCode = new Random().Next(1000, 9999);
+            var paymentRef = string.IsNullOrWhiteSpace(request.ReferenceNumber)
+                ? $"PAY-VND-{DateTime.UtcNow:yyyyMMdd}-{randomCode}"
+                : request.ReferenceNumber.Trim();
+            var paymentDate = request.PaymentDate != default ? request.PaymentDate : DateTime.UtcNow;
+
+            // Deduct from vendor balance
+            vendor.CurrentBalance = Math.Max(0m, vendor.CurrentBalance - request.Amount);
+            vendor.UpdatedAt = DateTime.UtcNow;
+
+            // FIFO allocate across any unpaid purchases for this vendor
+            var openPurchases = await _context.Purchases
+                .Include(p => p.Payments)
+                .Where(p => p.VendorId == id && !p.IsDeleted && !p.IsCancelled && p.BalanceAmount > 0)
+                .OrderBy(p => p.PurchaseDate)
+                .ToListAsync();
+
+            decimal remainingPayment = request.Amount;
+            foreach (var p in openPurchases)
+            {
+                if (remainingPayment <= 0) break;
+                decimal alloc = Math.Min(remainingPayment, p.BalanceAmount);
+                p.AmountPaid += alloc;
+                p.BalanceAmount = Math.Max(0m, p.GrandTotal - p.AmountPaid);
+                p.PaymentStatus = p.BalanceAmount <= 0 ? "Paid" : "Partially Paid";
+                p.UpdatedAt = DateTime.UtcNow;
+
+                var payment = new PurchasePayment
+                {
+                    Id = Guid.NewGuid(),
+                    PurchaseId = p.Id,
+                    PaymentDate = paymentDate,
+                    Amount = alloc,
+                    PaymentMethod = request.PaymentMethod,
+                    BankAccountId = request.BankAccountId,
+                    CashBookId = request.CashBookId,
+                    ReferenceNo = paymentRef,
+                    Notes = request.Notes,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = "Company Administrator"
+                };
+                _context.PurchasePayments.Add(payment);
+                p.Payments.Add(payment);
+                remainingPayment -= alloc;
+            }
+
+            // Post to bank account or cash book
+            if (request.PaymentMethod == "BankAccount" && request.BankAccountId.HasValue)
+            {
+                var bank = await _context.BankAccounts.FirstOrDefaultAsync(b => b.Id == request.BankAccountId.Value && !b.IsDeleted);
+                if (bank != null)
+                {
+                    bank.CurrentBalance -= request.Amount;
+                    _context.BankLedgerEntries.Add(new BankLedgerEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenantId,
+                        CompanyId = companyId,
+                        BankAccountId = bank.Id,
+                        LedgerAccountType = "BankAccount",
+                        TransactionDate = paymentDate,
+                        ReferenceNumber = paymentRef,
+                        TransactionType = "Debit",
+                        Description = $"Payment to vendor {vendor.Name}. Ref: {paymentRef}",
+                        Debit = request.Amount,
+                        Credit = 0,
+                        RunningBalance = bank.CurrentBalance,
+                        RelatedEntityId = vendor.Id,
+                        RelatedEntityType = "Vendor",
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "Company Administrator"
+                    });
+                }
+            }
+            else if (request.PaymentMethod == "Cash" && request.CashBookId.HasValue)
+            {
+                var cash = await _context.CashBooks.FirstOrDefaultAsync(c => c.Id == request.CashBookId.Value && !c.IsDeleted);
+                if (cash != null)
+                {
+                    cash.CurrentBalance -= request.Amount;
+                    _context.BankLedgerEntries.Add(new BankLedgerEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenantId,
+                        CompanyId = companyId,
+                        CashBookId = cash.Id,
+                        LedgerAccountType = "CashBook",
+                        TransactionDate = paymentDate,
+                        ReferenceNumber = paymentRef,
+                        TransactionType = "Debit",
+                        Description = $"Cash payment to vendor {vendor.Name}. Ref: {paymentRef}",
+                        Debit = request.Amount,
+                        Credit = 0,
+                        RunningBalance = cash.CurrentBalance,
+                        RelatedEntityId = vendor.Id,
+                        RelatedEntityType = "Vendor",
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "Company Administrator"
+                    });
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return (await GetVendorByIdAsync(vendor.Id))!;
         }
     }
 }

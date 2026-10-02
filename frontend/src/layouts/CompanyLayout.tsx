@@ -260,8 +260,14 @@ export const CompanyLayout: React.FC = () => {
     setShowQuickActions(false)
   }
 
+  const isFitScreenRoute =
+    location.pathname === '/company/accounts/expenses' ||
+    location.pathname === '/company/accounts/purchases' ||
+    location.pathname === '/company/accounts/vendors' ||
+    location.pathname === '/company/accounts/payroll'
+
   return (
-    <div className="min-h-screen flex bg-[#F7F9FC] text-[#101828]">
+    <div className={`flex bg-[#F7F9FC] text-[#101828] ${isFitScreenRoute ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'}`}>
       <GlobalSearchModal />
 
       {/* Reusable Enterprise Sidebar */}
@@ -276,7 +282,7 @@ export const CompanyLayout: React.FC = () => {
 
       {/* Main Panel Viewport */}
       <div
-        className="flex-1 flex flex-col min-w-0 transition-all duration-300"
+        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isFitScreenRoute ? 'h-full overflow-hidden' : ''}`}
         style={{ paddingLeft: sidebarCollapsed ? '80px' : '256px' }}
       >
         <EnterpriseTopbar
@@ -295,7 +301,7 @@ export const CompanyLayout: React.FC = () => {
         />
 
         {/* Content Viewport */}
-        <main className="flex-1 p-6 relative">
+        <main className={`flex-1 relative ${isFitScreenRoute ? 'overflow-hidden min-h-0 p-3 sm:p-4 md:p-5 flex flex-col' : 'p-6'}`}>
           {/* Quick Actions Portal Trigger Floating Button or Topbar Hook */}
 
 

@@ -535,8 +535,8 @@ const CashBookDetailsPage: React.FC = () => {
         <p className="text-xs text-slate-500 mb-4 max-w-xs">
           The cash book you are trying to view does not exist or has been deleted.
         </p>
-        <EnterpriseButton variant="primary" onClick={() => navigate('/company/accounts/ledger/cash-books')}>
-          Back to Cash Books
+        <EnterpriseButton variant="primary" onClick={() => navigate('/company/accounts/ledger?type=cash')}>
+          Back to Accounts Ledger
         </EnterpriseButton>
       </div>
     )
@@ -589,7 +589,7 @@ const CashBookDetailsPage: React.FC = () => {
             >
               <PlusCircle className="w-4 h-4" /> Add Money
             </EnterpriseButton>
-            <EnterpriseButton variant="secondary" onClick={() => navigate('/company/accounts/ledger/cash-books')}>
+            <EnterpriseButton variant="secondary" onClick={() => navigate('/company/accounts/ledger?type=cash')}>
               <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
             </EnterpriseButton>
           </div>

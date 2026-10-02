@@ -186,5 +186,29 @@ namespace Aquora.API.Controllers
                 return BadRequest(ApiResponse<object>.CreateFailure("Unable to delete vendor. Please try again.", "Error", HttpContext.TraceIdentifier));
             }
         }
+
+        [HttpPost("{id:guid}/payments")]
+        public async Task<IActionResult> RecordVendorPayment(Guid id, [FromBody] RecordVendorPaymentRequest request)
+        {
+            if (request == null || request.Amount <= 0)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure("Payment amount must be greater than zero.", "Validation Error", HttpContext.TraceIdentifier));
+            }
+
+            try
+            {
+                var updated = await _vendorService.RecordPaymentAsync(id, request);
+                return Ok(ApiResponse<VendorDto>.CreateSuccess(updated, $"Payment of ₹{request.Amount:N2} recorded successfully for {updated.Name}."));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Validation Error", HttpContext.TraceIdentifier));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to record payment for vendor {Id}", id);
+                return BadRequest(ApiResponse<object>.CreateFailure("Something went wrong while recording vendor payment. Please try again.", "Error", HttpContext.TraceIdentifier));
+            }
+        }
     }
 }

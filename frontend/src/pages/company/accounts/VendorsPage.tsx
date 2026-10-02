@@ -1,59 +1,104 @@
-import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import {
-  Users,
-  Plus,
-  Search,
-  Building2,
-  Phone,
-  Mail,
-  FileText,
-  Trash2,
-  Edit2,
-  RefreshCw,
-  Eye,
-  ToggleLeft,
-  ToggleRight,
-  ShoppingBag,
-  DollarSign,
-  Printer
-} from 'lucide-react'
-import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
-import { vendorService, type Vendor, type CreateVendorRequest } from '../../../services/vendors'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { RefreshCw, Plus } from 'lucide-react'
+import { vendorService, type Vendor } from '../../../services/vendors'
 import { useNotificationStore } from '../../../store/useNotificationStore'
 import { useAuthStore } from '../../../store/useAuthStore'
-import EnterpriseHeader from '../../../components/ui/EnterpriseHeader'
-import EnterpriseCard from '../../../components/ui/EnterpriseCard'
+
+// Shared UI components
+import PageHeader from '../../../components/ui/PageHeader'
+import FitScreenPage from '../../../components/ui/FitScreenPage'
 import EnterpriseButton from '../../../components/ui/EnterpriseButton'
-import EnterpriseBadge from '../../../components/ui/EnterpriseBadge'
 import EnterpriseModal from '../../../components/ui/EnterpriseModal'
-import EnterpriseLoading from '../../../components/ui/EnterpriseLoading'
 import EnterpriseNumberInput from '../../../components/ui/EnterpriseNumberInput'
+import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
+
+// Vendor Subcomponents
+import { VendorKpiCards } from './vendors/VendorKpiCards'
+import { VendorFilters, type VendorStatusChip, type VendorViewMode } from './vendors/VendorFilters'
+import { VendorBulkBar } from './vendors/VendorBulkBar'
+import { VendorsTable } from './vendors/VendorsTable'
+import { VendorDetailDrawer } from './vendors/VendorDetailDrawer'
+import { VendorPaymentModal } from './vendors/VendorPaymentModal'
+import { formatINR } from './vendors/vendorHelpers'
 
 export const VendorsPage: React.FC = () => {
-  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { showToast } = useNotificationStore()
   const { user } = useAuthStore()
-  const isOwner = (user?.roles?.some(r => ['owner', 'companyowner', 'platformowner'].includes(r.toLowerCase())) || user?.roleName?.toLowerCase() === 'owner') ?? false
-  const canWrite = !isOwner && (user?.roles?.some(r => ['CompanyAdmin', 'Admin', 'Manager', 'Accountant'].includes(r)) ?? false)
 
-  const [vendors, setVendors] = useState<Vendor[]>([])
+  const isOwner =
+    (user?.roles?.some(r =>
+      ['owner', 'companyowner', 'platformowner'].includes(r.toLowerCase())
+    ) || user?.roleName?.toLowerCase() === 'owner') ??
+    false
+  const canWrite =
+    !isOwner &&
+    (user?.roles?.some(r =>
+      ['CompanyAdmin', 'Admin', 'Manager', 'Accountant'].includes(r)
+    ) ??
+      false)
+
+  // 1. URL & LocalStorage State
+  const initialSearch = searchParams.get('search') || ''
+  const initialStatus = (searchParams.get('status') as VendorStatusChip) || 'all'
+  const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1)
+  const savedLimit = localStorage.getItem('vendor_page_size')
+  const initialPageSize = savedLimit ? parseInt(savedLimit, 10) : 25
+  const savedView = (localStorage.getItem('vendor_view_mode') as VendorViewMode) || 'table'
+
+  const [search, setSearch] = useState<string>(initialSearch)
+  const [debouncedSearch, setDebouncedSearch] = useState<string>(initialSearch)
+  const [statusChip, setStatusChip] = useState<VendorStatusChip>(initialStatus)
+  const [pageNumber, setPageNumber] = useState<number>(initialPage)
+  const [pageSize, setPageSize] = useState<number>(initialPageSize)
+  const [viewMode, setViewMode] = useState<VendorViewMode>(savedView)
+
+  // Debounce search
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search)
+      setPageNumber(1)
+    }, 300)
+    return () => clearTimeout(handler)
+  }, [search])
+
+  // Sync to URL & LocalStorage
+  useEffect(() => {
+    const params: Record<string, string> = {}
+    if (debouncedSearch) params.search = debouncedSearch
+    if (statusChip !== 'all') params.status = statusChip
+    if (pageNumber > 1) params.page = String(pageNumber)
+    if (pageSize !== 25) params.limit = String(pageSize)
+    setSearchParams(params, { replace: true })
+  }, [debouncedSearch, statusChip, pageNumber, pageSize, setSearchParams])
+
+  useEffect(() => {
+    localStorage.setItem('vendor_page_size', String(pageSize))
+  }, [pageSize])
+
+  useEffect(() => {
+    localStorage.setItem('vendor_view_mode', viewMode)
+  }, [viewMode])
+
+  // 2. Data States
+  const [rawVendors, setRawVendors] = useState<Vendor[]>([])
   const [loading, setLoading] = useState<boolean>(true)
-  const [search, setSearch] = useState<string>('')
-  const [pageNumber, setPageNumber] = useState<number>(1)
-  const [pageSize] = useState<number>(10)
-  const [totalCount, setTotalCount] = useState<number>(0)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null)
 
-  // Modal State
-  const [showModal, setShowModal] = useState<boolean>(false)
+  // Active drawer & modals
+  const [activeDrawerVendor, setActiveDrawerVendor] = useState<Vendor | null>(null)
+  const [paymentVendor, setPaymentVendor] = useState<Vendor | null>(null)
+  const [showAddEditModal, setShowAddEditModal] = useState<boolean>(false)
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null)
-  const [submitting, setSubmitting] = useState<boolean>(false)
+  const [submittingVendor, setSubmittingVendor] = useState<boolean>(false)
 
-  // Print Preview Modal States
-  const [printModalOpen, setPrintModalOpen] = useState(false)
+  // Print modal
+  const [printModalOpen, setPrintModalOpen] = useState<boolean>(false)
   const [printDocData, setPrintDocData] = useState<any>(null)
 
-  // Form State
+  // Add/Edit Form state
   const [formData, setFormData] = useState<{
     name: string
     phone: string
@@ -74,28 +119,152 @@ export const VendorsPage: React.FC = () => {
     notes: ''
   })
 
-  const fetchVendors = async () => {
+  // 3. Fetch Vendors
+  const fetchVendors = useCallback(async () => {
     setLoading(true)
     try {
+      // Fetch up to 1000 items so client-side chip filtering, share-of-payable, and pagination remain 100% accurate
       const data = await vendorService.getVendors({
-        pageNumber,
-        pageSize,
-        search
+        pageNumber: 1,
+        pageSize: 1000,
+        search: debouncedSearch || undefined
       })
-      setVendors(data.items || [])
-      setTotalCount(data.totalCount || 0)
+      setRawVendors(data.items || [])
     } catch (err: any) {
       showToast(err?.message || 'Failed to load vendors', 'error')
     } finally {
       setLoading(false)
     }
-  }
+  }, [debouncedSearch, showToast])
 
   useEffect(() => {
     fetchVendors()
-  }, [pageNumber, search])
+  }, [fetchVendors])
 
-  const handlePrintVendorStatement = (vendor: Vendor) => {
+  // 4. Client-side filter by statusChip
+  const filteredVendors = useMemo(() => {
+    return rawVendors.filter(v => {
+      if (statusChip === 'with-balance') return (v.currentBalance || 0) > 0
+      if (statusChip === 'settled') return (v.currentBalance || 0) === 0
+      if (statusChip === 'inactive') return !v.isActive
+      return true
+    })
+  }, [rawVendors, statusChip])
+
+  const totalFilteredCount = filteredVendors.length
+  const totalPayableFiltered = useMemo(() => {
+    return filteredVendors.reduce((sum, v) => sum + (v.currentBalance || 0), 0)
+  }, [filteredVendors])
+
+  // Total pages and out-of-range clamping
+  const totalPages = Math.max(1, Math.ceil(totalFilteredCount / pageSize))
+  useEffect(() => {
+    if (totalFilteredCount > 0 && pageNumber > totalPages) {
+      setPageNumber(totalPages)
+    }
+  }, [totalFilteredCount, pageNumber, totalPages])
+
+  // Paginated slice
+  const paginatedVendors = useMemo(() => {
+    const start = (pageNumber - 1) * pageSize
+    return filteredVendors.slice(start, start + pageSize)
+  }, [filteredVendors, pageNumber, pageSize])
+
+  // Clear selection on page, view, or filter change
+  useEffect(() => {
+    setSelectedIds(new Set())
+    setLastSelectedIndex(null)
+  }, [pageNumber, pageSize, statusChip, debouncedSearch, viewMode])
+
+  // 5. Selection Handlers with shift-click support
+  const handleToggleSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const shiftKey = e.shiftKey
+    const currentIndex = paginatedVendors.findIndex(v => v.id === id)
+
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (shiftKey && lastSelectedIndex !== null && lastSelectedIndex !== currentIndex && currentIndex !== -1) {
+        const start = Math.min(lastSelectedIndex, currentIndex)
+        const end = Math.max(lastSelectedIndex, currentIndex)
+        for (let i = start; i <= end; i++) {
+          if (paginatedVendors[i]) next.add(paginatedVendors[i].id)
+        }
+      } else {
+        if (next.has(id)) next.delete(id)
+        else next.add(id)
+      }
+      return next
+    })
+    setLastSelectedIndex(currentIndex !== -1 ? currentIndex : null)
+  }
+
+  const handleToggleSelectAll = () => {
+    const isAllSelected =
+      paginatedVendors.length > 0 && paginatedVendors.every(v => selectedIds.has(v.id))
+    if (isAllSelected) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(paginatedVendors.map(v => v.id)))
+    }
+  }
+
+  const selectedVendorsList = useMemo(() => {
+    return rawVendors.filter(v => selectedIds.has(v.id))
+  }, [rawVendors, selectedIds])
+
+  const totalPayableSelected = useMemo(() => {
+    return selectedVendorsList.reduce((sum, v) => sum + (v.currentBalance || 0), 0)
+  }, [selectedVendorsList])
+
+  // 6. Drawer Navigation Next/Prev
+  const drawerIndex = activeDrawerVendor
+    ? filteredVendors.findIndex(v => v.id === activeDrawerVendor.id)
+    : -1
+  const hasPrevDrawer = drawerIndex > 0
+  const hasNextDrawer = drawerIndex >= 0 && drawerIndex < filteredVendors.length - 1
+
+  const handleDrawerPrev = () => {
+    if (hasPrevDrawer) setActiveDrawerVendor(filteredVendors[drawerIndex - 1])
+  }
+  const handleDrawerNext = () => {
+    if (hasNextDrawer) setActiveDrawerVendor(filteredVendors[drawerIndex + 1])
+  }
+
+  // 7. Actions: Toggle Status, Delete, Print, Payment
+  const handleToggleStatus = async (vendor: Vendor) => {
+    try {
+      await vendorService.toggleVendorStatus(vendor.id)
+      showToast(`Status updated for vendor "${vendor.name}".`, 'info')
+      fetchVendors()
+      if (activeDrawerVendor?.id === vendor.id) {
+        setActiveDrawerVendor(prev => (prev ? { ...prev, isActive: !prev.isActive } : null))
+      }
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to toggle status', 'error')
+    }
+  }
+
+  const handleDelete = async (vendor: Vendor) => {
+    const hasHistory = (vendor.totalPurchasesCount || 0) > 0 || (vendor.openingBalance || 0) > 0
+    if (hasHistory) {
+      showToast(`Cannot delete vendor "${vendor.name}" with purchase or ledger history.`, 'warning')
+      return
+    }
+
+    if (!window.confirm(`Are you sure you want to permanently delete vendor "${vendor.name}"?`)) return
+
+    try {
+      await vendorService.deleteVendor(vendor.id)
+      showToast('Vendor deleted successfully.', 'info')
+      if (activeDrawerVendor?.id === vendor.id) setActiveDrawerVendor(null)
+      fetchVendors()
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to delete vendor', 'error')
+    }
+  }
+
+  const handlePrintStatement = (vendor: Vendor) => {
     setPrintDocData({
       title: 'Vendor Statement',
       docNumber: vendor.vendorCode || `VND-${vendor.id.substring(0, 4).toUpperCase()}`,
@@ -106,7 +275,7 @@ export const VendorsPage: React.FC = () => {
         details1: `Email: ${vendor.email || 'N/A'} | Phone: ${vendor.phone || 'N/A'}`,
         details2: `GST: ${vendor.gst || 'N/A'} | Address: ${vendor.address || '—'}`
       },
-      preparedBy: 'Accounts Admin',
+      preparedBy: user?.fullName || 'Accounts Administrator',
       paymentDetails: {
         method: 'Statement Record'
       },
@@ -125,14 +294,132 @@ export const VendorsPage: React.FC = () => {
       financialSummary: {
         subTotal: (Number(vendor.openingBalance) || 0) + (vendor.totalPurchaseValue || 0),
         grandTotal: (Number(vendor.openingBalance) || 0) + (vendor.totalPurchaseValue || 0),
-        amountPaid: ((Number(vendor.openingBalance) || 0) + (vendor.totalPurchaseValue || 0)) - (vendor.currentBalance || 0),
+        amountPaid:
+          (Number(vendor.openingBalance) || 0) +
+          (vendor.totalPurchaseValue || 0) -
+          (vendor.currentBalance || 0),
         balance: vendor.currentBalance || 0
       },
-      notes: vendor.notes || 'This statement summarizes the ledger standing for the vendor accounts.'
-    });
-    setPrintModalOpen(true);
-  };
+      notes: vendor.notes || 'This statement summarizes the creditor ledger standing.'
+    })
+    setPrintModalOpen(true)
+  }
 
+  const handleBulkPrintStatements = () => {
+    if (selectedVendorsList.length === 0) return
+    const totalOpen = selectedVendorsList.reduce((sum, v) => sum + (Number(v.openingBalance) || 0), 0)
+    const totalPurch = selectedVendorsList.reduce((sum, v) => sum + (Number(v.totalPurchaseValue) || 0), 0)
+    const totalBal = selectedVendorsList.reduce((sum, v) => sum + (Number(v.currentBalance) || 0), 0)
+
+    setPrintDocData({
+      title: 'Batch Vendor Statements',
+      docNumber: `BATCH-VND-${Date.now().toString().slice(-6)}`,
+      date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      partyLabel: 'Consolidated Creditors',
+      partyInfo: {
+        name: `${selectedVendorsList.length} Selected Vendors`,
+        details1: `Total Payable: ${formatINR(totalBal)}`,
+        details2: `Vendors: ${selectedVendorsList.map(v => v.name).slice(0, 3).join(', ')}${
+          selectedVendorsList.length > 3 ? '...' : ''
+        }`
+      },
+      preparedBy: user?.fullName || 'Accounts Administrator',
+      paymentDetails: {
+        method: 'Consolidated Statement'
+      },
+      items: selectedVendorsList.map((v, idx) => ({
+        sno: idx + 1,
+        description: `${v.name} (${v.vendorCode || 'VND'}) - Purchases: ${v.totalPurchasesCount || 0}`,
+        amount: v.currentBalance || 0
+      })),
+      financialSummary: {
+        subTotal: totalOpen + totalPurch,
+        grandTotal: totalOpen + totalPurch,
+        amountPaid: totalOpen + totalPurch - totalBal,
+        balance: totalBal
+      },
+      notes: `Consolidated vendor statement for ${selectedVendorsList.length} supplier accounts.`
+    })
+    setPrintModalOpen(true)
+  }
+
+  const handleExportCSV = (list = selectedVendorsList.length > 0 ? selectedVendorsList : filteredVendors) => {
+    if (list.length === 0) {
+      showToast('No vendor records to export', 'info')
+      return
+    }
+    const headers = [
+      'Code',
+      'Vendor Name',
+      'Phone',
+      'Email',
+      'GST',
+      'Address',
+      'Opening Balance',
+      'Purchases Count',
+      'Total Purchases',
+      'Outstanding Balance',
+      'Status'
+    ]
+    const rows = list.map(v => [
+      `"${v.vendorCode || ''}"`,
+      `"${v.name}"`,
+      `"${v.phone || ''}"`,
+      `"${v.email || ''}"`,
+      `"${v.gst || ''}"`,
+      `"${(v.address || '').replace(/"/g, '""')}"`,
+      v.openingBalance || 0,
+      v.totalPurchasesCount || 0,
+      v.totalPurchaseValue || 0,
+      v.currentBalance || 0,
+      v.isActive ? 'Active' : 'Inactive'
+    ])
+    const csvContent =
+      'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', `vendors_register_${new Date().toISOString().slice(0, 10)}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const handleBulkDeactivate = async () => {
+    if (selectedVendorsList.length === 0) return
+    const activeSelected = selectedVendorsList.filter(v => v.isActive)
+    if (activeSelected.length === 0) {
+      showToast('Selected vendors are already inactive', 'info')
+      return
+    }
+
+    if (!window.confirm(`Deactivate ${activeSelected.length} selected vendors?`)) return
+
+    let successCount = 0
+    let failureCount = 0
+    const failedIds = new Set<string>()
+
+    for (const v of activeSelected) {
+      try {
+        await vendorService.toggleVendorStatus(v.id)
+        successCount++
+      } catch {
+        failureCount++
+        failedIds.add(v.id)
+      }
+    }
+
+    if (failureCount > 0) {
+      showToast(`Deactivated ${successCount} vendors. ${failureCount} failed.`, 'warning')
+      setSelectedIds(failedIds)
+    } else {
+      showToast(`Successfully deactivated ${successCount} vendors.`, 'success')
+      setSelectedIds(new Set())
+    }
+    fetchVendors()
+  }
+
+  // 8. Add/Edit Vendor Modal Handlers
   const handleOpenCreateModal = () => {
     setEditingVendor(null)
     setFormData({
@@ -145,7 +432,7 @@ export const VendorsPage: React.FC = () => {
       creditLimit: 0,
       notes: ''
     })
-    setShowModal(true)
+    setShowAddEditModal(true)
   }
 
   const handleOpenEditModal = (vendor: Vendor) => {
@@ -156,390 +443,338 @@ export const VendorsPage: React.FC = () => {
       email: vendor.email || '',
       gst: vendor.gst || '',
       address: vendor.address || '',
-      openingBalance: vendor.openingBalance,
+      openingBalance: vendor.openingBalance || 0,
       creditLimit: vendor.creditLimit || 0,
       notes: vendor.notes || ''
     })
-    setShowModal(true)
+    setShowAddEditModal(true)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSaveVendor = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.name.trim()) {
       showToast('Vendor Name is required.', 'error')
       return
     }
 
-    setSubmitting(true)
+    setSubmittingVendor(true)
     try {
-      const parsedBalance = typeof formData.openingBalance === 'number' ? formData.openingBalance : (parseFloat(formData.openingBalance) || 0)
-      const parsedCreditLimit = typeof formData.creditLimit === 'number' ? formData.creditLimit : (parseFloat(formData.creditLimit) || 0)
+      const parsedBalance =
+        typeof formData.openingBalance === 'number'
+          ? formData.openingBalance
+          : parseFloat(formData.openingBalance) || 0
+      const parsedCreditLimit =
+        typeof formData.creditLimit === 'number'
+          ? formData.creditLimit
+          : parseFloat(formData.creditLimit) || 0
 
       if (editingVendor) {
-        await vendorService.updateVendor(editingVendor.id, {
-          name: formData.name,
-          phone: formData.phone,
-          email: formData.email,
-          gst: formData.gst,
-          address: formData.address,
+        const updated = await vendorService.updateVendor(editingVendor.id, {
+          name: formData.name.trim(),
+          phone: formData.phone.trim() || undefined,
+          email: formData.email.trim() || undefined,
+          gst: formData.gst.trim() || undefined,
+          address: formData.address.trim() || undefined,
           creditLimit: parsedCreditLimit,
-          notes: formData.notes
+          notes: formData.notes.trim() || undefined
         })
         showToast('Vendor updated successfully.', 'success')
+        if (activeDrawerVendor?.id === editingVendor.id && updated) {
+          setActiveDrawerVendor(updated)
+        }
       } else {
         await vendorService.createVendor({
-          name: formData.name,
-          phone: formData.phone,
-          email: formData.email,
-          gst: formData.gst,
-          address: formData.address,
+          name: formData.name.trim(),
+          phone: formData.phone.trim() || undefined,
+          email: formData.email.trim() || undefined,
+          gst: formData.gst.trim() || undefined,
+          address: formData.address.trim() || undefined,
           openingBalance: parsedBalance,
           creditLimit: parsedCreditLimit,
-          notes: formData.notes
+          notes: formData.notes.trim() || undefined
         })
         showToast('Vendor created successfully.', 'success')
       }
-      setShowModal(false)
+      setShowAddEditModal(false)
       fetchVendors()
     } catch (err: any) {
       showToast(err?.message || 'Operation failed', 'error')
     } finally {
-      setSubmitting(false)
+      setSubmittingVendor(false)
     }
   }
 
-  const handleToggleStatus = async (id: string, name: string) => {
-    try {
-      await vendorService.toggleVendorStatus(id)
-      showToast(`Status toggled for vendor "${name}".`, 'info')
-      fetchVendors()
-    } catch (err: any) {
-      showToast(err?.message || 'Failed to toggle status', 'error')
+  // 9. Payment Success callback
+  const handlePaymentSuccess = (updatedVendor: Vendor) => {
+    fetchVendors()
+    if (activeDrawerVendor?.id === updatedVendor.id) {
+      setActiveDrawerVendor(updatedVendor)
     }
   }
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete vendor "${name}"?`)) return
-    try {
-      await vendorService.deleteVendor(id)
-      showToast('Vendor deleted successfully.', 'info')
-      fetchVendors()
-    } catch (err: any) {
-      showToast(err?.message || 'Failed to delete vendor', 'error')
-    }
+  const hasActiveFilters = Boolean(search || statusChip !== 'all')
+  const handleClearFilters = () => {
+    setSearch('')
+    setDebouncedSearch('')
+    setStatusChip('all')
+    setPageNumber(1)
   }
-
-  const totalPages = Math.ceil(totalCount / pageSize) || 1
 
   return (
-    <div className="space-y-6 select-none w-full">
-      {/* Header */}
-      <EnterpriseHeader
+    <FitScreenPage className="space-y-2.5 text-left">
+      {/* 1. Page Header (Exact match to Expenses / Purchases) */}
+      <PageHeader
         title="Vendor Management"
-        description="Supplier directory, creditor ledgers, purchasing history, and balance tracking"
+        subtitle="Supplier directory, creditor ledgers, purchasing history, and balance tracking"
         actions={
-          <div className="flex items-center gap-2">
-            <EnterpriseButton variant="secondary" size="sm" onClick={fetchVendors} disabled={loading}>
-              <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          <>
+            <EnterpriseButton
+              variant="secondary"
+              size="sm"
+              onClick={fetchVendors}
+              disabled={loading}
+              className="!h-[32px] text-xs font-semibold"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 text-slate-500 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
             </EnterpriseButton>
+
             {canWrite && (
-              <EnterpriseButton variant="primary" size="sm" onClick={handleOpenCreateModal}>
-                <Plus className="w-4 h-4 mr-1.5" /> Add New Vendor
+              <EnterpriseButton
+                variant="primary"
+                size="sm"
+                onClick={handleOpenCreateModal}
+                className="!h-[32px] text-xs font-semibold shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1.5" />
+                Add New Vendor
               </EnterpriseButton>
             )}
-          </div>
+          </>
         }
       />
 
-      {/* Search & Statistics Bar */}
-      <EnterpriseCard className="p-4">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="relative w-full sm:w-96">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      {/* 2. KPI Cards Row (4 cards, no breakdown cards) */}
+      <VendorKpiCards
+        vendors={filteredVendors}
+        loading={loading}
+        totalFilteredCount={totalFilteredCount}
+      />
+
+      {/* 3. Table Card (Flex:1, min-h-[260px], overflow-hidden) */}
+      <div className="bg-white border border-[#E5E9F2] rounded-[12px] shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden w-full flex-1 min-h-[260px] flex flex-col">
+        {/* Top bar: Bulk Bar when 1+ selected, else Filter Bar */}
+        {selectedIds.size > 0 ? (
+          <VendorBulkBar
+            selectedCount={selectedIds.size}
+            totalPayableSelected={totalPayableSelected}
+            onExport={() => handleExportCSV(selectedVendorsList)}
+            onPrint={handleBulkPrintStatements}
+            onDeactivate={handleBulkDeactivate}
+            onClear={() => setSelectedIds(new Set())}
+            canWrite={canWrite}
+          />
+        ) : (
+          <VendorFilters
+            search={search}
+            onSearchChange={setSearch}
+            statusChip={statusChip}
+            onStatusChipChange={chip => {
+              setStatusChip(chip)
+              setPageNumber(1)
+            }}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            hasActiveFilters={hasActiveFilters}
+            onClearFilters={handleClearFilters}
+          />
+        )}
+
+        {/* Vendors Table / Card Grid with Pinned Pagination */}
+        <VendorsTable
+          vendors={paginatedVendors}
+          loading={loading}
+          selectedIds={selectedIds}
+          onToggleSelect={handleToggleSelect}
+          onToggleSelectAll={handleToggleSelectAll}
+          onRowClick={vendor => setActiveDrawerVendor(vendor)}
+          onOpenEdit={handleOpenEditModal}
+          onOpenPayment={vendor => setPaymentVendor(vendor)}
+          onPrintStatement={handlePrintStatement}
+          onToggleStatus={handleToggleStatus}
+          onDelete={handleDelete}
+          totalPayableFiltered={totalPayableFiltered}
+          totalCount={totalFilteredCount}
+          pageNumber={pageNumber}
+          pageSize={pageSize}
+          onPageChange={setPageNumber}
+          onPageSizeChange={size => {
+            setPageSize(size)
+            setPageNumber(1)
+          }}
+          viewMode={viewMode}
+          hasActiveFilters={hasActiveFilters}
+          onClearFilters={handleClearFilters}
+          onOpenCreate={handleOpenCreateModal}
+          canWrite={canWrite}
+        />
+      </div>
+
+      {/* 4. Vendor Detail Slide-Over Drawer */}
+      <VendorDetailDrawer
+        isOpen={Boolean(activeDrawerVendor)}
+        onClose={() => setActiveDrawerVendor(null)}
+        vendor={activeDrawerVendor}
+        onOpenEdit={handleOpenEditModal}
+        onOpenPayment={vendor => setPaymentVendor(vendor)}
+        onPrintStatement={handlePrintStatement}
+        onToggleStatus={handleToggleStatus}
+        onPrev={handleDrawerPrev}
+        onNext={handleDrawerNext}
+        hasPrev={hasPrevDrawer}
+        hasNext={hasNextDrawer}
+        canWrite={canWrite}
+      />
+
+      {/* 5. Record Payment Modal */}
+      <VendorPaymentModal
+        isOpen={Boolean(paymentVendor)}
+        onClose={() => setPaymentVendor(null)}
+        vendor={paymentVendor}
+        onSuccess={handlePaymentSuccess}
+      />
+
+      {/* 6. Add/Edit Vendor Modal */}
+      <EnterpriseModal
+        isOpen={showAddEditModal}
+        onClose={() => setShowAddEditModal(false)}
+        title={editingVendor ? 'Edit Vendor Record' : 'Register New Vendor'}
+        maxWidth="md"
+      >
+        <form onSubmit={handleSaveVendor} className="space-y-4 text-xs select-none">
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">
+              Vendor Legal Name <span className="text-rose-500">*</span>
+            </label>
             <input
               type="text"
-              placeholder="Search vendor code, name, phone, GST..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value)
-                setPageNumber(1)
-              }}
-              className="w-full h-[40px] pl-9 pr-4 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+              required
+              value={formData.name}
+              onChange={e => setFormData({ ...formData, name: e.target.value })}
+              placeholder="e.g. Biofix Organics India Pvt Ltd"
+              className="w-full h-[36px] px-3 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB]"
             />
           </div>
-          <div className="text-xs text-slate-500 font-medium">
-            Showing {vendors.length} of {totalCount} Vendors
-          </div>
-        </div>
-      </EnterpriseCard>
 
-      {/* Vendors High-Density Data Table */}
-      <EnterpriseCard className="p-0 overflow-hidden">
-        {loading ? (
-          <EnterpriseLoading label="Loading Vendors Directory..." />
-        ) : vendors.length === 0 ? (
-          <div className="p-12 text-center text-slate-500 space-y-2">
-            <Building2 className="w-10 h-10 mx-auto text-slate-300" />
-            <p className="font-semibold text-slate-700">No Vendors Found</p>
-            <p className="text-xs">Add your first supplier or business partner to get started.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-[#F8FAFC] border-b border-[#E5E9F2] text-slate-600 font-bold uppercase tracking-wider">
-                  {/* <th className="px-4 py-3">Vendor Code</th> */}
-                  <th className="px-4 py-3">Vendor Name</th>
-                  <th className="px-4 py-3">Phone</th>
-                  <th className="px-4 py-3">Email</th>
-                  <th className="px-4 py-3">GST Number</th>
-                  <th className="px-4 py-3 text-right">Purchases</th>
-                  <th className="px-4 py-3 text-right">Total Value</th>
-                  <th className="px-4 py-3 text-right">Outstanding Balance</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E5E9F2]">
-                {vendors.map((vendor) => (
-                  <tr key={vendor.id} className="hover:bg-slate-50 transition-colors">
-                    {/* <td className="px-4 py-3 font-bold font-mono text-[#1A56DB]">
-                      {vendor.vendorCode || `VND-${vendor.id.substring(0, 4).toUpperCase()}`}
-                    </td> */}
-                    <td className="px-4 py-3 font-bold text-slate-900">
-                      {vendor.name}
-                      {vendor.address && (
-                        <p className="text-[11px] font-normal text-slate-400 truncate max-w-xs">{vendor.address}</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 font-medium whitespace-nowrap">
-                      {vendor.phone || <span className="text-slate-400">-</span>}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 font-medium whitespace-nowrap">
-                      {vendor.email || <span className="text-slate-400">-</span>}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 font-mono text-xs whitespace-nowrap">
-                      {vendor.gst ? <EnterpriseBadge variant="info">{vendor.gst}</EnterpriseBadge> : <span className="text-slate-400">-</span>}
-                    </td>
-                    <td className="px-4 py-3 text-right font-semibold text-slate-800 font-mono">
-                      {vendor.totalPurchasesCount || 0}
-                    </td>
-                    <td className="px-4 py-3 text-right font-extrabold text-slate-900 font-mono">
-                      ₹{(vendor.totalPurchaseValue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-4 py-3 text-right font-extrabold text-red-600 font-mono">
-                      ₹{vendor.currentBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {vendor.isActive ? (
-                        <EnterpriseBadge variant="success">Active</EnterpriseBadge>
-                      ) : (
-                        <EnterpriseBadge variant="danger">Inactive</EnterpriseBadge>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {/* VIEW */}
-                        <button
-                          onClick={() => navigate(`/company/accounts/vendors/${vendor.id}`)}
-                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
-                          title="View Details"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
-
-                        {/* EDIT */}
-                        {canWrite && (
-                          <button
-                            onClick={() => handleOpenEditModal(vendor)}
-                            className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
-                            title="Edit Vendor"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-
-                        {/* PRINT */}
-                        <button
-                          onClick={() => handlePrintVendorStatement(vendor)}
-                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
-                          title="Print Vendor Statement"
-                        >
-                          <Printer className="w-3.5 h-3.5" />
-                        </button>
-
-                        {/* DELETE */}
-                        {canWrite && (
-                          <button
-                            onClick={() => handleDelete(vendor.id, vendor.name)}
-                            className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors"
-                            title="Delete Vendor"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-
-                        {/* STATUS TOGGLE */}
-                        {canWrite && (
-                          <button
-                            onClick={() => handleToggleStatus(vendor.id, vendor.name)}
-                            className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
-                            title={vendor.isActive ? 'Deactivate Vendor' : 'Activate Vendor'}
-                          >
-                            {vendor.isActive ? <ToggleRight className="w-3.5 h-3.5 text-emerald-600" /> : <ToggleLeft className="w-3.5 h-3.5 text-slate-400" />}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Pagination Footer */}
-        {totalPages > 1 && (
-          <div className="p-3 border-t border-[#E5E9F2] flex items-center justify-between bg-slate-50/50">
-            <EnterpriseButton
-              variant="secondary"
-              size="sm"
-              disabled={pageNumber <= 1}
-              onClick={() => setPageNumber((p) => p - 1)}
-            >
-              Previous
-            </EnterpriseButton>
-            <span className="text-xs text-slate-500 font-medium">
-              Page {pageNumber} of {totalPages}
-            </span>
-            <EnterpriseButton
-              variant="secondary"
-              size="sm"
-              disabled={pageNumber >= totalPages}
-              onClick={() => setPageNumber((p) => p + 1)}
-            >
-              Next
-            </EnterpriseButton>
-          </div>
-        )}
-      </EnterpriseCard>
-
-      {/* Add / Edit Vendor Modal */}
-      {showModal && (
-        <EnterpriseModal
-          isOpen={showModal}
-          onClose={() => setShowModal(false)}
-          title={editingVendor ? 'Edit Vendor Details' : 'Add New Vendor'}
-        >
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-[#344054] mb-1">
-                Vendor Name <span className="text-red-500">*</span>
-              </label>
+              <label className="block font-semibold text-slate-700 mb-1">Contact Phone</label>
               <input
                 type="text"
-                required
-                placeholder="e.g. Acme Raw Materials Pvt Ltd"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                value={formData.phone}
+                onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="+91 98765 43210"
+                className="w-full h-[36px] px-3 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB]"
               />
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Phone</label>
-                <input
-                  type="text"
-                  placeholder="+91 9876543210"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px]"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">GST Number</label>
-                <input
-                  type="text"
-                  placeholder="27AAAAA0000A1Z5"
-                  value={formData.gst}
-                  onChange={(e) => setFormData({ ...formData, gst: e.target.value })}
-                  className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] uppercase font-mono"
-                />
-              </div>
-            </div>
-
             <div>
-              <label className="block text-xs font-semibold text-[#344054] mb-1">Email</label>
+              <label className="block font-semibold text-slate-700 mb-1">Email Address</label>
               <input
                 type="email"
-                placeholder="vendor@company.com"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px]"
+                onChange={e => setFormData({ ...formData, email: e.target.value })}
+                placeholder="procurement@vendor.com"
+                className="w-full h-[36px] px-3 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB]"
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-[#344054] mb-1">Address</label>
-              <textarea
-                rows={2}
-                placeholder="Street, City, State, Pincode"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="w-full px-3 py-2 text-xs bg-white border border-[#D0D5DD] rounded-[8px]"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              {!editingVendor && (
-                <EnterpriseNumberInput
-                  label="Opening Balance (₹)"
-                  value={formData.openingBalance}
-                  onValueChange={(val) => setFormData({ ...formData, openingBalance: val })}
-                  placeholder="0.00"
-                />
-              )}
-              <EnterpriseNumberInput
-                label="Credit Limit (₹)"
-                value={formData.creditLimit}
-                onValueChange={(val) => setFormData({ ...formData, creditLimit: val })}
-                placeholder="0.00"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-[#344054] mb-1">Notes</label>
+              <label className="block font-semibold text-slate-700 mb-1">GSTIN Number</label>
               <input
                 type="text"
-                placeholder="Additional vendor terms or details"
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px]"
+                value={formData.gst}
+                onChange={e => setFormData({ ...formData, gst: e.target.value.toUpperCase() })}
+                placeholder="27ABCDE1234F1Z5"
+                className="w-full h-[36px] px-3 border border-slate-300 rounded-lg text-slate-900 uppercase font-mono focus:outline-none focus:border-[#1A56DB]"
               />
             </div>
 
-            <div className="pt-3 flex items-center justify-end gap-2 border-t border-[#E5E9F2]">
-              <EnterpriseButton
-                type="button"
-                variant="secondary"
-                onClick={() => setShowModal(false)}
-              >
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton
-                type="submit"
-                variant="primary"
-                loading={submitting}
-              >
-                {editingVendor ? 'Save Changes' : 'Create Vendor'}
-              </EnterpriseButton>
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Credit Limit (₹)</label>
+              <EnterpriseNumberInput
+                value={formData.creditLimit}
+                onChange={val => setFormData({ ...formData, creditLimit: val })}
+                className="w-full h-[36px] px-3 border border-slate-300 rounded-lg text-slate-900 font-mono"
+              />
             </div>
-          </form>
-        </EnterpriseModal>
-      )}
+          </div>
 
-      {/* PRINT PREVIEW MODAL */}
+          {!editingVendor && (
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Account Opening Balance (₹)
+              </label>
+              <EnterpriseNumberInput
+                value={formData.openingBalance}
+                onChange={val => setFormData({ ...formData, openingBalance: val })}
+                className="w-full h-[36px] px-3 border border-slate-300 rounded-lg text-slate-900 font-mono"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Initial creditor balance carried forward from previous accounting records.
+              </p>
+            </div>
+          )}
+
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">Office / Factory Address</label>
+            <textarea
+              rows={2}
+              value={formData.address}
+              onChange={e => setFormData({ ...formData, address: e.target.value })}
+              placeholder="Full physical or billing address"
+              className="w-full p-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB]"
+            />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">Notes / Remarks</label>
+            <input
+              type="text"
+              value={formData.notes}
+              onChange={e => setFormData({ ...formData, notes: e.target.value })}
+              placeholder="Terms, bank account notes, etc."
+              className="w-full h-[36px] px-3 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB]"
+            />
+          </div>
+
+          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+            <EnterpriseButton
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowAddEditModal(false)}
+              disabled={submittingVendor}
+              className="!h-[32px] text-xs font-semibold"
+            >
+              Cancel
+            </EnterpriseButton>
+
+            <EnterpriseButton
+              type="submit"
+              variant="primary"
+              size="sm"
+              disabled={submittingVendor}
+              className="!h-[32px] text-xs font-semibold shadow-xs"
+            >
+              {submittingVendor ? 'Saving...' : editingVendor ? 'Update Vendor' : 'Register Vendor'}
+            </EnterpriseButton>
+          </div>
+        </form>
+      </EnterpriseModal>
+
+      {/* 7. Statement Print Preview Modal */}
       {printModalOpen && printDocData && (
         <PrintPreviewModal
           isOpen={printModalOpen}
@@ -550,7 +785,7 @@ export const VendorsPage: React.FC = () => {
           documentData={printDocData}
         />
       )}
-    </div>
+    </FitScreenPage>
   )
 }
 

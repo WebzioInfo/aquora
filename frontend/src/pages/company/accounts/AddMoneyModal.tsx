@@ -13,6 +13,9 @@ interface AddMoneyModalProps {
   onClose: () => void
   bankAccountId?: string
   cashBookId?: string
+  targetType?: 'bank' | 'cash'
+  bankAccounts?: { id: string, name: string }[]
+  cashBooks?: { id: string, name: string }[]
   onSuccess: () => void
   ledgerEntry?: any // If present, we are in Edit mode
 }
@@ -34,11 +37,18 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
   onClose,
   bankAccountId,
   cashBookId,
+  targetType = 'bank',
+  bankAccounts = [],
+  cashBooks = [],
   onSuccess,
   ledgerEntry
 }) => {
   const { showToast } = useNotificationStore()
   const isEdit = !!ledgerEntry
+
+  const [selectedType, setSelectedType] = useState<'bank' | 'cash'>(cashBookId ? 'cash' : targetType)
+  const [selectedBankId, setSelectedBankId] = useState<string>(bankAccountId || '')
+  const [selectedCashId, setSelectedCashId] = useState<string>(cashBookId || '')
 
   // Form states (using raw string for amount to avoid backspace locks)
   const [amount, setAmount] = useState<string>('0')
@@ -112,7 +122,8 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
 
       if (isEdit) {
         // Edit flow
-        if (bankAccountId) {
+        const isBank = bankAccountId || (ledgerEntry?.bankAccountId && ledgerEntry.bankAccountId !== '00000000-0000-0000-0000-000000000000') || ledgerEntry?.accountType === 'BANK'
+        if (isBank) {
           await simpleAccountsService.updateBankDeposit(ledgerEntry.id, payload)
         } else {
           await simpleAccountsService.updateCashDeposit(ledgerEntry.id, payload)
@@ -120,12 +131,17 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
         showToast('Deposit updated successfully!', 'success')
       } else {
         // Create flow
-        if (bankAccountId) {
-          await simpleAccountsService.addBankMoney(bankAccountId, payload)
-        } else if (cashBookId) {
-          await simpleAccountsService.addCashMoney(cashBookId, payload)
+        const targetBankId = bankAccountId || (selectedType === 'bank' ? selectedBankId : undefined)
+        const targetCashId = cashBookId || (selectedType === 'cash' ? selectedCashId : undefined)
+
+        if (targetBankId) {
+          await simpleAccountsService.addBankMoney(targetBankId, payload)
+        } else if (targetCashId) {
+          await simpleAccountsService.addCashMoney(targetCashId, payload)
         } else {
-          throw new Error('Missing account identification.')
+          setFormError(`Please select a ${selectedType === 'bank' ? 'Bank Account' : 'Cash Book'}.`)
+          setSubmitting(false)
+          return
         }
         showToast('Money added successfully!', 'success')
       }
@@ -143,7 +159,7 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
     <EnterpriseModal
       isOpen={isOpen}
       onClose={onClose}
-      title={isEdit ? 'Edit Deposit Transaction' : 'Add Money'}
+      title={isEdit ? 'Edit Deposit Transaction' : 'Add Money / Deposit'}
       maxWidth="md"
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-left">
@@ -151,6 +167,69 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
           <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             {formError}
+          </div>
+        )}
+
+        {!bankAccountId && !cashBookId && !isEdit && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Deposit To *</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedType('bank')
+                    if (!selectedBankId && bankAccounts.length > 0) setSelectedBankId(bankAccounts[0].id)
+                  }}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${
+                    selectedType === 'bank'
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  Bank Account
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedType('cash')
+                    if (!selectedCashId && cashBooks.length > 0) setSelectedCashId(cashBooks[0].id)
+                  }}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${
+                    selectedType === 'cash'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  Cash Book
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                Select {selectedType === 'bank' ? 'Bank Account' : 'Cash Book'} *
+              </label>
+              {selectedType === 'bank' ? (
+                <EnterpriseSelect
+                  value={selectedBankId}
+                  onChange={(e) => setSelectedBankId(e.target.value)}
+                  options={[
+                    { value: '', label: 'Select Bank Account...' },
+                    ...bankAccounts.map(b => ({ value: b.id, label: b.name }))
+                  ]}
+                />
+              ) : (
+                <EnterpriseSelect
+                  value={selectedCashId}
+                  onChange={(e) => setSelectedCashId(e.target.value)}
+                  options={[
+                    { value: '', label: 'Select Cash Book...' },
+                    ...cashBooks.map(c => ({ value: c.id, label: c.name }))
+                  ]}
+                />
+              )}
+            </div>
           </div>
         )}
 

@@ -16,5 +16,6 @@ namespace Aquora.Application.Interfaces.Services
         Task<VendorDto?> UpdateVendorAsync(Guid id, UpdateVendorRequest request);
         Task<bool> ToggleVendorStatusAsync(Guid id);
         Task<bool> DeleteVendorAsync(Guid id);
+        Task<VendorDto> RecordPaymentAsync(Guid id, RecordVendorPaymentRequest request);
     }
 }

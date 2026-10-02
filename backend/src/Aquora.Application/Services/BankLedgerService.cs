@@ -1556,5 +1556,420 @@ namespace Aquora.Application.Services
                 });
             }
         }
+
+        public async Task<AccountsMetadataDto> GetAccountsMetadataAsync()
+        {
+            var tenantId = GetTenantId();
+
+            var bankAccounts = await _context.BankAccounts
+                .AsNoTracking()
+                .Where(b => b.TenantId == tenantId && !b.IsDeleted)
+                .OrderBy(b => b.BankName)
+                .ThenBy(b => b.AccountName)
+                .ToListAsync();
+
+            var cashBooks = await _context.CashBooks
+                .AsNoTracking()
+                .Where(c => c.TenantId == tenantId && !c.IsDeleted)
+                .OrderBy(c => c.Name)
+                .ToListAsync();
+
+            var activeBanks = bankAccounts.Where(b => b.IsActive && b.Status == "Active").ToList();
+            var activeCash = cashBooks.Where(c => c.IsActive && c.Status == "Active").ToList();
+
+            var totalBank = activeBanks.Sum(b => b.CurrentBalance);
+            var totalCash = activeCash.Sum(c => c.CurrentBalance);
+
+            return new AccountsMetadataDto
+            {
+                BankAccounts = bankAccounts.Select(b => new BankAccountDropdownDto
+                {
+                    Id = b.Id,
+                    BankName = b.BankName,
+                    AccountName = b.AccountName,
+                    AccountNumber = b.AccountNumber,
+                    CurrentBalance = b.CurrentBalance
+                }).ToList(),
+                CashBooks = cashBooks.Select(c => new CashBookDropdownDto
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    CurrentBalance = c.CurrentBalance
+                }).ToList(),
+                TotalBankBalance = totalBank,
+                TotalCashBalance = totalCash,
+                TotalBalance = totalBank + totalCash,
+                ActiveBankAccountsCount = activeBanks.Count,
+                ActiveCashBooksCount = activeCash.Count
+            };
+        }
+
+        public async Task<UnifiedLedgerSummaryDto> GetUnifiedLedgerSummaryAsync(UnifiedLedgerFilterDto filter)
+        {
+            var tenantId = GetTenantId();
+
+            var bankAccounts = await _context.BankAccounts
+                .AsNoTracking()
+                .Where(b => b.TenantId == tenantId && !b.IsDeleted)
+                .ToListAsync();
+
+            var cashBooks = await _context.CashBooks
+                .AsNoTracking()
+                .Where(c => c.TenantId == tenantId && !c.IsDeleted)
+                .ToListAsync();
+
+            var activeBanks = bankAccounts.Where(b => b.IsActive && b.Status == "Active").ToList();
+            var activeCash = cashBooks.Where(c => c.IsActive && c.Status == "Active").ToList();
+
+            var query = _context.BankLedgerEntries
+                .AsNoTracking()
+                .Where(x => x.TenantId == tenantId);
+
+            var accountType = filter?.AccountType?.Trim().ToUpperInvariant() ?? "ALL";
+
+            if (accountType == "BANK")
+            {
+                query = query.Where(x => x.BankAccountId != null && (x.LedgerAccountType == null || x.LedgerAccountType == "BankAccount"));
+                if (filter?.BankAccountId.HasValue == true && filter.BankAccountId.Value != Guid.Empty)
+                {
+                    query = query.Where(x => x.BankAccountId == filter.BankAccountId.Value);
+                }
+            }
+            else if (accountType == "CASH")
+            {
+                query = query.Where(x => x.CashBookId != null || x.LedgerAccountType == "CashBook");
+                if (filter?.CashBookId.HasValue == true && filter.CashBookId.Value != Guid.Empty)
+                {
+                    query = query.Where(x => x.CashBookId == filter.CashBookId.Value);
+                }
+            }
+            else
+            {
+                query = query.Where(x => x.BankAccountId != null || x.CashBookId != null);
+            }
+
+            if (filter?.DateFrom.HasValue == true)
+            {
+                var fromUtc = EnsureUtc(filter.DateFrom.Value);
+                query = query.Where(x => x.TransactionDate >= fromUtc);
+            }
+
+            if (filter?.DateTo.HasValue == true)
+            {
+                var toUtc = EnsureUtc(filter.DateTo.Value);
+                query = query.Where(x => x.TransactionDate <= toUtc);
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter?.TransactionType))
+            {
+                var tType = filter.TransactionType.Trim().ToLower();
+                query = query.Where(x => x.TransactionType.ToLower() == tType);
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter?.Search))
+            {
+                var term = filter.Search.Trim().ToLower();
+                var matchBankIds = bankAccounts
+                    .Where(b => b.BankName.ToLower().Contains(term) || b.AccountName.ToLower().Contains(term) || b.AccountNumber.ToLower().Contains(term))
+                    .Select(b => (Guid?)b.Id)
+                    .ToList();
+
+                var matchCashIds = cashBooks
+                    .Where(c => c.Name.ToLower().Contains(term))
+                    .Select(c => (Guid?)c.Id)
+                    .ToList();
+
+                query = query.Where(x =>
+                    x.ReferenceNumber.ToLower().Contains(term) ||
+                    x.Description.ToLower().Contains(term) ||
+                    x.TransactionType.ToLower().Contains(term) ||
+                    x.CreatedBy.ToLower().Contains(term) ||
+                    (x.BankAccountId != null && matchBankIds.Contains(x.BankAccountId)) ||
+                    (x.CashBookId != null && matchCashIds.Contains(x.CashBookId)));
+            }
+
+            var totalTxCount = await query.CountAsync();
+            var totalCredit = await query.SumAsync(x => (decimal?)x.Credit) ?? 0m;
+            var totalDebit = await query.SumAsync(x => (decimal?)x.Debit) ?? 0m;
+
+            var nowUtc = DateTime.UtcNow;
+            var startOfDay = DateTime.SpecifyKind(nowUtc.Date, DateTimeKind.Utc);
+            var startOfMonth = new DateTime(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            var todaysTx = await query.CountAsync(x => x.TransactionDate >= startOfDay);
+            var thisMonthTx = await query.CountAsync(x => x.TransactionDate >= startOfMonth);
+
+            decimal totalBankBalance = activeBanks.Sum(b => b.CurrentBalance);
+            decimal totalCashBalance = activeCash.Sum(c => c.CurrentBalance);
+            decimal totalBalance;
+            Guid? selectedAccountId = null;
+
+            if (accountType == "BANK")
+            {
+                if (filter?.BankAccountId.HasValue == true && filter.BankAccountId.Value != Guid.Empty)
+                {
+                    selectedAccountId = filter.BankAccountId.Value;
+                    var selBank = bankAccounts.FirstOrDefault(b => b.Id == filter.BankAccountId.Value);
+                    totalBalance = selBank?.CurrentBalance ?? 0m;
+                    totalBankBalance = totalBalance;
+                    totalCashBalance = 0m;
+                }
+                else
+                {
+                    totalBalance = totalBankBalance;
+                    totalCashBalance = 0m;
+                }
+            }
+            else if (accountType == "CASH")
+            {
+                if (filter?.CashBookId.HasValue == true && filter.CashBookId.Value != Guid.Empty)
+                {
+                    selectedAccountId = filter.CashBookId.Value;
+                    var selCash = cashBooks.FirstOrDefault(c => c.Id == filter.CashBookId.Value);
+                    totalBalance = selCash?.CurrentBalance ?? 0m;
+                    totalCashBalance = totalBalance;
+                    totalBankBalance = 0m;
+                }
+                else
+                {
+                    totalBalance = totalCashBalance;
+                    totalBankBalance = 0m;
+                }
+            }
+            else
+            {
+                totalBalance = totalBankBalance + totalCashBalance;
+            }
+
+            return new UnifiedLedgerSummaryDto
+            {
+                AccountType = accountType,
+                SelectedAccountId = selectedAccountId,
+                TotalBalance = totalBalance,
+                TotalBankBalance = totalBankBalance,
+                TotalCashBalance = totalCashBalance,
+                ActiveBankAccountsCount = activeBanks.Count,
+                ActiveCashBooksCount = activeCash.Count,
+                TotalTransactions = totalTxCount,
+                TotalMoneyReceived = totalCredit,
+                TotalMoneyPaid = totalDebit,
+                TodaysTransactions = todaysTx,
+                ThisMonthTransactions = thisMonthTx
+            };
+        }
+
+        public async Task<PagedResult<UnifiedLedgerEntryDto>> GetUnifiedLedgerAsync(UnifiedLedgerFilterDto filter)
+        {
+            var tenantId = GetTenantId();
+
+            // Reconcile if this tenant has never had ledger entries yet
+            var hasAnyEntries = await _context.BankLedgerEntries.AnyAsync(x => x.TenantId == tenantId);
+            if (!hasAnyEntries)
+            {
+                await ReconcileMissingLedgerEntriesAsync(null);
+                await ReconcileMissingCashBookLedgerEntriesAsync(null);
+            }
+
+            var bankAccounts = await _context.BankAccounts
+                .AsNoTracking()
+                .Where(b => b.TenantId == tenantId && !b.IsDeleted)
+                .ToDictionaryAsync(b => b.Id);
+
+            var cashBooks = await _context.CashBooks
+                .AsNoTracking()
+                .Where(c => c.TenantId == tenantId && !c.IsDeleted)
+                .ToDictionaryAsync(c => c.Id);
+
+            var query = _context.BankLedgerEntries
+                .AsNoTracking()
+                .Where(x => x.TenantId == tenantId);
+
+            var accountType = filter?.AccountType?.Trim().ToUpperInvariant() ?? "ALL";
+
+            if (accountType == "BANK")
+            {
+                query = query.Where(x => x.BankAccountId != null && (x.LedgerAccountType == null || x.LedgerAccountType == "BankAccount"));
+                if (filter?.BankAccountId.HasValue == true && filter.BankAccountId.Value != Guid.Empty)
+                {
+                    query = query.Where(x => x.BankAccountId == filter.BankAccountId.Value);
+                }
+            }
+            else if (accountType == "CASH")
+            {
+                query = query.Where(x => x.CashBookId != null || x.LedgerAccountType == "CashBook");
+                if (filter?.CashBookId.HasValue == true && filter.CashBookId.Value != Guid.Empty)
+                {
+                    query = query.Where(x => x.CashBookId == filter.CashBookId.Value);
+                }
+            }
+            else
+            {
+                query = query.Where(x => x.BankAccountId != null || x.CashBookId != null);
+            }
+
+            if (filter?.DateFrom.HasValue == true)
+            {
+                var fromUtc = EnsureUtc(filter.DateFrom.Value);
+                query = query.Where(x => x.TransactionDate >= fromUtc);
+            }
+
+            if (filter?.DateTo.HasValue == true)
+            {
+                var toUtc = EnsureUtc(filter.DateTo.Value);
+                query = query.Where(x => x.TransactionDate <= toUtc);
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter?.TransactionType))
+            {
+                var tType = filter.TransactionType.Trim().ToLower();
+                query = query.Where(x => x.TransactionType.ToLower() == tType);
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter?.CreatedBy))
+            {
+                var cBy = filter.CreatedBy.Trim().ToLower();
+                query = query.Where(x => x.CreatedBy.ToLower().Contains(cBy));
+            }
+
+            if (filter?.MinAmount.HasValue == true)
+            {
+                query = query.Where(x => x.Debit >= filter.MinAmount.Value || x.Credit >= filter.MinAmount.Value);
+            }
+
+            if (filter?.MaxAmount.HasValue == true)
+            {
+                query = query.Where(x => x.Debit <= filter.MaxAmount.Value || x.Credit <= filter.MaxAmount.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter?.Search))
+            {
+                var term = filter.Search.Trim().ToLower();
+                var matchBankIds = bankAccounts.Values
+                    .Where(b => b.BankName.ToLower().Contains(term) || b.AccountName.ToLower().Contains(term) || b.AccountNumber.ToLower().Contains(term))
+                    .Select(b => (Guid?)b.Id)
+                    .ToList();
+
+                var matchCashIds = cashBooks.Values
+                    .Where(c => c.Name.ToLower().Contains(term))
+                    .Select(c => (Guid?)c.Id)
+                    .ToList();
+
+                query = query.Where(x =>
+                    x.ReferenceNumber.ToLower().Contains(term) ||
+                    x.Description.ToLower().Contains(term) ||
+                    x.TransactionType.ToLower().Contains(term) ||
+                    x.CreatedBy.ToLower().Contains(term) ||
+                    (x.BankAccountId != null && matchBankIds.Contains(x.BankAccountId)) ||
+                    (x.CashBookId != null && matchCashIds.Contains(x.CashBookId)));
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var isAsc = filter?.SortOrder?.Equals("asc", StringComparison.OrdinalIgnoreCase) ?? false;
+            var sortBy = filter?.SortBy?.Trim().ToLowerInvariant() ?? "transactiondate";
+
+            query = (sortBy, isAsc) switch
+            {
+                ("transactiondate", true) => query.OrderBy(x => x.TransactionDate).ThenBy(x => x.CreatedAt).ThenBy(x => x.Id),
+                ("transactiondate", false) => query.OrderByDescending(x => x.TransactionDate).ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id),
+                ("createdat", true) => query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id),
+                ("createdat", false) => query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id),
+                ("debit", true) => query.OrderBy(x => x.Debit).ThenByDescending(x => x.TransactionDate),
+                ("debit", false) => query.OrderByDescending(x => x.Debit).ThenByDescending(x => x.TransactionDate),
+                ("credit", true) => query.OrderBy(x => x.Credit).ThenByDescending(x => x.TransactionDate),
+                ("credit", false) => query.OrderByDescending(x => x.Credit).ThenByDescending(x => x.TransactionDate),
+                ("transactiontype", true) => query.OrderBy(x => x.TransactionType).ThenByDescending(x => x.TransactionDate),
+                ("transactiontype", false) => query.OrderByDescending(x => x.TransactionType).ThenByDescending(x => x.TransactionDate),
+                (_, true) => query.OrderBy(x => x.TransactionDate).ThenBy(x => x.CreatedAt).ThenBy(x => x.Id),
+                _ => query.OrderByDescending(x => x.TransactionDate).ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
+            };
+
+            var pageNumber = filter?.PageNumber > 0 ? filter.PageNumber : 1;
+            var pageSize = filter?.PageSize > 0 ? filter.PageSize : 20;
+
+            var rawEntries = await query
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var items = new List<UnifiedLedgerEntryDto>();
+
+            foreach (var x in rawEntries)
+            {
+                var isBank = x.BankAccountId.HasValue && (x.LedgerAccountType == null || !x.LedgerAccountType.Equals("CashBook", StringComparison.OrdinalIgnoreCase));
+                var itemAccountType = isBank ? "BANK" : "CASH";
+                string accountName = "Unknown Account";
+                string? bankName = null;
+                string? accountNumber = null;
+
+                if (isBank && x.BankAccountId.HasValue && bankAccounts.TryGetValue(x.BankAccountId.Value, out var b))
+                {
+                    accountName = $"{b.BankName} - {b.AccountName}";
+                    bankName = b.BankName;
+                    accountNumber = b.AccountNumber;
+                }
+                else if (!isBank && x.CashBookId.HasValue && cashBooks.TryGetValue(x.CashBookId.Value, out var c))
+                {
+                    accountName = c.Name;
+                }
+                else if (isBank)
+                {
+                    accountName = "Bank Account";
+                }
+                else
+                {
+                    accountName = "Cash Book";
+                }
+
+                items.Add(new UnifiedLedgerEntryDto
+                {
+                    Id = x.Id,
+                    AccountType = itemAccountType,
+                    BankAccountId = x.BankAccountId,
+                    CashBookId = x.CashBookId,
+                    AccountName = accountName,
+                    BankName = bankName,
+                    AccountNumber = accountNumber,
+                    TransactionDate = x.TransactionDate,
+                    ReferenceNumber = x.ReferenceNumber,
+                    TransactionType = x.TransactionType,
+                    EventType = x.EventType ?? "CREATED",
+                    EventLabel = ComputeEventLabel(x.TransactionType, x.EventType, x.EventLabel),
+                    AuditNotes = x.AuditNotes,
+                    Description = x.Description,
+                    Debit = x.Debit,
+                    Credit = x.Credit,
+                    RunningBalance = x.RunningBalance,
+                    RelatedEntityId = x.RelatedEntityId,
+                    RelatedEntityType = x.RelatedEntityType,
+                    LedgerSequence = x.LedgerSequence,
+                    CreatedAt = x.CreatedAt,
+                    CreatedBy = x.CreatedBy
+                });
+            }
+
+            if (items.Any())
+            {
+                var createdBys = items.Select(x => x.CreatedBy).Distinct().ToList();
+                var userNamesMap = await ResolveUserNamesBatchAsync(createdBys);
+
+                foreach (var item in items)
+                {
+                    if (!string.IsNullOrWhiteSpace(item.CreatedBy) && userNamesMap.TryGetValue(item.CreatedBy, out var name))
+                    {
+                        item.CreatedBy = name;
+                    }
+                }
+            }
+
+            return new PagedResult<UnifiedLedgerEntryDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+            };
+        }
     }
 }

@@ -1,83 +1,162 @@
-import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  ShoppingBag,
-  Plus,
-  Search,
   RefreshCw,
-  Eye,
-  Trash2,
-  FileSpreadsheet,
-  Edit2,
-  Copy,
-  XCircle,
-  CreditCard,
-  Printer,
-  Download,
-  Building2,
-  DollarSign,
-  Clock,
-  Filter,
-  ArrowUpDown,
-  RotateCcw
+  Plus,
+  FileSpreadsheet
 } from 'lucide-react'
+import PageHeader from '../../../components/ui/PageHeader'
+import EnterpriseButton from '../../../components/ui/EnterpriseButton'
 import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
-import { RecordPurchasePaymentModal } from '../../../components/purchases/RecordPurchasePaymentModal'
 import { purchaseService, type Purchase, type PurchaseSummaryStats } from '../../../services/purchases'
 import { vendorService, type VendorDropdownItem } from '../../../services/vendors'
 import { useNotificationStore } from '../../../store/useNotificationStore'
 import { useAuthStore } from '../../../store/useAuthStore'
-import EnterpriseHeader from '../../../components/ui/EnterpriseHeader'
-import EnterpriseCard from '../../../components/ui/EnterpriseCard'
-import EnterpriseButton from '../../../components/ui/EnterpriseButton'
-import EnterpriseBadge from '../../../components/ui/EnterpriseBadge'
-import EnterpriseLoading from '../../../components/ui/EnterpriseLoading'
-import EnterpriseModal from '../../../components/ui/EnterpriseModal'
-import EnterpriseNumberInput from '../../../components/ui/EnterpriseNumberInput'
+
+// Subcomponents
+import { PurchaseKpiCards } from './purchases/PurchaseKpiCards'
+import { SpendBreakdownCards } from './purchases/SpendBreakdownCards'
+import { PurchaseFilters, type PurchaseFilterValues, getDateRangeForPreset } from './purchases/PurchaseFilters'
+import { PurchaseBulkBar } from './purchases/PurchaseBulkBar'
+import { PurchasesTable } from './purchases/PurchasesTable'
+import { PurchaseDetailDrawer } from './purchases/PurchaseDetailDrawer'
+import { RecordPaymentModal } from './purchases/RecordPaymentModal'
+import { PurchaseCancelDialog, PurchaseDeleteDialog } from './purchases/PurchaseConfirmDialogs'
+import FitScreenPage from '../../../components/ui/FitScreenPage'
 
 export const PurchasesPage: React.FC = () => {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { showToast } = useNotificationStore()
   const { user } = useAuthStore()
+
+  // Permissions matching original
   const isOwner = (user?.roles?.some(r => ['owner', 'companyowner', 'platformowner'].includes(r.toLowerCase())) || user?.roleName?.toLowerCase() === 'owner') ?? false
   const canWrite = !isOwner && (user?.roles?.some(r => ['CompanyAdmin', 'Admin', 'Manager', 'Accountant'].includes(r)) ?? false)
 
+  // Data states
   const [purchases, setPurchases] = useState<Purchase[]>([])
   const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
   const [summaryStats, setSummaryStats] = useState<PurchaseSummaryStats | null>(null)
   const [vendors, setVendors] = useState<VendorDropdownItem[]>([])
 
-  // Comprehensive Filter State
-  const [search, setSearch] = useState<string>('')
-  const [dateFilter, setDateFilter] = useState<string>('all')
-  const [startDate, setStartDate] = useState<string>('')
-  const [endDate, setEndDate] = useState<string>('')
-  const [selectedVendorId, setSelectedVendorId] = useState<string>('')
-  const [selectedCategory, setSelectedCategory] = useState<string>('')
-  const [selectedTaxType, setSelectedTaxType] = useState<string>('')
-  const [selectedStatus, setSelectedStatus] = useState<string>('')
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('')
-  const [minAmount, setMinAmount] = useState<string>('')
-  const [maxAmount, setMaxAmount] = useState<string>('')
-  const [sortBy, setSortBy] = useState<string>('date_desc')
-
   // Pagination State
-  const [pageNumber, setPageNumber] = useState<number>(1)
-  const [pageSize] = useState<number>(12)
+  const pageParam = parseInt(searchParams.get('page') || '1', 10)
+  const [pageNumber, setPageNumber] = useState<number>(isNaN(pageParam) || pageParam < 1 ? 1 : pageParam)
+
+  const limitParam = parseInt(
+    searchParams.get('limit') || localStorage.getItem('aquora_purchases_page_size') || '25',
+    10
+  )
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const validSizes = [10, 25, 50, 100]
+    return validSizes.includes(limitParam) ? limitParam : 25
+  })
   const [totalCount, setTotalCount] = useState<number>(0)
 
-  // Payment Modal State for Quick Row Action
-  const [paymentModalPurchase, setPaymentModalPurchase] = useState<Purchase | null>(null)
-  const [paymentAmount, setPaymentAmount] = useState<number | string>(0)
-  const [paymentMethod, setPaymentMethod] = useState<string>('BankAccount')
-  const [paymentRef, setPaymentRef] = useState<string>('')
-  const [paymentSubmitting, setPaymentSubmitting] = useState<boolean>(false)
+  const handlePageSizeChange = useCallback(
+    (newSize: number) => {
+      setPageSize(newSize)
+      localStorage.setItem('aquora_purchases_page_size', newSize.toString())
+      setPageNumber(1)
+      const params = new URLSearchParams(searchParams)
+      params.set('limit', newSize.toString())
+      params.set('page', '1')
+      setSearchParams(params, { replace: true })
+    },
+    [searchParams, setSearchParams]
+  )
 
-  // Print Preview Modal States
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      setPageNumber(newPage)
+      const params = new URLSearchParams(searchParams)
+      params.set('page', newPage.toString())
+      setSearchParams(params, { replace: true })
+    },
+    [searchParams, setSearchParams]
+  )
+
+  // Filters State initialized from URL query params
+  const [filters, setFilters] = useState<PurchaseFilterValues>(() => {
+    const preset = (searchParams.get('preset') || 'all') as any
+    const validPresets = ['all', 'today', 'thisWeek', 'thisMonth', 'lastMonth', 'custom']
+    const datePreset = validPresets.includes(preset) ? preset : 'all'
+
+    return {
+      search: searchParams.get('search') || '',
+      status: searchParams.get('status') || '',
+      vendorId: searchParams.get('vendor') || '',
+      category: searchParams.get('category') || '',
+      paymentMethod: searchParams.get('method') || '',
+      datePreset,
+      startDate: searchParams.get('from') || undefined,
+      endDate: searchParams.get('to') || undefined
+    }
+  })
+
+  // Debounced search
+  const [debouncedSearch, setDebouncedSearch] = useState(filters.search)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(filters.search)
+    }, 300)
+    return () => clearTimeout(handler)
+  }, [filters.search])
+
+  // Sync filters to URL query params
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (filters.search) params.set('search', filters.search)
+    if (filters.status) params.set('status', filters.status)
+    if (filters.vendorId) params.set('vendor', filters.vendorId)
+    if (filters.category) params.set('category', filters.category)
+    if (filters.paymentMethod) params.set('method', filters.paymentMethod)
+    if (filters.datePreset !== 'all') params.set('preset', filters.datePreset)
+    if (filters.startDate) params.set('from', filters.startDate)
+    if (filters.endDate) params.set('to', filters.endDate)
+    if (pageNumber > 1) params.set('page', pageNumber.toString())
+    if (pageSize !== 25) params.set('limit', pageSize.toString())
+
+    setSearchParams(params, { replace: true })
+  }, [filters, pageNumber, pageSize, setSearchParams])
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+
+  // Clamp page if out of bounds (e.g. after deletion or filter changes)
+  useEffect(() => {
+    if (totalCount > 0 && pageNumber > totalPages) {
+      handlePageChange(totalPages)
+    }
+  }, [totalCount, pageNumber, totalPages, handlePageChange])
+
+  // Selection states (for bulk actions)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null)
+
+  // Drawer & Modals state
+  const [activeDrawerPurchase, setActiveDrawerPurchase] = useState<Purchase | null>(null)
+
+  // Payment Modal state
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [paymentTargetPurchase, setPaymentTargetPurchase] = useState<Purchase | null>(null)
+  const [paymentBulkPurchases, setPaymentBulkPurchases] = useState<Purchase[]>([])
+
+  // Cancel & Delete Dialog states
+  const [cancelModalOpen, setCancelModalOpen] = useState(false)
+  const [cancelTargetPurchases, setCancelTargetPurchases] = useState<Purchase[]>([])
+  const [cancelLoading, setCancelLoading] = useState(false)
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteTargetPurchases, setDeleteTargetPurchases] = useState<Purchase[]>([])
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
+  // Print Preview Modal states
   const [printModalOpen, setPrintModalOpen] = useState(false)
   const [printDocData, setPrintDocData] = useState<any>(null)
 
-  const categories = [
+  const categories = useMemo(() => [
     'RawMaterial',
     'Machine',
     'OfficeAsset',
@@ -88,148 +167,138 @@ export const PurchasesPage: React.FC = () => {
     'Vehicle',
     'Software',
     'Other'
-  ]
+  ], [])
 
+  // Load vendors list
   useEffect(() => {
-    vendorService.getVendorDropdown().then(setVendors).catch(() => { })
+    vendorService.getVendorDropdown().then(setVendors).catch(() => {})
   }, [])
 
-  const fetchPurchases = async () => {
+  // Fetch purchases data
+  const fetchPurchases = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       let sDate: string | undefined = undefined
       let eDate: string | undefined = undefined
 
-      const now = new Date()
-      if (dateFilter === 'today') {
-        sDate = new Date(now.setHours(0, 0, 0, 0)).toISOString()
-        eDate = new Date(now.setHours(23, 59, 59, 999)).toISOString()
-      } else if (dateFilter === 'this_week') {
-        const first = now.getDate() - now.getDay()
-        sDate = new Date(now.setDate(first)).toISOString()
-        eDate = new Date().toISOString()
-      } else if (dateFilter === 'this_month') {
-        sDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-        eDate = new Date().toISOString()
-      } else if (dateFilter === 'custom') {
-        if (startDate) sDate = new Date(startDate).toISOString()
-        if (endDate) eDate = new Date(endDate).toISOString()
+      if (filters.datePreset === 'custom') {
+        if (filters.startDate) sDate = new Date(filters.startDate).toISOString()
+        if (filters.endDate) eDate = new Date(filters.endDate).toISOString()
+      } else if (filters.datePreset !== 'all') {
+        const range = getDateRangeForPreset(filters.datePreset)
+        if (range.startDate) sDate = new Date(range.startDate).toISOString()
+        if (range.endDate) eDate = new Date(range.endDate).toISOString()
       }
 
       const response = await purchaseService.getPurchases({
         pageNumber,
         pageSize,
-        search,
+        search: debouncedSearch,
         startDate: sDate,
         endDate: eDate,
-        vendorId: selectedVendorId || undefined,
-        category: selectedCategory || undefined,
-        paymentStatus: selectedStatus || undefined
+        vendorId: filters.vendorId || undefined,
+        category: filters.category || undefined,
+        paymentStatus: filters.status || undefined
       })
 
-      setPurchases(response.items || [])
+      const items = response.items || []
+      // Client-side filter for paymentMethod if backend doesn't support query param directly
+      const filteredByMethod = filters.paymentMethod
+        ? items.filter(p => (p.paymentMethod || '').toLowerCase() === filters.paymentMethod.toLowerCase())
+        : items
+
+      setPurchases(filteredByMethod)
       setTotalCount(response.totalCount || 0)
       if (response.summaryStats) {
         setSummaryStats(response.summaryStats)
       }
     } catch (err: any) {
-      showToast(err?.message || 'Failed to fetch purchases', 'error')
+      const msg = err?.message || 'Failed to fetch purchases'
+      setError(msg)
+      showToast(msg, 'error')
     } finally {
       setLoading(false)
     }
-  }
+  }, [pageNumber, pageSize, debouncedSearch, filters, showToast])
 
-  const [debouncedSearch, setDebouncedSearch] = useState(search)
-
+  // Clear selection on filter or page change
   useEffect(() => {
-    if (search === debouncedSearch) return
-    const handler = setTimeout(() => {
-      setDebouncedSearch(search)
-    }, 300)
-    return () => clearTimeout(handler)
-  }, [search, debouncedSearch])
+    setSelectedIds(new Set())
+    setLastSelectedIndex(null)
+  }, [pageNumber, debouncedSearch, filters])
 
+  // Fetch when filters or page change
   useEffect(() => {
     fetchPurchases()
-  }, [pageNumber, debouncedSearch, dateFilter, startDate, endDate, selectedVendorId, selectedCategory, selectedTaxType, selectedStatus, selectedPaymentMethod, minAmount, maxAmount, sortBy])
+  }, [fetchPurchases])
 
-  const clearFilters = () => {
-    setSearch('')
-    setDateFilter('all')
-    setStartDate('')
-    setEndDate('')
-    setSelectedVendorId('')
-    setSelectedCategory('')
-    setSelectedTaxType('')
-    setSelectedStatus('')
-    setSelectedPaymentMethod('')
-    setMinAmount('')
-    setMaxAmount('')
-    setSortBy('date_desc')
+  // Filter change handlers
+  const handleFilterChange = (newFilters: Partial<PurchaseFilterValues>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }))
     setPageNumber(1)
   }
 
-  const handleCancel = async (id: string, purchaseNo: string) => {
-    if (!window.confirm(`Are you sure you want to cancel purchase ${purchaseNo}? This will reverse inventory stock and vendor balances.`)) return
-    try {
-      await purchaseService.cancelPurchase(id)
-      showToast(`Purchase ${purchaseNo} cancelled successfully.`, 'info')
-      fetchPurchases()
-    } catch (err: any) {
-      showToast(err?.message || 'Failed to cancel purchase', 'error')
-    }
+  const handleClearFilters = () => {
+    setFilters({
+      search: '',
+      status: '',
+      vendorId: '',
+      category: '',
+      paymentMethod: '',
+      datePreset: 'all',
+      startDate: undefined,
+      endDate: undefined
+    })
+    setPageNumber(1)
   }
 
-  const handleDuplicate = async (id: string) => {
-    try {
-      const draft = await purchaseService.duplicatePurchase(id)
-      if (draft) {
-        showToast('Duplicate purchase draft generated!', 'success')
-        navigate('/company/accounts/purchases/new', { state: { draftData: draft } })
+  const hasActiveFilters = Boolean(
+    filters.search ||
+    filters.status ||
+    filters.vendorId ||
+    filters.category ||
+    filters.paymentMethod ||
+    filters.datePreset !== 'all'
+  )
+
+  // Selection toggle handlers with shift-click range support
+  const handleToggleSelect = (id: string, index: number, shiftKey: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (shiftKey && lastSelectedIndex !== null && lastSelectedIndex !== index) {
+        const start = Math.min(lastSelectedIndex, index)
+        const end = Math.max(lastSelectedIndex, index)
+        for (let i = start; i <= end; i++) {
+          if (purchases[i]) next.add(purchases[i].id)
+        }
+      } else {
+        if (next.has(id)) {
+          next.delete(id)
+        } else {
+          next.add(id)
+        }
       }
-    } catch (err: any) {
-      showToast(err?.message || 'Failed to duplicate purchase', 'error')
+      return next
+    })
+    setLastSelectedIndex(index)
+  }
+
+  const handleToggleSelectAll = () => {
+    const isAllSelected = purchases.length > 0 && purchases.every(p => selectedIds.has(p.id))
+    if (isAllSelected) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(purchases.map(p => p.id)))
     }
   }
 
-  const handleDelete = async (id: string, purchaseNo: string) => {
-    if (!window.confirm(`Are you sure you want to soft-delete purchase ${purchaseNo}?`)) return
-    try {
-      await purchaseService.deletePurchase(id)
-      showToast('Purchase record deleted successfully', 'info')
-      fetchPurchases()
-    } catch (err: any) {
-      showToast(err?.message || 'Failed to delete purchase', 'error')
-    }
-  }
+  // Selected purchases objects
+  const selectedPurchasesList = useMemo(() => {
+    return purchases.filter(p => selectedIds.has(p.id))
+  }, [purchases, selectedIds])
 
-  const handleQuickPaymentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!paymentModalPurchase) return
-    const amt = typeof paymentAmount === 'number' ? paymentAmount : (parseFloat(paymentAmount) || 0)
-    if (amt <= 0) {
-      showToast('Payment amount must be greater than zero.', 'error')
-      return
-    }
-
-    setPaymentSubmitting(true)
-    try {
-      await purchaseService.addPayment(paymentModalPurchase.id, {
-        paymentDate: new Date().toISOString().slice(0, 10),
-        paymentMethod,
-        amount: amt,
-        referenceNo: paymentRef
-      })
-      showToast('Payment recorded successfully', 'success')
-      setPaymentModalPurchase(null)
-      fetchPurchases()
-    } catch (err: any) {
-      showToast(err?.message || 'Failed to add payment', 'error')
-    } finally {
-      setPaymentSubmitting(false)
-    }
-  }
-
+  // Print purchase voucher/invoice
   const handlePrintPurchase = (p: Purchase) => {
     setPrintDocData({
       title: 'Purchase Invoice',
@@ -253,14 +322,14 @@ export const PurchasesPage: React.FC = () => {
         unitPrice: item.unitPrice,
         amount: item.totalAmount
       })) || [
-          {
-            sno: 1,
-            description: `Purchase record: ${p.purchaseCategory || ''}`,
-            quantity: 1,
-            unitPrice: p.grandTotal,
-            amount: p.grandTotal
-          }
-        ],
+        {
+          sno: 1,
+          description: `Purchase record: ${p.purchaseCategory || ''}`,
+          quantity: 1,
+          unitPrice: p.grandTotal,
+          amount: p.grandTotal
+        }
+      ],
       financialSummary: {
         subTotal: p.subTotal || p.grandTotal,
         taxAmount: p.taxAmount || 0,
@@ -270,26 +339,120 @@ export const PurchasesPage: React.FC = () => {
         balance: p.balanceAmount || 0
       },
       notes: p.notes || 'No remarks provided.'
-    });
-    setPrintModalOpen(true);
-  };
+    })
+    setPrintModalOpen(true)
+  }
 
-  const exportCSV = () => {
-    if (purchases.length === 0) return
-    const headers = ['Purchase No', 'Date', 'Vendor', 'Vendor Code', 'Category', 'Invoice No', 'Tax Type', 'Payment Method', 'Gross Total', 'Paid Amount', 'Balance', 'Status', 'Created By']
-    const rows = purchases.map((p) => [
+  // Bulk Print
+  const handleBulkPrint = () => {
+    if (selectedPurchasesList.length === 0) return
+    if (selectedPurchasesList.length === 1) {
+      handlePrintPurchase(selectedPurchasesList[0])
+      return
+    }
+
+    // Concatenate all selected purchases into a combined multi-voucher print
+    const combinedItems = selectedPurchasesList.flatMap((p, pIdx) =>
+      (p.items || [{
+        itemName: `Purchase #${p.purchaseNo} - ${p.purchaseCategory}`,
+        quantity: 1,
+        unit: 'item',
+        unitPrice: p.grandTotal,
+        totalAmount: p.grandTotal
+      }]).map((it, idx) => ({
+        sno: `${pIdx + 1}.${idx + 1}`,
+        description: `[${p.purchaseNo}] ${it.itemName || it.rawMaterialName}`,
+        quantity: it.quantity,
+        unitPrice: it.unitPrice,
+        amount: it.totalAmount
+      }))
+    )
+
+    let totalGross = 0
+    let totalPaid = 0
+    let totalBalance = 0
+    for (const p of selectedPurchasesList) {
+      totalGross += p.grandTotal
+      totalPaid += p.amountPaid
+      totalBalance += p.balanceAmount
+    }
+
+    setPrintDocData({
+      title: 'Batch Procurement Register Voucher',
+      docNumber: `BATCH-${new Date().toISOString().slice(0, 10)}`,
+      date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      partyLabel: 'Procurement Summary',
+      partyInfo: {
+        name: `${selectedPurchasesList.length} Selected Purchases`,
+        details1: '—',
+        details2: '—'
+      },
+      preparedBy: user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Authorized Officer',
+      paymentDetails: {
+        method: 'Multiple',
+        reference: 'Batch Export'
+      },
+      items: combinedItems,
+      financialSummary: {
+        subTotal: totalGross,
+        taxAmount: 0,
+        discountAmount: 0,
+        grandTotal: totalGross,
+        amountPaid: totalPaid,
+        balance: totalBalance
+      },
+      notes: `Batch print for ${selectedPurchasesList.length} procurement orders.`
+    })
+    setPrintModalOpen(true)
+  }
+
+  // Duplicate purchase
+  const handleDuplicate = async (id: string) => {
+    try {
+      const draft = await purchaseService.duplicatePurchase(id)
+      if (draft) {
+        showToast('Duplicate purchase draft generated!', 'success')
+        navigate('/company/accounts/purchases/new', { state: { draftData: draft } })
+      }
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to duplicate purchase', 'error')
+    }
+  }
+
+  // CSV Export for all purchases on page or selected
+  const exportCSV = (listToExport = purchases, filenamePrefix = 'purchases_register') => {
+    if (listToExport.length === 0) {
+      showToast('No records available to export', 'info')
+      return
+    }
+    const headers = [
+      'Purchase No',
+      'Date',
+      'Vendor',
+      'Vendor Code',
+      'Category',
+      'Invoice No',
+      'Tax Type',
+      'Payment Method',
+      'Gross Total',
+      'Paid Amount',
+      'Balance',
+      'Status',
+      'Created By'
+    ]
+    const rows = listToExport.map((p) => [
       p.purchaseNo,
       new Date(p.purchaseDate).toLocaleDateString('en-IN'),
-      `"${p.vendorName}"`,
+      `"${p.vendorName || ''}"`,
       p.vendorCode || '-',
-      p.purchaseCategory,
+      p.purchaseCategory || '',
       p.invoiceNumber || '-',
       p.taxAmount > 0 ? 'GST' : 'Non-GST',
-      p.paymentMethod,
-      p.grandTotal,
-      p.amountPaid,
-      p.balanceAmount,
-      p.paymentStatus,
+      p.paymentMethod || '',
+      p.grandTotal || 0,
+      p.amountPaid || 0,
+      p.balanceAmount || 0,
+      p.paymentStatus || '',
       `"${p.createdByName || 'Company Administrator'}"`
     ])
 
@@ -297,393 +460,352 @@ export const PurchasesPage: React.FC = () => {
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement('a')
     link.setAttribute('href', encodedUri)
-    link.setAttribute('download', `purchases_register_${new Date().toISOString().slice(0, 10)}.csv`)
+    link.setAttribute('download', `${filenamePrefix}_${new Date().toISOString().slice(0, 10)}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
   }
 
-  const getStatusBadge = (p: Purchase) => {
-    if (p.isCancelled || p.paymentStatus === 'Cancelled') {
-      return <EnterpriseBadge variant="danger">Cancelled</EnterpriseBadge>
+  // Single & Bulk Cancel handlers
+  const handleOpenCancelDialog = (p: Purchase) => {
+    setCancelTargetPurchases([p])
+    setCancelModalOpen(true)
+  }
+
+  const handleOpenBulkCancelDialog = () => {
+    const nonCancelled = selectedPurchasesList.filter(p => !p.isCancelled && p.paymentStatus !== 'Cancelled')
+    if (nonCancelled.length === 0) {
+      showToast('Selected purchases are already cancelled', 'info')
+      return
     }
-    switch (p.paymentStatus) {
-      case 'Paid':
-        return <EnterpriseBadge variant="success">Paid</EnterpriseBadge>
-      case 'PartiallyPaid':
-        return <EnterpriseBadge variant="warning">Partial</EnterpriseBadge>
-      default:
-        return <EnterpriseBadge variant="danger">Credit</EnterpriseBadge>
+    setCancelTargetPurchases(nonCancelled)
+    setCancelModalOpen(true)
+  }
+
+  const handleConfirmCancel = async () => {
+    setCancelLoading(true)
+    let successCount = 0
+    let failureCount = 0
+    const successfulIds: string[] = []
+
+    for (const p of cancelTargetPurchases) {
+      try {
+        await purchaseService.cancelPurchase(p.id)
+        successCount++
+        successfulIds.push(p.id)
+      } catch (err: any) {
+        failureCount++
+        console.error(`Failed to cancel purchase ${p.purchaseNo}`, err)
+      }
+    }
+
+    setCancelLoading(false)
+    setCancelModalOpen(false)
+
+    // Remove successful IDs from selection
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      successfulIds.forEach(id => next.delete(id))
+      return next
+    })
+
+    if (failureCount > 0) {
+      showToast(`Cancelled ${successCount} purchases, ${failureCount} failed`, 'warning')
+    } else {
+      showToast(
+        cancelTargetPurchases.length === 1
+          ? `Purchase ${cancelTargetPurchases[0].purchaseNo} cancelled successfully.`
+          : `Successfully cancelled ${successCount} purchases.`,
+        'info'
+      )
+    }
+
+    if (activeDrawerPurchase && successfulIds.includes(activeDrawerPurchase.id)) {
+      setActiveDrawerPurchase(prev => prev ? { ...prev, isCancelled: true, paymentStatus: 'Cancelled' } : null)
+    }
+
+    fetchPurchases()
+  }
+
+  // Single & Bulk Delete handlers
+  const handleOpenDeleteDialog = (p: Purchase) => {
+    setDeleteTargetPurchases([p])
+    setDeleteModalOpen(true)
+  }
+
+  const handleOpenBulkDeleteDialog = () => {
+    if (selectedPurchasesList.length === 0) return
+    setDeleteTargetPurchases(selectedPurchasesList)
+    setDeleteModalOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    setDeleteLoading(true)
+    let successCount = 0
+    let failureCount = 0
+    const successfulIds: string[] = []
+
+    for (const p of deleteTargetPurchases) {
+      try {
+        await purchaseService.deletePurchase(p.id)
+        successCount++
+        successfulIds.push(p.id)
+      } catch (err: any) {
+        failureCount++
+        console.error(`Failed to delete purchase ${p.purchaseNo}`, err)
+      }
+    }
+
+    setDeleteLoading(false)
+    setDeleteModalOpen(false)
+
+    // Remove successful IDs from selection
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      successfulIds.forEach(id => next.delete(id))
+      return next
+    })
+
+    if (failureCount > 0) {
+      showToast(`Deleted ${successCount} purchases, ${failureCount} failed`, 'warning')
+    } else {
+      showToast(
+        deleteTargetPurchases.length === 1
+          ? 'Purchase record deleted successfully'
+          : `Successfully deleted ${successCount} purchases`,
+        'info'
+      )
+    }
+
+    if (activeDrawerPurchase && successfulIds.includes(activeDrawerPurchase.id)) {
+      setActiveDrawerPurchase(null)
+    }
+
+    fetchPurchases()
+  }
+
+  // Record Payment Handlers
+  const handleOpenPaymentModal = (p: Purchase) => {
+    setPaymentTargetPurchase(p)
+    setPaymentBulkPurchases([])
+    setPaymentModalOpen(true)
+  }
+
+  const handleOpenBulkPayModal = () => {
+    const payable = selectedPurchasesList.filter(
+      p => !p.isCancelled && p.paymentStatus !== 'Cancelled' && p.balanceAmount > 0
+    )
+    if (payable.length === 0) return
+    setPaymentTargetPurchase(null)
+    setPaymentBulkPurchases(payable)
+    setPaymentModalOpen(true)
+  }
+
+  const handlePaymentSuccess = (updatedPurchases: Purchase[]) => {
+    // Update active drawer if it matches any updated purchase
+    if (activeDrawerPurchase) {
+      const match = updatedPurchases.find(u => u.id === activeDrawerPurchase.id)
+      if (match) setActiveDrawerPurchase(match)
+    }
+    // Clear selection
+    setSelectedIds(new Set())
+    fetchPurchases()
+  }
+
+  // Drawer Next/Prev navigation
+  const drawerIndex = activeDrawerPurchase
+    ? purchases.findIndex(p => p.id === activeDrawerPurchase.id)
+    : -1
+  const hasPrevDrawer = drawerIndex > 0
+  const hasNextDrawer = drawerIndex >= 0 && drawerIndex < purchases.length - 1
+
+  const handleDrawerPrev = () => {
+    if (hasPrevDrawer) {
+      setActiveDrawerPurchase(purchases[drawerIndex - 1])
     }
   }
 
-  const totalPages = Math.ceil(totalCount / pageSize) || 1
+  const handleDrawerNext = () => {
+    if (hasNextDrawer) {
+      setActiveDrawerPurchase(purchases[drawerIndex + 1])
+    }
+  }
 
   return (
-    <div className="space-y-6 select-none w-full">
-      {/* Header */}
-      <EnterpriseHeader
+    <FitScreenPage className="space-y-2.5 text-left">
+      {/* 
+        Header - PageHeader matching Expenses exactly
+        title "Purchase Management", subtitle, and the Refresh, Export Register, and Create Purchase buttons
+      */}
+      <PageHeader
         title="Purchase Management"
-        description="Comprehensive procurement register, raw material inventory intake, and vendor liabilities"
+        subtitle="Comprehensive procurement register, raw material inventory intake, and vendor liabilities"
         actions={
-          <div className="flex items-center gap-2">
-            <EnterpriseButton variant="secondary" size="sm" onClick={fetchPurchases} disabled={loading}>
-              <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          <>
+            <EnterpriseButton
+              variant="secondary"
+              size="sm"
+              onClick={fetchPurchases}
+              disabled={loading}
+              className="!h-[32px] text-xs font-semibold"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 text-slate-500 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
             </EnterpriseButton>
-            <EnterpriseButton variant="secondary" size="sm" onClick={exportCSV}>
-              <FileSpreadsheet className="w-4 h-4 mr-1.5 text-emerald-600" /> Export Register
+            <EnterpriseButton
+              variant="secondary"
+              size="sm"
+              onClick={() => exportCSV(purchases, 'purchases_register')}
+              className="!h-[32px] text-xs font-semibold"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
+              Export Register
             </EnterpriseButton>
             {canWrite && (
-              <EnterpriseButton variant="primary" size="sm" onClick={() => navigate('/company/accounts/purchases/new')}>
-                <Plus className="w-4 h-4 mr-1.5" /> Create Purchase
+              <EnterpriseButton
+                variant="primary"
+                size="sm"
+                onClick={() => navigate('/company/accounts/purchases/new')}
+                className="!h-[32px] text-xs font-semibold shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1.5" />
+                Create Purchase
               </EnterpriseButton>
             )}
-          </div>
+          </>
         }
       />
 
-      {/* Quick Summary KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <EnterpriseCard className="p-3 border-l-4 border-l-blue-600">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block truncate">Total Purchases</span>
-          <div className="text-lg font-extrabold text-slate-900 font-mono mt-0.5">
-            {summaryStats?.totalPurchasesCount ?? totalCount}
-          </div>
-        </EnterpriseCard>
+      {/* 1. KPI Row (4 cards desktop, 2 tablet, 1 mobile) */}
+      <PurchaseKpiCards
+        purchases={purchases}
+        summaryStats={summaryStats}
+        loading={loading}
+        totalCount={totalCount}
+      />
 
-        <EnterpriseCard className="p-3 border-l-4 border-l-indigo-600">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block truncate">Today's Purchases</span>
-          <div className="text-lg font-extrabold text-indigo-600 font-mono mt-0.5">
-            {summaryStats?.todayPurchasesCount ?? 0}
-          </div>
-        </EnterpriseCard>
+      {/* 2. Breakdown Cards: "Spend by Category" & "Paid Via" Side-by-Side */}
+      <SpendBreakdownCards
+        purchases={purchases}
+        selectedCategory={filters.category}
+        onSelectCategory={(cat) => handleFilterChange({ category: cat })}
+        selectedPaymentMethod={filters.paymentMethod}
+        onSelectPaymentMethod={(method) => handleFilterChange({ paymentMethod: method })}
+        loading={loading}
+      />
 
-        <EnterpriseCard className="p-3 border-l-4 border-l-emerald-600">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block truncate">Total Value</span>
-          <div className="text-lg font-extrabold text-emerald-600 font-mono mt-0.5 truncate">
-            ₹{(summaryStats?.totalPurchaseValue ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-          </div>
-        </EnterpriseCard>
+      {/* 3. Main Procurement Table Card (Flex:1, min-h-[260px], overflow-hidden) */}
+      <div className="bg-white border border-[#E5E9F2] rounded-[12px] shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden w-full flex-1 min-h-[260px] flex flex-col">
+        {/* If 1+ rows selected, show Bulk Action Bar; otherwise show Filter Bar */}
+        {selectedIds.size > 0 ? (
+          <PurchaseBulkBar
+            selectedPurchases={selectedPurchasesList}
+            onClearSelection={() => setSelectedIds(new Set())}
+            onExportSelected={() => exportCSV(selectedPurchasesList, 'selected_purchases')}
+            onPrintSelected={handleBulkPrint}
+            onCancelSelected={handleOpenBulkCancelDialog}
+            onDeleteSelected={handleOpenBulkDeleteDialog}
+            onPaySelected={handleOpenBulkPayModal}
+            canWrite={canWrite}
+          />
+        ) : (
+          <PurchaseFilters
+            vendors={vendors}
+            categories={categories}
+            filters={filters}
+            onChange={handleFilterChange}
+            onClear={handleClearFilters}
+            hasActiveFilters={hasActiveFilters}
+          />
+        )}
 
-        <EnterpriseCard className="p-3 border-l-4 border-l-red-600">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block truncate">Outstanding Balance</span>
-          <div className="text-lg font-extrabold text-red-600 font-mono mt-0.5 truncate">
-            ₹{(summaryStats?.outstandingBalance ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-          </div>
-        </EnterpriseCard>
-
-        <EnterpriseCard className="p-3 border-l-4 border-l-amber-600">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block truncate">Pending Payments</span>
-          <div className="text-lg font-extrabold text-amber-600 font-mono mt-0.5">
-            {summaryStats?.pendingPaymentsCount ?? 0}
-          </div>
-        </EnterpriseCard>
-
-        <EnterpriseCard className="p-3 border-l-4 border-l-purple-600">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block truncate">Active Vendors</span>
-          <div className="text-lg font-extrabold text-purple-600 font-mono mt-0.5">
-            {summaryStats?.activeVendorsCount ?? vendors.length}
-          </div>
-        </EnterpriseCard>
+        {/* Table & Rows */}
+        <PurchasesTable
+          purchases={purchases}
+          summaryStats={summaryStats}
+          loading={loading}
+          error={error}
+          onRetry={fetchPurchases}
+          totalCount={totalCount}
+          pageNumber={pageNumber}
+          pageSize={pageSize}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+          selectedIds={selectedIds}
+          onToggleSelect={handleToggleSelect}
+          onToggleSelectAll={handleToggleSelectAll}
+          onOpenDrawer={setActiveDrawerPurchase}
+          onEdit={(p) => navigate(`/company/accounts/purchases/edit/${p.id}`)}
+          onPrint={handlePrintPurchase}
+          onDuplicate={(p) => handleDuplicate(p.id)}
+          onRecordPayment={handleOpenPaymentModal}
+          onCancel={handleOpenCancelDialog}
+          onDelete={handleOpenDeleteDialog}
+          canWrite={canWrite}
+          hasFilters={hasActiveFilters}
+          onClearFilters={handleClearFilters}
+          onCreatePurchase={() => navigate('/company/accounts/purchases/new')}
+        />
       </div>
 
-      {/* Advanced Rich Filter Bar */}
-      <EnterpriseCard className="p-4 space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          {/* Search */}
-          <div className="relative col-span-1 md:col-span-2">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search Purchase No, Vendor, Invoice No..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value)
-                setPageNumber(1)
-              }}
-              className="w-full h-[38px] pl-9 pr-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
-            />
-          </div>
+      {/* Slide-over Detail Drawer */}
+      <PurchaseDetailDrawer
+        isOpen={!!activeDrawerPurchase}
+        purchase={activeDrawerPurchase}
+        onClose={() => setActiveDrawerPurchase(null)}
+        hasPrev={hasPrevDrawer}
+        hasNext={hasNextDrawer}
+        onNavigatePrev={handleDrawerPrev}
+        onNavigateNext={handleDrawerNext}
+        onEdit={(p) => navigate(`/company/accounts/purchases/edit/${p.id}`)}
+        onPrint={handlePrintPurchase}
+        onDuplicate={(p) => handleDuplicate(p.id)}
+        onRecordPayment={handleOpenPaymentModal}
+        onCancel={handleOpenCancelDialog}
+        onDelete={handleOpenDeleteDialog}
+        canWrite={canWrite}
+      />
 
-          {/* Date Filter */}
-          <div>
-            <select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="w-full h-[38px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB] font-medium"
-            >
-              <option value="all">All Dates</option>
-              <option value="today">Today</option>
-              <option value="this_week">This Week</option>
-              <option value="this_month">This Month</option>
-              <option value="custom">Custom Date Range</option>
-            </select>
-          </div>
-
-          {/* Vendor */}
-          <div>
-            <select
-              value={selectedVendorId}
-              onChange={(e) => setSelectedVendorId(e.target.value)}
-              className="w-full h-[38px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB] font-medium"
-            >
-              <option value="">All Vendors</option>
-              {vendors.map((v) => (
-                <option key={v.id} value={v.id}>{v.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Category */}
-          <div>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full h-[38px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB] font-medium"
-            >
-              <option value="">All Categories</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Status */}
-          <div>
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full h-[38px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB] font-medium"
-            >
-              <option value="">All Statuses</option>
-              <option value="Paid">Paid</option>
-              <option value="PartiallyPaid">Partially Paid</option>
-              <option value="Unpaid">Credit / Unpaid</option>
-              <option value="Cancelled">Cancelled</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Custom Date Inputs & Clear Button */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[#E5E9F2]">
-          <div className="flex items-center gap-3">
-            {dateFilter === 'custom' && (
-              <>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="px-3 h-[34px] text-xs bg-white border border-[#D0D5DD] rounded-[6px]"
-                />
-                <span className="text-xs text-slate-400">to</span>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="px-3 h-[34px] text-xs bg-white border border-[#D0D5DD] rounded-[6px]"
-                />
-              </>
-            )}
-            <span className="text-xs text-slate-500 font-medium">
-              Showing {purchases.length} of {totalCount} records
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="text-xs text-[#1A56DB] hover:underline font-semibold flex items-center gap-1"
-          >
-            <RotateCcw className="w-3.5 h-3.5" /> Clear Filters
-          </button>
-        </div>
-      </EnterpriseCard>
-
-      {/* Enterprise Full-Width High-Density Table */}
-      <EnterpriseCard className="p-0 overflow-hidden">
-        {loading ? (
-          <EnterpriseLoading label="Loading Procurement Ledger..." />
-        ) : purchases.length === 0 ? (
-          <div className="p-12 text-center text-slate-500 space-y-2">
-            <ShoppingBag className="w-10 h-10 mx-auto text-slate-300" />
-            <p className="font-semibold text-slate-700">No Purchase Records Found</p>
-            <p className="text-xs">Adjust your search filters or record a new purchase transaction.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-[#F8FAFC] border-b border-[#E5E9F2] text-slate-600 font-bold uppercase tracking-wider">
-                  <th className="px-4 py-3">Purchase Date</th>
-                  <th className="px-4 py-3">Vendor</th>
-                  <th className="px-4 py-3">Category</th>
-                  <th className="px-4 py-3">Payment Method</th>
-                  <th className="px-4 py-3 text-right">Gross Amount</th>
-                  <th className="px-4 py-3 text-right">Paid Amount</th>
-                  <th className="px-4 py-3 text-right">Balance</th>
-                  <th className="px-4 py-3">Payment Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E5E9F2]">
-                {purchases.map((purchase) => (
-                  <tr key={purchase.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                      {new Date(purchase.purchaseDate).toLocaleDateString('en-IN', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric'
-                      })}
-                    </td>
-                    <td className="px-4 py-3 font-bold text-slate-900">
-                      <div>
-                        {purchase.vendorName}
-                        {purchase.vendorCode && (
-                          <span className="text-[10px] text-slate-400 font-mono block">{purchase.vendorCode}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <EnterpriseBadge variant="info">{purchase.purchaseCategory}</EnterpriseBadge>
-                    </td>
-                    <td className="px-4 py-3 text-slate-700 font-medium whitespace-nowrap">
-                      {purchase.paymentMethod}
-                    </td>
-                    <td className="px-4 py-3 text-right font-extrabold text-slate-900 font-mono whitespace-nowrap">
-                      ₹{purchase.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-4 py-3 text-right text-emerald-600 font-semibold font-mono whitespace-nowrap">
-                      ₹{purchase.amountPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-4 py-3 text-right text-red-600 font-semibold font-mono whitespace-nowrap">
-                      ₹{purchase.balanceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {getStatusBadge(purchase)}
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {/* VIEW */}
-                        <button
-                          onClick={() => navigate(`/company/accounts/purchases/${purchase.id}`)}
-                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
-                          title="View Details"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
-
-                        {/* EDIT */}
-                        {canWrite && !purchase.isCancelled && (
-                          <button
-                            onClick={() => navigate(`/company/accounts/purchases/edit/${purchase.id}`)}
-                            className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
-                            title="Edit Purchase"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-
-                        {/* PRINT */}
-                        <button
-                          onClick={() => handlePrintPurchase(purchase)}
-                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
-                          title="Print Purchase Invoice"
-                        >
-                          <Printer className="w-3.5 h-3.5" />
-                        </button>
-
-                        {/* DELETE */}
-                        {canWrite && (
-                          <button
-                            onClick={() => handleDelete(purchase.id, purchase.purchaseNo)}
-                            className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors"
-                            title="Delete Purchase"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-
-                        {/* MODULE SPECIFIC EXTRA ACTIONS */}
-                        {canWrite && !purchase.isCancelled && purchase.balanceAmount > 0 && (
-                          <button
-                            onClick={() => {
-                              setPaymentModalPurchase(purchase)
-                              setPaymentAmount(purchase.balanceAmount)
-                            }}
-                            className="p-1 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded transition-colors"
-                            title="Record Payment"
-                          >
-                            <CreditCard className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-
-                        {canWrite && (
-                          <button
-                            onClick={() => handleDuplicate(purchase.id)}
-                            className="p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded transition-colors"
-                            title="Duplicate Purchase"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-
-                        {canWrite && !purchase.isCancelled && (
-                          <button
-                            onClick={() => handleCancel(purchase.id, purchase.purchaseNo)}
-                            className="p-1 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded transition-colors"
-                            title="Cancel Purchase"
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Pagination Footer */}
-        {totalPages > 1 && (
-          <div className="p-3 border-t border-[#E5E9F2] flex items-center justify-between bg-slate-50/50">
-            <EnterpriseButton
-              variant="secondary"
-              size="sm"
-              disabled={pageNumber <= 1}
-              onClick={() => setPageNumber((p) => p - 1)}
-            >
-              Previous
-            </EnterpriseButton>
-            <span className="text-xs text-slate-500 font-medium">
-              Page {pageNumber} of {totalPages} ({totalCount} Records)
-            </span>
-            <EnterpriseButton
-              variant="secondary"
-              size="sm"
-              disabled={pageNumber >= totalPages}
-              onClick={() => setPageNumber((p) => p + 1)}
-            >
-              Next
-            </EnterpriseButton>
-          </div>
-        )}
-      </EnterpriseCard>
-
-      {/* Shared Record Payment Modal */}
-      {paymentModalPurchase && (
-        <RecordPurchasePaymentModal
-          isOpen={!!paymentModalPurchase}
-          onClose={() => setPaymentModalPurchase(null)}
-          purchase={paymentModalPurchase}
-          onSuccess={() => {
-            fetchPurchases()
+      {/* Record Payment Modal (Single or Bulk Pay Selected) */}
+      {paymentModalOpen && (
+        <RecordPaymentModal
+          isOpen={paymentModalOpen}
+          onClose={() => {
+            setPaymentModalOpen(false)
+            setPaymentTargetPurchase(null)
+            setPaymentBulkPurchases([])
           }}
+          purchase={paymentTargetPurchase}
+          purchases={paymentBulkPurchases}
+          onSuccess={handlePaymentSuccess}
         />
       )}
 
-      {/* PRINT PREVIEW MODAL */}
+      {/* Cancel Purchase Confirm Dialog */}
+      <PurchaseCancelDialog
+        isOpen={cancelModalOpen}
+        purchases={cancelTargetPurchases}
+        onClose={() => {
+          setCancelModalOpen(false)
+          setCancelTargetPurchases([])
+        }}
+        onConfirm={handleConfirmCancel}
+        loading={cancelLoading}
+      />
+
+      {/* Delete Purchase Confirm Dialog */}
+      <PurchaseDeleteDialog
+        isOpen={deleteModalOpen}
+        purchases={deleteTargetPurchases}
+        onClose={() => {
+          setDeleteModalOpen(false)
+          setDeleteTargetPurchases([])
+        }}
+        onConfirm={handleConfirmDelete}
+        loading={deleteLoading}
+      />
+
+      {/* Print Preview Modal */}
       {printModalOpen && printDocData && (
         <PrintPreviewModal
           isOpen={printModalOpen}
@@ -694,7 +816,7 @@ export const PurchasesPage: React.FC = () => {
           documentData={printDocData}
         />
       )}
-    </div>
+    </FitScreenPage>
   )
 }
 
