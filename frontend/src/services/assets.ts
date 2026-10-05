@@ -86,6 +86,22 @@ export interface AssetKpiSummary {
   warrantyExpiringCount: number
 }
 
+export interface AssetCategoryDto {
+  id: string
+  code: string
+  name: string
+  description?: string
+  isSystem: boolean
+  isActive: boolean
+  createdAt: string
+}
+
+export interface CreateAssetCategoryInput {
+  name: string
+  description?: string
+  isActive?: boolean
+}
+
 export interface CreateAssetInput {
   assetTag?: string
   assetName: string
@@ -373,6 +389,18 @@ export const assetService = {
 
   importAssets: async (rows: AssetImportRow[]) => {
     const res = await api.post<{ data: AssetImportResult }>('/api/v1/assets/import', rows)
+    return res.data?.data
+  },
+
+  getAssetCategories: async (includeInactive = false) => {
+    const res = await api.get<{ data: AssetCategoryDto[] }>('/api/v1/asset-categories', {
+      params: { includeInactive }
+    })
+    return res.data?.data || []
+  },
+
+  createAssetCategory: async (input: CreateAssetCategoryInput) => {
+    const res = await api.post<{ data: AssetCategoryDto }>('/api/v1/asset-categories', input)
     return res.data?.data
   }
 }

@@ -156,18 +156,31 @@ export const PurchasesPage: React.FC = () => {
   const [printModalOpen, setPrintModalOpen] = useState(false)
   const [printDocData, setPrintDocData] = useState<any>(null)
 
-  const categories = useMemo(() => [
-    'RawMaterial',
-    'Machine',
-    'OfficeAsset',
-    'OfficeExpense',
-    'Service',
-    'Maintenance',
-    'Utility',
-    'Vehicle',
-    'Software',
-    'Other'
-  ], [])
+  const [dbCategories, setDbCategories] = useState<string[]>([])
+
+  useEffect(() => {
+    purchaseService.getPurchaseCategories().then(cats => {
+      if (Array.isArray(cats) && cats.length > 0) {
+        setDbCategories(cats.map(c => c.code))
+      }
+    }).catch(() => {})
+  }, [])
+
+  const categories = useMemo(() => {
+    if (dbCategories.length > 0) return dbCategories
+    return [
+      'RawMaterial',
+      'Machine',
+      'OfficeAsset',
+      'OfficeExpense',
+      'Service',
+      'Maintenance',
+      'Utility',
+      'Vehicle',
+      'Software',
+      'Other'
+    ]
+  }, [dbCategories])
 
   // Load vendors list
   useEffect(() => {

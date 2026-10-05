@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
-import { X, AlertCircle, AlertTriangle, Lock, Info, Loader2 } from 'lucide-react'
+import { X, AlertCircle, AlertTriangle, Lock, Info, Loader2, Plus } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import type {
   MonthlySalaryDirectory,
   MonthlySalaryDetails
 } from '../../../../services/payroll'
 import { payrollService } from '../../../../services/payroll'
 import type { BankAccountDropdown, CashBookDropdown } from '../../../../services/simpleAccounts'
+import type { EmployeeDto } from '../../../../services/employees'
+import { QuickCreateEmployeeModal } from './QuickCreateEmployeeModal'
 import {
   formatINR,
   formatMonthLabel,
@@ -37,7 +40,14 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
   onPaymentSuccess,
   onViewPayslip
 }) => {
+  const queryClient = useQueryClient()
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const prevIsOpenRef = useRef(false)
+  const prevPrefilledIdRef = useRef<string | null | undefined>(undefined)
+  const latestRequestIdRef = useRef<number>(0)
+
+  const [isCreateEmployeeOpen, setIsCreateEmployeeOpen] = useState(false)
+  const [createdEmployees, setCreatedEmployees] = useState<any[]>([])
 
   const [employeeId, setEmployeeId] = useState<string>('')
   const [salaryMonth, setSalaryMonth] = useState<string>('')
@@ -70,56 +80,96 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [serverLockError, setServerLockError] = useState<string | null>(null)
 
+  // Merge parent employees with any freshly created employees
+  const allEmployees = useMemo(() => {
+    const map = new Map<string, any>()
+    for (const emp of employees) {
+      if (emp && emp.id) map.set(emp.id, emp)
+    }
+    for (const emp of createdEmployees) {
+      if (emp && emp.id) map.set(emp.id, emp)
+    }
+    return Array.from(map.values())
+  }, [employees, createdEmployees])
+
   // Initialize or reset form on open
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) {
+      prevIsOpenRef.current = false
+      return
+    }
 
-    setErrorMessage(null)
-    setServerLockError(null)
-    setSubmitting(false)
-    setShowAdjustments(false)
-    setIsAmountCustomized(false)
-    setPaymentDate(new Date().toISOString().slice(0, 10))
-    setPaymentMethod('BankAccount')
-    setConfirmFinalSettlement(false)
-    setRemarks('')
+    const justOpened = !prevIsOpenRef.current
+    const prefilledChanged = prefilledRecord?.id !== prevPrefilledIdRef.current
+    prevIsOpenRef.current = true
+    prevPrefilledIdRef.current = prefilledRecord?.id
 
-    if (bankAccounts.length > 0) setBankAccountId(bankAccounts[0].id)
-    if (cashBooks.length > 0) setCashBookId(cashBooks[0].id)
+    if (justOpened || prefilledChanged) {
+      setErrorMessage(null)
+      setServerLockError(null)
+      setSubmitting(false)
+      setShowAdjustments(false)
+      setIsAmountCustomized(false)
+      setPaymentDate(new Date().toISOString().slice(0, 10))
+      setPaymentMethod('BankAccount')
+      setConfirmFinalSettlement(false)
+      setRemarks('')
 
-    if (prefilledRecord) {
-      setEmployeeId(prefilledRecord.employeeId)
-      setSalaryMonth(prefilledRecord.salaryMonth)
-      setMonthlySalaryId(prefilledRecord.id)
-      setWorkingDays(prefilledRecord.workingDays || 30)
-      setDaysWorked(prefilledRecord.daysWorked ?? prefilledRecord.workingDays ?? 30)
-      setBaseSalary(prefilledRecord.baseSalary || 0)
-      setTotalPreviousPaid(prefilledRecord.totalPaid || 0)
-      setTotalAdvances(prefilledRecord.totalAdvances || 0)
-      setRemainingBalance(prefilledRecord.remainingBalance || 0)
-      setStatus(prefilledRecord.status || 'Unpaid')
-      setIsFinalized(Boolean(prefilledRecord.isFinalized))
-      loadDetails(prefilledRecord.id)
-    } else {
-      const initMonth = defaultMonth || new Date().toISOString().slice(0, 7)
-      setSalaryMonth(initMonth)
-      if (employees.length > 0) {
-        setEmployeeId(employees[0].id)
-        fetchEntitlement(employees[0].id, initMonth)
+      if (bankAccounts.length > 0) setBankAccountId(bankAccounts[0].id)
+      if (cashBooks.length > 0) setCashBookId(cashBooks[0].id)
+
+      if (prefilledRecord) {
+        setEmployeeId(prefilledRecord.employeeId)
+        setSalaryMonth(prefilledRecord.salaryMonth)
+        setMonthlySalaryId(prefilledRecord.id)
+        setWorkingDays(prefilledRecord.workingDays || 30)
+        setDaysWorked(prefilledRecord.daysWorked ?? prefilledRecord.workingDays ?? 30)
+        setBaseSalary(prefilledRecord.baseSalary || 0)
+        setTotalPreviousPaid(prefilledRecord.totalPaid || 0)
+        setTotalAdvances(prefilledRecord.totalAdvances || 0)
+        setRemainingBalance(prefilledRecord.remainingBalance || 0)
+        setStatus(prefilledRecord.status || 'Unpaid')
+        setIsFinalized(Boolean(prefilledRecord.isFinalized))
+        loadDetails(prefilledRecord.id)
       } else {
-        setEmployeeId('')
-        setBaseSalary(0)
-        setWorkingDays(30)
-        setDaysWorked(30)
-        setTotalPreviousPaid(0)
-        setTotalAdvances(0)
-        setRemainingBalance(0)
-        setStatus('Unpaid')
-        setIsFinalized(false)
-        setMonthlySalaryId('')
+        const initMonth = defaultMonth || new Date().toISOString().slice(0, 7)
+        setSalaryMonth(initMonth)
+        if (allEmployees.length > 0) {
+          const firstEmp = allEmployees[0]
+          setEmployeeId(firstEmp.id)
+          fetchEntitlement(firstEmp.id, initMonth)
+        } else {
+          setEmployeeId('')
+          setBaseSalary(0)
+          setWorkingDays(30)
+          setDaysWorked(30)
+          setTotalPreviousPaid(0)
+          setTotalAdvances(0)
+          setRemainingBalance(0)
+          setStatus('Unpaid')
+          setIsFinalized(false)
+          setMonthlySalaryId('')
+        }
+      }
+    } else {
+      // Modal was already open; if employeeId was unset and employees became available, select first
+      if (!employeeId && allEmployees.length > 0) {
+        const firstEmp = allEmployees[0]
+        setEmployeeId(firstEmp.id)
+        fetchEntitlement(firstEmp.id, salaryMonth)
       }
     }
-  }, [isOpen, prefilledRecord, defaultMonth, employees, bankAccounts, cashBooks])
+  }, [isOpen, prefilledRecord, defaultMonth, allEmployees, bankAccounts, cashBooks])
+
+  const handleEmployeeCreated = (newEmp: EmployeeDto) => {
+    setCreatedEmployees(prev => [newEmp, ...prev])
+    setEmployeeId(newEmp.id)
+    setIsAmountCustomized(false)
+    queryClient.invalidateQueries({ queryKey: ['employeesListDropdown'] })
+    queryClient.invalidateQueries({ queryKey: ['employeesList'] })
+    setIsCreateEmployeeOpen(false)
+    fetchEntitlement(newEmp.id, salaryMonth)
+  }
 
   const loadDetails = async (id: string) => {
     try {
@@ -147,6 +197,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
 
   const fetchEntitlement = async (empId: string, mStr: string) => {
     if (!empId || !mStr) return
+    const reqId = ++latestRequestIdRef.current
     try {
       setIsLoadingDetails(true)
       setErrorMessage(null)
@@ -160,6 +211,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
         advanceDeduction: 0,
         otherDeduction: 0
       })
+      if (reqId !== latestRequestIdRef.current) return
       setMonthlySalaryId(res.id)
       setBaseSalary(res.baseSalary)
       setWorkingDays(res.workingDays || 30)
@@ -173,6 +225,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
       setStatus(res.status || 'Unpaid')
       setIsFinalized(Boolean(res.isFinalized))
     } catch (err: any) {
+      if (reqId !== latestRequestIdRef.current) return
       const msg = err.response?.data?.message || err.message || 'Unable to load salary entitlement for employee.'
       if (msg.includes('finalized and locked') || msg.includes('already finalized')) {
         setIsFinalized(true)
@@ -181,7 +234,9 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
         setErrorMessage(msg)
       }
     } finally {
-      setIsLoadingDetails(false)
+      if (reqId === latestRequestIdRef.current) {
+        setIsLoadingDetails(false)
+      }
     }
   }
 
@@ -330,7 +385,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
 
   if (!isOpen) return null
 
-  const selectedEmp = employees.find(e => e.id === employeeId)
+  const selectedEmp = allEmployees.find(e => e.id === employeeId)
   const empDisplayName = selectedEmp?.fullName || selectedEmp?.name || prefilledRecord?.employeeName || 'Employee'
   const monthDisplay = formatMonthLabel(salaryMonth)
 
@@ -434,24 +489,42 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
           {/* Top Row: Employee Select & Month Select (ALWAYS ENABLED) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Employee <span className="text-rose-500">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-semibold text-slate-700">
+                  Employee <span className="text-rose-500">*</span>
+                </label>
+                {!prefilledRecord && (
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateEmployeeOpen(true)}
+                    className="text-xs text-[#1A56DB] hover:text-blue-700 hover:underline font-semibold flex items-center gap-1 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>New Employee</span>
+                  </button>
+                )}
+              </div>
               <select
                 value={employeeId}
                 disabled={Boolean(prefilledRecord) || isLoadingDetails}
                 onChange={e => {
-                  setEmployeeId(e.target.value)
-                  fetchEntitlement(e.target.value, salaryMonth)
+                  const newId = e.target.value
+                  setEmployeeId(newId)
+                  setIsAmountCustomized(false)
+                  fetchEntitlement(newId, salaryMonth)
                 }}
                 className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-none focus:border-[#1A56DB] disabled:bg-slate-100"
                 required
               >
-                {employees.map(emp => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.fullName || emp.name} ({emp.department || 'Operations'})
-                  </option>
-                ))}
+                {allEmployees.length === 0 ? (
+                  <option value="">No employees found</option>
+                ) : (
+                  allEmployees.map(emp => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.fullName || emp.name} ({emp.department || 'Operations'})
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -464,8 +537,10 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
                 value={salaryMonth}
                 disabled={Boolean(prefilledRecord) || isLoadingDetails}
                 onChange={e => {
-                  setSalaryMonth(e.target.value)
-                  if (employeeId) fetchEntitlement(employeeId, e.target.value)
+                  const newMonth = e.target.value
+                  setSalaryMonth(newMonth)
+                  setIsAmountCustomized(false)
+                  if (employeeId) fetchEntitlement(employeeId, newMonth)
                 }}
                 className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-none focus:border-[#1A56DB] disabled:bg-slate-100"
                 required
@@ -869,6 +944,13 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Quick Create Employee Modal */}
+      <QuickCreateEmployeeModal
+        isOpen={isCreateEmployeeOpen}
+        onClose={() => setIsCreateEmployeeOpen(false)}
+        onSuccess={handleEmployeeCreated}
+      />
     </div>
   )
 }

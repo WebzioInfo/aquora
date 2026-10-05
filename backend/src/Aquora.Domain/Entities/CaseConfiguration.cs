@@ -6,6 +6,7 @@ namespace Aquora.Domain.Entities
     public class CaseConfiguration : BaseEntity, IMultiTenant, ICompanySpecific, IAuditable, ISoftDelete
     {
         public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
         public bool IsActive { get; set; } = true;
 
         public Guid ProductId { get; set; }

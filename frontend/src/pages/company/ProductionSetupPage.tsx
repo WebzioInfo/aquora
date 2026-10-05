@@ -8,7 +8,7 @@ import { productsService } from '../../services/products'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import { isOwnerUser } from '../../utils/permissions'
-import PageContainer from '../../components/ui/layout/PageContainer'
+import { PageContainer, PageHeader } from '../../components/ui/layout'
 import EnterpriseModal from '../../components/ui/EnterpriseModal'
 import EnterpriseInput from '../../components/ui/EnterpriseInput'
 import EnterpriseButton from '../../components/ui/EnterpriseButton'
@@ -463,51 +463,49 @@ export const ProductionSetupPage: React.FC = () => {
   // ─────────────────────────────────────────────────────────────────────────────
   return (
     <PageContainer>
-      <div className="flex flex-col gap-3 max-w-[1600px] mx-auto w-full pb-4">
+      {/* ══ PAGE HEADER ═════════════════════════════════════════════════════════ */}
+      <PageHeader
+        title="Production Setup"
+        description="Manage production lines, operating shifts, and line status schedules."
+        actions={
+          canManage && (
+            activeTab === 'lines' ? (
+              <button
+                type="button"
+                onClick={handleOpenAddLine}
+                className="h-9 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow-sm shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Production Line</span>
+              </button>
+            ) : activeTab === 'shifts' ? (
+              <button
+                type="button"
+                onClick={handleOpenAddShift}
+                className="h-9 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow-sm shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Production Shift</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleOpenAddCaseConfig}
+                className="h-9 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow-sm shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Case Configuration</span>
+              </button>
+            )
+          )
+        }
+      />
 
-        {/* ══ PAGE HEADER & TOP TAB BAR ════════════════════════════════════════ */}
-        <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-black text-slate-900 leading-tight">Production Setup</h1>
-            <p className="text-xs font-medium text-slate-500 mt-0.5">
-              Manage production lines, operating shifts, and line status schedules.
-            </p>
-          </div>
-
-          {/* Primary Action Button */}
-          {canManage && (
-            <div>
-              {activeTab === 'lines' ? (
-                <button
-                  onClick={handleOpenAddLine}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" /> Add Production Line
-                </button>
-              ) : activeTab === 'shifts' ? (
-                <button
-                  onClick={handleOpenAddShift}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" /> Add Production Shift
-                </button>
-              ) : (
-                <button
-                  onClick={handleOpenAddCaseConfig}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" /> Add Case Configuration
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* ══ TAB SWITCHER & SEARCH BAR ════════════════════════════════════════ */}
-        <div className="bg-white border border-slate-200 rounded-lg p-2 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-2">
-          {/* Tabs */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-md w-full sm:w-auto">
-            <button
+      {/* ══ TAB SWITCHER & SEARCH BAR ════════════════════════════════════════ */}
+      <div className="bg-white border border-[#E5E7EB] rounded-xl p-2.5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+        {/* Tabs */}
+        <div className="flex items-center bg-slate-100 p-1 rounded-md w-full sm:w-auto">
+          <button
               onClick={() => setActiveTab('lines')}
               className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
                 activeTab === 'lines'
@@ -942,8 +940,6 @@ export const ProductionSetupPage: React.FC = () => {
           )}
 
         </div>
-
-      </div>
 
       {/* ══ MODALS: ADD / EDIT PRODUCTION LINE ══════════════════════════════════ */}
       <EnterpriseModal

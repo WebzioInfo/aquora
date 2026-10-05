@@ -67,6 +67,7 @@ namespace Aquora.Application.Interfaces
         DbSet<Aquora.Domain.Entities.Finance.JournalEntry> JournalEntries { get; }
         DbSet<Aquora.Domain.Entities.Finance.JournalEntryLine> JournalEntryLines { get; }
         DbSet<Aquora.Domain.Entities.Finance.Asset> Assets { get; }
+        DbSet<Aquora.Domain.Entities.Finance.AssetCategory> AssetCategories { get; }
         DbSet<Aquora.Domain.Entities.Finance.AssetMaintenanceRecord> AssetMaintenanceRecords { get; }
         DbSet<Aquora.Domain.Entities.Finance.ExpenseRecord> ExpenseRecords { get; }
         DbSet<Aquora.Domain.Entities.Finance.BankLedgerEntry> BankLedgerEntries { get; }
@@ -76,6 +77,7 @@ namespace Aquora.Application.Interfaces
         
         // Simple Accounts V1 Module
         DbSet<Aquora.Domain.Entities.Finance.SimpleExpense> SimpleExpenses { get; }
+        DbSet<Aquora.Domain.Entities.Finance.ExpenseCategory> ExpenseCategories { get; }
         DbSet<Aquora.Domain.Entities.Finance.Owner> Owners { get; }
         DbSet<Aquora.Domain.Entities.Finance.OwnerInvestmentTransaction> OwnerInvestmentTransactions { get; }
         DbSet<Aquora.Domain.Entities.Finance.BankLedgerAuditEntry> BankLedgerAuditEntries { get; }
@@ -86,6 +88,7 @@ namespace Aquora.Application.Interfaces
         // Purchase Management & Asset History Module
         DbSet<Aquora.Domain.Entities.Finance.Vendor> Vendors { get; }
         DbSet<Aquora.Domain.Entities.Finance.Purchase> Purchases { get; }
+        DbSet<Aquora.Domain.Entities.Finance.PurchaseCategory> PurchaseCategories { get; }
         DbSet<Aquora.Domain.Entities.Finance.PurchaseItem> PurchaseItems { get; }
         DbSet<Aquora.Domain.Entities.Finance.PurchasePayment> PurchasePayments { get; }
         DbSet<Aquora.Domain.Entities.Finance.PurchaseTimelineEvent> PurchaseTimelineEvents { get; }

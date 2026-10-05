@@ -6,6 +6,8 @@ export interface CaseConfiguration {
   productId: string
   productName: string
   productSku: string | null
+  name?: string
+  description?: string | null
   unitsPerCase: number
   isActive: boolean
   createdAt: string
@@ -14,11 +16,16 @@ export interface CaseConfiguration {
 
 export interface CreateCaseConfigurationRequest {
   productId: string
+  name?: string
+  description?: string
   unitsPerCase: number
+  isActive?: boolean
 }
 
 export interface UpdateCaseConfigurationRequest {
   productId?: string
+  name?: string
+  description?: string
   unitsPerCase: number
   isActive?: boolean
 }

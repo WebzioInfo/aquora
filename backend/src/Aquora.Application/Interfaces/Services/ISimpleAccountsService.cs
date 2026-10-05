@@ -24,6 +24,13 @@ namespace Aquora.Application.Interfaces.Services
         Task<SimpleExpenseDto?> UpdateExpenseAsync(Guid id, UpdateSimpleExpenseRequest request);
         Task<bool> DeleteExpenseAsync(Guid id);
 
+        // Expense Categories
+        Task<List<ExpenseCategoryDto>> GetExpenseCategoriesAsync(bool includeInactive = false);
+        Task<ExpenseCategoryDto?> GetExpenseCategoryByIdAsync(Guid id);
+        Task<ExpenseCategoryDto> CreateExpenseCategoryAsync(CreateExpenseCategoryRequest request);
+        Task<ExpenseCategoryDto?> UpdateExpenseCategoryAsync(Guid id, UpdateExpenseCategoryRequest request);
+        Task<bool> DeleteExpenseCategoryAsync(Guid id);
+
         // 2. Bank Account Management
         Task<PagedResult<BankAccountDto>> GetBankAccountsAsync(
             int pageNumber,

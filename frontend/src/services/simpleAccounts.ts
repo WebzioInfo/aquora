@@ -48,6 +48,23 @@ export interface UpdateSimpleExpenseRequest {
   notes?: string
 }
 
+export interface ExpenseCategory {
+  id: string
+  tenantId: string
+  companyId: string
+  name: string
+  description?: string
+  isActive: boolean
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface CreateExpenseCategoryRequest {
+  name: string
+  description?: string
+  isActive?: boolean
+}
+
 export interface BankLedgerEntry {
   id: string
   bankAccountId: string
@@ -351,6 +368,34 @@ export const simpleAccountsService = {
 
   deleteExpense: async (id: string) => {
     const res = await api.delete(`/api/v1/expenses/${id}`)
+    return res.data
+  },
+
+  // Expense Categories
+  getExpenseCategories: async (includeInactive = false) => {
+    const res = await api.get<{ data: ExpenseCategory[] }>('/api/v1/expense-categories', {
+      params: { includeInactive }
+    })
+    return res.data.data
+  },
+
+  getExpenseCategoryById: async (id: string) => {
+    const res = await api.get<{ data: ExpenseCategory }>(`/api/v1/expense-categories/${id}`)
+    return res.data.data
+  },
+
+  createExpenseCategory: async (request: CreateExpenseCategoryRequest) => {
+    const res = await api.post<{ data: ExpenseCategory }>('/api/v1/expense-categories', request)
+    return res.data.data
+  },
+
+  updateExpenseCategory: async (id: string, request: Partial<CreateExpenseCategoryRequest>) => {
+    const res = await api.put<{ data: ExpenseCategory }>(`/api/v1/expense-categories/${id}`, request)
+    return res.data.data
+  },
+
+  deleteExpenseCategory: async (id: string) => {
+    const res = await api.delete(`/api/v1/expense-categories/${id}`)
     return res.data
   },
 

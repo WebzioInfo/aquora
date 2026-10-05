@@ -186,7 +186,173 @@ namespace Aquora.Persistence.Services
             try
             {
                 using var cmd = connection.CreateCommand();
-                if (table.Equals("SimpleExpenses", StringComparison.OrdinalIgnoreCase))
+                if (table.Equals("Brands", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""Brands"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""Name"" character varying(150) NOT NULL,
+                            ""Code"" character varying(50) NULL,
+                            ""Description"" character varying(500) NULL,
+                            ""IsActive"" boolean NOT NULL DEFAULT true,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_Brands_Name_{schema}"" ON ""{schema}"".""Brands"" (""Name"");
+                        CREATE INDEX IF NOT EXISTS ""IX_Brands_Code_{schema}"" ON ""{schema}"".""Brands"" (""Code"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("RawMaterials", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""RawMaterials"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""Name"" text NOT NULL,
+                            ""Code"" text NOT NULL,
+                            ""Category"" text NOT NULL,
+                            ""Unit"" text NOT NULL,
+                            ""BaseUnit"" text NULL,
+                            ""ConversionFactor"" numeric NOT NULL DEFAULT 1.0,
+                            ""CurrentStock"" numeric NOT NULL DEFAULT 0.0,
+                            ""CostPerUnit"" numeric NOT NULL DEFAULT 5.0,
+                            ""IsActive"" boolean NOT NULL DEFAULT true,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_RawMaterials_TenantId_{schema}"" ON ""{schema}"".""RawMaterials"" (""TenantId"");
+                        CREATE INDEX IF NOT EXISTS ""IX_RawMaterials_CompanyId_{schema}"" ON ""{schema}"".""RawMaterials"" (""CompanyId"");
+                        CREATE INDEX IF NOT EXISTS ""IX_RawMaterials_Category_{schema}"" ON ""{schema}"".""RawMaterials"" (""Category"");
+                        CREATE INDEX IF NOT EXISTS ""IX_RawMaterials_Name_{schema}"" ON ""{schema}"".""RawMaterials"" (""Name"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("CaseConfigurations", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""CaseConfigurations"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""Name"" text NOT NULL DEFAULT '',
+                            ""Description"" text NULL,
+                            ""IsActive"" boolean NOT NULL DEFAULT true,
+                            ""ProductId"" uuid NULL,
+                            ""UnitsPerCase"" integer NOT NULL DEFAULT 24,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );
+                        ALTER TABLE ""{schema}"".""CaseConfigurations"" ADD COLUMN IF NOT EXISTS ""Name"" text NOT NULL DEFAULT '';
+                        ALTER TABLE ""{schema}"".""CaseConfigurations"" ADD COLUMN IF NOT EXISTS ""Description"" text NULL;
+                        ALTER TABLE ""{schema}"".""CaseConfigurations"" ADD COLUMN IF NOT EXISTS ""ProductId"" uuid NULL;
+                        ALTER TABLE ""{schema}"".""CaseConfigurations"" ADD COLUMN IF NOT EXISTS ""UnitsPerCase"" integer NOT NULL DEFAULT 24;
+                        CREATE INDEX IF NOT EXISTS ""IX_CaseConfigurations_TenantId_ProductId_{schema}"" ON ""{schema}"".""CaseConfigurations"" (""TenantId"", ""ProductId"");
+                        CREATE INDEX IF NOT EXISTS ""IX_CaseConfigurations_CompanyId_{schema}"" ON ""{schema}"".""CaseConfigurations"" (""CompanyId"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("ExpenseCategories", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""ExpenseCategories"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""Name"" text NOT NULL,
+                            ""Description"" text NULL,
+                            ""IsActive"" boolean NOT NULL DEFAULT true,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_ExpenseCategories_TenantId_{schema}"" ON ""{schema}"".""ExpenseCategories"" (""TenantId"");
+                        CREATE INDEX IF NOT EXISTS ""IX_ExpenseCategories_CompanyId_{schema}"" ON ""{schema}"".""ExpenseCategories"" (""CompanyId"");
+                        CREATE INDEX IF NOT EXISTS ""IX_ExpenseCategories_Name_{schema}"" ON ""{schema}"".""ExpenseCategories"" (""Name"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("AssetCategories", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""AssetCategories"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""Code"" text NOT NULL,
+                            ""Name"" text NOT NULL,
+                            ""Description"" text NULL,
+                            ""IsSystem"" boolean NOT NULL DEFAULT false,
+                            ""IsActive"" boolean NOT NULL DEFAULT true,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_AssetCategories_TenantId_{schema}"" ON ""{schema}"".""AssetCategories"" (""TenantId"");
+                        CREATE INDEX IF NOT EXISTS ""IX_AssetCategories_CompanyId_{schema}"" ON ""{schema}"".""AssetCategories"" (""CompanyId"");
+                        CREATE INDEX IF NOT EXISTS ""IX_AssetCategories_Code_{schema}"" ON ""{schema}"".""AssetCategories"" (""Code"");
+                        CREATE INDEX IF NOT EXISTS ""IX_AssetCategories_Name_{schema}"" ON ""{schema}"".""AssetCategories"" (""Name"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("PurchaseCategories", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""PurchaseCategories"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""Code"" text NOT NULL,
+                            ""Name"" text NOT NULL,
+                            ""Description"" text NULL,
+                            ""Treatment"" text NOT NULL DEFAULT 'Expense',
+                            ""IsSystem"" boolean NOT NULL DEFAULT false,
+                            ""IsActive"" boolean NOT NULL DEFAULT true,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_PurchaseCategories_TenantId_{schema}"" ON ""{schema}"".""PurchaseCategories"" (""TenantId"");
+                        CREATE INDEX IF NOT EXISTS ""IX_PurchaseCategories_Code_{schema}"" ON ""{schema}"".""PurchaseCategories"" (""Code"");
+                        CREATE INDEX IF NOT EXISTS ""IX_PurchaseCategories_Name_{schema}"" ON ""{schema}"".""PurchaseCategories"" (""Name"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else if (table.Equals("SimpleExpenses", StringComparison.OrdinalIgnoreCase))
                 {
                     cmd.CommandText = $@"
                         CREATE TABLE IF NOT EXISTS ""{schema}"".""SimpleExpenses"" (

@@ -452,17 +452,31 @@ export const AssetSummaryPage: React.FC = () => {
     }
   }, [assetsList])
 
-  // Categories list
-  const categoriesList = useMemo(() => [
-    'Machinery',
-    'Vehicles',
-    'Computers',
-    'Printers',
-    'Furniture',
-    'Office Equipment',
-    'Buildings',
-    'Other'
-  ], [])
+  // Dynamic categories query from database
+  const { data: dbCategories = [] } = useQuery({
+    queryKey: ['assetCategories'],
+    queryFn: () => assetService.getAssetCategories(false)
+  })
+
+  // Dynamic Categories list for filter bar (value = code, label = name)
+  const categoriesList = useMemo(() => {
+    if (dbCategories.length > 0) {
+      return dbCategories.map(c => ({
+        value: c.code,
+        label: c.name
+      }))
+    }
+    return [
+      { value: 'Machinery', label: 'Machinery & Equipment' },
+      { value: 'Vehicles', label: 'Vehicles & Transport' },
+      { value: 'Computers', label: 'Computers & Laptops' },
+      { value: 'Printers', label: 'Printers & Scanners' },
+      { value: 'Furniture', label: 'Furniture & Fixtures' },
+      { value: 'Office Equipment', label: 'Office Equipment' },
+      { value: 'Buildings', label: 'Buildings & Infrastructure' },
+      { value: 'Other', label: 'Other Capital Assets' }
+    ]
+  }, [dbCategories])
 
   // Mutations
   const createAssetMutation = useMutation({

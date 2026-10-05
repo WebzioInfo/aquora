@@ -87,6 +87,8 @@ namespace Aquora.API.Controllers
 
                         ALTER TABLE ""{currentSchema}"".""CaseConfigurations"" ADD COLUMN IF NOT EXISTS ""ProductId"" uuid NULL;
                         ALTER TABLE ""{currentSchema}"".""CaseConfigurations"" ADD COLUMN IF NOT EXISTS ""UnitsPerCase"" integer NOT NULL DEFAULT 24;
+                        ALTER TABLE ""{currentSchema}"".""CaseConfigurations"" ADD COLUMN IF NOT EXISTS ""Name"" text NOT NULL DEFAULT '';
+                        ALTER TABLE ""{currentSchema}"".""CaseConfigurations"" ADD COLUMN IF NOT EXISTS ""Description"" text NULL;
                     ";
 
                     if (!string.Equals(currentSchema, "public", StringComparison.OrdinalIgnoreCase))
@@ -95,6 +97,7 @@ namespace Aquora.API.Controllers
                             CREATE TABLE IF NOT EXISTS ""public"".""CaseConfigurations"" (
                                 ""Id"" uuid NOT NULL PRIMARY KEY,
                                 ""Name"" text NOT NULL DEFAULT '',
+                                ""Description"" text NULL,
                                 ""IsActive"" boolean NOT NULL DEFAULT true,
                                 ""ProductId"" uuid NULL,
                                 ""UnitsPerCase"" integer NOT NULL DEFAULT 24,
@@ -113,6 +116,8 @@ namespace Aquora.API.Controllers
 
                             ALTER TABLE ""public"".""CaseConfigurations"" ADD COLUMN IF NOT EXISTS ""ProductId"" uuid NULL;
                             ALTER TABLE ""public"".""CaseConfigurations"" ADD COLUMN IF NOT EXISTS ""UnitsPerCase"" integer NOT NULL DEFAULT 24;
+                            ALTER TABLE ""public"".""CaseConfigurations"" ADD COLUMN IF NOT EXISTS ""Name"" text NOT NULL DEFAULT '';
+                            ALTER TABLE ""public"".""CaseConfigurations"" ADD COLUMN IF NOT EXISTS ""Description"" text NULL;
                         ";
                     }
 
@@ -148,12 +153,15 @@ namespace Aquora.API.Controllers
                 var items = await query
                     .OrderByDescending(c => c.IsActive)
                     .ThenBy(c => c.Product.Name)
+                    .ThenBy(c => c.UnitsPerCase)
                     .Select(c => new CaseConfigurationDto
                     {
                         Id = c.Id,
                         ProductId = c.ProductId,
                         ProductName = c.Product != null ? c.Product.Name : "Unknown Product",
                         ProductSku = c.Product != null ? c.Product.SKU : null,
+                        Name = !string.IsNullOrWhiteSpace(c.Name) ? c.Name : (c.Product != null ? $"{c.Product.Name} - {c.UnitsPerCase} Units/Case" : $"{c.UnitsPerCase} Units/Case"),
+                        Description = c.Description,
                         UnitsPerCase = c.UnitsPerCase > 0 ? c.UnitsPerCase : 24,
                         IsActive = c.IsActive,
                         CreatedAt = c.CreatedAt,
@@ -193,6 +201,8 @@ namespace Aquora.API.Controllers
                     ProductId = config.ProductId,
                     ProductName = config.Product != null ? config.Product.Name : "Unknown Product",
                     ProductSku = config.Product != null ? config.Product.SKU : null,
+                    Name = !string.IsNullOrWhiteSpace(config.Name) ? config.Name : $"{config.UnitsPerCase} Units/Case",
+                    Description = config.Description,
                     UnitsPerCase = config.UnitsPerCase > 0 ? config.UnitsPerCase : 24,
                     IsActive = config.IsActive,
                     CreatedAt = config.CreatedAt,
@@ -233,6 +243,8 @@ namespace Aquora.API.Controllers
                     ProductId = config.ProductId,
                     ProductName = config.Product != null ? config.Product.Name : "Unknown Product",
                     ProductSku = config.Product != null ? config.Product.SKU : null,
+                    Name = !string.IsNullOrWhiteSpace(config.Name) ? config.Name : $"{config.UnitsPerCase} Units/Case",
+                    Description = config.Description,
                     UnitsPerCase = config.UnitsPerCase > 0 ? config.UnitsPerCase : 24,
                     IsActive = config.IsActive,
                     CreatedAt = config.CreatedAt,
@@ -262,7 +274,7 @@ namespace Aquora.API.Controllers
 
                 if (request.UnitsPerCase <= 0)
                 {
-                    return BadRequest(ApiResponse<CaseConfigurationDto>.CreateFailure("Units per case must be a positive integer greater than zero.", "Validation Error", HttpContext.TraceIdentifier));
+                    return BadRequest(ApiResponse<CaseConfigurationDto>.CreateFailure("Units per case must be a positive integer greater than 0.", "Validation Error", HttpContext.TraceIdentifier));
                 }
 
                 var product = await _tenantContext.Products
@@ -279,16 +291,53 @@ namespace Aquora.API.Controllers
                     return BadRequest(ApiResponse<CaseConfigurationDto>.CreateFailure("Active company record not found.", "Validation Error", HttpContext.TraceIdentifier));
                 }
 
-                // Deactivate any existing active configuration for this product to enforce one active config per product
-                var existingActive = await _tenantContext.CaseConfigurations
-                    .Where(c => c.ProductId == request.ProductId && c.IsActive && !c.IsDeleted)
-                    .ToListAsync();
+                var trimmedName = string.IsNullOrWhiteSpace(request.Name)
+                    ? $"{product.Name} - {request.UnitsPerCase} Units/Case"
+                    : request.Name.Trim();
 
-                foreach (var oldConfig in existingActive)
+                var trimmedDesc = string.IsNullOrWhiteSpace(request.Description)
+                    ? null
+                    : request.Description.Trim();
+
+                // Duplicate Protection: Check if identical configuration already exists for this product
+                var existingDuplicate = await _tenantContext.CaseConfigurations
+                    .FirstOrDefaultAsync(c => c.ProductId == request.ProductId
+                                && !c.IsDeleted
+                                && (c.UnitsPerCase == request.UnitsPerCase || c.Name.ToLower() == trimmedName.ToLower()));
+
+                if (existingDuplicate != null)
                 {
-                    oldConfig.IsActive = false;
-                    oldConfig.UpdatedAt = DateTime.UtcNow;
-                    oldConfig.UpdatedBy = _currentUserContext.UserId?.ToString() ?? "System";
+                    if (!existingDuplicate.IsActive)
+                    {
+                        // Reactivate previously deactivated configuration
+                        existingDuplicate.IsActive = request.IsActive;
+                        existingDuplicate.Name = trimmedName;
+                        existingDuplicate.UnitsPerCase = request.UnitsPerCase;
+                        existingDuplicate.Description = trimmedDesc;
+                        existingDuplicate.UpdatedAt = DateTime.UtcNow;
+                        existingDuplicate.UpdatedBy = _currentUserContext.UserId?.ToString() ?? "System";
+                        await _tenantContext.SaveChangesAsync();
+
+                        var reactivatedDto = new CaseConfigurationDto
+                        {
+                            Id = existingDuplicate.Id,
+                            ProductId = product.Id,
+                            ProductName = product.Name,
+                            ProductSku = product.SKU,
+                            Name = existingDuplicate.Name,
+                            Description = existingDuplicate.Description,
+                            UnitsPerCase = existingDuplicate.UnitsPerCase,
+                            IsActive = existingDuplicate.IsActive,
+                            CreatedAt = existingDuplicate.CreatedAt,
+                            UpdatedAt = existingDuplicate.UpdatedAt
+                        };
+                        return Success(reactivatedDto, "Case configuration reactivated successfully.");
+                    }
+
+                    return Conflict(ApiResponse<CaseConfigurationDto>.CreateFailure(
+                        "An identical case configuration already exists.",
+                        "An identical case configuration already exists.",
+                        HttpContext.TraceIdentifier));
                 }
 
                 var config = new CaseConfiguration
@@ -296,8 +345,9 @@ namespace Aquora.API.Controllers
                     Id = Guid.NewGuid(),
                     ProductId = product.Id,
                     UnitsPerCase = request.UnitsPerCase,
-                    Name = $"{product.Name} - {request.UnitsPerCase} Units/Case",
-                    IsActive = true,
+                    Name = trimmedName,
+                    Description = trimmedDesc,
+                    IsActive = request.IsActive,
                     TenantId = _currentUserContext.TenantId,
                     CompanyId = company.Id,
                     CreatedAt = DateTime.UtcNow,
@@ -313,13 +363,15 @@ namespace Aquora.API.Controllers
                     ProductId = product.Id,
                     ProductName = product.Name,
                     ProductSku = product.SKU,
+                    Name = config.Name,
+                    Description = config.Description,
                     UnitsPerCase = config.UnitsPerCase,
                     IsActive = config.IsActive,
                     CreatedAt = config.CreatedAt,
                     UpdatedAt = config.UpdatedAt
                 };
 
-                return Success(dto, "Case configuration created successfully.");
+                return CreatedAtAction(nameof(GetCaseConfigurationById), new { id = config.Id }, ApiResponse<CaseConfigurationDto>.CreateSuccess(dto, "Case configuration created successfully."));
             }
             catch (Exception ex)
             {
@@ -366,12 +418,37 @@ namespace Aquora.API.Controllers
                     config.Product = product;
                 }
 
+                var targetProductId = request.ProductId ?? config.ProductId;
+                var trimmedName = !string.IsNullOrWhiteSpace(request.Name)
+                    ? request.Name.Trim()
+                    : config.Name;
+
+                // Check duplicate if units or name is changing
+                var duplicate = await _tenantContext.CaseConfigurations
+                    .AnyAsync(c => c.Id != id 
+                                && c.ProductId == targetProductId 
+                                && !c.IsDeleted 
+                                && (c.UnitsPerCase == request.UnitsPerCase || c.Name.ToLower() == trimmedName.ToLower()));
+
+                if (duplicate)
+                {
+                    return BadRequest(ApiResponse<CaseConfigurationDto>.CreateFailure(
+                        "An identical case configuration already exists.",
+                        "Duplicate Configuration",
+                        HttpContext.TraceIdentifier));
+                }
+
                 config.UnitsPerCase = request.UnitsPerCase;
+                config.Name = trimmedName;
+                if (request.Description != null)
+                {
+                    config.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+                }
+
                 if (request.IsActive.HasValue)
                 {
                     config.IsActive = request.IsActive.Value;
                 }
-                config.Name = $"{config.Product?.Name ?? "Product"} - {config.UnitsPerCase} Units/Case";
                 config.UpdatedAt = DateTime.UtcNow;
                 config.UpdatedBy = _currentUserContext.UserId?.ToString() ?? "System";
 
@@ -383,6 +460,8 @@ namespace Aquora.API.Controllers
                     ProductId = config.ProductId,
                     ProductName = config.Product != null ? config.Product.Name : "Unknown Product",
                     ProductSku = config.Product != null ? config.Product.SKU : null,
+                    Name = config.Name,
+                    Description = config.Description,
                     UnitsPerCase = config.UnitsPerCase,
                     IsActive = config.IsActive,
                     CreatedAt = config.CreatedAt,

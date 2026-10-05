@@ -1124,6 +1124,124 @@ namespace Aquora.Persistence.Services
                                           );
                                           CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwentyLDistributorDeliveries_TenantId_Number"" ON ""{tenant.SchemaName}"".""TwentyLDistributorDeliveries"" (""TenantId"", ""DeliveryNumber"");
                                           CREATE INDEX IF NOT EXISTS ""IX_TwentyLDistributorDeliveries_TenantId_DistributorId"" ON ""{tenant.SchemaName}"".""TwentyLDistributorDeliveries"" (""TenantId"", ""DistributorId"", ""DeliveryDate"");
+
+                                          -- Quick Creation Tables: Brands, RawMaterials, ExpenseCategories, AssetCategories, PurchaseCategories
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""Brands"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""Name"" character varying(150) NOT NULL,
+                                              ""Code"" character varying(50) NULL,
+                                              ""Description"" character varying(500) NULL,
+                                              ""IsActive"" boolean NOT NULL DEFAULT true,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL,
+                                              ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                              ""DeletedAt"" timestamp with time zone NULL,
+                                              ""DeletedBy"" text NULL
+                                          );
+                                          CREATE INDEX IF NOT EXISTS ""IX_Brands_Name_{tenant.SchemaName}"" ON ""{tenant.SchemaName}"".""Brands"" (""Name"");
+                                          CREATE INDEX IF NOT EXISTS ""IX_Brands_Code_{tenant.SchemaName}"" ON ""{tenant.SchemaName}"".""Brands"" (""Code"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""RawMaterials"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""Name"" text NOT NULL,
+                                              ""Code"" text NOT NULL,
+                                              ""Category"" text NOT NULL,
+                                              ""Unit"" text NOT NULL,
+                                              ""BaseUnit"" text NULL,
+                                              ""ConversionFactor"" numeric NOT NULL DEFAULT 1.0,
+                                              ""CurrentStock"" numeric NOT NULL DEFAULT 0.0,
+                                              ""CostPerUnit"" numeric NOT NULL DEFAULT 5.0,
+                                              ""IsActive"" boolean NOT NULL DEFAULT true,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL,
+                                              ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                              ""DeletedAt"" timestamp with time zone NULL,
+                                              ""DeletedBy"" text NULL
+                                          );
+                                          CREATE INDEX IF NOT EXISTS ""IX_RawMaterials_TenantId_{tenant.SchemaName}"" ON ""{tenant.SchemaName}"".""RawMaterials"" (""TenantId"");
+                                          CREATE INDEX IF NOT EXISTS ""IX_RawMaterials_CompanyId_{tenant.SchemaName}"" ON ""{tenant.SchemaName}"".""RawMaterials"" (""CompanyId"");
+                                          CREATE INDEX IF NOT EXISTS ""IX_RawMaterials_Category_{tenant.SchemaName}"" ON ""{tenant.SchemaName}"".""RawMaterials"" (""Category"");
+                                          CREATE INDEX IF NOT EXISTS ""IX_RawMaterials_Name_{tenant.SchemaName}"" ON ""{tenant.SchemaName}"".""RawMaterials"" (""Name"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""ExpenseCategories"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""Name"" text NOT NULL,
+                                              ""Description"" text NULL,
+                                              ""IsActive"" boolean NOT NULL DEFAULT true,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL,
+                                              ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                              ""DeletedAt"" timestamp with time zone NULL,
+                                              ""DeletedBy"" text NULL
+                                          );
+                                          CREATE INDEX IF NOT EXISTS ""IX_ExpenseCategories_TenantId_{tenant.SchemaName}"" ON ""{tenant.SchemaName}"".""ExpenseCategories"" (""TenantId"");
+                                          CREATE INDEX IF NOT EXISTS ""IX_ExpenseCategories_CompanyId_{tenant.SchemaName}"" ON ""{tenant.SchemaName}"".""ExpenseCategories"" (""CompanyId"");
+                                          CREATE INDEX IF NOT EXISTS ""IX_ExpenseCategories_Name_{tenant.SchemaName}"" ON ""{tenant.SchemaName}"".""ExpenseCategories"" (""Name"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""AssetCategories"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""Code"" text NOT NULL,
+                                              ""Name"" text NOT NULL,
+                                              ""Description"" text NULL,
+                                              ""IsSystem"" boolean NOT NULL DEFAULT false,
+                                              ""IsActive"" boolean NOT NULL DEFAULT true,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL,
+                                              ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                              ""DeletedAt"" timestamp with time zone NULL,
+                                              ""DeletedBy"" text NULL
+                                          );
+                                          CREATE INDEX IF NOT EXISTS ""IX_AssetCategories_TenantId_{tenant.SchemaName}"" ON ""{tenant.SchemaName}"".""AssetCategories"" (""TenantId"");
+                                          CREATE INDEX IF NOT EXISTS ""IX_AssetCategories_CompanyId_{tenant.SchemaName}"" ON ""{tenant.SchemaName}"".""AssetCategories"" (""CompanyId"");
+                                          CREATE INDEX IF NOT EXISTS ""IX_AssetCategories_Code_{tenant.SchemaName}"" ON ""{tenant.SchemaName}"".""AssetCategories"" (""Code"");
+                                          CREATE INDEX IF NOT EXISTS ""IX_AssetCategories_Name_{tenant.SchemaName}"" ON ""{tenant.SchemaName}"".""AssetCategories"" (""Name"");
+
+                                          CREATE TABLE IF NOT EXISTS ""{tenant.SchemaName}"".""PurchaseCategories"" (
+                                              ""Id"" uuid NOT NULL PRIMARY KEY,
+                                              ""TenantId"" uuid NOT NULL,
+                                              ""CompanyId"" uuid NOT NULL,
+                                              ""Code"" text NOT NULL,
+                                              ""Name"" text NOT NULL,
+                                              ""Description"" text NULL,
+                                              ""Treatment"" text NOT NULL DEFAULT 'Expense',
+                                              ""IsSystem"" boolean NOT NULL DEFAULT false,
+                                              ""IsActive"" boolean NOT NULL DEFAULT true,
+                                              ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                              ""UpdatedAt"" timestamp with time zone NULL,
+                                              ""UpdatedBy"" text NULL,
+                                              ""CreatedByIP"" text NULL,
+                                              ""UpdatedByIP"" text NULL,
+                                              ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                              ""DeletedAt"" timestamp with time zone NULL,
+                                              ""DeletedBy"" text NULL
+                                          );
+                                          CREATE INDEX IF NOT EXISTS ""IX_PurchaseCategories_TenantId_{tenant.SchemaName}"" ON ""{tenant.SchemaName}"".""PurchaseCategories"" (""TenantId"");
+                                              CREATE INDEX IF NOT EXISTS ""IX_PurchaseCategories_CompanyId_{tenant.SchemaName}"" ON ""{tenant.SchemaName}"".""PurchaseCategories"" (""CompanyId"");
+                                          CREATE INDEX IF NOT EXISTS ""IX_PurchaseCategories_Code_{tenant.SchemaName}"" ON ""{tenant.SchemaName}"".""PurchaseCategories"" (""Code"");
+                                          CREATE INDEX IF NOT EXISTS ""IX_PurchaseCategories_Name_{tenant.SchemaName}"" ON ""{tenant.SchemaName}"".""PurchaseCategories"" (""Name"");
                                           ";
                                     await cmd.ExecuteNonQueryAsync();
                                 }

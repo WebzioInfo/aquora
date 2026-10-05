@@ -251,6 +251,81 @@ namespace Aquora.Persistence.Services
                         try
                         {
                         var repairSql = $@"
+                            CREATE TABLE IF NOT EXISTS ""{schemaName}"".""Brands"" (
+                                ""Id"" uuid NOT NULL,
+                                ""Name"" character varying(150) NOT NULL,
+                                ""Code"" character varying(50) NULL,
+                                ""Description"" character varying(500) NULL,
+                                ""IsActive"" boolean NOT NULL DEFAULT true,
+                                ""CreatedAt"" timestamp with time zone NOT NULL,
+                                ""CreatedBy"" text NOT NULL,
+                                ""UpdatedAt"" timestamp with time zone NULL,
+                                ""UpdatedBy"" text NULL,
+                                ""CreatedByIP"" text NULL,
+                                ""UpdatedByIP"" text NULL,
+                                ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                ""DeletedAt"" timestamp with time zone NULL,
+                                ""DeletedBy"" text NULL,
+                                CONSTRAINT ""PK_Brands_{schemaName}"" PRIMARY KEY (""Id"")
+                            );
+                            CREATE INDEX IF NOT EXISTS ""IX_Brands_Name_{schemaName}"" ON ""{schemaName}"".""Brands"" (""Name"");
+                            CREATE INDEX IF NOT EXISTS ""IX_Brands_Code_{schemaName}"" ON ""{schemaName}"".""Brands"" (""Code"");
+
+                            CREATE TABLE IF NOT EXISTS ""{schemaName}"".""RawMaterials"" (
+                                ""Id"" uuid NOT NULL,
+                                ""TenantId"" uuid NOT NULL,
+                                ""CompanyId"" uuid NOT NULL,
+                                ""Name"" text NOT NULL,
+                                ""Code"" text NOT NULL,
+                                ""Category"" text NOT NULL,
+                                ""Unit"" text NOT NULL,
+                                ""BaseUnit"" text NULL,
+                                ""ConversionFactor"" numeric NOT NULL DEFAULT 1.0,
+                                ""CurrentStock"" numeric NOT NULL DEFAULT 0.0,
+                                ""CostPerUnit"" numeric NOT NULL DEFAULT 5.0,
+                                ""IsActive"" boolean NOT NULL DEFAULT true,
+                                ""CreatedAt"" timestamp with time zone NOT NULL,
+                                ""CreatedBy"" text NOT NULL,
+                                ""UpdatedAt"" timestamp with time zone NULL,
+                                ""UpdatedBy"" text NULL,
+                                ""CreatedByIP"" text NULL,
+                                ""UpdatedByIP"" text NULL,
+                                ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                ""DeletedAt"" timestamp with time zone NULL,
+                                ""DeletedBy"" text NULL,
+                                CONSTRAINT ""PK_RawMaterials_{schemaName}"" PRIMARY KEY (""Id"")
+                            );
+                            CREATE INDEX IF NOT EXISTS ""IX_RawMaterials_TenantId_{schemaName}"" ON ""{schemaName}"".""RawMaterials"" (""TenantId"");
+                            CREATE INDEX IF NOT EXISTS ""IX_RawMaterials_CompanyId_{schemaName}"" ON ""{schemaName}"".""RawMaterials"" (""CompanyId"");
+                            CREATE INDEX IF NOT EXISTS ""IX_RawMaterials_Category_{schemaName}"" ON ""{schemaName}"".""RawMaterials"" (""Category"");
+                            CREATE INDEX IF NOT EXISTS ""IX_RawMaterials_Name_{schemaName}"" ON ""{schemaName}"".""RawMaterials"" (""Name"");
+
+                            CREATE TABLE IF NOT EXISTS ""{schemaName}"".""CaseConfigurations"" (
+                                ""Id"" uuid NOT NULL PRIMARY KEY,
+                                ""Name"" text NOT NULL DEFAULT '',
+                                ""Description"" text NULL,
+                                ""IsActive"" boolean NOT NULL DEFAULT true,
+                                ""ProductId"" uuid NULL,
+                                ""UnitsPerCase"" integer NOT NULL DEFAULT 24,
+                                ""TenantId"" uuid NOT NULL,
+                                ""CompanyId"" uuid NOT NULL,
+                                ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                                ""UpdatedAt"" timestamp with time zone NULL,
+                                ""UpdatedBy"" text NULL,
+                                ""CreatedByIP"" text NULL,
+                                ""UpdatedByIP"" text NULL,
+                                ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                ""DeletedAt"" timestamp with time zone NULL,
+                                ""DeletedBy"" text NULL
+                            );
+                            ALTER TABLE ""{schemaName}"".""CaseConfigurations"" ADD COLUMN IF NOT EXISTS ""Name"" text NOT NULL DEFAULT '';
+                            ALTER TABLE ""{schemaName}"".""CaseConfigurations"" ADD COLUMN IF NOT EXISTS ""Description"" text NULL;
+                            ALTER TABLE ""{schemaName}"".""CaseConfigurations"" ADD COLUMN IF NOT EXISTS ""ProductId"" uuid NULL;
+                            ALTER TABLE ""{schemaName}"".""CaseConfigurations"" ADD COLUMN IF NOT EXISTS ""UnitsPerCase"" integer NOT NULL DEFAULT 24;
+                            CREATE INDEX IF NOT EXISTS ""IX_CaseConfigurations_TenantId_ProductId_{schemaName}"" ON ""{schemaName}"".""CaseConfigurations"" (""TenantId"", ""ProductId"");
+                            CREATE INDEX IF NOT EXISTS ""IX_CaseConfigurations_CompanyId_{schemaName}"" ON ""{schemaName}"".""CaseConfigurations"" (""CompanyId"");
+
                             CREATE TABLE IF NOT EXISTS ""{schemaName}"".""ProductionShifts"" (
                                 ""Id"" uuid NOT NULL,
                                 ""Name"" text NOT NULL,
@@ -264,6 +339,75 @@ namespace Aquora.Persistence.Services
                                 CONSTRAINT ""PK_ProductionShifts_{schemaName}"" PRIMARY KEY (""Id"")
                             );
                             ALTER TABLE ""{schemaName}"".""ProductionShifts"" ADD COLUMN IF NOT EXISTS ""Description"" text NULL;
+
+                            CREATE TABLE IF NOT EXISTS ""{schemaName}"".""ExpenseCategories"" (
+                                ""Id"" uuid NOT NULL,
+                                ""TenantId"" uuid NOT NULL,
+                                ""CompanyId"" uuid NOT NULL,
+                                ""Name"" text NOT NULL,
+                                ""Description"" text NULL,
+                                ""IsActive"" boolean NOT NULL DEFAULT true,
+                                ""CreatedAt"" timestamp with time zone NOT NULL,
+                                ""CreatedBy"" text NOT NULL,
+                                ""UpdatedAt"" timestamp with time zone NULL,
+                                ""UpdatedBy"" text NULL,
+                                ""CreatedByIP"" text NULL,
+                                ""UpdatedByIP"" text NULL,
+                                ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                ""DeletedAt"" timestamp with time zone NULL,
+                                ""DeletedBy"" text NULL,
+                                CONSTRAINT ""PK_ExpenseCategories_{schemaName}"" PRIMARY KEY (""Id"")
+                            );
+                            CREATE INDEX IF NOT EXISTS ""IX_ExpenseCategories_TenantId_{schemaName}"" ON ""{schemaName}"".""ExpenseCategories"" (""TenantId"");
+                            CREATE INDEX IF NOT EXISTS ""IX_ExpenseCategories_CompanyId_{schemaName}"" ON ""{schemaName}"".""ExpenseCategories"" (""CompanyId"");
+                            CREATE TABLE IF NOT EXISTS ""{schemaName}"".""AssetCategories"" (
+                                ""Id"" uuid NOT NULL,
+                                ""TenantId"" uuid NOT NULL,
+                                ""CompanyId"" uuid NOT NULL,
+                                ""Code"" text NOT NULL,
+                                ""Name"" text NOT NULL,
+                                ""Description"" text NULL,
+                                ""IsSystem"" boolean NOT NULL DEFAULT false,
+                                ""IsActive"" boolean NOT NULL DEFAULT true,
+                                ""CreatedAt"" timestamp with time zone NOT NULL,
+                                ""CreatedBy"" text NOT NULL,
+                                ""UpdatedAt"" timestamp with time zone NULL,
+                                ""UpdatedBy"" text NULL,
+                                ""CreatedByIP"" text NULL,
+                                ""UpdatedByIP"" text NULL,
+                                ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                ""DeletedAt"" timestamp with time zone NULL,
+                                ""DeletedBy"" text NULL,
+                                CONSTRAINT ""PK_AssetCategories_{schemaName}"" PRIMARY KEY (""Id"")
+                            );
+                            CREATE INDEX IF NOT EXISTS ""IX_AssetCategories_TenantId_{schemaName}"" ON ""{schemaName}"".""AssetCategories"" (""TenantId"");
+                            CREATE INDEX IF NOT EXISTS ""IX_AssetCategories_CompanyId_{schemaName}"" ON ""{schemaName}"".""AssetCategories"" (""CompanyId"");
+                            CREATE INDEX IF NOT EXISTS ""IX_AssetCategories_Code_{schemaName}"" ON ""{schemaName}"".""AssetCategories"" (""Code"");
+                            CREATE INDEX IF NOT EXISTS ""IX_AssetCategories_Name_{schemaName}"" ON ""{schemaName}"".""AssetCategories"" (""Name"");
+                            CREATE TABLE IF NOT EXISTS ""{schemaName}"".""PurchaseCategories"" (
+                                ""Id"" uuid NOT NULL,
+                                ""TenantId"" uuid NOT NULL,
+                                ""CompanyId"" uuid NOT NULL,
+                                ""Code"" text NOT NULL,
+                                ""Name"" text NOT NULL,
+                                ""Description"" text NULL,
+                                ""Treatment"" text NOT NULL DEFAULT 'Expense',
+                                ""IsSystem"" boolean NOT NULL DEFAULT false,
+                                ""IsActive"" boolean NOT NULL DEFAULT true,
+                                ""CreatedAt"" timestamp with time zone NOT NULL,
+                                ""CreatedBy"" text NOT NULL,
+                                ""UpdatedAt"" timestamp with time zone NULL,
+                                ""UpdatedBy"" text NULL,
+                                ""CreatedByIP"" text NULL,
+                                ""UpdatedByIP"" text NULL,
+                                ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                                ""DeletedAt"" timestamp with time zone NULL,
+                                ""DeletedBy"" text NULL,
+                                CONSTRAINT ""PK_PurchaseCategories_{schemaName}"" PRIMARY KEY (""Id"")
+                            );
+                            CREATE INDEX IF NOT EXISTS ""IX_PurchaseCategories_TenantId_{schemaName}"" ON ""{schemaName}"".""PurchaseCategories"" (""TenantId"");
+                            CREATE INDEX IF NOT EXISTS ""IX_PurchaseCategories_Code_{schemaName}"" ON ""{schemaName}"".""PurchaseCategories"" (""Code"");
+                            CREATE INDEX IF NOT EXISTS ""IX_PurchaseCategories_Name_{schemaName}"" ON ""{schemaName}"".""PurchaseCategories"" (""Name"");
 
                             CREATE TABLE IF NOT EXISTS ""{schemaName}"".""SimpleExpenses"" (
                                 ""Id"" uuid NOT NULL,

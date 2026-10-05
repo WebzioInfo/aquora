@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Aquora.Application.DTOs;
+using Aquora.Application.DTOs.Finance;
 using Aquora.Application.DTOs.Purchase;
 using Aquora.Application.Interfaces;
 using Aquora.Application.Interfaces.Services;
@@ -378,7 +379,22 @@ namespace Aquora.Application.Services
             if (!string.IsNullOrWhiteSpace(category) && !category.Trim().Equals("ALL", StringComparison.OrdinalIgnoreCase))
             {
                 var cat = category.Trim().ToLower();
-                query = query.Where(a => a.AssetCategory.ToLower() == cat);
+                var matchingAliases = _context.AssetCategories
+                    .AsNoTracking()
+                    .Where(c => c.TenantId == tenantId && (c.Code.ToLower() == cat || c.Name.ToLower() == cat))
+                    .Select(c => new { c.Code, c.Name })
+                    .FirstOrDefault();
+
+                if (matchingAliases != null)
+                {
+                    var codeLower = matchingAliases.Code.ToLower();
+                    var nameLower = matchingAliases.Name.ToLower();
+                    query = query.Where(a => a.AssetCategory.ToLower() == codeLower || a.AssetCategory.ToLower() == nameLower);
+                }
+                else
+                {
+                    query = query.Where(a => a.AssetCategory.ToLower() == cat);
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(status) && !status.Trim().Equals("ALL", StringComparison.OrdinalIgnoreCase))
@@ -1252,6 +1268,249 @@ namespace Aquora.Application.Services
                 UpdatedAt = a.UpdatedAt,
                 UpdatedBy = a.UpdatedBy
             };
+        }
+
+        // =========================================================================
+        // ASSET CATEGORY MANAGEMENT
+        // =========================================================================
+
+        private static readonly (string Code, string Name, string Description)[] SystemAssetCategories = new[]
+        {
+            ("Machinery", "Machinery & Equipment", "Industrial plant machinery, production lines, and heavy equipment"),
+            ("Vehicles", "Vehicles & Transport", "Delivery trucks, commercial vans, forklifts, and company vehicles"),
+            ("Computers", "Computers & Laptops", "Desktop workstations, enterprise laptops, and server hardware"),
+            ("Printers", "Printers & Scanners", "Office printers, barcode printers, and document scanners"),
+            ("Furniture", "Furniture & Fixtures", "Desks, chairs, conference tables, shelving, and storage units"),
+            ("Office Equipment", "Office Equipment", "Air conditioners, water dispensers, projectors, and office appliances"),
+            ("Buildings", "Buildings & Infrastructure", "Warehouses, factory sheds, borewells, and physical structures"),
+            ("Other", "Other Capital Assets", "Miscellaneous capitalized tangible assets")
+        };
+
+        public async Task<List<AssetCategoryDto>> GetAssetCategoriesAsync(bool includeInactive = false)
+        {
+            var tenantId = GetTenantId();
+            var companyId = await GetCompanyIdAsync();
+
+            var existingCategories = await _context.AssetCategories
+                .Where(c => c.TenantId == tenantId && !c.IsDeleted)
+                .ToListAsync();
+
+            var existingCodes = new HashSet<string>(existingCategories.Select(c => c.Code.Trim()), StringComparer.OrdinalIgnoreCase);
+            var toAdd = new List<AssetCategory>();
+
+            foreach (var sys in SystemAssetCategories)
+            {
+                if (!existingCodes.Contains(sys.Code))
+                {
+                    var cat = new AssetCategory
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenantId,
+                        CompanyId = companyId,
+                        Code = sys.Code,
+                        Name = sys.Name,
+                        Description = sys.Description,
+                        IsSystem = true,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "System"
+                    };
+                    toAdd.Add(cat);
+                    existingCategories.Add(cat);
+                    existingCodes.Add(sys.Code);
+                }
+            }
+
+            if (toAdd.Count > 0)
+            {
+                await _context.AssetCategories.AddRangeAsync(toAdd);
+                await _context.SaveChangesAsync();
+            }
+
+            var systemCodesOrder = SystemAssetCategories.Select(s => s.Code).ToList();
+
+            var result = existingCategories
+                .Where(c => includeInactive || c.IsActive)
+                .OrderBy(c => c.IsSystem ? 0 : 1)
+                .ThenBy(c => c.IsSystem ? systemCodesOrder.IndexOf(c.Code) : 0)
+                .ThenBy(c => c.Name)
+                .Select(c => new AssetCategoryDto
+                {
+                    Id = c.Id,
+                    TenantId = c.TenantId,
+                    CompanyId = c.CompanyId,
+                    Code = c.Code,
+                    Name = c.Name,
+                    Description = c.Description,
+                    IsSystem = c.IsSystem,
+                    IsActive = c.IsActive,
+                    CreatedAt = c.CreatedAt,
+                    UpdatedAt = c.UpdatedAt
+                })
+                .ToList();
+
+            return result;
+        }
+
+        public async Task<AssetCategoryDto?> GetAssetCategoryByIdAsync(Guid id)
+        {
+            var tenantId = GetTenantId();
+            var c = await _context.AssetCategories
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId && !x.IsDeleted);
+
+            if (c == null) return null;
+
+            return new AssetCategoryDto
+            {
+                Id = c.Id,
+                TenantId = c.TenantId,
+                CompanyId = c.CompanyId,
+                Code = c.Code,
+                Name = c.Name,
+                Description = c.Description,
+                IsSystem = c.IsSystem,
+                IsActive = c.IsActive,
+                CreatedAt = c.CreatedAt,
+                UpdatedAt = c.UpdatedAt
+            };
+        }
+
+        public async Task<AssetCategoryDto> CreateAssetCategoryAsync(CreateAssetCategoryRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new ArgumentException("Category name is required.");
+            }
+
+            var name = request.Name.Trim();
+            var tenantId = GetTenantId();
+            var companyId = await GetCompanyIdAsync();
+            var userId = _userProvider.UserId ?? "System";
+
+            // Check duplicate name or code within tenant (case-insensitive)
+            var duplicate = await _context.AssetCategories
+                .AnyAsync(c => c.TenantId == tenantId && !c.IsDeleted &&
+                    (c.Name.ToLower() == name.ToLower() || c.Code.ToLower() == name.ToLower()));
+
+            if (duplicate)
+            {
+                throw new InvalidOperationException($"An asset category with the name '{name}' already exists.");
+            }
+
+            var newCategory = new AssetCategory
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Code = name,
+                Name = name,
+                Description = request.Description?.Trim(),
+                IsSystem = false,
+                IsActive = request.IsActive,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = userId
+            };
+
+            await _context.AssetCategories.AddAsync(newCategory);
+            await _context.SaveChangesAsync();
+
+            return new AssetCategoryDto
+            {
+                Id = newCategory.Id,
+                TenantId = newCategory.TenantId,
+                CompanyId = newCategory.CompanyId,
+                Code = newCategory.Code,
+                Name = newCategory.Name,
+                Description = newCategory.Description,
+                IsSystem = newCategory.IsSystem,
+                IsActive = newCategory.IsActive,
+                CreatedAt = newCategory.CreatedAt
+            };
+        }
+
+        public async Task<AssetCategoryDto?> UpdateAssetCategoryAsync(Guid id, UpdateAssetCategoryRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new ArgumentException("Category name is required.");
+            }
+
+            var name = request.Name.Trim();
+            var tenantId = GetTenantId();
+            var userId = _userProvider.UserId ?? "System";
+
+            var category = await _context.AssetCategories
+                .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId && !c.IsDeleted);
+
+            if (category == null) return null;
+
+            // Check duplicate name
+            var duplicate = await _context.AssetCategories
+                .AnyAsync(c => c.TenantId == tenantId && c.Id != id && !c.IsDeleted &&
+                    (c.Name.ToLower() == name.ToLower() || c.Code.ToLower() == name.ToLower()));
+
+            if (duplicate)
+            {
+                throw new InvalidOperationException($"An asset category with the name '{name}' already exists.");
+            }
+
+            if (!category.IsSystem)
+            {
+                category.Name = name;
+                category.Code = name;
+            }
+            category.Description = request.Description?.Trim();
+            category.IsActive = request.IsActive;
+            category.UpdatedAt = DateTime.UtcNow;
+            category.UpdatedBy = userId;
+
+            await _context.SaveChangesAsync();
+
+            return new AssetCategoryDto
+            {
+                Id = category.Id,
+                TenantId = category.TenantId,
+                CompanyId = category.CompanyId,
+                Code = category.Code,
+                Name = category.Name,
+                Description = category.Description,
+                IsSystem = category.IsSystem,
+                IsActive = category.IsActive,
+                CreatedAt = category.CreatedAt,
+                UpdatedAt = category.UpdatedAt
+            };
+        }
+
+        public async Task<bool> DeleteAssetCategoryAsync(Guid id)
+        {
+            var tenantId = GetTenantId();
+            var category = await _context.AssetCategories
+                .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId && !c.IsDeleted);
+
+            if (category == null) return false;
+
+            if (category.IsSystem)
+            {
+                throw new InvalidOperationException("Built-in system asset categories cannot be deleted.");
+            }
+
+            // Check if any existing assets are using this category
+            var isUsed = await _context.Assets
+                .AnyAsync(a => a.TenantId == tenantId && !a.IsDeleted &&
+                    (a.AssetCategory.ToLower() == category.Code.ToLower() || a.AssetCategory.ToLower() == category.Name.ToLower()));
+
+            if (isUsed)
+            {
+                throw new InvalidOperationException($"Cannot delete category '{category.Name}' because it is assigned to existing assets. Please reassign those assets or deactivate the category instead.");
+            }
+
+            category.IsDeleted = true;
+            category.DeletedAt = DateTime.UtcNow;
+            category.DeletedBy = _userProvider.UserId ?? "System";
+
+            await _context.SaveChangesAsync();
+            return true;
         }
     }
 }

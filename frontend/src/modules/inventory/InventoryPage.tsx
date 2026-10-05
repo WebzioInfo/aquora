@@ -362,6 +362,16 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
   const [productFormCurrentStock, setProductFormCurrentStock] = useState('0')
   const [editingCostProductId, setEditingCostProductId] = useState<string | null>(null)
   const [editingCostValue, setEditingCostValue] = useState<string>('')
+  const [isQuickBrandModalOpen, setIsQuickBrandModalOpen] = useState(false)
+  const [quickBrandName, setQuickBrandName] = useState('')
+  const [quickBrandError, setQuickBrandError] = useState('')
+  const [isSubmittingQuickBrand, setIsSubmittingQuickBrand] = useState(false)
+  const [isQuickRawMaterialModalOpen, setIsQuickRawMaterialModalOpen] = useState(false)
+  const [quickRawMaterialName, setQuickRawMaterialName] = useState('')
+  const [quickRawMaterialCategory, setQuickRawMaterialCategory] = useState('PREFORM')
+  const [quickRawMaterialUnit, setQuickRawMaterialUnit] = useState('PIECE')
+  const [quickRawMaterialError, setQuickRawMaterialError] = useState('')
+  const [isSubmittingQuickRawMaterial, setIsSubmittingQuickRawMaterial] = useState(false)
 
   const updateCostMutation = useMutation({
     mutationFn: ({ id, unitCost }: { id: string; unitCost: number }) => productsService.updateUnitCost(id, unitCost),
@@ -437,7 +447,11 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
     queryFn: async () => (await rawMaterialsService.getRawMaterials(rawMaterialsPage, 10, rawMaterialsSearch)).data,
     enabled: inventoryTab === 'raw_materials'
   })
-  const allMats: any[] = rawMaterialsData?.items || []
+  const { data: rawMaterialsDropdown = [] } = useQuery({
+    queryKey: ['rawMaterialsDropdown'],
+    queryFn: async () => (await rawMaterialsService.getRawMaterials(1, 1000)).data?.items || []
+  })
+  const allMats: any[] = rawMaterialsDropdown.length > 0 ? rawMaterialsDropdown : (rawMaterialsData?.items || [])
   const totalProducts = productsData?.totalCount ?? 0
   const totalMaterials = rawMaterialsData?.totalCount ?? 0
   const lowStock = allMats.filter(m => m.currentStock > 0 && m.currentStock < 50).length
@@ -517,6 +531,142 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
   const handleEditBrandSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!selectedBrand || !brandFormName.trim()) return showToast('Brand Name is required.', 'warning'); updateBrandMutation.mutate({ id: selectedBrand.id, data: { name: brandFormName.trim(), code: brandFormCode.trim() || undefined, description: brandFormDescription.trim() || undefined, isActive: brandFormIsActive } }) }
   const openEditBrand = (brand: any) => { setSelectedBrand(brand); setBrandFormName(brand.name); setBrandFormCode(brand.code || ''); setBrandFormDescription(brand.description || ''); setBrandFormIsActive(brand.isActive); setIsEditBrandModalOpen(true) }
   const triggerDeleteBrand = (id: string, name: string) => { if (confirm(`Delete brand "${name}"?`)) deleteBrandMutation.mutate(id) }
+
+  const handleCloseQuickBrandModal = () => {
+    if (isSubmittingQuickBrand) return
+    setIsQuickBrandModalOpen(false)
+    setQuickBrandName('')
+    setQuickBrandError('')
+  }
+
+  const handleQuickCreateBrand = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = quickBrandName.trim()
+    if (!trimmed) {
+      setQuickBrandError('Brand name is required.')
+      return
+    }
+
+    // Fast client-side duplicate check
+    const duplicate = (brands as any[]).some(
+      b => b.name && b.name.trim().toLowerCase() === trimmed.toLowerCase()
+    )
+    if (duplicate) {
+      setQuickBrandError('A brand with this name already exists.')
+      return
+    }
+
+    setIsSubmittingQuickBrand(true)
+    setQuickBrandError('')
+
+    try {
+      const res = await brandService.createBrand({ name: trimmed, isActive: true })
+      if (res.success && res.data) {
+        const newBrand = res.data
+
+        // 1. Immediately update cache so dropdown has the new brand
+        queryClient.setQueryData(['brandsDropdown'], (old: any[] = []) => [
+          newBrand,
+          ...old.filter(b => b.id !== newBrand.id)
+        ])
+        queryClient.invalidateQueries({ queryKey: ['brandsDropdown'] })
+        queryClient.invalidateQueries({ queryKey: ['brandsPaginated'] })
+
+        // 2. Automatically select the newly created brand in the Product form
+        setProductFormBrandId(newBrand.id)
+
+        // 3. Close the modal, clean state, notify user
+        setIsQuickBrandModalOpen(false)
+        setQuickBrandName('')
+        setQuickBrandError('')
+        showToast('Brand created successfully.', 'success')
+      } else {
+        const msg = res.message || 'Failed to create brand.'
+        setQuickBrandError(msg)
+        showToast(msg, 'error')
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to create brand.'
+      setQuickBrandError(msg)
+      showToast(msg, 'error')
+    } finally {
+      setIsSubmittingQuickBrand(false)
+    }
+  }
+
+  const handleCloseQuickRawMaterialModal = () => {
+    if (isSubmittingQuickRawMaterial) return
+    setIsQuickRawMaterialModalOpen(false)
+    setQuickRawMaterialName('')
+    setQuickRawMaterialCategory('PREFORM')
+    setQuickRawMaterialUnit('PIECE')
+    setQuickRawMaterialError('')
+  }
+
+  const handleQuickCreateRawMaterial = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = quickRawMaterialName.trim()
+    if (!trimmed) {
+      setQuickRawMaterialError('Material name is required.')
+      return
+    }
+
+    // Fast client-side duplicate check
+    const duplicate = allMats.some(
+      m => m.name && m.name.trim().toLowerCase() === trimmed.toLowerCase()
+    )
+    if (duplicate) {
+      setQuickRawMaterialError('A raw material with this name already exists.')
+      return
+    }
+
+    setIsSubmittingQuickRawMaterial(true)
+    setQuickRawMaterialError('')
+
+    try {
+      const res = await rawMaterialsService.createRawMaterial({
+        name: trimmed,
+        category: quickRawMaterialCategory,
+        unit: quickRawMaterialUnit,
+        isActive: true,
+        currentStock: 0
+      })
+
+      if (res.success && res.data) {
+        const newMat = res.data
+
+        // 1. Immediately update cache so dropdown has the new material
+        queryClient.setQueryData(['rawMaterialsDropdown'], (old: any[] = []) => [
+          newMat,
+          ...old.filter(m => m.id !== newMat.id)
+        ])
+        queryClient.invalidateQueries({ queryKey: ['rawMaterialsDropdown'] })
+        queryClient.invalidateQueries({ queryKey: ['rawMaterialsList'] })
+        queryClient.invalidateQueries({ queryKey: ['rawMaterials'] })
+
+        // 2. Automatically select the newly created Raw Material in the Add Stock modal
+        setSelectedAddStockMaterialId(newMat.id)
+
+        // 3. Close the modal, clean state, notify user
+        setIsQuickRawMaterialModalOpen(false)
+        setQuickRawMaterialName('')
+        setQuickRawMaterialCategory('PREFORM')
+        setQuickRawMaterialUnit('PIECE')
+        setQuickRawMaterialError('')
+        showToast('Raw material created successfully.', 'success')
+      } else {
+        const msg = res.message || 'Failed to create raw material.'
+        setQuickRawMaterialError(msg)
+        showToast(msg, 'error')
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to create raw material.'
+      setQuickRawMaterialError(msg)
+      showToast(msg, 'error')
+    } finally {
+      setIsSubmittingQuickRawMaterial(false)
+    }
+  }
   const todayStr = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
   const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
   const matRowCls = (mat: any, i: number) => {
@@ -792,7 +942,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
             <div className="flex items-start justify-between pb-4 border-b border-gray-100">
               <div>
                 <h3 id="modal-title" className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  <span className="text-xl">📦</span> Add New Product
+                  Add New Product
                 </h3>
                 <p className="text-sm text-gray-500 mt-1">
                   Create a new packaged drinking water product.
@@ -834,6 +984,22 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                     items={(brands as any[]).filter(b => b.isActive).map(b => ({ id: b.id, name: b.name }))}
                     placeholder="Search & Select Brand"
                     required
+                    labelRight={
+                      canWrite ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuickBrandName('')
+                            setQuickBrandError('')
+                            setIsQuickBrandModalOpen(true)
+                          }}
+                          className="text-xs font-semibold text-[#1A56DB] hover:text-blue-700 active:text-blue-800 transition-colors inline-flex items-center gap-1 cursor-pointer focus:outline-none focus-visible:underline"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>New Brand</span>
+                        </button>
+                      ) : undefined
+                    }
                   />
                 </div>
 
@@ -904,6 +1070,103 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
           </div>
         </div>
       )}
+
+      {/* Quick Create Brand Modal */}
+      {isQuickBrandModalOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div
+            onClick={handleCloseQuickBrandModal}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+          />
+
+          <div
+            className="relative w-full max-w-[420px] bg-white border border-gray-200 p-6 rounded-[16px] shadow-2xl flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-200 z-10"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="quick-brand-modal-title"
+            tabIndex={-1}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                handleCloseQuickBrandModal()
+              }
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between pb-3 border-b border-gray-100">
+              <div>
+                <h3 id="quick-brand-modal-title" className="text-lg font-bold text-gray-900">
+                  Create New Brand
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Add a brand to select for this product.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseQuickBrandModal}
+                className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer"
+                disabled={isSubmittingQuickBrand}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleQuickCreateBrand} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5 text-left">
+                <label className="text-xs font-semibold text-gray-700">
+                  Brand Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="e.g. Aquzio"
+                  value={quickBrandName}
+                  onChange={(e) => {
+                    setQuickBrandName(e.target.value)
+                    if (quickBrandError) setQuickBrandError('')
+                  }}
+                  disabled={isSubmittingQuickBrand}
+                  className={`w-full h-10 px-3 border rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none transition-all ${
+                    quickBrandError
+                      ? 'border-red-500 ring-2 ring-red-100'
+                      : 'border-gray-200 focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50'
+                  }`}
+                />
+                {quickBrandError && (
+                  <p className="text-xs font-medium text-red-600 mt-0.5">{quickBrandError}</p>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-100 mt-1">
+                <EnterpriseButton
+                  type="button"
+                  onClick={handleCloseQuickBrandModal}
+                  variant="secondary"
+                  disabled={isSubmittingQuickBrand}
+                >
+                  Cancel
+                </EnterpriseButton>
+                <EnterpriseButton
+                  type="submit"
+                  variant="primary"
+                  disabled={isSubmittingQuickBrand || !quickBrandName.trim()}
+                >
+                  {isSubmittingQuickBrand ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Creating...
+                    </span>
+                  ) : (
+                    'Create Brand'
+                  )}
+                </EnterpriseButton>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       <EnterpriseModal isOpen={isEditProductModalOpen} onClose={() => setIsEditProductModalOpen(false)} title="Edit Product" maxWidth="sm">
         <form onSubmit={handleEditProductSubmit} className="flex flex-col gap-4">
           <EnterpriseInput label="Product Name" value={productFormName} onChange={e => setProductFormName(e.target.value)} required />
@@ -935,7 +1198,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
             <div className="flex items-start justify-between pb-4 border-b border-gray-100">
               <div>
                 <h3 id="rm-modal-title" className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  <span className="text-xl">🛠️</span> Add New Raw Material
+                  Add New Raw Material
                 </h3>
                 <p className="text-sm text-gray-500 mt-1">
                   Register a new material for inventory and production.
@@ -1087,7 +1350,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
             <div className="flex items-start justify-between pb-4 border-b border-gray-100">
               <div>
                 <h3 id="stock-modal-title" className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  <span className="text-xl">📥</span> Add Raw Material Stock
+                  Add Raw Material Stock
                 </h3>
                 <p className="text-sm text-gray-500 mt-1">
                   Record new incoming stock for raw materials.
@@ -1114,6 +1377,24 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                   items={allMats.filter(m => m.isActive).map((m: any) => ({ id: m.id, name: m.name }))}
                   placeholder="Search & Select Material"
                   required
+                  labelRight={
+                    canWrite ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuickRawMaterialName('')
+                          setQuickRawMaterialCategory('PREFORM')
+                          setQuickRawMaterialUnit('PIECE')
+                          setQuickRawMaterialError('')
+                          setIsQuickRawMaterialModalOpen(true)
+                        }}
+                        className="text-xs font-semibold text-[#1A56DB] hover:text-blue-700 active:text-blue-800 transition-colors inline-flex items-center gap-1 cursor-pointer focus:outline-none focus-visible:underline"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>New Raw Material</span>
+                      </button>
+                    ) : undefined
+                  }
                 />
               </div>
 
@@ -1191,6 +1472,137 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                     </span>
                   ) : 'Add Stock'}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Create Raw Material Modal */}
+      {isQuickRawMaterialModalOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div
+            onClick={handleCloseQuickRawMaterialModal}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+          />
+
+          <div
+            className="relative w-full max-w-[460px] bg-white border border-gray-200 p-6 rounded-[16px] shadow-2xl flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-200 z-10"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="quick-rm-modal-title"
+            tabIndex={-1}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                handleCloseQuickRawMaterialModal()
+              }
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between pb-3 border-b border-gray-100">
+              <div>
+                <h3 id="quick-rm-modal-title" className="text-lg font-bold text-gray-900">
+                  Create New Raw Material
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Register a raw material for inventory tracking.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseQuickRawMaterialModal}
+                className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer"
+                disabled={isSubmittingQuickRawMaterial}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleQuickCreateRawMaterial} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5 text-left">
+                <label className="text-xs font-semibold text-gray-700">
+                  Material Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="e.g., 28mm Preform (Premium)"
+                  value={quickRawMaterialName}
+                  onChange={(e) => {
+                    setQuickRawMaterialName(e.target.value)
+                    if (quickRawMaterialError) setQuickRawMaterialError('')
+                  }}
+                  disabled={isSubmittingQuickRawMaterial}
+                  className={`w-full h-10 px-3 border rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none transition-all ${
+                    quickRawMaterialError
+                      ? 'border-red-500 ring-2 ring-red-100'
+                      : 'border-gray-200 focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50'
+                  }`}
+                />
+                {quickRawMaterialError && (
+                  <p className="text-xs font-medium text-red-600 mt-0.5">{quickRawMaterialError}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5 text-left">
+                  <label className="text-xs font-semibold text-gray-700">
+                    Category <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={quickRawMaterialCategory}
+                    onChange={(e) => setQuickRawMaterialCategory(e.target.value)}
+                    disabled={isSubmittingQuickRawMaterial}
+                    className="w-full h-10 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                  >
+                    {Object.values(RAW_MATERIAL_CATEGORIES).map(cat => (
+                      <option key={cat.value} value={cat.value}>{cat.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1.5 text-left">
+                  <label className="text-xs font-semibold text-gray-700">
+                    Unit of Measurement <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={quickRawMaterialUnit}
+                    onChange={(e) => setQuickRawMaterialUnit(e.target.value)}
+                    disabled={isSubmittingQuickRawMaterial}
+                    className="w-full h-10 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                  >
+                    {['PIECE', 'KG', 'GRAM', 'ROLL', 'BOX', 'BAG', 'LITER', 'ML'].map(u => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-100 mt-1">
+                <EnterpriseButton
+                  type="button"
+                  onClick={handleCloseQuickRawMaterialModal}
+                  variant="secondary"
+                  disabled={isSubmittingQuickRawMaterial}
+                >
+                  Cancel
+                </EnterpriseButton>
+                <EnterpriseButton
+                  type="submit"
+                  variant="primary"
+                  disabled={isSubmittingQuickRawMaterial || !quickRawMaterialName.trim()}
+                >
+                  {isSubmittingQuickRawMaterial ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Creating...
+                    </span>
+                  ) : (
+                    'Create Raw Material'
+                  )}
+                </EnterpriseButton>
               </div>
             </form>
           </div>

@@ -219,6 +219,18 @@ export const ExpenseManagementPage: React.FC = () => {
   const totalCount = expensesData?.totalCount || 0
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
 
+  // Query dynamic expense categories
+  const { data: dbCategories = [] } = useQuery({
+    queryKey: ['expenseCategories'],
+    queryFn: () => simpleAccountsService.getExpenseCategories(),
+    staleTime: 5 * 60 * 1000
+  })
+
+  const categoryOptions = useMemo(() => {
+    const names = dbCategories.map(c => c.name)
+    return names.length > 0 ? names : EXPENSE_CATEGORIES
+  }, [dbCategories])
+
   // Clamp page if out of bounds (e.g. after row deletion or filter change)
   useEffect(() => {
     if (totalCount > 0 && pageParam > totalPages) {
@@ -631,7 +643,7 @@ export const ExpenseManagementPage: React.FC = () => {
           />
         ) : (
           <ExpenseFilters
-            categories={EXPENSE_CATEGORIES}
+            categories={categoryOptions}
             filters={filters}
             onChange={updateFilters}
             onClear={handleClearFilters}

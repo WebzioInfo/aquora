@@ -478,6 +478,278 @@ namespace Aquora.Application.Services
         }
 
         // ==========================================
+        // 1B. EXPENSE CATEGORY MANAGEMENT
+        // ==========================================
+        public async Task<List<ExpenseCategoryDto>> GetExpenseCategoriesAsync(bool includeInactive = false)
+        {
+            var tenantId = GetTenantId();
+            var companyId = await GetCompanyIdAsync();
+
+            var existingCategories = await _context.ExpenseCategories
+                .Where(c => c.TenantId == tenantId && !c.IsDeleted)
+                .ToListAsync();
+
+            var defaultCategories = new[]
+            {
+                "Salary",
+                "Electricity",
+                "Fuel",
+                "Maintenance",
+                "Vehicle",
+                "Rent",
+                "Infrastructure",
+                "Purchase Related",
+                "Stationary",
+                "Tax",
+                "Miscellaneous",
+                "Office",
+                "Travel",
+                "Utilities"
+            };
+
+            var existingNames = new HashSet<string>(existingCategories.Select(c => c.Name.Trim()), StringComparer.OrdinalIgnoreCase);
+            var toAdd = new List<ExpenseCategory>();
+            var currentUserId = _currentUserContext.UserId ?? "System";
+
+            foreach (var name in defaultCategories)
+            {
+                if (!existingNames.Contains(name))
+                {
+                    var cat = new ExpenseCategory
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenantId,
+                        CompanyId = companyId,
+                        Name = name,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = currentUserId
+                    };
+                    toAdd.Add(cat);
+                    existingCategories.Add(cat);
+                    existingNames.Add(name);
+                }
+            }
+
+            if (toAdd.Count > 0)
+            {
+                await _context.ExpenseCategories.AddRangeAsync(toAdd);
+                await _context.SaveChangesAsync();
+            }
+
+            return existingCategories
+                .Where(c => includeInactive || c.IsActive)
+                .OrderBy(c => c.Name)
+                .Select(c => new ExpenseCategoryDto
+                {
+                    Id = c.Id,
+                    TenantId = c.TenantId,
+                    CompanyId = c.CompanyId,
+                    Name = c.Name,
+                    Description = c.Description,
+                    IsActive = c.IsActive,
+                    CreatedAt = c.CreatedAt,
+                    UpdatedAt = c.UpdatedAt
+                })
+                .ToList();
+        }
+
+        public async Task<ExpenseCategoryDto?> GetExpenseCategoryByIdAsync(Guid id)
+        {
+            var tenantId = GetTenantId();
+            var category = await _context.ExpenseCategories
+                .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId && !c.IsDeleted);
+
+            if (category == null) return null;
+
+            return new ExpenseCategoryDto
+            {
+                Id = category.Id,
+                TenantId = category.TenantId,
+                CompanyId = category.CompanyId,
+                Name = category.Name,
+                Description = category.Description,
+                IsActive = category.IsActive,
+                CreatedAt = category.CreatedAt,
+                UpdatedAt = category.UpdatedAt
+            };
+        }
+
+        public async Task<ExpenseCategoryDto> CreateExpenseCategoryAsync(CreateExpenseCategoryRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new ArgumentException("Category name is required.");
+            }
+
+            var trimmedName = request.Name.Trim();
+            var tenantId = GetTenantId();
+            var companyId = await GetCompanyIdAsync();
+            var currentUserId = _currentUserContext.UserId ?? "System";
+
+            var existing = await _context.ExpenseCategories
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Name.ToLower() == trimmedName.ToLower());
+
+            if (existing != null)
+            {
+                if (!existing.IsDeleted)
+                {
+                    if (!existing.IsActive)
+                    {
+                        // Reactivate if inactive
+                        existing.IsActive = true;
+                        existing.Description = request.Description?.Trim() ?? existing.Description;
+                        existing.UpdatedAt = DateTime.UtcNow;
+                        existing.UpdatedBy = currentUserId;
+                        await _context.SaveChangesAsync();
+
+                        return new ExpenseCategoryDto
+                        {
+                            Id = existing.Id,
+                            TenantId = existing.TenantId,
+                            CompanyId = existing.CompanyId,
+                            Name = existing.Name,
+                            Description = existing.Description,
+                            IsActive = existing.IsActive,
+                            CreatedAt = existing.CreatedAt,
+                            UpdatedAt = existing.UpdatedAt
+                        };
+                    }
+                    throw new InvalidOperationException($"Category '{trimmedName}' already exists.");
+                }
+
+                // If soft-deleted, restore and activate it
+                existing.IsDeleted = false;
+                existing.DeletedAt = null;
+                existing.DeletedBy = null;
+                existing.IsActive = true;
+                existing.Name = trimmedName;
+                existing.Description = request.Description?.Trim();
+                existing.UpdatedAt = DateTime.UtcNow;
+                existing.UpdatedBy = currentUserId;
+                await _context.SaveChangesAsync();
+
+                return new ExpenseCategoryDto
+                {
+                    Id = existing.Id,
+                    TenantId = existing.TenantId,
+                    CompanyId = existing.CompanyId,
+                    Name = existing.Name,
+                    Description = existing.Description,
+                    IsActive = existing.IsActive,
+                    CreatedAt = existing.CreatedAt,
+                    UpdatedAt = existing.UpdatedAt
+                };
+            }
+
+            var newCategory = new ExpenseCategory
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Name = trimmedName,
+                Description = request.Description?.Trim(),
+                IsActive = request.IsActive,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = currentUserId
+            };
+
+            await _context.ExpenseCategories.AddAsync(newCategory);
+            await _context.SaveChangesAsync();
+
+            return new ExpenseCategoryDto
+            {
+                Id = newCategory.Id,
+                TenantId = newCategory.TenantId,
+                CompanyId = newCategory.CompanyId,
+                Name = newCategory.Name,
+                Description = newCategory.Description,
+                IsActive = newCategory.IsActive,
+                CreatedAt = newCategory.CreatedAt,
+                UpdatedAt = newCategory.UpdatedAt
+            };
+        }
+
+        public async Task<ExpenseCategoryDto?> UpdateExpenseCategoryAsync(Guid id, UpdateExpenseCategoryRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new ArgumentException("Category name is required.");
+            }
+
+            var trimmedName = request.Name.Trim();
+            var tenantId = GetTenantId();
+            var currentUserId = _currentUserContext.UserId ?? "System";
+
+            var category = await _context.ExpenseCategories
+                .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId && !c.IsDeleted);
+
+            if (category == null) return null;
+
+            // Check duplicate name on another record
+            var duplicate = await _context.ExpenseCategories
+                .AnyAsync(c => c.Id != id && c.TenantId == tenantId && !c.IsDeleted && c.Name.ToLower() == trimmedName.ToLower());
+
+            if (duplicate)
+            {
+                throw new InvalidOperationException($"Another category with name '{trimmedName}' already exists.");
+            }
+
+            category.Name = trimmedName;
+            category.Description = request.Description?.Trim();
+            category.IsActive = request.IsActive;
+            category.UpdatedAt = DateTime.UtcNow;
+            category.UpdatedBy = currentUserId;
+
+            await _context.SaveChangesAsync();
+
+            return new ExpenseCategoryDto
+            {
+                Id = category.Id,
+                TenantId = category.TenantId,
+                CompanyId = category.CompanyId,
+                Name = category.Name,
+                Description = category.Description,
+                IsActive = category.IsActive,
+                CreatedAt = category.CreatedAt,
+                UpdatedAt = category.UpdatedAt
+            };
+        }
+
+        public async Task<bool> DeleteExpenseCategoryAsync(Guid id)
+        {
+            var tenantId = GetTenantId();
+            var currentUserId = _currentUserContext.UserId ?? "System";
+
+            var category = await _context.ExpenseCategories
+                .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId && !c.IsDeleted);
+
+            if (category == null) return false;
+
+            // Check if any expenses are linked to this category name
+            var hasExpenses = await _context.SimpleExpenses
+                .AnyAsync(e => e.TenantId == tenantId && !e.IsDeleted && e.Category.ToLower() == category.Name.ToLower());
+
+            if (hasExpenses)
+            {
+                // Soft-deactivate so existing historical expenses are preserved
+                category.IsActive = false;
+                category.UpdatedAt = DateTime.UtcNow;
+                category.UpdatedBy = currentUserId;
+            }
+            else
+            {
+                category.IsDeleted = true;
+                category.DeletedAt = DateTime.UtcNow;
+                category.DeletedBy = currentUserId;
+            }
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // ==========================================
         // 2. BANK ACCOUNT MANAGEMENT
         // ==========================================
         public async Task<PagedResult<BankAccountDto>> GetBankAccountsAsync(

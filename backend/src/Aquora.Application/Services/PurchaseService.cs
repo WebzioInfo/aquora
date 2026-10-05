@@ -247,6 +247,13 @@ namespace Aquora.Application.Services
                 throw new ArgumentException("Purchase Category is required.");
             }
 
+            var treatment = await ResolveCategoryTreatmentAsync(request.PurchaseCategory);
+
+            if (treatment == "Inventory" && (request.Items == null || !request.Items.Any(i => i.Quantity > 0)))
+            {
+                throw new ArgumentException("Please add at least one purchase item for inventory purchases.");
+            }
+
             if (request.GrandTotal < 0)
             {
                 throw new ArgumentException("Grand Total cannot be negative.");
@@ -429,7 +436,7 @@ namespace Aquora.Application.Services
                 }
             }
 
-            if (request.PurchaseCategory == "RawMaterial" && purchase.Items.Any())
+            if (treatment == "Inventory" && purchase.Items.Any())
             {
                 foreach (var item in purchase.Items)
                 {
@@ -458,10 +465,10 @@ namespace Aquora.Application.Services
                     }
                 }
             }
-            else if (request.PurchaseCategory == "Machine" || request.PurchaseCategory == "OfficeAsset")
+            else if (treatment == "Asset")
             {
                 string assetName = $"{request.PurchaseCategory} - {vendorName}";
-                string categoryType = request.PurchaseCategory == "Machine" ? "Machine" : "OfficeAsset";
+                string categoryType = request.PurchaseCategory == "Machine" ? "Machine" : (request.PurchaseCategory == "OfficeAsset" ? "OfficeAsset" : "Other");
                 string serialNo = "";
                 string location = "Main Facility";
 
@@ -543,9 +550,11 @@ namespace Aquora.Application.Services
                 throw new ArgumentException("Please choose a purchase category.");
             }
 
-            if (request.PurchaseCategory == "RawMaterial" && (request.Items == null || !request.Items.Any(i => i.Quantity > 0)))
+            var treatment = await ResolveCategoryTreatmentAsync(request.PurchaseCategory);
+
+            if (treatment == "Inventory" && (request.Items == null || !request.Items.Any(i => i.Quantity > 0)))
             {
-                throw new ArgumentException("Please add at least one purchase item.");
+                throw new ArgumentException("Please add at least one purchase item for inventory purchases.");
             }
 
             if (request.GrandTotal <= 0)
@@ -629,7 +638,7 @@ namespace Aquora.Application.Services
             purchase.UpdatedBy = currentUser;
 
             // Line items reconciliation
-            if (request.PurchaseCategory == "RawMaterial")
+            if (treatment == "Inventory")
             {
                 var existingItems = purchase.Items.ToList();
                 var requestItems = request.Items ?? new List<CreatePurchaseItemRequest>();
@@ -1028,7 +1037,8 @@ namespace Aquora.Application.Services
                 }
             }
 
-            if (purchase.PurchaseCategory == "RawMaterial" && purchase.Items.Any())
+            var cancelTreatment = await ResolveCategoryTreatmentAsync(purchase.PurchaseCategory);
+            if (cancelTreatment == "Inventory" && purchase.Items.Any())
             {
                 foreach (var item in purchase.Items)
                 {
@@ -1124,7 +1134,8 @@ namespace Aquora.Application.Services
             purchase.DeletedAt = DateTime.UtcNow;
             purchase.DeletedBy = currentUser;
 
-            if (purchase.PurchaseCategory == "RawMaterial" && purchase.Items.Any())
+            var deleteTreatment = await ResolveCategoryTreatmentAsync(purchase.PurchaseCategory);
+            if (deleteTreatment == "Inventory" && purchase.Items.Any())
             {
                 foreach (var item in purchase.Items)
                 {
@@ -1377,6 +1388,316 @@ namespace Aquora.Application.Services
                 UpdatedAt = p.UpdatedAt,
                 UpdatedByName = p.UpdatedBy != null ? resolveName(p.UpdatedBy) : null
             };
+        }
+
+        // ==========================================
+        // PURCHASE CATEGORY ARCHITECTURE & MANAGEMENT
+        // ==========================================
+
+        private static readonly (string Code, string Name, string Treatment, string Description)[] SystemCategories = new[]
+        {
+            ("RawMaterial", "Raw Material (Inventory Stock IN)", "Inventory", "Standard raw material stock procurement. Automatically creates inventory Stock IN movement."),
+            ("Machine", "Machine / Equipment (Capital Asset Auto-Create)", "Asset", "Capital machinery & industrial equipment. Automatically provisions a Fixed Asset record."),
+            ("OfficeAsset", "Office Asset (Asset Auto-Create)", "Asset", "Office hardware, computers & furniture. Automatically registers an Asset record."),
+            ("OfficeExpense", "Office Expense", "Expense", "Day-to-day office consumables and operating expenses."),
+            ("Service", "Service / Consulting", "Expense", "Professional fees, advisory and outsourced third-party services."),
+            ("Maintenance", "Maintenance & Repair", "Expense", "Facility maintenance, plant servicing and repair costs."),
+            ("Utility", "Utility Bills", "Expense", "Power, water, gas and municipal utility billing."),
+            ("Vehicle", "Vehicle & Fuel Expense", "Expense", "Fleet operations, diesel/petrol and transport expenditure."),
+            ("Software", "Software & Subscriptions", "Expense", "Cloud SaaS tools, digital subscriptions and software licensing."),
+            ("Other", "Other Category", "Expense", "General fallback procurement category for sundry expenses.")
+        };
+
+        private async Task<string> ResolveCategoryTreatmentAsync(string categoryCode)
+        {
+            if (string.IsNullOrWhiteSpace(categoryCode)) return "Expense";
+
+            var trimmed = categoryCode.Trim();
+
+            // Direct check for legacy system codes
+            if (string.Equals(trimmed, "RawMaterial", StringComparison.OrdinalIgnoreCase)) return "Inventory";
+            if (string.Equals(trimmed, "Machine", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, "OfficeAsset", StringComparison.OrdinalIgnoreCase)) return "Asset";
+            if (string.Equals(trimmed, "OfficeExpense", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, "Service", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, "Maintenance", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, "Utility", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, "Vehicle", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, "Software", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, "Other", StringComparison.OrdinalIgnoreCase)) return "Expense";
+
+            var tenantId = GetTenantId();
+            var category = await _context.PurchaseCategories
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.TenantId == tenantId && !c.IsDeleted &&
+                    (c.Code == trimmed || c.Name == trimmed));
+
+            if (category != null && !string.IsNullOrWhiteSpace(category.Treatment))
+            {
+                return category.Treatment;
+            }
+
+            return "Expense";
+        }
+
+        public async Task<List<PurchaseCategoryDto>> GetPurchaseCategoriesAsync(bool includeInactive = false)
+        {
+            var tenantId = GetTenantId();
+            var companyId = await GetCompanyIdAsync();
+
+            var existingCategories = await _context.PurchaseCategories
+                .Where(c => c.TenantId == tenantId && !c.IsDeleted)
+                .ToListAsync();
+
+            var existingCodes = new HashSet<string>(existingCategories.Select(c => c.Code.Trim()), StringComparer.OrdinalIgnoreCase);
+            var toAdd = new List<PurchaseCategory>();
+
+            foreach (var sys in SystemCategories)
+            {
+                if (!existingCodes.Contains(sys.Code))
+                {
+                    var cat = new PurchaseCategory
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenantId,
+                        CompanyId = companyId,
+                        Code = sys.Code,
+                        Name = sys.Name,
+                        Treatment = sys.Treatment,
+                        Description = sys.Description,
+                        IsSystem = true,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "System"
+                    };
+                    toAdd.Add(cat);
+                    existingCategories.Add(cat);
+                    existingCodes.Add(sys.Code);
+                }
+            }
+
+            if (toAdd.Count > 0)
+            {
+                await _context.PurchaseCategories.AddRangeAsync(toAdd);
+                await _context.SaveChangesAsync();
+            }
+
+            var systemCodesOrder = SystemCategories.Select(s => s.Code).ToList();
+
+            var result = existingCategories
+                .Where(c => includeInactive || c.IsActive)
+                .OrderBy(c => c.IsSystem ? 0 : 1)
+                .ThenBy(c => c.IsSystem ? systemCodesOrder.IndexOf(c.Code) : 0)
+                .ThenBy(c => c.Name)
+                .Select(c => new PurchaseCategoryDto
+                {
+                    Id = c.Id,
+                    TenantId = c.TenantId,
+                    CompanyId = c.CompanyId,
+                    Code = c.Code,
+                    Name = c.Name,
+                    Description = c.Description,
+                    Treatment = c.Treatment,
+                    IsSystem = c.IsSystem,
+                    IsActive = c.IsActive,
+                    CreatedAt = c.CreatedAt,
+                    UpdatedAt = c.UpdatedAt
+                })
+                .ToList();
+
+            return result;
+        }
+
+        public async Task<PurchaseCategoryDto?> GetPurchaseCategoryByIdAsync(Guid id)
+        {
+            var tenantId = GetTenantId();
+            var c = await _context.PurchaseCategories
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId && !x.IsDeleted);
+
+            if (c == null) return null;
+
+            return new PurchaseCategoryDto
+            {
+                Id = c.Id,
+                TenantId = c.TenantId,
+                CompanyId = c.CompanyId,
+                Code = c.Code,
+                Name = c.Name,
+                Description = c.Description,
+                Treatment = c.Treatment,
+                IsSystem = c.IsSystem,
+                IsActive = c.IsActive,
+                CreatedAt = c.CreatedAt,
+                UpdatedAt = c.UpdatedAt
+            };
+        }
+
+        public async Task<PurchaseCategoryDto> CreatePurchaseCategoryAsync(CreatePurchaseCategoryRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new ArgumentException("Category name is required.");
+            }
+
+            var trimmedName = request.Name.Trim();
+            var treatment = request.Treatment?.Trim();
+            if (treatment != "Inventory" && treatment != "Asset" && treatment != "Expense")
+            {
+                throw new ArgumentException("Treatment must be 'Inventory', 'Asset', or 'Expense'.");
+            }
+
+            var tenantId = GetTenantId();
+            var companyId = await GetCompanyIdAsync();
+            var currentUser = _currentUserContext.Email ?? "Unknown User";
+
+            var duplicateExists = await _context.PurchaseCategories
+                .AnyAsync(c => c.TenantId == tenantId && !c.IsDeleted &&
+                    (c.Name.ToLower() == trimmedName.ToLower() || c.Code.ToLower() == trimmedName.ToLower()));
+
+            if (duplicateExists)
+            {
+                throw new InvalidOperationException($"A purchase category with the name '{trimmedName}' already exists.");
+            }
+
+            // Generate clean alphanumeric code
+            var baseCode = System.Text.RegularExpressions.Regex.Replace(trimmedName, @"[^a-zA-Z0-9]", "");
+            if (string.IsNullOrWhiteSpace(baseCode)) baseCode = "CAT";
+            var code = baseCode;
+            int suffix = 1;
+            while (await _context.PurchaseCategories.AnyAsync(c => c.TenantId == tenantId && c.Code == code && !c.IsDeleted))
+            {
+                code = $"{baseCode}_{suffix++}";
+            }
+
+            var newCategory = new PurchaseCategory
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Code = code,
+                Name = trimmedName,
+                Description = request.Description?.Trim(),
+                Treatment = treatment,
+                IsSystem = false,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = currentUser
+            };
+
+            _context.PurchaseCategories.Add(newCategory);
+            await _context.SaveChangesAsync();
+
+            return new PurchaseCategoryDto
+            {
+                Id = newCategory.Id,
+                TenantId = newCategory.TenantId,
+                CompanyId = newCategory.CompanyId,
+                Code = newCategory.Code,
+                Name = newCategory.Name,
+                Description = newCategory.Description,
+                Treatment = newCategory.Treatment,
+                IsSystem = newCategory.IsSystem,
+                IsActive = newCategory.IsActive,
+                CreatedAt = newCategory.CreatedAt,
+                UpdatedAt = newCategory.UpdatedAt
+            };
+        }
+
+        public async Task<PurchaseCategoryDto?> UpdatePurchaseCategoryAsync(Guid id, UpdatePurchaseCategoryRequest request)
+        {
+            var tenantId = GetTenantId();
+            var category = await _context.PurchaseCategories
+                .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId && !c.IsDeleted);
+
+            if (category == null) return null;
+
+            var currentUser = _currentUserContext.Email ?? "Unknown User";
+            var trimmedName = request.Name.Trim();
+            var treatment = request.Treatment?.Trim();
+
+            if (treatment != "Inventory" && treatment != "Asset" && treatment != "Expense")
+            {
+                throw new ArgumentException("Treatment must be 'Inventory', 'Asset', or 'Expense'.");
+            }
+
+            if (category.IsSystem)
+            {
+                category.Description = request.Description?.Trim();
+                category.IsActive = request.IsActive;
+                category.UpdatedAt = DateTime.UtcNow;
+                category.UpdatedBy = currentUser;
+            }
+            else
+            {
+                var nameTaken = await _context.PurchaseCategories
+                    .AnyAsync(c => c.TenantId == tenantId && c.Id != id && !c.IsDeleted &&
+                        c.Name.ToLower() == trimmedName.ToLower());
+                if (nameTaken)
+                {
+                    throw new InvalidOperationException($"A purchase category with the name '{trimmedName}' already exists.");
+                }
+
+                category.Name = trimmedName;
+                category.Treatment = treatment;
+                category.Description = request.Description?.Trim();
+                category.IsActive = request.IsActive;
+                category.UpdatedAt = DateTime.UtcNow;
+                category.UpdatedBy = currentUser;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return new PurchaseCategoryDto
+            {
+                Id = category.Id,
+                TenantId = category.TenantId,
+                CompanyId = category.CompanyId,
+                Code = category.Code,
+                Name = category.Name,
+                Description = category.Description,
+                Treatment = category.Treatment,
+                IsSystem = category.IsSystem,
+                IsActive = category.IsActive,
+                CreatedAt = category.CreatedAt,
+                UpdatedAt = category.UpdatedAt
+            };
+        }
+
+        public async Task<bool> DeletePurchaseCategoryAsync(Guid id)
+        {
+            var tenantId = GetTenantId();
+            var category = await _context.PurchaseCategories
+                .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId && !c.IsDeleted);
+
+            if (category == null) return false;
+
+            if (category.IsSystem)
+            {
+                throw new InvalidOperationException("System default categories cannot be deleted.");
+            }
+
+            var currentUser = _currentUserContext.Email ?? "Unknown User";
+
+            var isReferenced = await _context.Purchases
+                .AnyAsync(p => p.TenantId == tenantId && !p.IsDeleted &&
+                    (p.PurchaseCategory == category.Code || p.PurchaseCategory == category.Name));
+
+            if (isReferenced)
+            {
+                category.IsActive = false;
+                category.UpdatedAt = DateTime.UtcNow;
+                category.UpdatedBy = currentUser;
+            }
+            else
+            {
+                category.IsDeleted = true;
+                category.DeletedAt = DateTime.UtcNow;
+                category.DeletedBy = currentUser;
+            }
+
+            await _context.SaveChangesAsync();
+            return true;
         }
     }
 }

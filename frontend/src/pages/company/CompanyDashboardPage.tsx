@@ -38,6 +38,7 @@ import { InventoryPage } from '../../modules/inventory/InventoryPage'
 import { CustomersPage } from './CustomersPage'
 import { SalesPage } from './SalesPage'
 import { useStationConfig } from '../../hooks/useStationConfig'
+import { ProductionBatchesView } from '../../components/batch'
 
 // --- SVG BUSINESS CHARTS FOR ENTERPRISE DASHBOARD ---
 
@@ -2779,8 +2780,175 @@ export const CompanyDashboardPage: React.FC = () => {
 
     const searchParams = new URLSearchParams(location.search)
     const productionTab = searchParams.get('tab') || 'batches'
-    const pageTitle = productionTab === 'lines' ? 'Production Lines' : productionTab === 'shifts' ? 'Production Shifts' : 'Production Batches'
-    const pageDesc = productionTab === 'lines' ? 'Manage production bottling & packaging lines' : productionTab === 'shifts' ? 'Configure operational shifts, start & end times' : 'Complete production batch register — view, filter, search, and manage all production batches'
+
+    if (productionTab === 'batches') {
+      return (
+        <div className="w-full h-full min-h-0">
+          <ProductionBatchesView
+            allBatches={allBatches}
+            activeBatches={activeBatches}
+            batchesLoading={batchesLoading}
+            productionLines={productionLines}
+            onRefresh={() => {
+              queryClient.invalidateQueries({ queryKey: ['allBatchesList'] })
+              queryClient.invalidateQueries({ queryKey: ['activeBatchesList'] })
+            }}
+            isOwnerRole={isOwnerRole}
+            onCreateBatchClick={() => {
+              if (productionLines.length > 0) setStartBatchLineId(productionLines[0].lineId)
+              if (allCatalogProducts.length > 0) setStartBatchProduct(allCatalogProducts[0].name)
+              setIsStartBatchModalOpen(true)
+            }}
+          />
+
+          {/* Premium Light Theme Create Production Batch Modal */}
+          {isStartBatchModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div
+                onClick={() => !startBatchMutation.isPending && setIsStartBatchModalOpen(false)}
+                className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+              />
+
+              <div className="relative w-full max-w-[650px] bg-white border border-gray-200 p-6 sm:p-8 rounded-[16px] shadow-xl flex flex-col gap-6 animate-in fade-in zoom-in-95 duration-200 z-10"
+                role="dialog" aria-modal="true" aria-labelledby="batch-modal-title"
+                tabIndex={-1}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape' && !startBatchMutation.isPending) {
+                    setIsStartBatchModalOpen(false);
+                  }
+                }}>
+
+                {/* Header */}
+                <div className="flex items-start justify-between pb-4 border-b border-gray-100">
+                  <div>
+                    <h3 id="batch-modal-title" className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                      <Factory className="w-5 h-5 text-slate-500" /> Create Production Batch
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Initialize a new water run on the production floor.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => !startBatchMutation.isPending && setIsStartBatchModalOpen(false)}
+                    className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer"
+                    disabled={startBatchMutation.isPending}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Form */}
+                <form onSubmit={handleStartBatchSubmit} className="flex flex-col gap-6">
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {/* Row 1 */}
+                    <div className="flex flex-col gap-1.5 text-left">
+                      <label className="text-sm font-semibold text-gray-700">Production Line <span className="text-red-500">*</span></label>
+                      <select
+                        value={startBatchLineId}
+                        onChange={e => setStartBatchLineId(e.target.value)}
+                        required
+                        className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                      >
+                        <option value="" disabled>Select Production Line</option>
+                        {productionLines.map((line: any) => (
+                          <option key={line.lineId} value={line.lineId}>{line.name} ({line.code})</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5 text-left">
+                      <label className="text-sm font-semibold text-gray-700">Batch Number / Code <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        autoFocus
+                        placeholder="e.g. LOT-001, B-RUN-12"
+                        value={startBatchNumber}
+                        onChange={e => setStartBatchNumber(e.target.value)}
+                        required
+                        className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                      />
+                    </div>
+
+                    {/* Row 2 */}
+                    <div className="flex flex-col gap-1.5 text-left">
+                      <label className="text-sm font-semibold text-gray-700">Product <span className="text-red-500">*</span></label>
+                      <select
+                        value={startBatchProduct}
+                        onChange={e => setStartBatchProduct(e.target.value)}
+                        required
+                        className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                      >
+                        <option value="" disabled>Select Product</option>
+                        {allCatalogProducts.map((prod: any) => (
+                          <option key={prod.id} value={prod.name}>{prod.name} {prod.sku ? `(${prod.sku})` : ''}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5 text-left">
+                      <label className="text-sm font-semibold text-gray-700">Shift <span className="text-red-500">*</span></label>
+                      <select
+                        value={startBatchShift}
+                        onChange={e => setStartBatchShift(e.target.value)}
+                        required
+                        className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                      >
+                        <option value="" disabled>Select Shift</option>
+                        {productionShifts.filter((s: any) => s.isActive).map((shift: any) => (
+                          <option key={shift.id} value={shift.name}>{shift.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 text-left">
+                    <label className="text-sm font-semibold text-gray-700">Target Quantity (Cases) <span className="text-red-500">*</span></label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 1000"
+                      value={startBatchTargetQty}
+                      onChange={e => setStartBatchTargetQty(e.target.value)}
+                      required
+                      className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                    />
+                  </div>
+
+                  {/* Footer */}
+                  <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-gray-100">
+                    <button
+                      type="button"
+                      onClick={() => setIsStartBatchModalOpen(false)}
+                      disabled={startBatchMutation.isPending}
+                      className="px-5 h-10 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={startBatchMutation.isPending}
+                      className="px-6 h-10 bg-[#1A56DB] text-white font-semibold text-sm rounded-[10px] hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px] shadow-sm cursor-pointer"
+                    >
+                      {startBatchMutation.isPending ? (
+                        <span className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Starting...
+                        </span>
+                      ) : 'Start Batch'}
+                    </button>
+                  </div>
+
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    const pageTitle = productionTab === 'lines' ? 'Production Lines' : 'Production Shifts'
+    const pageDesc = productionTab === 'lines' ? 'Manage production bottling & packaging lines' : 'Configure operational shifts, start & end times'
 
     return (
       <PageContainer>
@@ -2816,218 +2984,7 @@ export const CompanyDashboardPage: React.FC = () => {
           }
         />
 
-        {productionTab === 'batches' ? (
-          <>
-            {/* Compact KPI Strip */}
-            <div className="grid grid-cols-3 lg:grid-cols-6 gap-3 select-none">
-              {[
-                { value: totalActiveBatchesCount, label: 'Active Batches' },
-                { value: runningLinesCount, label: 'Running Lines' },
-                { value: pausedBatchesCount, label: 'Paused' },
-                { value: todayCasesCount.toLocaleString(), label: "Today's Cases" },
-                { value: runningOperatorsCount, label: 'Operators' },
-                { value: currentShiftVal, label: 'Current Shift' },
-              ].map((kpi, i) => (
-                <div key={i} className="bg-white border border-[#E5E7EB] rounded-lg py-2 px-3 shadow-sm text-center">
-                  <div className="text-[18px] font-black text-slate-900 leading-tight">{kpi.value}</div>
-                  <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5">{kpi.label}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Filter Toolbar - 40px height */}
-            <div className="flex flex-wrap items-center justify-between gap-2 bg-white border border-[#E5E7EB] rounded-xl px-3 shadow-sm" style={{ minHeight: '40px' }}>
-              <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-                {/* Search */}
-                <div className="relative w-full sm:w-[190px]">
-                  <Search className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    placeholder="Search batches..."
-                    value={batchSearch}
-                    onChange={(e) => setBatchSearch(e.target.value)}
-                    className="w-full pl-7 pr-3 py-1.5 text-[11px] border border-[#E5E7EB] rounded-md bg-white focus:outline-none focus:border-blue-500 font-medium text-slate-700 h-[30px]"
-                  />
-                </div>
-
-                {/* Production Line dropdown */}
-                <select
-                  value={batchLineFilter}
-                  onChange={(e) => setBatchLineFilter(e.target.value)}
-                  className="px-2.5 py-1 text-[11px] border border-[#E5E7EB] rounded-md bg-white focus:outline-none focus:border-blue-500 font-semibold text-slate-700 h-[30px] cursor-pointer"
-                >
-                  <option value="">All Lines</option>
-                  {productionLines.map((line: any) => (
-                    <option key={line.lineId} value={line.lineId}>{line.name}</option>
-                  ))}
-                </select>
-
-                {/* Status dropdown */}
-                <select
-                  value={batchStatusFilter}
-                  onChange={(e) => setBatchStatusFilter(e.target.value)}
-                  className="px-2.5 py-1 text-[11px] border border-[#E5E7EB] rounded-md bg-white focus:outline-none focus:border-blue-500 font-semibold text-slate-700 h-[30px] cursor-pointer"
-                >
-                  <option value="All">All Statuses</option>
-                  <option value="Running">Running</option>
-                  <option value="Paused">Paused</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Cancelled">Cancelled / Stopped</option>
-                </select>
-
-                {/* Date filter */}
-                <input
-                  type="date"
-                  value={batchDateFilter}
-                  onChange={(e) => setBatchDateFilter(e.target.value)}
-                  className="px-2.5 py-1 text-[11px] border border-[#E5E7EB] rounded-md bg-white focus:outline-none focus:border-blue-500 font-semibold text-slate-700 h-[30px]"
-                />
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => {
-                    queryClient.invalidateQueries({ queryKey: ['allBatchesList'] })
-                    queryClient.invalidateQueries({ queryKey: ['activeBatchesList'] })
-                  }}
-                  className="px-2.5 h-[30px] text-[11px] font-bold text-slate-600 border border-[#E5E7EB] rounded-md hover:bg-slate-50 cursor-pointer"
-                >
-                  Refresh
-                </button>
-                <button
-                  onClick={() => {
-                    setBatchSearch('')
-                    setBatchLineFilter('')
-                    setBatchStatusFilter('All')
-                    setBatchDateFilter('')
-                  }}
-                  className="px-2.5 h-[30px] text-[11px] font-bold text-slate-500 border border-[#E5E7EB] rounded-md hover:bg-slate-50 cursor-pointer"
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-
-            {/* Batch Queue Grid */}
-            {batchesLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7 gap-2">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map((n) => (
-                  <div key={n} className="bg-white border border-[#E5E7EB] rounded-md p-2.5 shadow-sm animate-pulse flex flex-col gap-2 min-h-[80px]">
-                    <div className="flex justify-between">
-                      <div className="h-4 bg-slate-100 rounded w-1/2"></div>
-                      <div className="h-3 bg-slate-100 rounded w-1/4"></div>
-                    </div>
-                    <div className="mt-auto flex justify-between">
-                      <div className="h-3 bg-slate-100 rounded w-1/3"></div>
-                      <div className="h-3 bg-slate-100 rounded w-1/4"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : filteredBatches.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7 gap-2">
-                {filteredBatches.map((batch: any) => {
-                  const { label, cls } = getStatusBadge(batch.status, batch.completedAt)
-                  const createdDateObj = new Date(batch.createdAt || batch.startedAt)
-                  const formattedDate = createdDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-                  const formattedTime = createdDateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-                  const lineDisplay = batch.productionLineName || batch.lineName || (batch.productionLine ? (batch.productionLine.name || batch.productionLine.Name) : null) || (batch.productionLineCode ? `Line ${batch.productionLineCode}` : null) || 'Line —'
-
-                  return (
-                    <div
-                      key={batch.id}
-                      onClick={() => navigate(`/company/production/batches/${batch.id}`)}
-                      className={`bg-white border rounded-md p-2.5 hover:bg-slate-50 transition-all cursor-pointer flex flex-col justify-between min-h-[85px] shadow-sm ${
-                        label === 'RUNNING' ? 'border-green-300 ring-1 ring-green-100' :
-                        label === 'COMPLETED' ? 'border-slate-200 hover:border-blue-300' :
-                        'border-slate-200 hover:border-blue-300'
-                      }`}
-                      title={`Open ${batch.batchNumber} (${lineDisplay})`}
-                    >
-                      <div>
-                        <div className="flex justify-between items-start gap-2 mb-0.5">
-                          <span className="text-[16px] sm:text-[18px] font-bold text-slate-900 leading-tight truncate">
-                            {batch.batchNumber}
-                          </span>
-                          <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border leading-none shrink-0 ${cls}`}>
-                            {label}
-                          </span>
-                        </div>
-                        <div className="text-[11px] font-medium text-slate-500 truncate leading-tight">
-                          {lineDisplay}
-                          {batch.product && <span className="text-slate-400"> • {batch.product}</span>}
-                        </div>
-                        {batch.operatorName && (
-                          <div className="text-[10px] text-slate-400 truncate mt-0.5">
-                            {batch.operatorName}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="mt-auto pt-1 flex justify-between items-end text-[11px] font-medium text-slate-500">
-                        <span>{formattedDate} {formattedTime}</span>
-                        {batch.producedQuantity > 0 ? (
-                          <span className="font-bold text-slate-700 text-[10px]">{batch.producedQuantity.toLocaleString('en-IN')} cases</span>
-                        ) : null}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : allBatches.length > 0 ? (
-              <div className="bg-white border border-[#E5E7EB] rounded-xl p-10 text-center shadow-sm flex flex-col items-center justify-center">
-                <p className="text-[14px] font-semibold text-slate-600">
-                  No production batches match your filter criteria.
-                </p>
-                <button
-                  onClick={() => {
-                    setBatchSearch('')
-                    setBatchLineFilter('')
-                    setBatchStatusFilter('All')
-                    setBatchDateFilter('')
-                  }}
-                  className="mt-3 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-md cursor-pointer transition-all"
-                >
-                  Clear Filters
-                </button>
-              </div>
-            ) : (
-              <div className="bg-white border border-[#E5E7EB] rounded-xl p-10 text-center shadow-sm flex flex-col items-center justify-center">
-                <p className="text-[14px] font-semibold text-slate-600">
-                  No production batches yet.
-                </p>
-                <p className="text-[12px] text-slate-400 mt-1">
-                  Create your first batch to begin production tracking.
-                </p>
-                {!isOwnerRole && !batchSearch && !batchLineFilter && batchStatusFilter === 'All' && (
-                  <button
-                    onClick={() => {
-                      if (productionLines.length > 0) setStartBatchLineId(productionLines[0].lineId)
-                      if (allCatalogProducts.length > 0) setStartBatchProduct(allCatalogProducts[0].name)
-                      setIsStartBatchModalOpen(true)
-                    }}
-                    className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg shadow-sm cursor-pointer transition-all"
-                  >
-                    Create Production Batch
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Result count */}
-            {!batchesLoading && (
-              <div className="text-[11px] text-slate-400 font-medium select-none px-1">
-                {allBatches.length === 0 ? (
-                  <span>0 batches in register</span>
-                ) : filteredBatches.length === allBatches.length ? (
-                  <span>Showing {filteredBatches.length} of {allBatches.length} batches</span>
-                ) : (
-                  <span>Showing {filteredBatches.length} of {allBatches.length} batches</span>
-                )}
-              </div>
-            )}
-          </>
-        ) : productionTab === 'lines' ? (
+        {productionTab === 'lines' ? (
           <>
             {/* Production Lines Table */}
             <div className="flex items-center justify-between mb-1 px-1">

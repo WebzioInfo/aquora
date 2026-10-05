@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import EnterpriseModal from '../../../../components/ui/EnterpriseModal'
 import EnterpriseButton from '../../../../components/ui/EnterpriseButton'
 import EnterpriseNumberInput from '../../../../components/ui/EnterpriseNumberInput'
-import { Search } from 'lucide-react'
-import type {
-  SimpleExpense,
-  BankAccountDropdown,
-  CashBookDropdown
+import { Search, Plus, X } from 'lucide-react'
+import {
+  simpleAccountsService,
+  type SimpleExpense,
+  type BankAccountDropdown,
+  type CashBookDropdown
 } from '../../../../services/simpleAccounts'
 import { getCategoryMeta } from './categoryMeta'
 
@@ -57,6 +59,19 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
 }) => {
   const isEdit = !!initialData
 
+  const queryClient = useQueryClient()
+  const { data: dbCategories = [] } = useQuery({
+    queryKey: ['expenseCategories'],
+    queryFn: () => simpleAccountsService.getExpenseCategories(),
+    staleTime: 5 * 60 * 1000,
+    enabled: isOpen
+  })
+
+  const [isCreateCategoryOpen, setIsCreateCategoryOpen] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false)
+  const [categoryModalError, setCategoryModalError] = useState<string | null>(null)
+
   const [formData, setFormData] = useState({
     expenseDate: new Date().toISOString().split('T')[0],
     category: 'Miscellaneous',
@@ -68,6 +83,50 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
     cashBookId: '',
     notes: ''
   })
+
+  const categoryOptions = useMemo(() => {
+    const names = dbCategories.map(c => c.name)
+    const set = new Set(names.length > 0 ? names : EXPENSE_CATEGORIES)
+    if (formData.category && !set.has(formData.category)) {
+      set.add(formData.category)
+    }
+    return Array.from(set)
+  }, [dbCategories, formData.category])
+
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = newCategoryName.trim()
+    if (!trimmed) {
+      setCategoryModalError('Category name is required.')
+      return
+    }
+
+    if (categoryOptions.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
+      setCategoryModalError(`Category "${trimmed}" already exists.`)
+      return
+    }
+
+    try {
+      setIsCreatingCategory(true)
+      setCategoryModalError(null)
+
+      const created = await simpleAccountsService.createExpenseCategory({ name: trimmed })
+
+      await queryClient.invalidateQueries({ queryKey: ['expenseCategories'] })
+
+      // Auto-select new category while preserving all other entered form data
+      setFormData(prev => ({ ...prev, category: created.name }))
+
+      setIsCreateCategoryOpen(false)
+      setNewCategoryName('')
+    } catch (err: any) {
+      setCategoryModalError(
+        err.response?.data?.message || err.message || 'Failed to create category.'
+      )
+    } finally {
+      setIsCreatingCategory(false)
+    }
+  }
 
   const [bankSearchTerm, setBankSearchTerm] = useState('')
   const [cashBookSearchTerm, setCashBookSearchTerm] = useState('')
@@ -157,8 +216,9 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
   if (!isOpen) return null
 
   return (
-    <EnterpriseModal
-      isOpen={isOpen}
+    <>
+      <EnterpriseModal
+        isOpen={isOpen}
       onClose={onClose}
       title={isEdit ? `Edit Expense ${initialData.expenseNumber || ''}` : 'Add Expense'}
       maxWidth="md"
@@ -185,9 +245,23 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Category *
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-700 uppercase">
+                Category *
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setNewCategoryName('')
+                  setCategoryModalError(null)
+                  setIsCreateCategoryOpen(true)
+                }}
+                className="text-xs font-semibold text-[#1A56DB] hover:text-blue-700 active:text-blue-800 transition-colors inline-flex items-center gap-1 cursor-pointer focus:outline-none focus-visible:underline"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>New Category</span>
+              </button>
+            </div>
             <div className="relative flex items-center">
               {formData.category && (
                 <span
@@ -202,7 +276,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
                   formData.category ? 'pl-7' : 'px-3'
                 } py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB]`}
               >
-                {EXPENSE_CATEGORIES.map(c => {
+                {categoryOptions.map(c => {
                   const meta = getCategoryMeta(c)
                   return (
                     <option key={c} value={c} style={{ color: meta.text }}>
@@ -376,5 +450,86 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
         </div>
       </form>
     </EnterpriseModal>
+
+    {/* Compact Create Expense Category Modal */}
+    {isCreateCategoryOpen && (
+      <div 
+        className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-150"
+        onClick={() => !isCreatingCategory && setIsCreateCategoryOpen(false)}
+      >
+        <div
+          className="relative w-full max-w-sm bg-white border border-slate-200 rounded-[14px] shadow-2xl p-5 sm:p-6 animate-in zoom-in-95 duration-150 text-left"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+            <h4 className="text-sm font-bold text-slate-800 tracking-tight">
+              Create Expense Category
+            </h4>
+            <button
+              type="button"
+              onClick={() => !isCreatingCategory && setIsCreateCategoryOpen(false)}
+              className="p-1 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
+              disabled={isCreatingCategory}
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {categoryModalError && (
+            <div className="p-2.5 mb-3 text-xs bg-rose-50 border border-rose-200 text-rose-700 rounded-lg">
+              {categoryModalError}
+            </div>
+          )}
+
+          <form onSubmit={handleCreateCategory} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                Category Name *
+              </label>
+              <input
+                type="text"
+                autoFocus
+                required
+                placeholder="E.g., Vehicle Maintenance"
+                value={newCategoryName}
+                onChange={e => {
+                  setNewCategoryName(e.target.value)
+                  if (categoryModalError) setCategoryModalError(null)
+                }}
+                disabled={isCreatingCategory}
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] focus:ring-2 focus:ring-blue-100/50"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <EnterpriseButton
+                type="button"
+                variant="secondary"
+                onClick={() => setIsCreateCategoryOpen(false)}
+                disabled={isCreatingCategory}
+              >
+                Cancel
+              </EnterpriseButton>
+              <EnterpriseButton
+                type="submit"
+                variant="primary"
+                disabled={isCreatingCategory || !newCategoryName.trim()}
+              >
+                {isCreatingCategory ? (
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Creating...</span>
+                  </span>
+                ) : (
+                  'Create Category'
+                )}
+              </EnterpriseButton>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+  </>
   )
 }

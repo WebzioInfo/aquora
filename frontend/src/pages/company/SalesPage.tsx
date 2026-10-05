@@ -15,6 +15,7 @@ import { productsService } from '../../services/products'
 import { customersService } from '../../services/customers'
 import { simpleAccountsService } from '../../services/simpleAccounts'
 import { caseConfigurationsService, type CaseConfiguration } from '../../services/caseConfigurations'
+import { QuickCreateCaseConfigModal } from './sales/QuickCreateCaseConfigModal'
 import { useAuthStore } from '../../store/useAuthStore'
 import { generateERPDocumentPDF } from '../../utils/pdfTemplateEngine'
 import EnterpriseBadge from '../../components/ui/EnterpriseBadge'
@@ -197,6 +198,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
 
   // Case Configuration & Settlement State
   const [formCaseConfigId, setFormCaseConfigId] = useState('')
+  const [isQuickCreateConfigOpen, setIsQuickCreateConfigOpen] = useState(false)
   const [formSettlementMethod, setFormSettlementMethod] = useState('Deduct from Customer Credit')
   const [formRefundType, setFormRefundType] = useState('Cash')
 
@@ -244,7 +246,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
   const products = productsData || []
 
   // Fetch Case Configurations master
-  const { data: caseConfigsData } = useQuery({
+  const { data: caseConfigsData, refetch: refetchCaseConfigs } = useQuery({
     queryKey: ['caseConfigurationsForSales'],
     queryFn: async () => {
       const res = await caseConfigurationsService.getAll(false)
@@ -252,6 +254,13 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     }
   })
   const caseConfigs = caseConfigsData || []
+
+  const handleQuickCreateConfigSuccess = async (created: CaseConfiguration) => {
+    await refetchCaseConfigs()
+    if (created.productId === formProductId) {
+      setFormCaseConfigId(created.id)
+    }
+  }
 
   // Filter available case configurations for selected product
   const availableCaseConfigsForSelectedProduct = useMemo(() => {
@@ -2440,7 +2449,20 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
 
               {/* Case Configuration Dropdown */}
               <div className="flex flex-col">
-                <PremiumLabel label="Case Configuration *" />
+                <div className="flex items-center justify-between mb-1.5">
+                  <PremiumLabel label="Case Configuration *" />
+                  {formProductId && (
+                    <button
+                      type="button"
+                      onClick={() => setIsQuickCreateConfigOpen(true)}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50/80 hover:bg-blue-100/80 px-2 py-0.5 rounded transition-colors cursor-pointer border border-blue-200/60"
+                      title="Quick add a new packaging/case configuration for this product"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>New Configuration</span>
+                    </button>
+                  )}
+                </div>
                 <select
                   value={formCaseConfigId}
                   onChange={(e) => setFormCaseConfigId(e.target.value)}
@@ -2454,7 +2476,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                   ) : (
                     availableCaseConfigsForSelectedProduct.map(c => (
                       <option key={c.id} value={c.id}>
-                        {c.unitsPerCase} Bottles / Case
+                        {c.name ? `${c.name} (${c.unitsPerCase} Bottles / Case)` : `${c.unitsPerCase} Bottles / Case`}
                       </option>
                     ))
                   )}
@@ -3711,6 +3733,15 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
           </div>
         </div>
       )}
+
+      {/* Quick Create Case Configuration Modal */}
+      <QuickCreateCaseConfigModal
+        isOpen={isQuickCreateConfigOpen}
+        onClose={() => setIsQuickCreateConfigOpen(false)}
+        productId={formProductId}
+        productName={products.find(p => p.id === formProductId)?.name}
+        onSuccess={handleQuickCreateConfigSuccess}
+      />
     </PageContainer>
   )
 }

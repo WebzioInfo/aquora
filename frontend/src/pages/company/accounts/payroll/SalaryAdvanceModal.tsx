@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
-import { X, AlertCircle, AlertTriangle, Lock, Info, Loader2 } from 'lucide-react'
+import { X, AlertCircle, AlertTriangle, Lock, Info, Loader2, Plus } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import type { MonthlySalaryDirectory } from '../../../../services/payroll'
 import { payrollService } from '../../../../services/payroll'
 import type { BankAccountDropdown, CashBookDropdown } from '../../../../services/simpleAccounts'
+import type { EmployeeDto } from '../../../../services/employees'
+import { QuickCreateEmployeeModal } from './QuickCreateEmployeeModal'
 import {
   formatINR,
   formatMonthLabel,
@@ -34,7 +37,13 @@ export const SalaryAdvanceModal: React.FC<SalaryAdvanceModalProps> = ({
   onPaymentSuccess,
   onViewPayslip
 }) => {
+  const queryClient = useQueryClient()
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const prevIsOpenRef = useRef(false)
+  const prevPrefilledIdRef = useRef<string | null | undefined>(undefined)
+
+  const [isCreateEmployeeOpen, setIsCreateEmployeeOpen] = useState(false)
+  const [createdEmployees, setCreatedEmployees] = useState<any[]>([])
 
   const [employeeId, setEmployeeId] = useState<string>('')
   const [salaryMonth, setSalaryMonth] = useState<string>('')
@@ -58,49 +67,88 @@ export const SalaryAdvanceModal: React.FC<SalaryAdvanceModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [serverLockError, setServerLockError] = useState<string | null>(null)
 
+  // Merge parent employees with any freshly created employees
+  const allEmployees = useMemo(() => {
+    const map = new Map<string, any>()
+    for (const emp of employees) {
+      if (emp && emp.id) map.set(emp.id, emp)
+    }
+    for (const emp of createdEmployees) {
+      if (emp && emp.id) map.set(emp.id, emp)
+    }
+    return Array.from(map.values())
+  }, [employees, createdEmployees])
+
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) {
+      prevIsOpenRef.current = false
+      return
+    }
 
-    setErrorMessage(null)
-    setServerLockError(null)
-    setSubmitting(false)
-    setAmount('')
-    setPaymentDate(new Date().toISOString().slice(0, 10))
-    setPaymentMethod('BankAccount')
-    setRemarks('')
+    const justOpened = !prevIsOpenRef.current
+    const prefilledChanged = prefilledRecord?.id !== prevPrefilledIdRef.current
+    prevIsOpenRef.current = true
+    prevPrefilledIdRef.current = prefilledRecord?.id
 
-    if (bankAccounts.length > 0) setBankAccountId(bankAccounts[0].id)
-    if (cashBooks.length > 0) setCashBookId(cashBooks[0].id)
+    if (justOpened || prefilledChanged) {
+      setErrorMessage(null)
+      setServerLockError(null)
+      setSubmitting(false)
+      setAmount('')
+      setPaymentDate(new Date().toISOString().slice(0, 10))
+      setPaymentMethod('BankAccount')
+      setRemarks('')
 
-    if (prefilledRecord) {
-      setEmployeeId(prefilledRecord.employeeId)
-      setSalaryMonth(prefilledRecord.salaryMonth)
-      setMonthlySalaryId(prefilledRecord.id)
-      setMonthlySalary(prefilledRecord.baseSalary || 0)
-      setAlreadyAdvanced(prefilledRecord.totalAdvances || 0)
-      setTotalPaid(prefilledRecord.totalPaid || 0)
-      setRemainingBalance(prefilledRecord.remainingBalance || 0)
-      setStatus(prefilledRecord.status || 'Unpaid')
-      setIsFinalized(Boolean(prefilledRecord.isFinalized))
-      loadAdvanceData(prefilledRecord.id)
-    } else {
-      const initMonth = defaultMonth || new Date().toISOString().slice(0, 7)
-      setSalaryMonth(initMonth)
-      if (employees.length > 0) {
-        setEmployeeId(employees[0].id)
-        fetchEntitlement(employees[0].id, initMonth)
+      if (bankAccounts.length > 0) setBankAccountId(bankAccounts[0].id)
+      if (cashBooks.length > 0) setCashBookId(cashBooks[0].id)
+
+      if (prefilledRecord) {
+        setEmployeeId(prefilledRecord.employeeId)
+        setSalaryMonth(prefilledRecord.salaryMonth)
+        setMonthlySalaryId(prefilledRecord.id)
+        setMonthlySalary(prefilledRecord.baseSalary || 0)
+        setAlreadyAdvanced(prefilledRecord.totalAdvances || 0)
+        setTotalPaid(prefilledRecord.totalPaid || 0)
+        setRemainingBalance(prefilledRecord.remainingBalance || 0)
+        setStatus(prefilledRecord.status || 'Unpaid')
+        setIsFinalized(Boolean(prefilledRecord.isFinalized))
+        loadAdvanceData(prefilledRecord.id)
       } else {
-        setEmployeeId('')
-        setMonthlySalary(0)
-        setAlreadyAdvanced(0)
-        setTotalPaid(0)
-        setRemainingBalance(0)
-        setStatus('Unpaid')
-        setIsFinalized(false)
-        setMonthlySalaryId('')
+        const initMonth = defaultMonth || new Date().toISOString().slice(0, 7)
+        setSalaryMonth(initMonth)
+        if (allEmployees.length > 0) {
+          const firstEmp = allEmployees[0]
+          setEmployeeId(firstEmp.id)
+          fetchEntitlement(firstEmp.id, initMonth)
+        } else {
+          setEmployeeId('')
+          setMonthlySalary(0)
+          setAlreadyAdvanced(0)
+          setTotalPaid(0)
+          setRemainingBalance(0)
+          setStatus('Unpaid')
+          setIsFinalized(false)
+          setMonthlySalaryId('')
+        }
+      }
+    } else {
+      // Modal was already open; if employeeId was unset and employees became available, select first
+      if (!employeeId && allEmployees.length > 0) {
+        const firstEmp = allEmployees[0]
+        setEmployeeId(firstEmp.id)
+        fetchEntitlement(firstEmp.id, salaryMonth)
       }
     }
-  }, [isOpen, prefilledRecord, defaultMonth, employees, bankAccounts, cashBooks])
+  }, [isOpen, prefilledRecord, defaultMonth, allEmployees, bankAccounts, cashBooks])
+
+  const handleEmployeeCreated = (newEmp: EmployeeDto) => {
+    setCreatedEmployees(prev => [newEmp, ...prev])
+    setEmployeeId(newEmp.id)
+    queryClient.invalidateQueries({ queryKey: ['employeesListDropdown'] })
+    queryClient.invalidateQueries({ queryKey: ['employeesList'] })
+    setIsCreateEmployeeOpen(false)
+    fetchEntitlement(newEmp.id, salaryMonth)
+  }
 
   const loadAdvanceData = async (id: string) => {
     try {
@@ -267,7 +315,7 @@ export const SalaryAdvanceModal: React.FC<SalaryAdvanceModalProps> = ({
 
   if (!isOpen) return null
 
-  const selectedEmp = employees.find(e => e.id === employeeId)
+  const selectedEmp = allEmployees.find(e => e.id === employeeId)
   const empDisplayName = selectedEmp?.fullName || selectedEmp?.name || prefilledRecord?.employeeName || 'Employee'
   const monthDisplay = formatMonthLabel(salaryMonth)
 
@@ -394,9 +442,21 @@ export const SalaryAdvanceModal: React.FC<SalaryAdvanceModalProps> = ({
           {/* Employee & Month Select (ALWAYS ENABLED) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Employee <span className="text-rose-500">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-semibold text-slate-700">
+                  Employee <span className="text-rose-500">*</span>
+                </label>
+                {!prefilledRecord && (
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateEmployeeOpen(true)}
+                    className="text-xs text-[#1A56DB] hover:text-blue-700 hover:underline font-semibold flex items-center gap-1 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>New Employee</span>
+                  </button>
+                )}
+              </div>
               <select
                 value={employeeId}
                 disabled={Boolean(prefilledRecord) || isLoadingDetails}
@@ -407,11 +467,15 @@ export const SalaryAdvanceModal: React.FC<SalaryAdvanceModalProps> = ({
                 className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-none focus:border-[#1A56DB] disabled:bg-slate-100"
                 required
               >
-                {employees.map(emp => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.fullName || emp.name} ({emp.department || 'Operations'})
-                  </option>
-                ))}
+                {allEmployees.length === 0 ? (
+                  <option value="">No employees found</option>
+                ) : (
+                  allEmployees.map(emp => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.fullName || emp.name} ({emp.department || 'Operations'})
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -699,6 +763,13 @@ export const SalaryAdvanceModal: React.FC<SalaryAdvanceModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Quick Create Employee Modal */}
+      <QuickCreateEmployeeModal
+        isOpen={isCreateEmployeeOpen}
+        onClose={() => setIsCreateEmployeeOpen(false)}
+        onSuccess={handleEmployeeCreated}
+      />
     </div>
   )
 }

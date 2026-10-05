@@ -11,6 +11,7 @@ export interface SearchableDropdownProps {
   isLoading?: boolean
   disabled?: boolean
   required?: boolean
+  labelRight?: React.ReactNode
 }
 
 export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
@@ -22,7 +23,8 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
   placeholder = 'Select...',
   isLoading = false,
   disabled = false,
-  required = false
+  required = false,
+  labelRight
 }) => {
   const dropdownItems = useMemo(() => items || options || [], [items, options])
   const [isOpen, setIsOpen] = useState(false)
@@ -65,9 +67,12 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
 
   return (
     <div className="flex flex-col gap-1.5 text-left" ref={containerRef}>
-      <label className="text-xs font-semibold text-gray-700">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <label className="text-xs font-semibold text-gray-700">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        {labelRight}
+      </div>
       
       <div className="relative">
         <button

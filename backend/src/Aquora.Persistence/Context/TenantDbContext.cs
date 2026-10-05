@@ -34,6 +34,7 @@ namespace Aquora.Persistence.Context
         public DbSet<Aquora.Domain.Entities.Finance.AssetHistory> AssetHistories => Set<Aquora.Domain.Entities.Finance.AssetHistory>();
         public DbSet<Aquora.Domain.Entities.Finance.AssetMaintenanceRecord> AssetMaintenanceRecords => Set<Aquora.Domain.Entities.Finance.AssetMaintenanceRecord>();
         public DbSet<Aquora.Domain.Entities.Finance.Asset> Assets => Set<Aquora.Domain.Entities.Finance.Asset>();
+        public DbSet<Aquora.Domain.Entities.Finance.AssetCategory> AssetCategories => Set<Aquora.Domain.Entities.Finance.AssetCategory>();
         public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
         // Administration & Backup Module
@@ -88,6 +89,7 @@ namespace Aquora.Persistence.Context
         public DbSet<Aquora.Domain.Entities.Finance.PurchasePayment> PurchasePayments => Set<Aquora.Domain.Entities.Finance.PurchasePayment>();
         public DbSet<Aquora.Domain.Entities.Finance.PurchaseTimelineEvent> PurchaseTimelineEvents => Set<Aquora.Domain.Entities.Finance.PurchaseTimelineEvent>();
         public DbSet<Aquora.Domain.Entities.Finance.Purchase> Purchases => Set<Aquora.Domain.Entities.Finance.Purchase>();
+        public DbSet<Aquora.Domain.Entities.Finance.PurchaseCategory> PurchaseCategories => Set<Aquora.Domain.Entities.Finance.PurchaseCategory>();
         public DbSet<Aquora.Domain.Entities.QC.QCAuditLog> QCAuditLogs => Set<Aquora.Domain.Entities.QC.QCAuditLog>();
         public DbSet<Aquora.Domain.Entities.QC.QCSettings> QCSettings => Set<Aquora.Domain.Entities.QC.QCSettings>();
         public DbSet<RawMaterial> RawMaterials => Set<RawMaterial>();
@@ -103,6 +105,7 @@ namespace Aquora.Persistence.Context
 
         // Simple Accounts V1 Module
         public DbSet<Aquora.Domain.Entities.Finance.SimpleExpense> SimpleExpenses => Set<Aquora.Domain.Entities.Finance.SimpleExpense>();
+        public DbSet<Aquora.Domain.Entities.Finance.ExpenseCategory> ExpenseCategories => Set<Aquora.Domain.Entities.Finance.ExpenseCategory>();
         public DbSet<SkuProduct> SkuProducts => Set<SkuProduct>();
         public DbSet<Station> Stations => Set<Station>();
         public DbSet<TwentyLCommissionRule> TwentyLCommissionRules => Set<TwentyLCommissionRule>();
@@ -350,6 +353,11 @@ namespace Aquora.Persistence.Context
                 .HasIndex(p => new { p.TenantId, p.IsDeleted, p.PurchaseDate, p.CreatedAt });
             modelBuilder.Entity<Aquora.Domain.Entities.Finance.Purchase>()
                 .HasIndex(p => new { p.TenantId, p.VendorId, p.IsDeleted });
+
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.PurchaseCategory>()
+                .HasIndex(c => new { c.TenantId, c.Code });
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.PurchaseCategory>()
+                .HasIndex(c => c.CompanyId);
 
             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
                 .HasIndex(b => new { b.TenantId, b.BankAccountId, b.TransactionDate, b.CreatedAt });
@@ -699,6 +707,16 @@ namespace Aquora.Persistence.Context
                 .WithMany()
                 .HasForeignKey(e => e.CashBookId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.ExpenseCategory>()
+                .HasIndex(c => new { c.TenantId, c.Name });
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.ExpenseCategory>()
+                .HasIndex(c => c.CompanyId);
+
+            modelBuilder.Entity<CaseConfiguration>()
+                .HasIndex(c => new { c.TenantId, c.ProductId });
+            modelBuilder.Entity<CaseConfiguration>()
+                .HasIndex(c => c.CompanyId);
 
             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankAccount>()
                 .HasIndex(b => b.TenantId);

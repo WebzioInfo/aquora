@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Aquora.Application.DTOs;
+using Aquora.Application.DTOs.Finance;
 using Aquora.Application.DTOs.Purchase;
 using Aquora.Application.Services;
 
@@ -45,5 +46,12 @@ namespace Aquora.Application.Interfaces.Services
         Task<List<AssetHistoryDto>> GetAssetHistoryAsync(Guid id);
         Task<bool> BulkUpdateStatusAsync(BulkAssetStatusRequest request);
         Task<AssetImportResult> ImportAssetsAsync(List<AssetImportRow> rows);
+
+        // Asset Category Management
+        Task<List<AssetCategoryDto>> GetAssetCategoriesAsync(bool includeInactive = false);
+        Task<AssetCategoryDto?> GetAssetCategoryByIdAsync(Guid id);
+        Task<AssetCategoryDto> CreateAssetCategoryAsync(CreateAssetCategoryRequest request);
+        Task<AssetCategoryDto?> UpdateAssetCategoryAsync(Guid id, UpdateAssetCategoryRequest request);
+        Task<bool> DeleteAssetCategoryAsync(Guid id);
     }
 }

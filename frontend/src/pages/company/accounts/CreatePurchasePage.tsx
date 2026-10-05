@@ -17,11 +17,30 @@ import {
   Info,
   Tag
 } from 'lucide-react'
-import { purchaseService, type CreatePurchaseRequest, type PurchaseItem } from '../../../services/purchases'
+import {
+  purchaseService,
+  type CreatePurchaseRequest,
+  type PurchaseItem,
+  type PurchaseCategory,
+  type CreatePurchaseCategoryRequest
+} from '../../../services/purchases'
 import { vendorService, type VendorDropdownItem, type CreateVendorRequest } from '../../../services/vendors'
 import { rawMaterialsService, type RawMaterial } from '../../../services/rawMaterials'
 import { simpleAccountsService } from '../../../services/simpleAccounts'
 import { api } from '../../../services/api'
+
+const DEFAULT_CATEGORIES: { code: string; name: string; treatment: string }[] = [
+  { code: 'RawMaterial', name: 'Raw Material (Inventory Stock IN)', treatment: 'Inventory' },
+  { code: 'Machine', name: 'Machine / Equipment (Capital Asset Auto-Create)', treatment: 'Asset' },
+  { code: 'OfficeAsset', name: 'Office Asset (Asset Auto-Create)', treatment: 'Asset' },
+  { code: 'OfficeExpense', name: 'Office Expense', treatment: 'Expense' },
+  { code: 'Service', name: 'Service / Consulting', treatment: 'Expense' },
+  { code: 'Maintenance', name: 'Maintenance & Repair', treatment: 'Expense' },
+  { code: 'Utility', name: 'Utility Bills', treatment: 'Expense' },
+  { code: 'Vehicle', name: 'Vehicle & Fuel Expense', treatment: 'Expense' },
+  { code: 'Software', name: 'Software & Subscriptions', treatment: 'Expense' },
+  { code: 'Other', name: 'Other Category', treatment: 'Expense' }
+]
 import { useNotificationStore } from '../../../store/useNotificationStore'
 import EnterpriseHeader from '../../../components/ui/EnterpriseHeader'
 import EnterpriseCard from '../../../components/ui/EnterpriseCard'
@@ -61,6 +80,23 @@ export const CreatePurchasePage: React.FC = () => {
   const [showVendorModal, setShowVendorModal] = useState<boolean>(false)
   const [newVendorData, setNewVendorData] = useState<CreateVendorRequest>({ name: '', phone: '', email: '', gst: '', address: '' })
 
+  // Category Architecture & Custom Categories State
+  const [categoriesList, setCategoriesList] = useState<{ code: string; name: string; treatment: string }[]>(DEFAULT_CATEGORIES)
+  const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false)
+  const [creatingCategory, setCreatingCategory] = useState<boolean>(false)
+  const [newCategoryData, setNewCategoryData] = useState<CreatePurchaseCategoryRequest>({
+    name: '',
+    treatment: 'Expense',
+    description: ''
+  })
+  const [customAssetData, setCustomAssetData] = useState({
+    assetName: '',
+    category: 'Equipment',
+    serialNumber: '',
+    location: 'Main Facility',
+    cost: 0 as number | string
+  })
+
   // Core Form Fields
   const [taxMode, setTaxMode] = useState<'GST' | 'NonGST'>('GST')
   const [purchaseCategory, setPurchaseCategory] = useState<string>('RawMaterial')
@@ -99,8 +135,54 @@ export const CreatePurchasePage: React.FC = () => {
   const [softwareData, setSoftwareData] = useState({ softwareName: '', subscription: 'Annual', licenseKey: '', cost: 0 as number | string })
   const [otherData, setOtherData] = useState({ description: '', cost: 0 as number | string })
 
+  // Quick Purchase Category Creation Handler
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newCategoryData.name.trim()) {
+      showToast('Category name is required.', 'warning')
+      return
+    }
+
+    setCreatingCategory(true)
+    try {
+      const created = await purchaseService.createPurchaseCategory({
+        name: newCategoryData.name.trim(),
+        treatment: newCategoryData.treatment,
+        description: newCategoryData.description?.trim()
+      })
+
+      showToast(`Purchase category "${created.name}" created successfully.`, 'success')
+      setShowCategoryModal(false)
+      setNewCategoryData({ name: '', treatment: 'Expense', description: '' })
+
+      const updated = await purchaseService.getPurchaseCategories()
+      if (Array.isArray(updated) && updated.length > 0) {
+        setCategoriesList(updated.map(c => ({
+          code: c.code,
+          name: c.name,
+          treatment: c.treatment
+        })))
+      }
+      setPurchaseCategory(created.code)
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || err?.message || 'Failed to create purchase category.', 'error')
+    } finally {
+      setCreatingCategory(false)
+    }
+  }
+
   // Load Master Data & Existing Purchase / Draft
   useEffect(() => {
+    purchaseService.getPurchaseCategories().then(cats => {
+      if (Array.isArray(cats) && cats.length > 0) {
+        setCategoriesList(cats.map(c => ({
+          code: c.code,
+          name: c.name,
+          treatment: c.treatment
+        })))
+      }
+    }).catch(() => {})
+
     vendorService.getVendorDropdown().then(v => setVendors(Array.isArray(v) ? v : [])).catch(() => setVendors([]))
     rawMaterialsService.getRawMaterials(1, 100).then(res => setRawMaterials(res.data?.items || [])).catch(() => setRawMaterials([]))
     simpleAccountsService.getBankAccountDropdown().then(b => setBankAccounts(Array.isArray(b) ? b : [])).catch(() => setBankAccounts([]))
@@ -234,34 +316,37 @@ export const CreatePurchasePage: React.FC = () => {
     }
   }
 
+  const selectedCatObj = categoriesList.find(c => c.code === purchaseCategory || c.name === purchaseCategory)
+  const currentTreatment = selectedCatObj?.treatment || (
+    purchaseCategory === 'RawMaterial' ? 'Inventory' :
+    (purchaseCategory === 'Machine' || purchaseCategory === 'OfficeAsset') ? 'Asset' : 'Expense'
+  )
+
   // Live Calculation Engine
   const computeSubTotal = (): number => {
-    switch (purchaseCategory) {
-      case 'RawMaterial':
-        return items.reduce((sum, item) => sum + (parseVal(item.quantity) * parseVal(item.unitPrice)), 0)
-      case 'Machine':
-        return parseVal(machineData.purchaseCost) + parseVal(machineData.installationCost)
-      case 'OfficeAsset':
-        return parseVal(assetData.quantity) * parseVal(assetData.unitCost)
-      case 'OfficeExpense':
-        return parseVal(expenseData.amount)
-      case 'Service':
-        return parseVal(serviceData.amount)
-      case 'Maintenance':
-        return parseVal(maintenanceData.cost)
-      case 'Utility':
-        return parseVal(utilityData.amount)
-      case 'Vehicle':
-        return parseVal(vehicleData.cost)
-      case 'Software':
-        return parseVal(softwareData.cost)
-      default:
-        return parseVal(otherData.cost)
+    if (currentTreatment === 'Inventory') {
+      return items.reduce((sum, item) => sum + (parseVal(item.quantity) * parseVal(item.unitPrice)), 0)
     }
+    if (purchaseCategory === 'Machine') {
+      return parseVal(machineData.purchaseCost) + parseVal(machineData.installationCost)
+    }
+    if (purchaseCategory === 'OfficeAsset') {
+      return parseVal(assetData.quantity) * parseVal(assetData.unitCost)
+    }
+    if (currentTreatment === 'Asset') {
+      return parseVal(customAssetData.cost)
+    }
+    if (purchaseCategory === 'OfficeExpense') return parseVal(expenseData.amount)
+    if (purchaseCategory === 'Service') return parseVal(serviceData.amount)
+    if (purchaseCategory === 'Maintenance') return parseVal(maintenanceData.cost)
+    if (purchaseCategory === 'Utility') return parseVal(utilityData.amount)
+    if (purchaseCategory === 'Vehicle') return parseVal(vehicleData.cost)
+    if (purchaseCategory === 'Software') return parseVal(softwareData.cost)
+    return parseVal(otherData.cost)
   }
 
   const computeItemGSTTotal = (): number => {
-    if (taxMode === 'NonGST' || purchaseCategory !== 'RawMaterial') return 0
+    if (taxMode === 'NonGST' || currentTreatment !== 'Inventory') return 0
     return items.reduce((sum, item) => {
       const base = parseVal(item.quantity) * parseVal(item.unitPrice)
       const gstPercent = parseVal(item.gstPercent)
@@ -275,7 +360,7 @@ export const CreatePurchasePage: React.FC = () => {
   const freightTotal = parseVal(freightChargesInput)
   const manualTaxTotal = parseVal(taxAmountInput)
 
-  const computedGSTTotal = taxMode === 'GST' ? (purchaseCategory === 'RawMaterial' ? itemGstTotal : manualTaxTotal) : 0
+  const computedGSTTotal = taxMode === 'GST' ? (currentTreatment === 'Inventory' ? itemGstTotal : manualTaxTotal) : 0
   const computedCGST = computedGSTTotal / 2
   const computedSGST = computedGSTTotal / 2
 
@@ -307,8 +392,8 @@ export const CreatePurchasePage: React.FC = () => {
       return
     }
 
-    if (purchaseCategory === 'RawMaterial' && (items.length === 0 || !items.some(i => i.quantity > 0))) {
-      showToast('Please add at least one purchase item.', 'warning')
+    if (currentTreatment === 'Inventory' && (items.length === 0 || !items.some(i => i.quantity > 0))) {
+      showToast('Please add at least one purchase item for inventory purchases.', 'warning')
       return
     }
 
@@ -322,17 +407,19 @@ export const CreatePurchasePage: React.FC = () => {
       let metadataObj: any = {}
       if (purchaseCategory === 'Machine') metadataObj = machineData
       else if (purchaseCategory === 'OfficeAsset') metadataObj = assetData
+      else if (currentTreatment === 'Asset') metadataObj = customAssetData
       else if (purchaseCategory === 'OfficeExpense') metadataObj = expenseData
       else if (purchaseCategory === 'Service') metadataObj = serviceData
       else if (purchaseCategory === 'Maintenance') metadataObj = maintenanceData
       else if (purchaseCategory === 'Utility') metadataObj = utilityData
       else if (purchaseCategory === 'Vehicle') metadataObj = vehicleData
       else if (purchaseCategory === 'Software') metadataObj = softwareData
-      else if (purchaseCategory === 'Other') metadataObj = otherData
+      else metadataObj = otherData
 
       metadataObj.taxMode = taxMode
       metadataObj.cgst = computedCGST
       metadataObj.sgst = computedSGST
+      metadataObj.treatment = currentTreatment
 
       const request: CreatePurchaseRequest = {
         purchaseDate,
@@ -352,7 +439,7 @@ export const CreatePurchasePage: React.FC = () => {
         amountPaid: computedAmountPaid,
         notes,
         categoryMetadataJson: JSON.stringify(metadataObj),
-        items: purchaseCategory === 'RawMaterial' ? items.map(i => ({
+        items: currentTreatment === 'Inventory' ? items.map(i => ({
           id: i.id || undefined,
           rawMaterialId: i.rawMaterialId || undefined,
           itemName: i.itemName,
@@ -446,24 +533,28 @@ export const CreatePurchasePage: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Category Selector */}
                 <div>
-                  <label className="block text-xs font-semibold text-[#344054] mb-1">
-                    Purchase Category <span className="text-red-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-[#344054]">
+                      Purchase Category <span className="text-red-500">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowCategoryModal(true)}
+                      className="text-xs text-[#1A56DB] hover:underline font-semibold flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" /> New Category
+                    </button>
+                  </div>
                   <select
                     value={purchaseCategory}
                     onChange={(e) => setPurchaseCategory(e.target.value)}
                     className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB] font-bold text-slate-900"
                   >
-                    <option value="RawMaterial">Raw Material (Inventory Stock IN)</option>
-                    <option value="Machine">Machine / Equipment (Capital Asset Auto-Create)</option>
-                    <option value="OfficeAsset">Office Asset (Asset Auto-Create)</option>
-                    <option value="OfficeExpense">Office Expense</option>
-                    <option value="Service">Service / Consulting</option>
-                    <option value="Maintenance">Maintenance & Repair</option>
-                    <option value="Utility">Utility Bills</option>
-                    <option value="Vehicle">Vehicle & Fuel Expense</option>
-                    <option value="Software">Software & Subscriptions</option>
-                    <option value="Other">Other Category</option>
+                    {categoriesList.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -534,26 +625,26 @@ export const CreatePurchasePage: React.FC = () => {
           </EnterpriseCard>
 
           {/* Card 2: Dynamic Category Information & Workflow */}
-          <EnterpriseCard title={`Category Details: ${purchaseCategory}`}>
+          <EnterpriseCard title={`Category Details: ${selectedCatObj?.name || purchaseCategory}`}>
             <div className="space-y-4">
               {/* Category Explanation Banner */}
               <div className="p-3.5 bg-blue-50/60 rounded-[8px] border border-blue-200/70 text-xs text-blue-950 flex items-start gap-2.5">
                 <Info className="w-4 h-4 text-[#1A56DB] shrink-0 mt-0.5" />
                 <div>
-                  {purchaseCategory === 'RawMaterial' && (
-                    <p><strong>Raw Material Purchase:</strong> Saving this purchase will automatically increase inventory stock levels and log an <strong className="text-[#1A56DB]">InventoryMovement (Stock IN)</strong> record. Debit: Inventory Stock | Credit: Cash / Vendor Creditor.</p>
+                  {currentTreatment === 'Inventory' && (
+                    <p><strong>Inventory Stock Purchase:</strong> Saving this purchase will automatically increase stock levels and log an <strong className="text-[#1A56DB]">InventoryMovement (Stock IN)</strong> record. Debit: Inventory Stock | Credit: Cash / Vendor Creditor.</p>
                   )}
-                  {(purchaseCategory === 'Machine' || purchaseCategory === 'OfficeAsset') && (
+                  {currentTreatment === 'Asset' && (
                     <p><strong>Capital Asset Purchase:</strong> Saving this purchase will automatically register a new <strong className="text-[#1A56DB]">Fixed Asset record</strong> with an active Asset History timeline. Debit: Capital Fixed Asset | Credit: Cash / Vendor Creditor.</p>
                   )}
-                  {['OfficeExpense', 'Service', 'Maintenance', 'Utility', 'Vehicle', 'Software', 'Other'].includes(purchaseCategory) && (
+                  {currentTreatment === 'Expense' && (
                     <p><strong>Operating Expense Purchase:</strong> Saving this transaction will log an operating expense record and post corresponding ledger entries. Debit: Operating Expense | Credit: Cash / Bank / Vendor.</p>
                   )}
                 </div>
               </div>
 
-              {/* DYNAMIC CASE 1: RAW MATERIAL GRID */}
-              {purchaseCategory === 'RawMaterial' && (
+              {/* DYNAMIC CASE 1: INVENTORY ITEMS GRID */}
+              {currentTreatment === 'Inventory' && (
                 <div className="space-y-3">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs border-collapse">
@@ -776,8 +867,60 @@ export const CreatePurchasePage: React.FC = () => {
                 </div>
               )}
 
-              {/* DYNAMIC CASE 4-10: OTHER CATEGORIES */}
-              {['OfficeExpense', 'Service', 'Maintenance', 'Utility', 'Vehicle', 'Software', 'Other'].includes(purchaseCategory) && (
+              {/* DYNAMIC CASE 3B: CUSTOM ASSET */}
+              {currentTreatment === 'Asset' && purchaseCategory !== 'Machine' && purchaseCategory !== 'OfficeAsset' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#344054] mb-1">Asset Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Industrial Water Chiller / Server Rack"
+                      value={customAssetData.assetName}
+                      onChange={(e) => setCustomAssetData({ ...customAssetData, assetName: e.target.value })}
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#344054] mb-1">Asset Type / Classification</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Machinery, Electronics, Plant Equipment"
+                      value={customAssetData.category}
+                      onChange={(e) => setCustomAssetData({ ...customAssetData, category: e.target.value })}
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px]"
+                    />
+                  </div>
+                  <EnterpriseNumberInput
+                    label="Acquisition Cost (₹)"
+                    value={customAssetData.cost}
+                    onValueChange={(val) => setCustomAssetData({ ...customAssetData, cost: val })}
+                  />
+                  <div>
+                    <label className="block text-xs font-semibold text-[#344054] mb-1">Serial / Identification Number</label>
+                    <input
+                      type="text"
+                      placeholder="SN-123456"
+                      value={customAssetData.serialNumber}
+                      onChange={(e) => setCustomAssetData({ ...customAssetData, serialNumber: e.target.value })}
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-mono"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-semibold text-[#344054] mb-1">Location / Department</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Main Production Floor / Admin Block"
+                      value={customAssetData.location}
+                      onChange={(e) => setCustomAssetData({ ...customAssetData, location: e.target.value })}
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px]"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* DYNAMIC CASE 4: EXPENSES & SERVICES */}
+              {currentTreatment === 'Expense' && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-[#344054] mb-1">Description / Particulars</label>
@@ -1054,6 +1197,84 @@ export const CreatePurchasePage: React.FC = () => {
                 size="sm"
               >
                 Save Vendor
+              </EnterpriseButton>
+            </div>
+          </form>
+        </EnterpriseModal>
+      )}
+
+      {/* Quick Create Purchase Category Modal */}
+      {showCategoryModal && (
+        <EnterpriseModal
+          isOpen={showCategoryModal}
+          onClose={() => setShowCategoryModal(false)}
+          title="Create Purchase Category"
+        >
+          <form onSubmit={handleCreateCategory} className="space-y-3.5">
+            <div>
+              <label className="block text-xs font-semibold text-[#344054] mb-1">
+                Category Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                autoFocus
+                placeholder="e.g. Factory Cleaning, Laboratory Supplies"
+                value={newCategoryData.name}
+                onChange={(e) => setNewCategoryData({ ...newCategoryData, name: e.target.value })}
+                className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[#344054] mb-1">
+                Purchase Treatment <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={newCategoryData.treatment}
+                onChange={(e) => setNewCategoryData({ ...newCategoryData, treatment: e.target.value })}
+                className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB] font-medium text-slate-800"
+              >
+                <option value="Expense">Expense — Operating expenses, services, bills & consumables</option>
+                <option value="Inventory">Inventory — Raw materials & items stocked into warehouse</option>
+                <option value="Asset">Asset — Capital equipment, machinery & fixed assets</option>
+              </select>
+              <p className="text-[11px] text-slate-500 mt-1">
+                {newCategoryData.treatment === 'Expense' && 'Posts to operating expense ledger. Does not alter warehouse inventory.'}
+                {newCategoryData.treatment === 'Inventory' && 'Enables line items grid and automatically records warehouse Stock IN.'}
+                {newCategoryData.treatment === 'Asset' && 'Auto-provisions a registered Fixed Asset record with tracking history.'}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[#344054] mb-1">
+                Description (Optional)
+              </label>
+              <input
+                type="text"
+                placeholder="Brief note on what belongs in this category"
+                value={newCategoryData.description || ''}
+                onChange={(e) => setNewCategoryData({ ...newCategoryData, description: e.target.value })}
+                className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <EnterpriseButton
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowCategoryModal(false)}
+              >
+                Cancel
+              </EnterpriseButton>
+              <EnterpriseButton
+                type="submit"
+                variant="primary"
+                size="sm"
+                loading={creatingCategory}
+              >
+                Create Category
               </EnterpriseButton>
             </div>
           </form>

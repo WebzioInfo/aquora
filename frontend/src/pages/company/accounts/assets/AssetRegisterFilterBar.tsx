@@ -1,6 +1,11 @@
 import React, { useState } from 'react'
 import { Search, X } from 'lucide-react'
 
+export interface CategoryFilterItem {
+  value: string
+  label: string
+}
+
 export interface AssetRegisterFiltersProps {
   status: string
   category: string
@@ -9,7 +14,7 @@ export interface AssetRegisterFiltersProps {
   fromDate?: string
   toDate?: string
   search: string
-  categories: string[]
+  categories: Array<string | CategoryFilterItem>
   onStatusChange: (status: string) => void
   onCategoryChange: (category: string) => void
   onConditionChange: (condition: string) => void
@@ -121,14 +126,18 @@ export const AssetRegisterFilterBar: React.FC<AssetRegisterFiltersProps> = ({
           <select
             value={category}
             onChange={(e) => onCategoryChange(e.target.value)}
-            className="h-[32px] px-2 text-xs bg-white border border-slate-200 rounded-lg font-medium text-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer max-w-[150px] truncate shrink-0"
+            className="h-[32px] px-2 text-xs bg-white border border-slate-200 rounded-lg font-medium text-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer max-w-[170px] truncate shrink-0"
           >
             <option value="ALL">All Categories</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
+            {categories.map((c) => {
+              const val = typeof c === 'string' ? c : c.value
+              const lbl = typeof c === 'string' ? c : c.label
+              return (
+                <option key={val} value={val}>
+                  {lbl}
+                </option>
+              )
+            })}
           </select>
 
           {/* Condition Selector */}

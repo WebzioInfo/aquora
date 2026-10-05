@@ -197,5 +197,60 @@ export const purchaseService = {
   getAssetHistory: async (assetId: string) => {
     const res = await api.get<{ data: AssetHistory[] }>(`/api/v1/purchases/assets/${assetId}/history`)
     return res.data.data
+  },
+
+  // Purchase Category Architecture
+  getPurchaseCategories: async (includeInactive = false) => {
+    const res = await getDeduplicated<{ data: PurchaseCategory[] }>('/api/v1/purchase-categories', {
+      params: { includeInactive }
+    })
+    return res.data.data
+  },
+
+  getPurchaseCategoryById: async (id: string) => {
+    const res = await getDeduplicated<{ data: PurchaseCategory }>(`/api/v1/purchase-categories/${id}`)
+    return res.data.data
+  },
+
+  createPurchaseCategory: async (request: CreatePurchaseCategoryRequest) => {
+    const res = await api.post<{ data: PurchaseCategory }>('/api/v1/purchase-categories', request)
+    return res.data.data
+  },
+
+  updatePurchaseCategory: async (id: string, request: UpdatePurchaseCategoryRequest) => {
+    const res = await api.put<{ data: PurchaseCategory }>(`/api/v1/purchase-categories/${id}`, request)
+    return res.data.data
+  },
+
+  deletePurchaseCategory: async (id: string) => {
+    const res = await api.delete(`/api/v1/purchase-categories/${id}`)
+    return res.data
   }
+}
+
+export interface PurchaseCategory {
+  id: string
+  tenantId: string
+  companyId: string
+  code: string
+  name: string
+  description?: string
+  treatment: 'Inventory' | 'Asset' | 'Expense' | string
+  isSystem: boolean
+  isActive: boolean
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface CreatePurchaseCategoryRequest {
+  name: string
+  treatment: 'Inventory' | 'Asset' | 'Expense' | string
+  description?: string
+}
+
+export interface UpdatePurchaseCategoryRequest {
+  name: string
+  treatment: 'Inventory' | 'Asset' | 'Expense' | string
+  description?: string
+  isActive?: boolean
 }

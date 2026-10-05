@@ -7,11 +7,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../services/api'
 import { operationsIssueApi } from '../../services/api/operationsIssue'
-import { ArrowLeft, AlertTriangle, ChevronDown, ChevronUp, Package, Clock, User, Calendar, History, Box, FileText, CheckCircle2, PlayCircle, Layers, Wrench, ShieldCheck, Square, Loader2 } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, ChevronDown, ChevronUp, Package, Clock, User, Calendar, History, Box, FileText, CheckCircle2, PlayCircle, Layers, Wrench, ShieldCheck, Square, Loader2, Plus } from 'lucide-react'
 import EnterpriseLoading from '../../components/ui/EnterpriseLoading'
 import EnterpriseModal from '../../components/ui/EnterpriseModal'
 import { useStationConfig } from '../../hooks/useStationConfig'
 import { useAuthStore } from '../../store/useAuthStore'
+import { BatchDetailView } from '../../components/batch'
 
 // ─── Live Duration Cell ────────────────────────────────────────────────────────
 const LiveDuration: React.FC<{ startedAt: string; endedAt?: string | null }> = ({ startedAt, endedAt }) => {
@@ -127,6 +128,58 @@ export const BatchDetailsPage: React.FC = () => {
   const [isStoppingBatch, setIsStoppingBatch] = useState(false)
   const [stopError, setStopError] = useState<string | null>(null)
   const [stopSuccessMsg, setStopSuccessMsg] = useState<string | null>(null)
+
+  // ── Add Entry State ─────────────────────────────────────────────────────────
+  const [isAddEntryModalOpen, setIsAddEntryModalOpen] = useState(false)
+  const [addEntryCases, setAddEntryCases] = useState('')
+  const [addEntryPreform, setAddEntryPreform] = useState('')
+  const [addEntryCap, setAddEntryCap] = useState('')
+  const [addEntryLabel, setAddEntryLabel] = useState('')
+  const [addEntryShrink, setAddEntryShrink] = useState('')
+  const [addEntryGlue, setAddEntryGlue] = useState('')
+  const [isAddingEntry, setIsAddingEntry] = useState(false)
+  const [addEntryError, setAddEntryError] = useState<string | null>(null)
+
+  const handleAddEntrySubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!addEntryCases || Number(addEntryCases) <= 0) {
+      setAddEntryError('Please enter a valid quantity of cases produced.')
+      return
+    }
+    setIsAddingEntry(true)
+    setAddEntryError(null)
+
+    try {
+      await api.post('/api/v1/production-entries', {
+        batchSessionId: batchId,
+        casesProduced: Number(addEntryCases),
+        operatorName: batchMeta?.operatorName || user?.fullName || 'Operator',
+        preformUsage: addEntryPreform ? Number(addEntryPreform) : 0,
+        capUsage: addEntryCap ? Number(addEntryCap) : 0,
+        labelUsage: addEntryLabel ? Number(addEntryLabel) : 0,
+        shrinkUsage: addEntryShrink ? Number(addEntryShrink) : 0,
+        glueUsage: addEntryGlue ? Number(addEntryGlue) : 0,
+      })
+
+      setIsAddingEntry(false)
+      setIsAddEntryModalOpen(false)
+      setAddEntryCases('')
+      setAddEntryPreform('')
+      setAddEntryCap('')
+      setAddEntryLabel('')
+      setAddEntryShrink('')
+      setAddEntryGlue('')
+
+      queryClient.invalidateQueries({ queryKey: ['sessionSummary', batchId] })
+      queryClient.invalidateQueries({ queryKey: ['sessionEntries', batchId] })
+      queryClient.invalidateQueries({ queryKey: ['activeBatchesList'] })
+      queryClient.invalidateQueries({ queryKey: ['productionBatchById', batchId] })
+    } catch (err: any) {
+      setIsAddingEntry(false)
+      const msg = err.response?.data?.message || err.message || 'Failed to add entry. Please try again.'
+      setAddEntryError(msg)
+    }
+  }
 
   const toggleEntry = (id: string) =>
     setExpandedEntries(prev => ({ ...prev, [id]: !prev[id] }))
@@ -318,388 +371,37 @@ export const BatchDetailsPage: React.FC = () => {
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <PageContainer>
-      <div className="flex flex-col gap-3 max-w-[1600px] mx-auto w-full pb-8">
-        
-        {/* ══ SUCCESS NOTIFICATION BANNER ═══════════════════════════════════════ */}
-        {stopSuccessMsg && (
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg flex items-center justify-between shadow-sm animate-in fade-in duration-200">
-            <div className="flex items-center gap-2 text-xs font-bold">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>{stopSuccessMsg}</span>
-            </div>
-            <button onClick={() => setStopSuccessMsg(null)} className="text-emerald-600 hover:text-emerald-800 font-bold text-xs cursor-pointer">
-              Dismiss
-            </button>
+    <div className="w-full h-full min-h-0">
+      {/* ══ SUCCESS NOTIFICATION BANNER ═══════════════════════════════════════ */}
+      {stopSuccessMsg && (
+        <div className="mb-2 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-2 rounded-lg flex items-center justify-between shadow-xs animate-in fade-in duration-200">
+          <div className="flex items-center gap-2 text-xs font-semibold">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{stopSuccessMsg}</span>
           </div>
-        )}
-
-        {/* ══ COMPACT HEADER ════════════════════════════════════════════════════ */}
-        <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-slate-50/50">
-            <button onClick={() => navigate('/company/production')} className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors">
-              <ArrowLeft className="w-3.5 h-3.5" /> Back to Operations
-            </button>
-            <div className="flex items-center gap-2.5">
-              <StatusBadge status={isCompleted ? 'Completed' : isPaused ? 'Paused' : 'Active'} />
-              {canWrite && !isCompleted && !isPaused && (
-                <button
-                  type="button"
-                  onClick={() => { setStopError(null); setIsStopModalOpen(true); }}
-                  className="flex items-center gap-1.5 px-3 py-1 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer"
-                >
-                  <Square className="w-3.5 h-3.5 fill-current" /> Stop Batch
-                </button>
-              )}
-            </div>
-          </div>
-          
-          <div className="px-4 py-3 flex flex-col md:flex-row md:items-center gap-x-8 gap-y-4">
-            <div>
-              <h1 className="text-2xl font-black text-slate-900 leading-none mb-1">{batchMeta.batchNumber}</h1>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Batch ID</p>
-            </div>
-            
-            <div className="hidden md:block w-px h-8 bg-slate-200"></div>
-            
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-x-6 gap-y-3 flex-1">
-              <div>
-                <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-0.5">Product</p>
-                <p className="text-[13px] font-bold text-slate-800 truncate">{batchMeta.product}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-0.5">Line</p>
-                <p className="text-[13px] font-bold text-slate-800 truncate">{batchMeta.productionLineName || 'Bottling Line'}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-0.5">Operator</p>
-                <p className="text-[13px] font-bold text-slate-800 truncate">{batchMeta.operatorName}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-0.5">Shift</p>
-                <p className="text-[13px] font-bold text-slate-800 truncate">{batchMeta.shift} Shift</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-0.5">Started</p>
-                <p className="text-[13px] font-bold text-slate-800 truncate">{fmtTime(batchMeta.startedAt)}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-0.5">Running Time</p>
-                <p className="text-[13px] font-bold text-slate-800 truncate">
-                  <LiveDuration startedAt={batchMeta.startedAt} endedAt={isCompleted ? batchMeta.completedAt : null} />
-                </p>
-              </div>
-            </div>
-          </div>
+          <button onClick={() => setStopSuccessMsg(null)} className="text-emerald-600 hover:text-emerald-800 font-semibold text-xs cursor-pointer">
+            Dismiss
+          </button>
         </div>
+      )}
 
-        {/* ══ KPI SUMMARY CARDS ═══════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {[
-            { title: 'Cases Produced', value: producedQty.toLocaleString(), icon: <Package className="w-4 h-4 text-blue-600" />, bg: 'bg-blue-100', border: 'border-blue-200' },
-            { title: 'Production Entries', value: totalEntries, icon: <FileText className="w-4 h-4 text-indigo-600" />, bg: 'bg-indigo-100', border: 'border-indigo-200' },
-            { title: 'Waste Generated', value: totalWaste.toLocaleString(), icon: <AlertTriangle className="w-4 h-4 text-red-600" />, bg: 'bg-red-100', border: 'border-red-200' }
-          ].map((kpi, idx) => (
-            <div key={idx} className={`bg-white px-4 py-3 rounded-lg border ${kpi.border} shadow-sm flex items-center justify-between`}>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-0.5">{kpi.title}</p>
-                <p className="text-xl font-black text-slate-900 leading-none">{kpi.value}</p>
-              </div>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${kpi.bg}`}>
-                {kpi.icon}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-1">
-          
-          {/* ══ MAIN CONTENT (Left: 2 Columns) ══════════════════════════ */}
-          <div className="lg:col-span-2 flex flex-col gap-4">
-            
-            {/* Materials Used */}
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
-                <h3 className="text-[14px] font-bold text-slate-900 flex items-center gap-1.5">
-                  <Layers className="w-4 h-4 text-blue-600" />
-                  Material Consumption
-                </h3>
-              </div>
-              <div className="p-3">
-                {(() => {
-                  const enabledMatCards = summaryData ? [
-                    isBlowingEnabled && (
-                      <CompactMatWidget key="preform" color="blue" title="Preform" used={summaryData.preformUsed} waste={summaryData.preformWaste} unit="Bags" />
-                    ),
-                    isFillingEnabled && (
-                      <CompactMatWidget key="cap" color="purple" title="Cap" used={summaryData.capUsed} waste={summaryData.capWaste} unit="Boxes" />
-                    ),
-                    isLabelingEnabled && (
-                      <CompactMatWidget key="label" color="green" title="Label" used={summaryData.labelUsed} waste={summaryData.labelWaste} unit="KG" />
-                    ),
-                    isPackingEnabled && (
-                      <CompactMatWidget key="shrink" color="orange" title="Shrink" used={summaryData.shrinkUsed} waste={summaryData.shrinkWaste} unit="KG" />
-                    ),
-                    isLabelingEnabled && (
-                      <CompactMatWidget key="glue" color="slate" title="Glue" used={summaryData.glueUsed} waste={summaryData.glueWaste} unit="KG" />
-                    ),
-                    (isFillingEnabled || isLabelingEnabled) && (
-                      <CompactMatWidget key="ink" color="cyan" title="Ink / Jet" used={summaryData.inkUsed ? 'Yes' : 'No'} waste={summaryData.makeupUsed ? 'Yes' : 'No'} unit="" isBoolean />
-                    )
-                  ].filter(Boolean) : []
-
-                  const cardCount = enabledMatCards.length
-
-                  return (
-                    <div 
-                      className="grid gap-2 grid-cols-2 sm:grid-cols-3"
-                      style={{
-                        gridTemplateColumns: cardCount > 0 ? `repeat(${Math.min(cardCount, 6)}, minmax(0, 1fr))` : undefined
-                      }}
-                    >
-                      {summaryData ? (
-                        cardCount > 0 ? (
-                          enabledMatCards
-                        ) : (
-                          <div className="col-span-full py-4 text-center text-[12px] text-slate-400 font-medium italic">
-                            No material consumption cards enabled for current station configuration.
-                          </div>
-                        )
-                      ) : (
-                        <div className="col-span-full py-6 text-center text-[12px] text-slate-400 font-medium italic">
-                          Material consumption data is not available.
-                        </div>
-                      )}
-                    </div>
-                  )
-                })()}
-              </div>
-            </div>
-
-            {/* Reported Operations Issues Section */}
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-slate-100 bg-amber-50/50 flex justify-between items-center">
-                <h3 className="text-[14px] font-bold text-slate-900 flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-amber-600" />
-                  Reported Batch Incidents & Issues ({batchIssues.length})
-                </h3>
-              </div>
-              <div className="p-3">
-                {batchIssues.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic py-3 text-center">No operations issues reported during this batch.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {batchIssues.map((issue: any) => (
-                      <div key={issue.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between gap-3">
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-bold text-blue-600">#{issue.issueNumber}</span>
-                            <span className="text-xs font-bold text-slate-900">{issue.title}</span>
-                          </div>
-                          <p className="text-[11px] text-slate-500">{issue.category} • Reported by {issue.reportedByName}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[10px] font-black px-2 py-0.5 rounded ${issue.priority === 'Critical' || issue.priority === 'Emergency' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'}`}>
-                            {issue.priority}
-                          </span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-700">
-                            {issue.status}
-                          </span>
-                          <button
-                            onClick={() => navigate(`/company/operations-issues/${issue.id}`)}
-                            className="px-2.5 py-1 bg-blue-600 text-white text-[11px] font-bold rounded hover:bg-blue-700 transition-colors"
-                          >
-                            Open Issue
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Production Entries (Activity Cards) */}
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                <h3 className="text-[14px] font-bold text-slate-900 flex items-center gap-1.5">
-                  <History className="w-4 h-4 text-blue-600" />
-                  Production Entries
-                </h3>
-              </div>
-              
-              <div className="p-3 flex flex-col gap-2">
-                {entries.length === 0 ? (
-                  <div className="py-8 text-center text-[12px] text-slate-400 font-medium italic">
-                    No production entries have been logged.
-                  </div>
-                ) : (
-                  entries.map((item: any, idx: number) => {
-                    const isExpanded = !!expandedEntries[item.id]
-                    return (
-                      <div key={item.id} className="bg-white border border-slate-200 rounded-md overflow-hidden shadow-sm">
-                        <div 
-                          className="px-4 py-2.5 flex items-center justify-between cursor-pointer hover:bg-slate-50/80 transition-colors"
-                          onClick={() => toggleEntry(item.id)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
-                              <span className="text-[12px] font-black">#{entries.length - idx}</span>
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-1.5 mb-0.5">
-                                <span className="font-bold text-slate-900 text-[13px]">{fmtTime(item.createdAt)}</span>
-                                <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded uppercase">{fmtDate(item.createdAt)}</span>
-                              </div>
-                              <p className="text-[11px] text-slate-500 font-medium">By <span className="text-slate-800 font-bold">{item.operatorName}</span></p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <p className="text-[9px] uppercase font-bold tracking-widest text-slate-400 mb-0.5">Produced</p>
-                              <p className="text-[15px] font-black text-green-600 leading-none">+{item.casesProduced}</p>
-                            </div>
-                            <div className="w-6 h-6 rounded-md flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-500">
-                              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* Expanded Material Data */}
-                        {isExpanded && (
-                          <div className="px-4 py-3 bg-slate-50 border-t border-slate-100">
-                            {(() => {
-                              const miniMatCards = [
-                                isBlowingEnabled && <MiniMatCard key="preform" label="Preform" used={item.preformUsage} waste={item.preformWastage} unit={item.preformUnit || "Bag"} />,
-                                isFillingEnabled && <MiniMatCard key="cap" label="Cap" used={item.capUsage} waste={item.capWastage} unit={item.capUnit || "Box"} />,
-                                isLabelingEnabled && <MiniMatCard key="label" label="Label" used={item.labelUsage} waste={item.labelWastage} unit={item.labelUnit || "KG"} />,
-                                isPackingEnabled && <MiniMatCard key="shrink" label="Shrink" used={item.shrinkUsage} waste={item.shrinkWastage} unit={item.shrinkUnit || "KG"} />,
-                                isLabelingEnabled && <MiniMatCard key="glue" label="Glue" used={item.glueUsage} waste={item.glueWastage} unit={item.glueUnit || "KG"} />
-                              ].filter(Boolean)
-
-                              const miniCount = miniMatCards.length
-
-                              return (
-                                <div 
-                                  className="grid gap-2 grid-cols-2 sm:grid-cols-3"
-                                  style={{
-                                    gridTemplateColumns: miniCount > 0 ? `repeat(${Math.min(miniCount, 5)}, minmax(0, 1fr))` : undefined
-                                  }}
-                                >
-                                  {miniMatCards}
-                                </div>
-                              )
-                            })()}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* ══ RIGHT SIDEBAR (Timeline) ════════════════════════════════ */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden sticky top-[84px]">
-              <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
-                <h3 className="text-[14px] font-bold text-slate-900 flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-blue-600" />
-                  Activity Feed
-                </h3>
-              </div>
-              
-              <div className="p-4 max-h-[600px] overflow-y-auto">
-                {timelineEvents.length === 0 ? (
-                  <p className="text-[12px] text-slate-400 italic text-center py-6">No events recorded.</p>
-                ) : (
-                  <div className="relative">
-                    <div className="absolute left-[11px] top-2 bottom-2 w-[1.5px] bg-slate-200 rounded-full" />
-                    <div className="flex flex-col gap-5 relative">
-                      {timelineEvents.map((ev, idx) => (
-                        <div key={idx} className="flex gap-3 group">
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 border-white shadow-sm z-10 ${timelineColorMap[ev.color] || 'bg-slate-100 text-slate-500'}`}>
-                            {timelineIconMap[ev.color] || <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />}
-                          </div>
-                          <div className="flex-1 pt-0.5">
-                            <h4 className="text-[12px] font-bold text-slate-900 leading-none mb-1">{ev.title}</h4>
-                            
-                            {ev.entry ? (
-                              <div className="mt-2 mb-2 bg-slate-50 border border-slate-200 rounded p-2">
-                                <div className="mb-2">
-                                  <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-0.5">Produced</span>
-                                  <span className="text-[12px] font-black text-green-600">{ev.entry.casesProduced} Cases</span>
-                                </div>
-                                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-1">Materials</span>
-                                <div className="flex flex-col gap-1.5">
-                                  {ev.entry.preformName && isBlowingEnabled && (
-                                    <div className="bg-white border border-slate-100 rounded px-2 py-1.5 flex justify-between items-center shadow-sm">
-                                      <span className="text-[10px] font-bold text-slate-700 w-12">Preform</span>
-                                      <div className="flex gap-3 text-[10px]">
-                                        <span className="text-slate-500">Used <span className="font-bold text-slate-800 ml-0.5">{ev.entry.preformUsage} {ev.entry.preformUnit || 'Bags'}</span></span>
-                                        <span className="text-slate-500">Waste <span className={`font-bold ml-0.5 ${ev.entry.preformWastage > 0 ? 'text-red-600' : 'text-slate-800'}`}>{ev.entry.preformWastage} {ev.entry.preformUnit || 'Bags'}</span></span>
-                                      </div>
-                                    </div>
-                                  )}
-                                  {ev.entry.capName && isFillingEnabled && (ev.entry.capUsage > 0 || ev.entry.capWastage > 0) && (
-                                    <div className="bg-white border border-slate-100 rounded px-2 py-1.5 flex justify-between items-center shadow-sm">
-                                      <span className="text-[10px] font-bold text-slate-700 w-12">Cap</span>
-                                      <div className="flex gap-3 text-[10px]">
-                                        <span className="text-slate-500">Used <span className="font-bold text-slate-800 ml-0.5">{ev.entry.capUsage} {ev.entry.capUnit || 'Boxes'}</span></span>
-                                        <span className="text-slate-500">Waste <span className={`font-bold ml-0.5 ${ev.entry.capWastage > 0 ? 'text-red-600' : 'text-slate-800'}`}>{ev.entry.capWastage} {ev.entry.capUnit || 'Boxes'}</span></span>
-                                      </div>
-                                    </div>
-                                  )}
-                                  {ev.entry.labelName && isLabelingEnabled && (ev.entry.labelUsage > 0 || ev.entry.labelWastage > 0) && (
-                                    <div className="bg-white border border-slate-100 rounded px-2 py-1.5 flex justify-between items-center shadow-sm">
-                                      <span className="text-[10px] font-bold text-slate-700 w-12">Label</span>
-                                      <div className="flex gap-3 text-[10px]">
-                                        <span className="text-slate-500">Used <span className="font-bold text-slate-800 ml-0.5">{ev.entry.labelUsage} {ev.entry.labelUnit || 'KG'}</span></span>
-                                        <span className="text-slate-500">Waste <span className={`font-bold ml-0.5 ${ev.entry.labelWastage > 0 ? 'text-red-600' : 'text-slate-800'}`}>{ev.entry.labelWastage} {ev.entry.labelUnit || 'KG'}</span></span>
-                                      </div>
-                                    </div>
-                                  )}
-                                  {ev.entry.shrinkName && isPackingEnabled && (ev.entry.shrinkUsage > 0 || ev.entry.shrinkWastage > 0) && (
-                                    <div className="bg-white border border-slate-100 rounded px-2 py-1.5 flex justify-between items-center shadow-sm">
-                                      <span className="text-[10px] font-bold text-slate-700 w-12">Shrink</span>
-                                      <div className="flex gap-3 text-[10px]">
-                                        <span className="text-slate-500">Used <span className="font-bold text-slate-800 ml-0.5">{ev.entry.shrinkUsage} {ev.entry.shrinkUnit || 'KG'}</span></span>
-                                        <span className="text-slate-500">Waste <span className={`font-bold ml-0.5 ${ev.entry.shrinkWastage > 0 ? 'text-red-600' : 'text-slate-800'}`}>{ev.entry.shrinkWastage} {ev.entry.shrinkUnit || 'KG'}</span></span>
-                                      </div>
-                                    </div>
-                                  )}
-                                  {ev.entry.glueName && isLabelingEnabled && (ev.entry.glueUsage > 0 || ev.entry.glueWastage > 0) && (
-                                    <div className="bg-white border border-slate-100 rounded px-2 py-1.5 flex justify-between items-center shadow-sm">
-                                      <span className="text-[10px] font-bold text-slate-700 w-12">Glue</span>
-                                      <div className="flex gap-3 text-[10px]">
-                                        <span className="text-slate-500">Used <span className="font-bold text-slate-800 ml-0.5">{ev.entry.glueUsage} {ev.entry.glueUnit || 'KG'}</span></span>
-                                        <span className="text-slate-500">Waste <span className={`font-bold ml-0.5 ${ev.entry.glueWastage > 0 ? 'text-red-600' : 'text-slate-800'}`}>{ev.entry.glueWastage} {ev.entry.glueUnit || 'KG'}</span></span>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ) : (
-                              <p className="text-[11px] font-medium text-slate-500 mb-1.5 leading-snug">{ev.desc}</p>
-                            )}
-
-                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                              {ev.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </div>
+      <BatchDetailView
+        batchMeta={batchMeta}
+        summaryData={summaryData}
+        entries={entries}
+        batchIssues={batchIssues}
+        canWrite={canWrite}
+        isCompleted={isCompleted}
+        isPaused={isPaused}
+        onStopBatchClick={() => {
+          setStopError(null)
+          setIsStopModalOpen(true)
+        }}
+        onAddEntryClick={() => {
+          setAddEntryError(null)
+          setIsAddEntryModalOpen(true)
+        }}
+      />
 
       {/* ══ STOP BATCH CONFIRMATION MODAL ═════════════════════════════════════ */}
       <EnterpriseModal
@@ -836,8 +538,149 @@ export const BatchDetailsPage: React.FC = () => {
           </div>
         </div>
       </EnterpriseModal>
-    </PageContainer>
+
+      {/* ══ ADD PRODUCTION ENTRY MODAL ════════════════════════════════════════ */}
+      <EnterpriseModal
+        isOpen={isAddEntryModalOpen}
+        onClose={() => !isAddingEntry && setIsAddEntryModalOpen(false)}
+        title="Add Production Entry"
+        maxWidth="md"
+      >
+        <form onSubmit={handleAddEntrySubmit} className="flex flex-col gap-4">
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <span className="text-[10px] text-slate-400 font-semibold block">Batch Number</span>
+              <span className="font-bold text-slate-800">{batchMeta?.batchNumber}</span>
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 font-semibold block">Product</span>
+              <span className="font-bold text-slate-800 truncate block">{batchMeta?.product}</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Cases Produced <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              min="1"
+              required
+              placeholder="e.g. 100"
+              value={addEntryCases}
+              onChange={(e) => setAddEntryCases(e.target.value)}
+              className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              autoFocus
+            />
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                Preforms (Bags)
+              </label>
+              <input
+                type="number"
+                min="0"
+                placeholder="0"
+                value={addEntryPreform}
+                onChange={(e) => setAddEntryPreform(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                Caps (Boxes)
+              </label>
+              <input
+                type="number"
+                min="0"
+                placeholder="0"
+                value={addEntryCap}
+                onChange={(e) => setAddEntryCap(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                Labels (KG)
+              </label>
+              <input
+                type="number"
+                min="0"
+                placeholder="0"
+                value={addEntryLabel}
+                onChange={(e) => setAddEntryLabel(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                Shrink (KG)
+              </label>
+              <input
+                type="number"
+                min="0"
+                placeholder="0"
+                value={addEntryShrink}
+                onChange={(e) => setAddEntryShrink(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                Glue (KG)
+              </label>
+              <input
+                type="number"
+                min="0"
+                placeholder="0"
+                value={addEntryGlue}
+                onChange={(e) => setAddEntryGlue(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {addEntryError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 p-2.5 rounded-lg text-xs font-medium flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+              <span>{addEntryError}</span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setIsAddEntryModalOpen(false)}
+              disabled={isAddingEntry}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isAddingEntry}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-lg shadow-xs transition-all cursor-pointer disabled:opacity-50"
+            >
+              {isAddingEntry ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Logging entry...</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4" />
+                  <span>Log Entry</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </EnterpriseModal>
+    </div>
   )
 }
 
 export default BatchDetailsPage
+
