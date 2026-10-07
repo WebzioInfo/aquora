@@ -364,6 +364,11 @@ namespace Aquora.Persistence.Context
             modelBuilder.Entity<Aquora.Domain.Entities.Finance.BankLedgerEntry>()
                 .HasIndex(b => new { b.TenantId, b.CashBookId, b.LedgerAccountType, b.TransactionDate, b.CreatedAt });
 
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.Owner>()
+                .HasIndex(o => new { o.TenantId, o.UserId })
+                .HasFilter(@"""UserId"" IS NOT NULL AND ""IsDeleted"" = false")
+                .IsUnique();
+
             // BackupHistory Configuration (Make tracking fields safely nullable for backward compatibility)
             modelBuilder.Entity<Aquora.Domain.Entities.Administration.BackupHistory>()
                 .Property(b => b.Format).IsRequired(false);

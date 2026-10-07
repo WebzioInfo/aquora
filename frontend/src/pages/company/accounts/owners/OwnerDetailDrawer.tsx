@@ -136,8 +136,13 @@ export const OwnerDetailDrawer: React.FC<OwnerDetailDrawerProps> = ({
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-bold text-slate-900 truncate">
-                    {owner.name}
+                  <h3 className="text-base font-bold text-slate-900 truncate flex items-center gap-1.5">
+                    <span>{owner.name}</span>
+                    {owner.userId && (
+                      <span className="inline-flex items-center px-1.5 py-0.2 text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded" title="Integrated Employee profile">
+                        Employee
+                      </span>
+                    )}
                   </h3>
                   <span
                     className="px-2 py-0.5 rounded-full text-[11px] font-bold shrink-0 font-mono"

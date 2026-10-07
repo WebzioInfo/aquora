@@ -417,6 +417,7 @@ namespace Aquora.Persistence.Services
                             ""Id"" uuid NOT NULL PRIMARY KEY,
                             ""TenantId"" uuid NOT NULL,
                             ""CompanyId"" uuid NOT NULL,
+                            ""UserId"" uuid NULL,
                             ""Name"" text NOT NULL,
                             ""Phone"" text NOT NULL,
                             ""Email"" text NULL,
@@ -433,7 +434,10 @@ namespace Aquora.Persistence.Services
                             ""IsDeleted"" boolean NOT NULL DEFAULT false,
                             ""DeletedAt"" timestamp with time zone NULL,
                             ""DeletedBy"" text NULL
-                        );";
+                        );
+                        ALTER TABLE ""{schema}"".""Owners"" ADD COLUMN IF NOT EXISTS ""UserId"" uuid NULL;
+                        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Owners_TenantId_UserId_{schema}"" ON ""{schema}"".""Owners"" (""TenantId"", ""UserId"") WHERE ""UserId"" IS NOT NULL AND ""IsDeleted"" = false;
+                    ";
                     await cmd.ExecuteNonQueryAsync();
                 }
                 else if (table.Equals("OwnerInvestmentTransactions", StringComparison.OrdinalIgnoreCase))
@@ -1691,6 +1695,27 @@ namespace Aquora.Persistence.Services
                                     WHERE NOT EXISTS (
                                         SELECT 1 FROM ""{schema}"".""Roles"" WHERE UPPER(""Code"") = 'OWNER' OR UPPER(""Name"") = 'OWNER'
                                     );
+                                END IF;
+
+                                IF EXISTS (
+                                    SELECT FROM information_schema.tables 
+                                    WHERE table_schema = '{schema}' AND table_name = 'Owners'
+                                ) THEN
+                                    ALTER TABLE ""{schema}"".""Owners"" ADD COLUMN IF NOT EXISTS ""UserId"" uuid NULL;
+                                    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Owners_TenantId_UserId_{schema}"" 
+                                        ON ""{schema}"".""Owners"" (""TenantId"", ""UserId"") 
+                                        WHERE ""UserId"" IS NOT NULL AND ""IsDeleted"" = false;
+
+                                    -- Safe reconciliation: Link existing Owners without UserId to Users by email
+                                    UPDATE ""{schema}"".""Owners"" o
+                                    SET ""UserId"" = u.""Id""
+                                    FROM public.""Users"" u
+                                    WHERE o.""UserId"" IS NULL
+                                      AND o.""TenantId"" = u.""TenantId""
+                                      AND o.""Email"" IS NOT NULL
+                                      AND LOWER(TRIM(o.""Email"")) = LOWER(TRIM(u.""Email""))
+                                      AND u.""IsDeleted"" = false
+                                      AND o.""IsDeleted"" = false;
                                 END IF;
                             END $$;";
                         await alterCmd.ExecuteNonQueryAsync();

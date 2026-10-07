@@ -27,5 +27,13 @@ namespace Aquora.Application.DTOs.Employees
         [Required(ErrorMessage = "Current Salary is required.")]
         [Range(0.01, double.MaxValue, ErrorMessage = "Current Salary must be greater than zero.")]
         public decimal CurrentSalary { get; set; }
+
+        public string? Phone { get; set; }
+
+        [Range(0, 100, ErrorMessage = "Ownership percentage must be between 0 and 100.")]
+        public decimal? OwnershipPercentage { get; set; }
+
+        [Range(0, double.MaxValue, ErrorMessage = "Initial investment cannot be negative.")]
+        public decimal? InitialInvestment { get; set; }
     }
 }

@@ -466,6 +466,7 @@ namespace Aquora.Persistence.Services
                                 ""Id"" uuid NOT NULL,
                                 ""TenantId"" uuid NOT NULL,
                                 ""CompanyId"" uuid NOT NULL,
+                                ""UserId"" uuid NULL,
                                 ""Name"" text NOT NULL,
                                 ""Phone"" text NOT NULL,
                                 ""Email"" text NULL,
@@ -484,6 +485,9 @@ namespace Aquora.Persistence.Services
                                 ""DeletedBy"" text NULL,
                                 CONSTRAINT ""PK_Owners_{schemaName}"" PRIMARY KEY (""Id"")
                             );
+
+                            ALTER TABLE ""{schemaName}"".""Owners"" ADD COLUMN IF NOT EXISTS ""UserId"" uuid NULL;
+                            CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Owners_TenantId_UserId_{schemaName}"" ON ""{schemaName}"".""Owners"" (""TenantId"", ""UserId"") WHERE ""UserId"" IS NOT NULL AND ""IsDeleted"" = false;
 
                             CREATE TABLE IF NOT EXISTS ""{schemaName}"".""OwnerInvestmentTransactions"" (
                                 ""Id"" uuid NOT NULL,

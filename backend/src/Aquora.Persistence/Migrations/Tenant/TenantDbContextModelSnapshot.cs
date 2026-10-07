@@ -1851,11 +1851,18 @@ namespace Aquora.Persistence.Migrations.Tenant
                     b.Property<string>("UpdatedByIP")
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "UserId")
+                        .IsUnique()
+                        .HasFilter("\"UserId\" IS NOT NULL AND \"IsDeleted\" = false");
 
                     b.ToTable("Owners", "public");
                 });

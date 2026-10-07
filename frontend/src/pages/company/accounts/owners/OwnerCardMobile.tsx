@@ -58,8 +58,13 @@ export const OwnerCardMobile: React.FC<OwnerCardMobileProps> = ({
             {initials}
           </div>
           <div className="min-w-0">
-            <h4 className="font-semibold text-slate-900 truncate text-sm">
-              {owner.name}
+            <h4 className="font-semibold text-slate-900 truncate text-sm flex items-center gap-1.5">
+              <span>{owner.name}</span>
+              {owner.userId && (
+                <span className="inline-flex items-center px-1.5 py-0.2 text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded" title="Integrated Employee profile">
+                  Employee
+                </span>
+              )}
             </h4>
             <div className="text-[11px] text-slate-500 truncate">
               {owner.phone || 'No phone'}

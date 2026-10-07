@@ -1034,6 +1034,7 @@ namespace Aquora.Application.Services
             return owners.Select(o => new OwnerDto
             {
                 Id = o.Id,
+                UserId = o.UserId,
                 Name = o.Name,
                 Phone = o.Phone,
                 Email = o.Email,
@@ -1070,6 +1071,7 @@ namespace Aquora.Application.Services
             return new OwnerDto
             {
                 Id = owner.Id,
+                UserId = owner.UserId,
                 Name = owner.Name,
                 Phone = owner.Phone,
                 Email = owner.Email,
@@ -1100,11 +1102,34 @@ namespace Aquora.Application.Services
             var companyId = await GetCompanyIdAsync();
             var userId = _currentUserContext.UserId ?? "System";
 
+            Guid? linkedUserId = request.UserId;
+            if (!linkedUserId.HasValue && !string.IsNullOrWhiteSpace(request.Email))
+            {
+                var emailNormalized = request.Email.Trim().ToLowerInvariant();
+                var matchingUser = await _platformContext.Users
+                    .FirstOrDefaultAsync(u => u.TenantId == tenantId && u.Email.ToLower() == emailNormalized && !u.IsDeleted);
+                if (matchingUser != null)
+                {
+                    linkedUserId = matchingUser.Id;
+                }
+            }
+
+            if (linkedUserId.HasValue)
+            {
+                var existingOwner = await _context.Owners
+                    .FirstOrDefaultAsync(o => o.TenantId == tenantId && o.UserId == linkedUserId.Value && !o.IsDeleted);
+                if (existingOwner != null)
+                {
+                    throw new InvalidOperationException($"An active owner record already exists for this employee/user.");
+                }
+            }
+
             var owner = new Owner
             {
                 Id = Guid.NewGuid(),
                 TenantId = tenantId,
                 CompanyId = companyId,
+                UserId = linkedUserId,
                 Name = request.Name.Trim(),
                 Phone = request.Phone.Trim(),
                 Email = request.Email?.Trim(),
@@ -1122,6 +1147,7 @@ namespace Aquora.Application.Services
             return new OwnerDto
             {
                 Id = owner.Id,
+                UserId = owner.UserId,
                 Name = owner.Name,
                 Phone = owner.Phone,
                 Email = owner.Email,
@@ -1159,6 +1185,7 @@ namespace Aquora.Application.Services
             return new OwnerDto
             {
                 Id = owner.Id,
+                UserId = owner.UserId,
                 Name = owner.Name,
                 Phone = owner.Phone,
                 Email = owner.Email,

@@ -227,6 +227,7 @@ export interface OwnerInvestmentTransaction {
 
 export interface Owner {
   id: string
+  userId?: string | null
   name: string
   phone: string
   email?: string
@@ -240,6 +241,7 @@ export interface Owner {
 }
 
 export interface CreateOwnerRequest {
+  userId?: string
   name: string
   phone: string
   email?: string

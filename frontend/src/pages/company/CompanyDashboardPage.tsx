@@ -969,6 +969,9 @@ export const CompanyDashboardPage: React.FC = () => {
   const [addPasswordOrPin, setAddPasswordOrPin] = useState('')
   const [addDepartment, setAddDepartment] = useState('Operations')
   const [addCurrentSalary, setAddCurrentSalary] = useState('')
+  const [addPhone, setAddPhone] = useState('')
+  const [addOwnershipPercentage, setAddOwnershipPercentage] = useState('')
+  const [addInitialInvestment, setAddInitialInvestment] = useState('')
   const [addEmployeeErrors, setAddEmployeeErrors] = useState<Record<string, string>>({})
 
   // Edit Employee Form States
@@ -980,6 +983,9 @@ export const CompanyDashboardPage: React.FC = () => {
   const [editRoleCode, setEditRoleCode] = useState('')
   const [editDepartment, setEditDepartment] = useState('Operations')
   const [editCurrentSalary, setEditCurrentSalary] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editOwnershipPercentage, setEditOwnershipPercentage] = useState('')
+  const [editInitialInvestment, setEditInitialInvestment] = useState('')
   const [editIsActive, setEditIsActive] = useState(true)
   const [editEmployeeErrors, setEditEmployeeErrors] = useState<Record<string, string>>({})
 
@@ -1767,8 +1773,13 @@ export const CompanyDashboardPage: React.FC = () => {
     },
     onSuccess: (data) => {
       if (data.success) {
-        showToast('Employee created successfully.', 'success')
+        const isOwner = (addRoleCode || '').toUpperCase() === 'OWNER'
+        showToast(isOwner ? 'Owner created successfully.' : 'Employee created successfully.', 'success')
         queryClient.invalidateQueries({ queryKey: ['employeesList'] })
+        queryClient.invalidateQueries({ queryKey: ['ownersList'] })
+        queryClient.invalidateQueries({ queryKey: ['ownerDetails'] })
+        queryClient.invalidateQueries({ queryKey: ['companyTotalInvestment'] })
+        queryClient.invalidateQueries({ queryKey: ['simpleAccountsDashboardSummary'] })
         setIsAddModalOpen(false)
         setAddFullName('')
         setAddUsername('')
@@ -1777,6 +1788,9 @@ export const CompanyDashboardPage: React.FC = () => {
         setAddPasswordOrPin('')
         setAddDepartment('Operations')
         setAddCurrentSalary('')
+        setAddPhone('')
+        setAddOwnershipPercentage('')
+        setAddInitialInvestment('')
       } else {
         showToast(data.message || 'Failed to create employee.', 'error')
       }
@@ -1798,6 +1812,10 @@ export const CompanyDashboardPage: React.FC = () => {
         showToast('Employee updated successfully.', 'success')
         queryClient.invalidateQueries({ queryKey: ['employeesList'] })
         queryClient.refetchQueries({ queryKey: ['employeesList'] })
+        queryClient.invalidateQueries({ queryKey: ['ownersList'] })
+        queryClient.invalidateQueries({ queryKey: ['ownerDetails'] })
+        queryClient.invalidateQueries({ queryKey: ['companyTotalInvestment'] })
+        queryClient.invalidateQueries({ queryKey: ['simpleAccountsDashboardSummary'] })
         setIsEditModalOpen(false)
         setEditEmployeeErrors({})
       } else {
@@ -2205,7 +2223,10 @@ export const CompanyDashboardPage: React.FC = () => {
       roleCode: addRoleCode,
       passwordOrPin: addPasswordOrPin,
       department: addDepartment,
-      currentSalary: Number(addCurrentSalary)
+      currentSalary: Number(addCurrentSalary),
+      phone: addPhone.trim() || undefined,
+      ownershipPercentage: addOwnershipPercentage ? Number(addOwnershipPercentage) : undefined,
+      initialInvestment: addInitialInvestment ? Number(addInitialInvestment) : undefined
     })
   }
 
@@ -2263,7 +2284,10 @@ export const CompanyDashboardPage: React.FC = () => {
         roleCode: editRoleCode,
         department: editDepartment,
         currentSalary: Number(editCurrentSalary),
-        isActive: editIsActive
+        isActive: editIsActive,
+        phone: editPhone.trim() || undefined,
+        ownershipPercentage: editOwnershipPercentage ? Number(editOwnershipPercentage) : undefined,
+        initialInvestment: editInitialInvestment ? Number(editInitialInvestment) : undefined
       }
     })
   }
@@ -2318,6 +2342,9 @@ export const CompanyDashboardPage: React.FC = () => {
     setEditDepartment(employee.department || 'Operations')
     setEditCurrentSalary(employee.currentSalary ? employee.currentSalary.toString() : '0')
     setEditIsActive(Boolean(employee.isActive))
+    setEditPhone(employee.phone || '')
+    setEditOwnershipPercentage('')
+    setEditInitialInvestment('')
     setEditEmployeeErrors({})
     setIsEditModalOpen(true)
   }
@@ -3780,6 +3807,46 @@ export const CompanyDashboardPage: React.FC = () => {
               ))}
             </EnterpriseSelect>
 
+            {addRoleCode.toUpperCase() === 'OWNER' && (
+              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-lg flex flex-col gap-3 transition-all animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span className="text-xs font-semibold text-amber-900">Owner Profile Integration</span>
+                  <span className="text-[10px] bg-amber-200/70 text-amber-800 px-1.5 py-0.5 rounded font-medium ml-auto">Auto-Linked Profile</span>
+                </div>
+                <p className="text-[11px] text-amber-800 leading-snug">
+                  Registering this employee as <strong>Owner</strong> will automatically create and link an official Owner profile under Accounts &gt; Owners with identical credentials and tenant isolation.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <EnterpriseInput
+                    label="Phone Number"
+                    placeholder="e.g. +91 98765 43210"
+                    value={addPhone}
+                    onChange={(e) => setAddPhone(e.target.value)}
+                  />
+                  <EnterpriseInput
+                    label="Ownership Share (%)"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    placeholder="e.g. 50"
+                    value={addOwnershipPercentage}
+                    onChange={(e) => setAddOwnershipPercentage(e.target.value)}
+                  />
+                </div>
+                <EnterpriseInput
+                  label="Initial Capital Investment (₹)"
+                  type="number"
+                  min="0"
+                  step="1000"
+                  placeholder="e.g. 500000"
+                  value={addInitialInvestment}
+                  onChange={(e) => setAddInitialInvestment(e.target.value)}
+                />
+              </div>
+            )}
+
             <EnterpriseInput
               label="Password or PIN *"
               type="password"
@@ -3884,6 +3951,46 @@ export const CompanyDashboardPage: React.FC = () => {
                 <option key={r.id} value={r.code}>{r.name}</option>
               ))}
             </EnterpriseSelect>
+
+            {editRoleCode.toUpperCase() === 'OWNER' && (
+              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-lg flex flex-col gap-3 transition-all animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span className="text-xs font-semibold text-amber-900">Owner Profile Integration</span>
+                  <span className="text-[10px] bg-amber-200/70 text-amber-800 px-1.5 py-0.5 rounded font-medium ml-auto">Linked Profile</span>
+                </div>
+                <p className="text-[11px] text-amber-800 leading-snug">
+                  Configuring this employee with role <strong>Owner</strong> will link or update the official Owner profile in Accounts &gt; Owners.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <EnterpriseInput
+                    label="Phone Number"
+                    placeholder="e.g. +91 98765 43210"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                  />
+                  <EnterpriseInput
+                    label="Ownership Share (%)"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    placeholder="e.g. 50"
+                    value={editOwnershipPercentage}
+                    onChange={(e) => setEditOwnershipPercentage(e.target.value)}
+                  />
+                </div>
+                <EnterpriseInput
+                  label="Initial Capital Investment (₹)"
+                  type="number"
+                  min="0"
+                  step="1000"
+                  placeholder="e.g. 500000"
+                  value={editInitialInvestment}
+                  onChange={(e) => setEditInitialInvestment(e.target.value)}
+                />
+              </div>
+            )}
 
             <EnterpriseSelect
               label="Department"

@@ -12,6 +12,8 @@ export interface EmployeeDto {
   isActive: boolean
   createdAt?: string
   lastLogin?: string | null
+  ownerId?: string | null
+  phone?: string | null
 }
 
 export interface EmployeeRole {
@@ -28,6 +30,9 @@ export interface CreateEmployeePayload {
   passwordOrPin: string
   department?: string
   currentSalary: number
+  phone?: string
+  ownershipPercentage?: number
+  initialInvestment?: number
 }
 
 export interface ApiResponse<T> {

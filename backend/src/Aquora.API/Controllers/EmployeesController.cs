@@ -10,6 +10,7 @@ using Aquora.Application.Interfaces;
 using Aquora.Application.Interfaces.Services;
 using Aquora.Application.DTOs.Employees;
 using Aquora.Domain.Entities;
+using Aquora.Domain.Entities.Finance;
 using Aquora.Shared.Models;
 
 namespace Aquora.API.Controllers
@@ -102,6 +103,22 @@ namespace Aquora.API.Controllers
                 var roles = await _tenantContext.Roles.ToListAsync();
                 var roleMap = await _roleResolver.ResolveUsersRolesAsync(users, tenantId);
 
+                var ownerMap = new Dictionary<Guid, Guid>();
+                try
+                {
+                    var linkedOwners = await _tenantContext.Owners
+                        .AsNoTracking()
+                        .Where(o => o.TenantId == tenantId && !o.IsDeleted && o.UserId != null)
+                        .Select(o => new { o.Id, o.UserId })
+                        .ToListAsync();
+                    ownerMap = linkedOwners.Where(o => o.UserId.HasValue).ToDictionary(o => o.UserId!.Value, o => o.Id);
+                }
+                catch
+                {
+                    // Fallback gracefully if Owners table or column is transiently being repaired
+                    ownerMap = new Dictionary<Guid, Guid>();
+                }
+
                 var result = new List<EmployeeDto>();
                 foreach (var user in users)
                 {
@@ -120,7 +137,9 @@ namespace Aquora.API.Controllers
                         CurrentSalary = user.CurrentSalary ?? 0m,
                         IsActive = user.IsActive,
                         CreatedAt = user.CreatedAt,
-                        LastLogin = user.LastLoginAt
+                        LastLogin = user.LastLoginAt,
+                        OwnerId = ownerMap.TryGetValue(user.Id, out var oId) ? oId : (Guid?)null,
+                        Phone = user.Phone
                     });
                 }
 
@@ -249,7 +268,8 @@ namespace Aquora.API.Controllers
                     RoleName = role.Name,
                     IsActive = true,
                     EmailVerified = true,
-                    TokenVersion = 0
+                    TokenVersion = 0,
+                    Phone = !string.IsNullOrWhiteSpace(request.Phone) ? request.Phone.Trim() : null
                 };
 
                 _platformContext.Users.Add(newUser);
@@ -275,6 +295,65 @@ namespace Aquora.API.Controllers
                     TenantId = tenantId
                 };
                 _tenantContext.UserRoles.Add(tenantUserRole);
+
+                // Owner Integration: If role is Owner, create or link Owner profile
+                bool isOwnerRole = role.Code.Equals("OWNER", StringComparison.OrdinalIgnoreCase) ||
+                                   role.Name.Equals("Owner", StringComparison.OrdinalIgnoreCase);
+                Owner? createdOrLinkedOwner = null;
+
+                if (isOwnerRole)
+                {
+                    var company = await _tenantContext.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
+                    var companyId = company?.Id ?? Guid.Empty;
+
+                    // Duplicate protection: Check if an Owner record already exists for this tenant and this user or email
+                    var existingOwner = await _tenantContext.Owners
+                        .FirstOrDefaultAsync(o => o.TenantId == tenantId &&
+                            (o.UserId == newUser.Id || (!string.IsNullOrWhiteSpace(emailNormalized) && o.Email != null && o.Email.ToLower() == emailNormalized)) &&
+                            !o.IsDeleted);
+
+                    if (existingOwner != null)
+                    {
+                        existingOwner.UserId = newUser.Id;
+                        existingOwner.CompanyId = companyId;
+                        if (string.IsNullOrWhiteSpace(existingOwner.Name)) existingOwner.Name = request.FullName.Trim();
+                        if (string.IsNullOrWhiteSpace(existingOwner.Email)) existingOwner.Email = emailNormalized;
+                        if (!string.IsNullOrWhiteSpace(request.Phone)) existingOwner.Phone = request.Phone.Trim();
+                        if (request.OwnershipPercentage.HasValue && request.OwnershipPercentage > 0 && existingOwner.OwnershipPercentage == 0)
+                        {
+                            existingOwner.OwnershipPercentage = request.OwnershipPercentage.Value;
+                        }
+                        if (request.InitialInvestment.HasValue && request.InitialInvestment > 0 && existingOwner.InitialInvestment == 0)
+                        {
+                            existingOwner.InitialInvestment = request.InitialInvestment.Value;
+                            existingOwner.CurrentInvestment = request.InitialInvestment.Value;
+                        }
+                        existingOwner.UpdatedAt = DateTime.UtcNow;
+                        existingOwner.UpdatedBy = GetCurrentUserEmail();
+                        createdOrLinkedOwner = existingOwner;
+                    }
+                    else
+                    {
+                        var newOwner = new Owner
+                        {
+                            Id = Guid.NewGuid(),
+                            TenantId = tenantId,
+                            CompanyId = companyId,
+                            UserId = newUser.Id,
+                            Name = request.FullName.Trim(),
+                            Email = emailNormalized,
+                            Phone = !string.IsNullOrWhiteSpace(request.Phone) ? request.Phone.Trim() : string.Empty,
+                            OwnershipPercentage = request.OwnershipPercentage ?? 0m,
+                            InitialInvestment = request.InitialInvestment ?? 0m,
+                            CurrentInvestment = request.InitialInvestment ?? 0m,
+                            Notes = "Created automatically via Employee Registration (Role = Owner)",
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedBy = GetCurrentUserEmail()
+                        };
+                        _tenantContext.Owners.Add(newOwner);
+                        createdOrLinkedOwner = newOwner;
+                    }
+                }
 
                 // Wrap in a transaction scope to ensure atomicity across both DbContexts
                 using (var scope = new System.Transactions.TransactionScope(
@@ -308,7 +387,8 @@ namespace Aquora.API.Controllers
                             newUser.LastName,
                             newUser.Department,
                             RoleName = role.Name,
-                            RoleCode = role.Code
+                            RoleCode = role.Code,
+                            OwnerId = createdOrLinkedOwner?.Id
                         }),
                         Timestamp = DateTime.UtcNow,
                         IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
@@ -335,10 +415,12 @@ namespace Aquora.API.Controllers
                     CurrentSalary = newUser.CurrentSalary ?? 0m,
                     IsActive = newUser.IsActive,
                     CreatedAt = newUser.CreatedAt,
-                    LastLogin = null
+                    LastLogin = null,
+                    OwnerId = createdOrLinkedOwner?.Id,
+                    Phone = newUser.Phone
                 };
 
-                return Success(dto, "Employee created successfully.");
+                return Success(dto, isOwnerRole ? "Owner employee created successfully." : "Employee created successfully.");
             }
             catch (DbUpdateException dbEx)
             {
@@ -505,6 +587,10 @@ namespace Aquora.API.Controllers
                 user.CurrentSalary = request.CurrentSalary;
                 user.RoleName = role.Name;
                 user.IsActive = request.IsActive;
+                if (!string.IsNullOrWhiteSpace(request.Phone))
+                {
+                    user.Phone = request.Phone.Trim();
+                }
 
                 // Update Role link in Platform DB
                 var membership = await _platformContext.UserMemberships
@@ -533,8 +619,85 @@ namespace Aquora.API.Controllers
                     });
                 }
 
-                await _platformContext.SaveChangesAsync();
-                await _tenantContext.SaveChangesAsync();
+                // Owner Integration: If role is Owner, create or link Owner profile
+                bool isOwnerRole = role.Code.Equals("OWNER", StringComparison.OrdinalIgnoreCase) ||
+                                   role.Name.Equals("Owner", StringComparison.OrdinalIgnoreCase);
+                Owner? linkedOwner = null;
+
+                if (isOwnerRole)
+                {
+                    var company = await _tenantContext.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
+                    var companyId = company?.Id ?? Guid.Empty;
+
+                    var existingOwner = await _tenantContext.Owners
+                        .FirstOrDefaultAsync(o => o.TenantId == tenantId &&
+                            (o.UserId == user.Id || (!string.IsNullOrWhiteSpace(emailNormalized) && o.Email != null && o.Email.ToLower() == emailNormalized)) &&
+                            !o.IsDeleted);
+
+                    if (existingOwner != null)
+                    {
+                        existingOwner.UserId = user.Id;
+                        existingOwner.CompanyId = companyId;
+                        existingOwner.Name = request.FullName.Trim();
+                        existingOwner.Email = emailNormalized;
+                        if (!string.IsNullOrWhiteSpace(request.Phone)) existingOwner.Phone = request.Phone.Trim();
+                        if (request.OwnershipPercentage.HasValue && request.OwnershipPercentage > 0)
+                        {
+                            existingOwner.OwnershipPercentage = request.OwnershipPercentage.Value;
+                        }
+                        if (request.InitialInvestment.HasValue && request.InitialInvestment > 0 && existingOwner.InitialInvestment == 0)
+                        {
+                            existingOwner.InitialInvestment = request.InitialInvestment.Value;
+                            existingOwner.CurrentInvestment = request.InitialInvestment.Value;
+                        }
+                        existingOwner.UpdatedAt = DateTime.UtcNow;
+                        existingOwner.UpdatedBy = GetCurrentUserEmail();
+                        linkedOwner = existingOwner;
+                    }
+                    else
+                    {
+                        var newOwner = new Owner
+                        {
+                            Id = Guid.NewGuid(),
+                            TenantId = tenantId,
+                            CompanyId = companyId,
+                            UserId = user.Id,
+                            Name = request.FullName.Trim(),
+                            Email = emailNormalized,
+                            Phone = !string.IsNullOrWhiteSpace(request.Phone) ? request.Phone.Trim() : string.Empty,
+                            OwnershipPercentage = request.OwnershipPercentage ?? 0m,
+                            InitialInvestment = request.InitialInvestment ?? 0m,
+                            CurrentInvestment = request.InitialInvestment ?? 0m,
+                            Notes = "Created automatically via Employee Role update to Owner",
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedBy = GetCurrentUserEmail()
+                        };
+                        _tenantContext.Owners.Add(newOwner);
+                        linkedOwner = newOwner;
+                    }
+                }
+                else
+                {
+                    // Role is NOT Owner: Preserve existing financial Owner profile intact for accounting continuity
+                    var prevOwner = await _tenantContext.Owners
+                        .FirstOrDefaultAsync(o => o.TenantId == tenantId && o.UserId == user.Id && !o.IsDeleted);
+                    if (prevOwner != null)
+                    {
+                        prevOwner.UpdatedAt = DateTime.UtcNow;
+                        prevOwner.UpdatedBy = GetCurrentUserEmail();
+                        linkedOwner = prevOwner;
+                    }
+                }
+
+                using (var scope = new System.Transactions.TransactionScope(
+                    System.Transactions.TransactionScopeOption.Required,
+                    new System.Transactions.TransactionOptions { IsolationLevel = System.Transactions.IsolationLevel.ReadCommitted },
+                    System.Transactions.TransactionScopeAsyncFlowOption.Enabled))
+                {
+                    await _platformContext.SaveChangesAsync();
+                    await _tenantContext.SaveChangesAsync();
+                    scope.Complete();
+                }
 
                 // Non-blocking Platform Audit Trail logging
                 try
@@ -558,7 +721,8 @@ namespace Aquora.API.Controllers
                             IsActive = user.IsActive,
                             CurrentSalary = user.CurrentSalary,
                             RoleName = role.Name,
-                            RoleCode = role.Code
+                            RoleCode = role.Code,
+                            OwnerId = linkedOwner?.Id
                         }),
                         Timestamp = DateTime.UtcNow,
                         IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
@@ -585,7 +749,9 @@ namespace Aquora.API.Controllers
                     CurrentSalary = user.CurrentSalary ?? 0m,
                     IsActive = user.IsActive,
                     CreatedAt = user.CreatedAt,
-                    LastLogin = user.LastLoginAt
+                    LastLogin = user.LastLoginAt,
+                    OwnerId = linkedOwner?.Id,
+                    Phone = user.Phone
                 };
 
                 return Success(dto, "Employee updated successfully.");
@@ -635,8 +801,39 @@ namespace Aquora.API.Controllers
                     .ToListAsync();
                 _tenantContext.UserRoles.RemoveRange(tenantUserRoles);
 
-                await _platformContext.SaveChangesAsync();
-                await _tenantContext.SaveChangesAsync();
+                // Check linked Owner profile: Protect business-critical financial history
+                var linkedOwner = await _tenantContext.Owners
+                    .Include(o => o.InvestmentTransactions)
+                    .FirstOrDefaultAsync(o => o.TenantId == tenantId && o.UserId == user.Id && !o.IsDeleted);
+
+                if (linkedOwner != null)
+                {
+                    bool hasTransactions = linkedOwner.InvestmentTransactions.Any(t => !t.IsDeleted);
+                    if (!hasTransactions && linkedOwner.CurrentInvestment == 0 && linkedOwner.InitialInvestment == 0)
+                    {
+                        // Clean soft delete if no financial history exists
+                        linkedOwner.IsDeleted = true;
+                        linkedOwner.DeletedAt = DateTime.UtcNow;
+                        linkedOwner.DeletedBy = GetCurrentUserEmail();
+                    }
+                    else
+                    {
+                        // Preserve ledger integrity, detach user account
+                        linkedOwner.UserId = null;
+                        linkedOwner.UpdatedAt = DateTime.UtcNow;
+                        linkedOwner.UpdatedBy = GetCurrentUserEmail();
+                    }
+                }
+
+                using (var scope = new System.Transactions.TransactionScope(
+                    System.Transactions.TransactionScopeOption.Required,
+                    new System.Transactions.TransactionOptions { IsolationLevel = System.Transactions.IsolationLevel.ReadCommitted },
+                    System.Transactions.TransactionScopeAsyncFlowOption.Enabled))
+                {
+                    await _platformContext.SaveChangesAsync();
+                    await _tenantContext.SaveChangesAsync();
+                    scope.Complete();
+                }
 
                 // Non-blocking Platform Audit Trail logging
                 try
