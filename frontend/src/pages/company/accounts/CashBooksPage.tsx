@@ -8,7 +8,8 @@ import {
   RefreshCw,
   Wallet,
   Eye,
-  PlusCircle
+  PlusCircle,
+  Scale
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import EnterpriseHeader from '../../../components/ui/EnterpriseHeader'
@@ -29,6 +30,8 @@ import { useNotificationStore } from '../../../store/useNotificationStore'
 import { useAuthStore } from '../../../store/useAuthStore'
 import LedgerTabSwitcher from './LedgerTabSwitcher'
 import { AddMoneyModal } from './AddMoneyModal'
+import { SettleCashBookModal } from './SettleCashBookModal'
+import { parseBalance, formatBalanceCurrency, getBalanceColorClass } from '../../../utils/balanceFormat'
 
 const CashBooksPage: React.FC = () => {
   const { showToast } = useNotificationStore()
@@ -51,6 +54,8 @@ const CashBooksPage: React.FC = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [selectedBook, setSelectedBook] = useState<CashBook | null>(null)
   const [isAddMoneyModalOpen, setIsAddMoneyModalOpen] = useState(false)
+  const [isSettleModalOpen, setIsSettleModalOpen] = useState(false)
+  const [bookToSettle, setBookToSettle] = useState<CashBook | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -319,8 +324,10 @@ const CashBooksPage: React.FC = () => {
                     <td className="p-3.5 text-right font-medium text-slate-500">
                       {currency(book.openingBalance)}
                     </td>
-                    <td className="p-3.5 text-right font-bold text-emerald-600">
-                      {currency(book.currentBalance)}
+                    <td className="p-3.5 text-right font-black">
+                      <span className={getBalanceColorClass(book.currentBalance)}>
+                        {formatBalanceCurrency(book.currentBalance)}
+                      </span>
                     </td>
                     <td className="p-3.5 text-center">
                       <EnterpriseBadge variant={book.status === 'Active' ? 'success' : 'gray'}>
@@ -328,7 +335,20 @@ const CashBooksPage: React.FC = () => {
                       </EnterpriseBadge>
                     </td>
                     <td className="p-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {canWrite && parseBalance(book.currentBalance) < 0 && (
+                          <button
+                            onClick={() => {
+                              setBookToSettle(book)
+                              setIsSettleModalOpen(true)
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors shadow-2xs"
+                            title="Settle Negative Deficit"
+                          >
+                            <Scale className="w-3.5 h-3.5 text-amber-600" />
+                            Settle
+                          </button>
+                        )}
                         <button
                           onClick={() => navigate(`/company/accounts/cash-books/${book.id}`)}
                           className="p-1.5 hover:bg-slate-200 rounded text-slate-600 transition-colors"
@@ -513,6 +533,16 @@ const CashBooksPage: React.FC = () => {
           setSelectedBook(null)
         }}
         cashBookId={selectedBook?.id}
+        onSuccess={fetchCashBooks}
+      />
+
+      <SettleCashBookModal
+        isOpen={isSettleModalOpen}
+        onClose={() => {
+          setIsSettleModalOpen(false)
+          setBookToSettle(null)
+        }}
+        targetCashBook={bookToSettle}
         onSuccess={fetchCashBooks}
       />
     </div>

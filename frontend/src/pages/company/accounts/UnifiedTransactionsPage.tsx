@@ -45,6 +45,7 @@ import { useNotificationStore } from '../../../store/useNotificationStore'
 import { useAuthStore } from '../../../store/useAuthStore'
 import { ManageAccountsModal } from './ManageAccountsModal'
 import { AddMoneyModal } from './AddMoneyModal'
+import { formatBalanceCurrency, getBalanceColorClass, parseBalance } from '../../../utils/balanceFormat'
 
 const DATE_PRESETS = [
   { value: 'all', label: 'All Time' },
@@ -405,10 +406,7 @@ export const UnifiedTransactionsPage: React.FC = () => {
 
   // Format currency
   const formatCurrency = (val: number | undefined | null) => {
-    return `₹${Number(val || 0).toLocaleString('en-IN', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    })}`
+    return formatBalanceCurrency(val)
   }
 
   // Format date
@@ -606,8 +604,8 @@ export const UnifiedTransactionsPage: React.FC = () => {
               </div>
             </div>
             <div className="mt-0.5">
-              <h3 className="text-xl font-black text-slate-900 tracking-tight font-mono leading-none">
-                {formatCurrency(summary?.totalBalance)}
+              <h3 className={`text-xl font-black tracking-tight font-mono leading-none ${getBalanceColorClass(summary?.totalBalance)}`}>
+                {formatBalanceCurrency(summary?.totalBalance)}
               </h3>
             </div>
           </div>
@@ -1023,8 +1021,8 @@ export const UnifiedTransactionsPage: React.FC = () => {
 
                         {/* Running Balance */}
                         <td className="py-2 px-3.5 text-right whitespace-nowrap font-mono">
-                          <span className="font-semibold text-slate-800 text-xs">
-                            {formatCurrency(txn.runningBalance)}
+                          <span className={`font-semibold text-xs ${getBalanceColorClass(txn.runningBalance)}`}>
+                            {formatBalanceCurrency(txn.runningBalance)}
                           </span>
                         </td>
 

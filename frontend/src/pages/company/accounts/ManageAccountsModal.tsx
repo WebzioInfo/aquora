@@ -9,7 +9,8 @@ import {
   CheckCircle2,
   XCircle,
   Building2,
-  DollarSign
+  DollarSign,
+  Scale
 } from 'lucide-react'
 import EnterpriseModal from '../../../components/ui/EnterpriseModal'
 import EnterpriseButton from '../../../components/ui/EnterpriseButton'
@@ -26,6 +27,8 @@ import type {
   UpdateCashBookRequest
 } from '../../../services/simpleAccounts'
 import { useNotificationStore } from '../../../store/useNotificationStore'
+import { SettleCashBookModal } from './SettleCashBookModal'
+import { parseBalance, formatBalanceCurrency, getBalanceColorClass } from '../../../utils/balanceFormat'
 
 interface ManageAccountsModalProps {
   isOpen: boolean
@@ -76,6 +79,8 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
   // Delete State
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [deletingItem, setDeletingItem] = useState<{ type: 'bank' | 'cash', id: string, name: string } | null>(null)
+  const [isSettleOpen, setIsSettleOpen] = useState(false)
+  const [settleTargetBook, setSettleTargetBook] = useState<CashBook | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -335,8 +340,8 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                     <div className="flex items-center justify-between md:justify-end gap-4 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
                       <div className="text-right">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Current Balance</span>
-                        <span className="font-bold text-sm text-slate-900">
-                          ₹{Number(account.currentBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        <span className={`font-bold text-sm ${getBalanceColorClass(account.currentBalance)}`}>
+                          {formatBalanceCurrency(account.currentBalance)}
                         </span>
                       </div>
 
@@ -412,18 +417,32 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                     <div className="flex items-center justify-between md:justify-end gap-4 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
                       <div className="text-right">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Current Balance</span>
-                        <span className="font-bold text-sm text-slate-900">
-                          ₹{Number(book.currentBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        <span className={`font-bold text-sm ${getBalanceColorClass(book.currentBalance)}`}>
+                          {formatBalanceCurrency(book.currentBalance)}
                         </span>
                       </div>
 
                       {canWrite && (
                         <div className="flex items-center gap-1.5">
+                          {parseBalance(book.currentBalance) < 0 && (
+                            <button
+                              type="button"
+                              title="Settle Negative Balance"
+                              onClick={() => {
+                                setSettleTargetBook(book)
+                                setIsSettleOpen(true)
+                              }}
+                              className="px-2.5 py-1 text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg transition-colors flex items-center gap-1 shadow-2xs shrink-0 cursor-pointer"
+                            >
+                              <Scale className="w-3.5 h-3.5 text-amber-600" />
+                              Settle
+                            </button>
+                          )}
                           <button
                             type="button"
                             title="Add Cash"
                             onClick={() => onOpenAddMoney('cash', book.id)}
-                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
                           >
                             <DollarSign className="w-4 h-4" />
                           </button>
@@ -431,7 +450,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                             type="button"
                             title="Edit Cash Book"
                             onClick={() => handleOpenEditCash(book)}
-                            className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors"
+                            className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                           >
                             <PenSquare className="w-4 h-4" />
                           </button>
@@ -442,7 +461,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                               setDeletingItem({ type: 'cash', id: book.id, name: book.name })
                               setIsDeleteOpen(true)
                             }}
-                            className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -649,6 +668,19 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
           </div>
         </EnterpriseModal>
       )}
+
+      {/* Settle Negative Cash Balance Modal */}
+      <SettleCashBookModal
+        isOpen={isSettleOpen}
+        onClose={() => {
+          setIsSettleOpen(false)
+          setSettleTargetBook(null)
+        }}
+        targetCashBook={settleTargetBook}
+        onSuccess={() => {
+          onRefresh()
+        }}
+      />
     </>
   )
 }

@@ -203,6 +203,16 @@ export interface CashBookDropdown {
   currentBalance: number
 }
 
+export interface SettleCashBookRequest {
+  amount: number
+  settlementVia: 'Cash' | 'Bank'
+  sourceCashBookId?: string
+  sourceBankAccountId?: string
+  date: string
+  referenceNo?: string
+  description?: string
+}
+
 export interface PagedCashBooksResponse {
   items: CashBook[]
   totalCount: number
@@ -465,6 +475,11 @@ export const simpleAccountsService = {
   deleteCashBook: async (id: string) => {
     const res = await api.delete(`/api/v1/cash-books/${id}`)
     return res.data
+  },
+
+  settleCashBook: async (id: string, request: SettleCashBookRequest) => {
+    const res = await api.post<{ data: string }>(`/api/v1/cash-books/${id}/settle`, request)
+    return res.data.data
   },
 
   // Owners

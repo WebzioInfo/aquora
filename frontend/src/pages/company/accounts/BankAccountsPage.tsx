@@ -33,6 +33,7 @@ import { useNotificationStore } from '../../../store/useNotificationStore'
 import { useAuthStore } from '../../../store/useAuthStore'
 import LedgerTabSwitcher from './LedgerTabSwitcher'
 import { AddMoneyModal } from './AddMoneyModal'
+import { parseBalance, formatBalanceCurrency, getBalanceColorClass } from '../../../utils/balanceFormat'
 
 const BankAccountsPage: React.FC = () => {
   const { showToast } = useNotificationStore()
@@ -345,7 +346,9 @@ const BankAccountsPage: React.FC = () => {
                     <td className="p-3.5 font-mono text-slate-600">{account.accountNumber}</td>
                     <td className="p-3.5 font-mono text-slate-500">{account.ifscCode}</td>
                     <td className="p-3.5 text-right font-medium text-slate-500">₹{account.openingBalance.toLocaleString('en-IN')}</td>
-                    <td className="p-3.5 text-right font-bold text-emerald-600">₹{account.currentBalance.toLocaleString('en-IN')}</td>
+                    <td className={`p-3.5 text-right font-bold ${getBalanceColorClass(account.currentBalance)}`}>
+                      {formatBalanceCurrency(account.currentBalance)}
+                    </td>
                     <td className="p-3.5 text-center">
                       <EnterpriseBadge variant={account.status === 'Active' ? 'success' : 'gray'}>
                         {account.status}

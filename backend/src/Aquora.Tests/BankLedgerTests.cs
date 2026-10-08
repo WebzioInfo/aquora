@@ -347,5 +347,121 @@ namespace Aquora.Tests
             Assert.Equal(700m, dbEntriesAfter[1].RunningBalance); // Backdated transaction
             Assert.Equal(400m, dbEntriesAfter[2].RunningBalance); // Downstream entry recalculated
         }
+
+        [Fact]
+        public async Task Test_SettleCashBook_Partial_And_Full_Settlement()
+        {
+            var tenantId = Guid.NewGuid();
+            var options = new DbContextOptionsBuilder<TenantDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning))
+                .Options;
+
+            var mockTenantProvider = new Mock<ITenantProvider>();
+            mockTenantProvider.Setup(x => x.TenantId).Returns(tenantId);
+            mockTenantProvider.Setup(x => x.TenantSchemaName).Returns("public");
+
+            var mockCurrentUserContext = new Mock<ICurrentUserContext>();
+            mockCurrentUserContext.Setup(x => x.UserId).Returns("test-user");
+
+            var mockDateTimeProvider = new Mock<IDateTimeProvider>();
+            mockDateTimeProvider.Setup(x => x.UtcNow).Returns(DateTime.UtcNow);
+
+            var mockPlatformContext = new Mock<IPlatformDbContext>();
+
+            using var context = new TenantDbContext(options, mockTenantProvider.Object, mockCurrentUserContext.Object, mockDateTimeProvider.Object);
+
+            var service = new Aquora.Application.Services.BankLedgerService(
+                context,
+                mockPlatformContext.Object,
+                mockTenantProvider.Object,
+                mockCurrentUserContext.Object
+            );
+
+            // 1. Create Target Cashbook with negative balance
+            var targetCashBook = new CashBook
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                Name = "Target Deficit Cashbook",
+                OpeningBalance = 0m,
+                CurrentBalance = -5000m
+            };
+
+            var deficitEntry = new BankLedgerEntry
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CashBookId = targetCashBook.Id,
+                LedgerAccountType = "CashBook",
+                TransactionType = "Expense",
+                Debit = 5000m,
+                Credit = 0m,
+                RunningBalance = -5000m,
+                CreatedAt = DateTime.UtcNow.AddHours(-1)
+            };
+
+            // 2. Create Source Cashbook with positive balance
+            var sourceCashBook = new CashBook
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                Name = "Main Vault Cash",
+                OpeningBalance = 10000m,
+                CurrentBalance = 10000m
+            };
+
+            context.CashBooks.AddRange(targetCashBook, sourceCashBook);
+            context.BankLedgerEntries.Add(deficitEntry);
+            await context.SaveChangesAsync();
+
+            // 3. Test Partial Settlement of 2000
+            var settle1Req = new Aquora.Application.DTOs.SimpleAccounts.SettleCashBookRequest
+            {
+                Amount = 2000m,
+                SettlementVia = "Cash",
+                SourceCashBookId = sourceCashBook.Id,
+                Date = DateTime.UtcNow,
+                ReferenceNo = "SETTLE-TEST-01"
+            };
+
+            var settle1Id = await service.SettleCashBookAsync(targetCashBook.Id, settle1Req);
+            Assert.NotEqual(Guid.Empty, settle1Id);
+
+            var updatedTarget1 = await context.CashBooks.FindAsync(targetCashBook.Id);
+            var updatedSource1 = await context.CashBooks.FindAsync(sourceCashBook.Id);
+
+            Assert.Equal(-3000m, updatedTarget1.CurrentBalance);
+            Assert.Equal(8000m, updatedSource1.CurrentBalance);
+
+            // 4. Test Full Settlement of remaining 3000
+            var settle2Req = new Aquora.Application.DTOs.SimpleAccounts.SettleCashBookRequest
+            {
+                Amount = 3000m,
+                SettlementVia = "Cash",
+                SourceCashBookId = sourceCashBook.Id,
+                Date = DateTime.UtcNow,
+                ReferenceNo = "SETTLE-TEST-02"
+            };
+
+            var settle2Id = await service.SettleCashBookAsync(targetCashBook.Id, settle2Req);
+            Assert.NotEqual(Guid.Empty, settle2Id);
+
+            var updatedTarget2 = await context.CashBooks.FindAsync(targetCashBook.Id);
+            var updatedSource2 = await context.CashBooks.FindAsync(sourceCashBook.Id);
+
+            Assert.Equal(0m, updatedTarget2.CurrentBalance);
+            Assert.Equal(5000m, updatedSource2.CurrentBalance);
+
+            // 5. Test Invalid Operation: attempting to settle when balance is 0
+            var settleZeroReq = new Aquora.Application.DTOs.SimpleAccounts.SettleCashBookRequest
+            {
+                Amount = 100m,
+                SettlementVia = "Cash",
+                SourceCashBookId = sourceCashBook.Id,
+                Date = DateTime.UtcNow
+            };
+            await Assert.ThrowsAsync<InvalidOperationException>(() => service.SettleCashBookAsync(targetCashBook.Id, settleZeroReq));
+        }
     }
 }

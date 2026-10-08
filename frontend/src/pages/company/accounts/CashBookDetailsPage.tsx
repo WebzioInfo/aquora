@@ -18,12 +18,15 @@ import {
   PlusCircle,
   Printer,
   Download,
-  RotateCcw
+  RotateCcw,
+  Scale
 } from 'lucide-react'
 import { simpleAccountsService } from '../../../services/simpleAccounts'
 import { getTransactionEventBadge } from '../../../utils/transactionBadge'
 import { AddMoneyModal } from './AddMoneyModal'
+import { SettleCashBookModal } from './SettleCashBookModal'
 import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
+import { formatBalanceCurrency, getBalanceColorClass, parseBalance } from '../../../utils/balanceFormat'
 import type {
   CashBook,
   BankSummary,
@@ -104,6 +107,7 @@ const CashBookDetailsPage: React.FC = () => {
 
   // Deposit Modal States
   const [isAddMoneyOpen, setIsAddMoneyOpen] = useState(false)
+  const [isSettleOpen, setIsSettleOpen] = useState(false)
   const [isEditDepositOpen, setIsEditDepositOpen] = useState(false)
   const [selectedDepositEntry, setSelectedDepositEntry] = useState<any | null>(null)
   const [isDeleteDepositOpen, setIsDeleteDepositOpen] = useState(false)
@@ -435,6 +439,14 @@ const CashBookDetailsPage: React.FC = () => {
       )
     }
 
+    if (relType.toLowerCase() === 'cashbooksettlement' || type.toLowerCase().includes('settlement') || desc.includes('settlement')) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-200">
+          Settlement
+        </span>
+      )
+    }
+
     if (relType.toLowerCase() === 'purchase' || type.toLowerCase().includes('purchase')) {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200">
@@ -578,10 +590,19 @@ const CashBookDetailsPage: React.FC = () => {
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <div className="text-right px-3.5 py-1.5 bg-slate-50 rounded-lg border border-slate-200 shadow-2xs">
               <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Current Balance</p>
-              <p className="text-lg font-bold text-slate-900">
-                {formatCurrency(cashBook.currentBalance)}
+              <p className={`text-lg font-bold ${getBalanceColorClass(cashBook.currentBalance)}`}>
+                {formatBalanceCurrency(cashBook.currentBalance)}
               </p>
             </div>
+            {parseBalance(cashBook.currentBalance) < 0 && (isAdmin || isManager) && (
+              <EnterpriseButton
+                variant="secondary"
+                onClick={() => setIsSettleOpen(true)}
+                className="gap-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300 font-semibold shrink-0 shadow-2xs"
+              >
+                <Scale className="w-4 h-4 text-amber-600" /> Settle Balance
+              </EnterpriseButton>
+            )}
             <EnterpriseButton
               variant="primary"
               onClick={() => setIsAddMoneyOpen(true)}
@@ -1192,6 +1213,16 @@ const CashBookDetailsPage: React.FC = () => {
           </div>
         </EnterpriseModal>
       )}
+
+      <SettleCashBookModal
+        isOpen={isSettleOpen}
+        onClose={() => setIsSettleOpen(false)}
+        targetCashBook={cashBook}
+        onSuccess={() => {
+          fetchData()
+          fetchLedger()
+        }}
+      />
     </PageContainer>
   )
 }

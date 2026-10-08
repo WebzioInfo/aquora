@@ -43,6 +43,7 @@ import EnterpriseInput from '../../../components/ui/EnterpriseInput'
 import EnterpriseNumberInput from '../../../components/ui/EnterpriseNumberInput'
 import EnterpriseSelect from '../../../components/ui/EnterpriseSelect'
 import { PageContainer, PageHeader, KPICard, SectionCard } from '../../../components/ui/layout'
+import { formatBalanceCurrency, getBalanceColorClass } from '../../../utils/balanceFormat'
 
 
 const EXPENSE_CATEGORIES = [
@@ -601,8 +602,8 @@ export const BankAccountDetailsPage: React.FC = () => {
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <div className="text-right px-3.5 py-1.5 bg-slate-50 rounded-lg border border-slate-200 shadow-2xs">
               <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Current Balance</p>
-              <p className="text-lg font-bold text-slate-900">
-                {formatCurrency(bankAccount.currentBalance)}
+              <p className={`text-lg font-bold ${getBalanceColorClass(bankAccount.currentBalance)}`}>
+                {formatBalanceCurrency(bankAccount.currentBalance)}
               </p>
             </div>
             <EnterpriseButton

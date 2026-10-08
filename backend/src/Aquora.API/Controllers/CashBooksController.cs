@@ -186,5 +186,36 @@ namespace Aquora.API.Controllers
                 return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Error", HttpContext.TraceIdentifier));
             }
         }
+
+        [HttpPost("{id:guid}/settle")]
+        public async Task<IActionResult> SettleCashBook(Guid id, [FromBody] SettleCashBookRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure("Invalid model state.", "Validation Error", HttpContext.TraceIdentifier));
+            }
+
+            try
+            {
+                var settlementId = await _ledgerService.SettleCashBookAsync(id, request);
+                return Ok(ApiResponse<Guid>.CreateSuccess(settlementId, "Cashbook balance settled successfully."));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Validation Error", HttpContext.TraceIdentifier));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Validation Error", HttpContext.TraceIdentifier));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<object>.CreateFailure(ex.Message, "Not Found", HttpContext.TraceIdentifier));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Error", HttpContext.TraceIdentifier));
+            }
+        }
     }
 }

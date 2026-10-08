@@ -129,6 +129,7 @@ namespace Aquora.Application.Services
             if (cat.Equals("Purchase Payment", StringComparison.OrdinalIgnoreCase) || cat.Equals("Supplier Payment", StringComparison.OrdinalIgnoreCase)) return "Purchase Payment";
             if (cat.Equals("Customer Receipt", StringComparison.OrdinalIgnoreCase) || cat.Equals("Sales Payment", StringComparison.OrdinalIgnoreCase)) return "Customer Receipt";
             if (cat.Equals("Transfer", StringComparison.OrdinalIgnoreCase)) return "Transfer Between Accounts";
+            if (cat.Equals("Cashbook Settlement", StringComparison.OrdinalIgnoreCase)) return "Cashbook Settlement";
             if (cat.Equals("Opening Balance", StringComparison.OrdinalIgnoreCase)) return "Opening Balance Added";
 
             return cat;
@@ -1970,6 +1971,201 @@ namespace Aquora.Application.Services
                 PageSize = pageSize,
                 TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
             };
+        }
+
+        public async Task<Guid> SettleCashBookAsync(Guid targetCashBookId, SettleCashBookRequest request)
+        {
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
+
+            if (request.Amount <= 0)
+                throw new ArgumentException("Settlement amount must be greater than zero.");
+
+            var tenantId = GetTenantId();
+            var companyId = await GetCompanyIdAsync();
+
+            var targetCashBook = await _context.CashBooks
+                .FirstOrDefaultAsync(b => b.Id == targetCashBookId && b.TenantId == tenantId && !b.IsDeleted);
+
+            if (targetCashBook == null)
+                throw new KeyNotFoundException("Target cash book not found or access denied.");
+
+            if (targetCashBook.CurrentBalance >= 0)
+                throw new InvalidOperationException("Only cash books with a negative balance can be settled.");
+
+            var maxSettlementAmount = Math.Abs(targetCashBook.CurrentBalance);
+            if (request.Amount > maxSettlementAmount)
+                throw new ArgumentException($"Settlement amount (₹{request.Amount:N2}) cannot exceed the outstanding negative balance of ₹{maxSettlementAmount:N2}.");
+
+            var isCash = request.SettlementVia.Equals("Cash", StringComparison.OrdinalIgnoreCase);
+            var isBank = request.SettlementVia.Equals("Bank", StringComparison.OrdinalIgnoreCase);
+
+            if (!isCash && !isBank)
+                throw new ArgumentException("Settlement mode must be either 'Cash' or 'Bank'.");
+
+            CashBook? sourceCashBook = null;
+            BankAccount? sourceBankAccount = null;
+
+            if (isCash)
+            {
+                if (!request.SourceCashBookId.HasValue || request.SourceCashBookId.Value == Guid.Empty)
+                    throw new ArgumentException("Source cash book must be selected for Cash settlement.");
+
+                if (request.SourceCashBookId.Value == targetCashBookId)
+                    throw new ArgumentException("Source cash book cannot be the same as the target cash book being settled.");
+
+                sourceCashBook = await _context.CashBooks
+                    .FirstOrDefaultAsync(b => b.Id == request.SourceCashBookId.Value && b.TenantId == tenantId && !b.IsDeleted);
+
+                if (sourceCashBook == null)
+                    throw new KeyNotFoundException("Source cash book not found or access denied.");
+            }
+            else
+            {
+                if (!request.SourceBankAccountId.HasValue || request.SourceBankAccountId.Value == Guid.Empty)
+                    throw new ArgumentException("Source bank account must be selected for Bank settlement.");
+
+                sourceBankAccount = await _context.BankAccounts
+                    .FirstOrDefaultAsync(b => b.Id == request.SourceBankAccountId.Value && b.TenantId == tenantId && !b.IsDeleted);
+
+                if (sourceBankAccount == null)
+                    throw new KeyNotFoundException("Source bank account not found or access denied.");
+            }
+
+            var settlementId = Guid.NewGuid();
+            var utcDate = EnsureUtc(request.Date);
+            var sourceName = isCash ? sourceCashBook!.Name : $"{sourceBankAccount!.BankName} ({sourceBankAccount.AccountNumber})";
+            var refNo = request.ReferenceNo ?? "";
+
+            var targetDesc = string.IsNullOrWhiteSpace(request.Description)
+                ? $"Settlement received from {sourceName}"
+                : $"Settlement received from {sourceName} - {request.Description.Trim()}";
+
+            var sourceDesc = string.IsNullOrWhiteSpace(request.Description)
+                ? $"Settlement paid to {targetCashBook.Name}"
+                : $"Settlement paid to {targetCashBook.Name} - {request.Description.Trim()}";
+
+            async Task<Guid> executeBodyAsync()
+            {
+                // 1. Credit Target Cash Book (Money coming in to settle deficit)
+                var targetEntry = new BankLedgerEntry
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    CompanyId = companyId,
+                    BankAccountId = null,
+                    CashBookId = targetCashBook.Id,
+                    LedgerAccountType = "CashBook",
+                    TransactionDate = utcDate,
+                    ReferenceNumber = refNo,
+                    TransactionType = "Cashbook Settlement",
+                    EventType = "CREATED",
+                    EventLabel = "Cashbook Settlement",
+                    Description = targetDesc,
+                    Debit = 0m,
+                    Credit = request.Amount,
+                    RunningBalance = 0m,
+                    RelatedEntityId = settlementId,
+                    RelatedEntityType = "CashBookSettlement",
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = _currentUserContext.UserId ?? "System"
+                };
+                _context.BankLedgerEntries.Add(targetEntry);
+
+                var targetAudit = new BankLedgerAuditEntry
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    CompanyId = companyId,
+                    BankLedgerEntryId = targetEntry.Id,
+                    Action = "Created",
+                    OldAmount = 0m,
+                    NewAmount = request.Amount,
+                    Remarks = $"Cashbook settlement credit received from {sourceName}.",
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = _currentUserContext.UserId ?? "System"
+                };
+                _context.BankLedgerAuditEntries.Add(targetAudit);
+
+                // 2. Debit Source Account (Money going out to fund settlement)
+                var sourceEntry = new BankLedgerEntry
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    CompanyId = companyId,
+                    BankAccountId = isCash ? null : sourceBankAccount!.Id,
+                    CashBookId = isCash ? sourceCashBook!.Id : null,
+                    LedgerAccountType = isCash ? "CashBook" : "BankAccount",
+                    TransactionDate = utcDate,
+                    ReferenceNumber = refNo,
+                    TransactionType = "Cashbook Settlement",
+                    EventType = "CREATED",
+                    EventLabel = "Cashbook Settlement",
+                    Description = sourceDesc,
+                    Debit = request.Amount,
+                    Credit = 0m,
+                    RunningBalance = 0m,
+                    RelatedEntityId = settlementId,
+                    RelatedEntityType = "CashBookSettlement",
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = _currentUserContext.UserId ?? "System"
+                };
+                _context.BankLedgerEntries.Add(sourceEntry);
+
+                var sourceAudit = new BankLedgerAuditEntry
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    CompanyId = companyId,
+                    BankLedgerEntryId = sourceEntry.Id,
+                    Action = "Created",
+                    OldAmount = 0m,
+                    NewAmount = request.Amount,
+                    Remarks = $"Cashbook settlement debit paid to {targetCashBook.Name}.",
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = _currentUserContext.UserId ?? "System"
+                };
+                _context.BankLedgerAuditEntries.Add(sourceAudit);
+
+                await _context.SaveChangesAsync();
+
+                // 3. Recalculate ledger balances for both accounts
+                await RecalculateCashBookLedgerBalancesAsync(targetCashBook.Id);
+                if (isCash)
+                {
+                    await RecalculateCashBookLedgerBalancesAsync(sourceCashBook!.Id);
+                }
+                else
+                {
+                    await RecalculateBankLedgerBalancesAsync(sourceBankAccount!.Id);
+                }
+
+                return settlementId;
+            }
+
+            if (_context.Database.CurrentTransaction != null)
+            {
+                return await executeBodyAsync();
+            }
+            else
+            {
+                var strategy = _context.Database.CreateExecutionStrategy();
+                return await strategy.ExecuteAsync(async () =>
+                {
+                    using var dbTxn = await _context.Database.BeginTransactionAsync();
+                    try
+                    {
+                        var res = await executeBodyAsync();
+                        await dbTxn.CommitAsync();
+                        return res;
+                    }
+                    catch
+                    {
+                        await dbTxn.RollbackAsync();
+                        throw;
+                    }
+                });
+            }
         }
     }
 }

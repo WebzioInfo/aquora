@@ -32,5 +32,6 @@ namespace Aquora.Application.Interfaces.Services
         Task<PagedResult<UnifiedLedgerEntryDto>> GetUnifiedLedgerAsync(UnifiedLedgerFilterDto filter);
         Task<UnifiedLedgerSummaryDto> GetUnifiedLedgerSummaryAsync(UnifiedLedgerFilterDto filter);
         Task<AccountsMetadataDto> GetAccountsMetadataAsync();
+        Task<Guid> SettleCashBookAsync(Guid targetCashBookId, SettleCashBookRequest request);
     }
 }
