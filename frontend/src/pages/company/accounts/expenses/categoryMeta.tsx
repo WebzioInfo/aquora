@@ -159,6 +159,70 @@ export const KNOWN_PALETTE: Record<string, PaletteEntry> = {
     darkBg: 'rgba(236, 72, 153, 0.2)',
     darkText: '#F9A8D4',
     icon: Megaphone
+  },
+  rawmaterial: {
+    dot: '#EAB308',
+    bg: '#FEF9C3',
+    text: '#854D0E',
+    darkBg: 'rgba(234, 179, 8, 0.2)',
+    darkText: '#FDE047',
+    icon: ShoppingBag
+  },
+  machine: {
+    dot: '#3B82F6',
+    bg: '#DBEAFE',
+    text: '#1E40AF',
+    darkBg: 'rgba(59, 130, 246, 0.2)',
+    darkText: '#93C5FD',
+    icon: Wrench
+  },
+  officeasset: {
+    dot: '#8B5CF6',
+    bg: '#EDE9FE',
+    text: '#5B21B6',
+    darkBg: 'rgba(139, 92, 246, 0.2)',
+    darkText: '#C4B5FD',
+    icon: Building2
+  },
+  officeexpense: {
+    dot: '#8B5CF6',
+    bg: '#EDE9FE',
+    text: '#5B21B6',
+    darkBg: 'rgba(139, 92, 246, 0.2)',
+    darkText: '#C4B5FD',
+    icon: Building2
+  },
+  service: {
+    dot: '#10B981',
+    bg: '#D1FAE5',
+    text: '#065F46',
+    darkBg: 'rgba(16, 185, 129, 0.2)',
+    darkText: '#6EE7B7',
+    icon: Briefcase
+  },
+  utility: {
+    dot: '#14B8A6',
+    bg: '#CCFBF1',
+    text: '#115E59',
+    darkBg: 'rgba(20, 184, 166, 0.2)',
+    darkText: '#5EEAD4',
+    icon: Zap
+  },
+  software: {
+    dot: '#6366F1',
+    bg: '#E0E7FF',
+    text: '#3730A3',
+    darkBg: 'rgba(99, 102, 241, 0.2)',
+    darkText: '#A5B4FC',
+    icon: Tag
+  },
+  other: {
+    dot: '#64748B',
+    bg: '#F1F5F9',
+    text: '#334155',
+    darkBg: 'rgba(100, 116, 139, 0.2)',
+    darkText: '#CBD5E1',
+    icon: Tag
   }
 }
 
@@ -205,9 +269,23 @@ Object.values(KNOWN_PALETTE).forEach(p => usedDotColors.add(p.dot))
  * ONE single source of truth returning { dot, bg, text, darkBg, darkText, icon } for a category name.
  * Case-insensitive, trimmed, deterministic, with collision detection.
  */
+const FRIENDLY_PURCHASE_LABELS: Record<string, string> = {
+  rawmaterial: 'Raw Material',
+  machine: 'Machine / Equipment',
+  officeasset: 'Office Asset',
+  officeexpense: 'Office Expense',
+  service: 'Service / Consulting',
+  maintenance: 'Maintenance & Repair',
+  utility: 'Utility Bills',
+  software: 'Software & Subscriptions',
+  vehicle: 'Vehicle & Fuel',
+  other: 'Other Category'
+}
+
 export function getCategoryMeta(categoryName?: string): CategoryMeta {
   const trimmed = categoryName?.trim() || 'Miscellaneous'
   const key = trimmed.toLowerCase()
+  const displayLabel = FRIENDLY_PURCHASE_LABELS[key] || trimmed
 
   if (assignedCategoryMap.has(key)) {
     return assignedCategoryMap.get(key)!
@@ -216,7 +294,7 @@ export function getCategoryMeta(categoryName?: string): CategoryMeta {
   // Known categories
   if (KNOWN_PALETTE[key]) {
     const meta: CategoryMeta = {
-      label: trimmed,
+      label: displayLabel,
       ...KNOWN_PALETTE[key]
     }
     assignedCategoryMap.set(key, meta)

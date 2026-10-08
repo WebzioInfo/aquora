@@ -247,14 +247,50 @@ namespace Aquora.Application.Services
                 throw new ArgumentException("Purchase Category is required.");
             }
 
-            var treatment = await ResolveCategoryTreatmentAsync(request.PurchaseCategory);
+            var categoryConfig = await ResolveCategoryConfigAsync(request.PurchaseCategory);
+            var treatment = categoryConfig.Treatment;
+
+            // Category requirement validations
+            if (categoryConfig.RequireVendor && (!request.VendorId.HasValue || request.VendorId.Value == Guid.Empty) && string.IsNullOrWhiteSpace(request.VendorName))
+            {
+                throw new ArgumentException("Vendor is required for this purchase category.");
+            }
+
+            if (categoryConfig.RequireInvoiceNumber && string.IsNullOrWhiteSpace(request.InvoiceNumber))
+            {
+                throw new ArgumentException("Invoice Number is required for this purchase category.");
+            }
 
             if (treatment == "Inventory" && (request.Items == null || !request.Items.Any(i => i.Quantity > 0)))
             {
                 throw new ArgumentException("Please add at least one purchase item for inventory purchases.");
             }
 
-            if (request.GrandTotal < 0)
+            if (categoryConfig.RequireAssetDetails && string.IsNullOrWhiteSpace(request.CategoryMetadataJson))
+            {
+                throw new ArgumentException("Asset details are required for this category.");
+            }
+
+            // Centralized calculation engine
+            var effectiveSubTotal = request.SubTotal > 0 
+                ? request.SubTotal 
+                : (request.GrandTotal > 0 ? request.GrandTotal : 0m);
+
+            var calc = CalculatePurchaseTotals(
+                subTotal: effectiveSubTotal,
+                discountAmount: request.DiscountAmount,
+                otherCharges: request.OtherCharges,
+                taxMode: request.TaxMode,
+                gstRate: request.GSTRate,
+                isInclusiveTax: request.IsInclusiveTax,
+                isGstOverridden: request.IsGstOverridden,
+                manualTaxAmount: request.TaxAmount,
+                isInterState: request.IsInterState,
+                amountPaid: request.AmountPaid,
+                paymentMethod: request.PaymentMethod
+            );
+
+            if (calc.GrandTotal < 0)
             {
                 throw new ArgumentException("Grand Total cannot be negative.");
             }
@@ -293,14 +329,10 @@ namespace Aquora.Application.Services
             }
 
             var purchaseNo = await GeneratePurchaseNumberAsync();
-            var grandTotal = Math.Round(request.GrandTotal, 2);
-            var amountPaid = Math.Round(request.AmountPaid, 2);
-            if (amountPaid > grandTotal) amountPaid = grandTotal;
-            var balanceAmount = Math.Round(grandTotal - amountPaid, 2);
-
-            string status = "Unpaid";
-            if (amountPaid >= grandTotal && grandTotal > 0) status = "Paid";
-            else if (amountPaid > 0) status = "PartiallyPaid";
+            var grandTotal = calc.GrandTotal;
+            var amountPaid = calc.AmountPaid;
+            var balanceAmount = calc.BalanceAmount;
+            var status = calc.PaymentStatus;
 
             var purchase = new Purchase
             {
@@ -311,16 +343,25 @@ namespace Aquora.Application.Services
                 PurchaseDate = request.PurchaseDate.ToUniversalTime(),
                 VendorId = vendorId,
                 VendorName = vendorName,
-                PurchaseCategory = request.PurchaseCategory,
+                PurchaseCategory = categoryConfig.Code,
                 InvoiceNumber = request.InvoiceNumber?.Trim(),
                 ReferenceNumber = request.ReferenceNumber?.Trim(),
                 PaymentMethod = request.PaymentMethod,
                 BankAccountId = request.PaymentMethod == "BankAccount" ? request.BankAccountId : null,
                 CashBookId = request.PaymentMethod == "Cash" ? request.CashBookId : null,
-                SubTotal = request.SubTotal,
-                TaxAmount = request.TaxAmount,
-                DiscountAmount = request.DiscountAmount,
-                OtherCharges = request.OtherCharges,
+                SubTotal = calc.SubTotal,
+                TaxAmount = calc.FinalGst,
+                DiscountAmount = calc.DiscountAmount,
+                OtherCharges = calc.OtherCharges,
+                TaxMode = calc.TaxMode,
+                GSTRate = calc.GSTRate,
+                TaxableAmount = calc.TaxableAmount,
+                CGSTAmount = calc.CGSTAmount,
+                SGSTAmount = calc.SGSTAmount,
+                IGSTAmount = calc.IGSTAmount,
+                IsGstOverridden = calc.IsGstOverridden,
+                IsInclusiveTax = calc.IsInclusiveTax,
+                IsInterState = request.IsInterState,
                 GrandTotal = grandTotal,
                 AmountPaid = amountPaid,
                 BalanceAmount = balanceAmount,
@@ -550,14 +591,45 @@ namespace Aquora.Application.Services
                 throw new ArgumentException("Please choose a purchase category.");
             }
 
-            var treatment = await ResolveCategoryTreatmentAsync(request.PurchaseCategory);
+            var categoryConfig = await ResolveCategoryConfigAsync(request.PurchaseCategory);
+            var treatment = categoryConfig.Treatment;
+
+            // Category requirement validations
+            if (categoryConfig.RequireInvoiceNumber && string.IsNullOrWhiteSpace(request.InvoiceNumber))
+            {
+                throw new ArgumentException("Invoice Number is required for this purchase category.");
+            }
 
             if (treatment == "Inventory" && (request.Items == null || !request.Items.Any(i => i.Quantity > 0)))
             {
                 throw new ArgumentException("Please add at least one purchase item for inventory purchases.");
             }
 
-            if (request.GrandTotal <= 0)
+            if (categoryConfig.RequireAssetDetails && string.IsNullOrWhiteSpace(request.CategoryMetadataJson))
+            {
+                throw new ArgumentException("Asset details are required for this category.");
+            }
+
+            // Centralized calculation engine
+            var effectiveSubTotal = request.SubTotal > 0 
+                ? request.SubTotal 
+                : (request.GrandTotal > 0 ? request.GrandTotal : 0m);
+
+            var calc = CalculatePurchaseTotals(
+                subTotal: effectiveSubTotal,
+                discountAmount: request.DiscountAmount,
+                otherCharges: request.OtherCharges,
+                taxMode: request.TaxMode,
+                gstRate: request.GSTRate,
+                isInclusiveTax: request.IsInclusiveTax,
+                isGstOverridden: request.IsGstOverridden,
+                manualTaxAmount: request.TaxAmount,
+                isInterState: request.IsInterState,
+                amountPaid: request.AmountPaid,
+                paymentMethod: request.PaymentMethod
+            );
+
+            if (calc.GrandTotal <= 0 && calc.SubTotal <= 0)
             {
                 throw new ArgumentException("Please enter a valid purchase amount.");
             }
@@ -592,16 +664,12 @@ namespace Aquora.Application.Services
             var oldCashBookId = purchase.CashBookId;
             var oldGrandTotal = purchase.GrandTotal;
 
-            var newGrandTotal = Math.Round(request.GrandTotal, 2);
+            var newGrandTotal = calc.GrandTotal;
             if (purchase.AssetId.HasValue && newGrandTotal != oldGrandTotal)
                 throw new ArgumentException("This purchase is linked to a registered asset. Its acquisition amount cannot be overwritten through purchase editing.");
-            var newAmountPaid = Math.Round(request.AmountPaid, 2);
-            if (newAmountPaid > newGrandTotal) newAmountPaid = newGrandTotal;
-            var newBalanceAmount = Math.Round(newGrandTotal - newAmountPaid, 2);
-
-            string newStatus = "Unpaid";
-            if (newAmountPaid >= newGrandTotal && newGrandTotal > 0) newStatus = "Paid";
-            else if (newAmountPaid > 0) newStatus = "PartiallyPaid";
+            var newAmountPaid = calc.AmountPaid;
+            var newBalanceAmount = calc.BalanceAmount;
+            var newStatus = calc.PaymentStatus;
 
             purchase.PurchaseDate = request.PurchaseDate.ToUniversalTime();
             if (request.VendorId.HasValue && request.VendorId.Value != Guid.Empty)
@@ -617,16 +685,25 @@ namespace Aquora.Application.Services
                 purchase.VendorName = request.VendorName;
             }
 
-            purchase.PurchaseCategory = request.PurchaseCategory;
+            purchase.PurchaseCategory = categoryConfig.Code;
             purchase.InvoiceNumber = request.InvoiceNumber?.Trim();
             purchase.ReferenceNumber = request.ReferenceNumber?.Trim();
             purchase.PaymentMethod = request.PaymentMethod;
             purchase.BankAccountId = request.PaymentMethod == "BankAccount" ? request.BankAccountId : null;
             purchase.CashBookId = request.PaymentMethod == "Cash" ? request.CashBookId : null;
-            purchase.SubTotal = request.SubTotal;
-            purchase.TaxAmount = request.TaxAmount;
-            purchase.DiscountAmount = request.DiscountAmount;
-            purchase.OtherCharges = request.OtherCharges;
+            purchase.SubTotal = calc.SubTotal;
+            purchase.TaxAmount = calc.FinalGst;
+            purchase.DiscountAmount = calc.DiscountAmount;
+            purchase.OtherCharges = calc.OtherCharges;
+            purchase.TaxMode = calc.TaxMode;
+            purchase.GSTRate = calc.GSTRate;
+            purchase.TaxableAmount = calc.TaxableAmount;
+            purchase.CGSTAmount = calc.CGSTAmount;
+            purchase.SGSTAmount = calc.SGSTAmount;
+            purchase.IGSTAmount = calc.IGSTAmount;
+            purchase.IsGstOverridden = calc.IsGstOverridden;
+            purchase.IsInclusiveTax = calc.IsInclusiveTax;
+            purchase.IsInterState = request.IsInterState;
             purchase.GrandTotal = newGrandTotal;
             purchase.AmountPaid = newAmountPaid;
             purchase.BalanceAmount = newBalanceAmount;
@@ -1373,6 +1450,15 @@ namespace Aquora.Application.Services
                 GrandTotal = p.GrandTotal,
                 AmountPaid = p.AmountPaid,
                 BalanceAmount = p.BalanceAmount,
+                TaxMode = string.IsNullOrWhiteSpace(p.TaxMode) ? (p.TaxAmount > 0 ? "GST" : "NonGST") : p.TaxMode,
+                GSTRate = p.GSTRate,
+                TaxableAmount = p.TaxableAmount > 0 ? p.TaxableAmount : Math.Max(0, p.SubTotal - p.DiscountAmount + p.OtherCharges),
+                CGSTAmount = p.CGSTAmount > 0 ? p.CGSTAmount : (p.TaxAmount > 0 && p.IGSTAmount == 0 ? Math.Round(p.TaxAmount / 2.0m, 2) : 0m),
+                SGSTAmount = p.SGSTAmount > 0 ? p.SGSTAmount : (p.TaxAmount > 0 && p.IGSTAmount == 0 ? p.TaxAmount - Math.Round(p.TaxAmount / 2.0m, 2) : 0m),
+                IGSTAmount = p.IGSTAmount,
+                IsGstOverridden = p.IsGstOverridden,
+                IsInclusiveTax = p.IsInclusiveTax,
+                IsInterState = p.IsInterState,
                 PaymentStatus = p.IsCancelled ? "Cancelled" : p.PaymentStatus,
                 IsCancelled = p.IsCancelled,
                 CancelledAt = p.CancelledAt,
@@ -1391,53 +1477,528 @@ namespace Aquora.Application.Services
         }
 
         // ==========================================
-        // PURCHASE CATEGORY ARCHITECTURE & MANAGEMENT
+        // PURCHASE CATEGORY ARCHITECTURE & CALCULATION ENGINE
         // ==========================================
 
-        private static readonly (string Code, string Name, string Treatment, string Description)[] SystemCategories = new[]
+        public record SystemCategoryDefinition(
+            string Code,
+            string Name,
+            string Treatment,
+            string Description,
+            string? DefaultLedgerAccount,
+            bool AffectsInventory,
+            bool RequiresAsset,
+            bool RequiresExpense,
+            bool AffectsVendorLedger,
+            bool IsGstApplicable,
+            decimal DefaultGstRate,
+            bool AllowGstRateChange,
+            bool AllowCustomGstRate,
+            bool RequireQuantity,
+            bool RequireUnit,
+            bool RequireItem,
+            bool RequireServiceDescription,
+            bool RequireAssetDetails,
+            bool RequireInvoiceNumber,
+            bool RequireVendor,
+            bool RequirePaymentDetails
+        );
+
+        private static readonly SystemCategoryDefinition[] SystemCategoryDefinitions = new[]
         {
-            ("RawMaterial", "Raw Material (Inventory Stock IN)", "Inventory", "Standard raw material stock procurement. Automatically creates inventory Stock IN movement."),
-            ("Machine", "Machine / Equipment (Capital Asset Auto-Create)", "Asset", "Capital machinery & industrial equipment. Automatically provisions a Fixed Asset record."),
-            ("OfficeAsset", "Office Asset (Asset Auto-Create)", "Asset", "Office hardware, computers & furniture. Automatically registers an Asset record."),
-            ("OfficeExpense", "Office Expense", "Expense", "Day-to-day office consumables and operating expenses."),
-            ("Service", "Service / Consulting", "Expense", "Professional fees, advisory and outsourced third-party services."),
-            ("Maintenance", "Maintenance & Repair", "Expense", "Facility maintenance, plant servicing and repair costs."),
-            ("Utility", "Utility Bills", "Expense", "Power, water, gas and municipal utility billing."),
-            ("Vehicle", "Vehicle & Fuel Expense", "Expense", "Fleet operations, diesel/petrol and transport expenditure."),
-            ("Software", "Software & Subscriptions", "Expense", "Cloud SaaS tools, digital subscriptions and software licensing."),
-            ("Other", "Other Category", "Expense", "General fallback procurement category for sundry expenses.")
+            new SystemCategoryDefinition(
+                "RawMaterial",
+                "Raw Material (Inventory Stock IN)",
+                "Inventory",
+                "Materials purchased for water plant operations and bottling production. Automatically creates inventory Stock IN movement.",
+                "Raw Materials Inventory",
+                AffectsInventory: true,
+                RequiresAsset: false,
+                RequiresExpense: false,
+                AffectsVendorLedger: true,
+                IsGstApplicable: true,
+                DefaultGstRate: 18.0m,
+                AllowGstRateChange: true,
+                AllowCustomGstRate: true,
+                RequireQuantity: true,
+                RequireUnit: true,
+                RequireItem: true,
+                RequireServiceDescription: false,
+                RequireAssetDetails: false,
+                RequireInvoiceNumber: false,
+                RequireVendor: true,
+                RequirePaymentDetails: true
+            ),
+            new SystemCategoryDefinition(
+                "Machine",
+                "Machine / Equipment (Capital Asset Auto-Create)",
+                "Asset",
+                "Capital machinery & industrial plant equipment. Automatically provisions a Fixed Asset record.",
+                "Plant & Machinery",
+                AffectsInventory: false,
+                RequiresAsset: true,
+                RequiresExpense: false,
+                AffectsVendorLedger: true,
+                IsGstApplicable: true,
+                DefaultGstRate: 18.0m,
+                AllowGstRateChange: true,
+                AllowCustomGstRate: true,
+                RequireQuantity: false,
+                RequireUnit: false,
+                RequireItem: false,
+                RequireServiceDescription: false,
+                RequireAssetDetails: true,
+                RequireInvoiceNumber: false,
+                RequireVendor: true,
+                RequirePaymentDetails: true
+            ),
+            new SystemCategoryDefinition(
+                "OfficeAsset",
+                "Office Asset (Asset Auto-Create)",
+                "Asset",
+                "Office hardware, computers & furniture. Automatically registers a Fixed Asset record.",
+                "Office Equipment",
+                AffectsInventory: false,
+                RequiresAsset: true,
+                RequiresExpense: false,
+                AffectsVendorLedger: true,
+                IsGstApplicable: true,
+                DefaultGstRate: 18.0m,
+                AllowGstRateChange: true,
+                AllowCustomGstRate: true,
+                RequireQuantity: true,
+                RequireUnit: true,
+                RequireItem: false,
+                RequireServiceDescription: false,
+                RequireAssetDetails: true,
+                RequireInvoiceNumber: false,
+                RequireVendor: true,
+                RequirePaymentDetails: true
+            ),
+            new SystemCategoryDefinition(
+                "OfficeExpense",
+                "Office Expense",
+                "Expense",
+                "Day-to-day office consumables and operational administrative expenses.",
+                "Office Expenses",
+                AffectsInventory: false,
+                RequiresAsset: false,
+                RequiresExpense: true,
+                AffectsVendorLedger: true,
+                IsGstApplicable: true,
+                DefaultGstRate: 18.0m,
+                AllowGstRateChange: true,
+                AllowCustomGstRate: true,
+                RequireQuantity: false,
+                RequireUnit: false,
+                RequireItem: false,
+                RequireServiceDescription: false,
+                RequireAssetDetails: false,
+                RequireInvoiceNumber: false,
+                RequireVendor: true,
+                RequirePaymentDetails: true
+            ),
+            new SystemCategoryDefinition(
+                "Service",
+                "Service / Consulting",
+                "Expense",
+                "Professional fees, technical advisory, audit, and outsourced third-party services.",
+                "Professional & Legal Fees",
+                AffectsInventory: false,
+                RequiresAsset: false,
+                RequiresExpense: true,
+                AffectsVendorLedger: true,
+                IsGstApplicable: true,
+                DefaultGstRate: 18.0m,
+                AllowGstRateChange: true,
+                AllowCustomGstRate: true,
+                RequireQuantity: false,
+                RequireUnit: false,
+                RequireItem: false,
+                RequireServiceDescription: true,
+                RequireAssetDetails: false,
+                RequireInvoiceNumber: false,
+                RequireVendor: true,
+                RequirePaymentDetails: true
+            ),
+            new SystemCategoryDefinition(
+                "Maintenance",
+                "Maintenance & Repair",
+                "Expense",
+                "Plant machinery servicing, RO membrane cleaning, facility maintenance, and repair expenditure.",
+                "Repairs & Maintenance",
+                AffectsInventory: false,
+                RequiresAsset: false,
+                RequiresExpense: true,
+                AffectsVendorLedger: true,
+                IsGstApplicable: true,
+                DefaultGstRate: 18.0m,
+                AllowGstRateChange: true,
+                AllowCustomGstRate: true,
+                RequireQuantity: false,
+                RequireUnit: false,
+                RequireItem: false,
+                RequireServiceDescription: true,
+                RequireAssetDetails: false,
+                RequireInvoiceNumber: false,
+                RequireVendor: true,
+                RequirePaymentDetails: true
+            ),
+            new SystemCategoryDefinition(
+                "Utility",
+                "Utility Bills",
+                "Expense",
+                "Power, electricity, municipal water, internet, and telecom billing.",
+                "Utilities Expense",
+                AffectsInventory: false,
+                RequiresAsset: false,
+                RequiresExpense: true,
+                AffectsVendorLedger: true,
+                IsGstApplicable: true,
+                DefaultGstRate: 18.0m,
+                AllowGstRateChange: true,
+                AllowCustomGstRate: true,
+                RequireQuantity: false,
+                RequireUnit: false,
+                RequireItem: false,
+                RequireServiceDescription: false,
+                RequireAssetDetails: false,
+                RequireInvoiceNumber: false,
+                RequireVendor: true,
+                RequirePaymentDetails: true
+            ),
+            new SystemCategoryDefinition(
+                "Vehicle",
+                "Vehicle & Fuel Expense",
+                "Expense",
+                "Fleet operations, diesel/petrol, delivery vehicle maintenance, and transport expenditure.",
+                "Vehicle & Fuel Expenses",
+                AffectsInventory: false,
+                RequiresAsset: false,
+                RequiresExpense: true,
+                AffectsVendorLedger: true,
+                IsGstApplicable: true,
+                DefaultGstRate: 0.0m,
+                AllowGstRateChange: true,
+                AllowCustomGstRate: true,
+                RequireQuantity: false,
+                RequireUnit: false,
+                RequireItem: false,
+                RequireServiceDescription: false,
+                RequireAssetDetails: false,
+                RequireInvoiceNumber: false,
+                RequireVendor: true,
+                RequirePaymentDetails: true
+            ),
+            new SystemCategoryDefinition(
+                "Software",
+                "Software & Subscriptions",
+                "Expense",
+                "Cloud SaaS subscriptions, IT licenses, security tools, and software solutions.",
+                "Software & Subscriptions",
+                AffectsInventory: false,
+                RequiresAsset: false,
+                RequiresExpense: true,
+                AffectsVendorLedger: true,
+                IsGstApplicable: true,
+                DefaultGstRate: 18.0m,
+                AllowGstRateChange: true,
+                AllowCustomGstRate: true,
+                RequireQuantity: false,
+                RequireUnit: false,
+                RequireItem: false,
+                RequireServiceDescription: false,
+                RequireAssetDetails: false,
+                RequireInvoiceNumber: false,
+                RequireVendor: true,
+                RequirePaymentDetails: true
+            ),
+            new SystemCategoryDefinition(
+                "Other",
+                "Other Category",
+                "Expense",
+                "General fallback procurement category for sundry expenses and general procurements.",
+                "General Expenses",
+                AffectsInventory: false,
+                RequiresAsset: false,
+                RequiresExpense: true,
+                AffectsVendorLedger: true,
+                IsGstApplicable: true,
+                DefaultGstRate: 18.0m,
+                AllowGstRateChange: true,
+                AllowCustomGstRate: true,
+                RequireQuantity: false,
+                RequireUnit: false,
+                RequireItem: false,
+                RequireServiceDescription: false,
+                RequireAssetDetails: false,
+                RequireInvoiceNumber: false,
+                RequireVendor: true,
+                RequirePaymentDetails: true
+            )
         };
 
-        private async Task<string> ResolveCategoryTreatmentAsync(string categoryCode)
+        public record CategoryResolution(
+            string Code,
+            string Name,
+            string Treatment,
+            string? DefaultLedgerAccount,
+            bool AffectsInventory,
+            bool RequiresAsset,
+            bool RequiresExpense,
+            bool AffectsVendorLedger,
+            bool IsGstApplicable,
+            decimal DefaultGstRate,
+            bool AllowGstRateChange,
+            bool AllowCustomGstRate,
+            bool RequireQuantity,
+            bool RequireUnit,
+            bool RequireItem,
+            bool RequireServiceDescription,
+            bool RequireAssetDetails,
+            bool RequireInvoiceNumber,
+            bool RequireVendor,
+            bool RequirePaymentDetails
+        );
+
+        private async Task<CategoryResolution> ResolveCategoryConfigAsync(string categoryCode)
         {
-            if (string.IsNullOrWhiteSpace(categoryCode)) return "Expense";
+            if (string.IsNullOrWhiteSpace(categoryCode))
+            {
+                var def = SystemCategoryDefinitions.First(s => s.Code == "Other");
+                return new CategoryResolution(def.Code, def.Name, def.Treatment, def.DefaultLedgerAccount, def.AffectsInventory, def.RequiresAsset, def.RequiresExpense, def.AffectsVendorLedger, def.IsGstApplicable, def.DefaultGstRate, def.AllowGstRateChange, def.AllowCustomGstRate, def.RequireQuantity, def.RequireUnit, def.RequireItem, def.RequireServiceDescription, def.RequireAssetDetails, def.RequireInvoiceNumber, def.RequireVendor, def.RequirePaymentDetails);
+            }
 
             var trimmed = categoryCode.Trim();
+            var normalizedTrimmed = System.Text.RegularExpressions.Regex.Replace(trimmed, @"[^a-zA-Z0-9]", "");
 
-            // Direct check for legacy system codes
-            if (string.Equals(trimmed, "RawMaterial", StringComparison.OrdinalIgnoreCase)) return "Inventory";
-            if (string.Equals(trimmed, "Machine", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(trimmed, "OfficeAsset", StringComparison.OrdinalIgnoreCase)) return "Asset";
-            if (string.Equals(trimmed, "OfficeExpense", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(trimmed, "Service", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(trimmed, "Maintenance", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(trimmed, "Utility", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(trimmed, "Vehicle", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(trimmed, "Software", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(trimmed, "Other", StringComparison.OrdinalIgnoreCase)) return "Expense";
+            // 1. Check system category definitions
+            var sys = SystemCategoryDefinitions.FirstOrDefault(s =>
+                string.Equals(s.Code, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(s.Name, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(s.Code, normalizedTrimmed, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(s.Code, trimmed.Replace(" ", "").Replace("/", ""), StringComparison.OrdinalIgnoreCase));
 
             var tenantId = GetTenantId();
-            var category = await _context.PurchaseCategories
+
+            if (sys != null)
+            {
+                // Check if tenant has stored category record
+                var inDb = await _context.PurchaseCategories
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(c => c.TenantId == tenantId && !c.IsDeleted &&
+                        (c.Code == sys.Code || c.Name == sys.Name || c.Code == trimmed));
+
+                if (inDb != null)
+                {
+                    return new CategoryResolution(
+                        sys.Code,
+                        inDb.Name,
+                        !string.IsNullOrWhiteSpace(inDb.Treatment) ? inDb.Treatment : sys.Treatment,
+                        inDb.DefaultLedgerAccount ?? sys.DefaultLedgerAccount,
+                        inDb.AffectsInventory,
+                        inDb.RequiresAsset,
+                        inDb.RequiresExpense,
+                        inDb.AffectsVendorLedger,
+                        inDb.IsGstApplicable,
+                        inDb.DefaultGstRate > 0 ? inDb.DefaultGstRate : sys.DefaultGstRate,
+                        inDb.AllowGstRateChange,
+                        inDb.AllowCustomGstRate,
+                        inDb.RequireQuantity,
+                        inDb.RequireUnit,
+                        inDb.RequireItem,
+                        inDb.RequireServiceDescription,
+                        inDb.RequireAssetDetails,
+                        inDb.RequireInvoiceNumber,
+                        inDb.RequireVendor,
+                        inDb.RequirePaymentDetails
+                    );
+                }
+
+                return new CategoryResolution(sys.Code, sys.Name, sys.Treatment, sys.DefaultLedgerAccount, sys.AffectsInventory, sys.RequiresAsset, sys.RequiresExpense, sys.AffectsVendorLedger, sys.IsGstApplicable, sys.DefaultGstRate, sys.AllowGstRateChange, sys.AllowCustomGstRate, sys.RequireQuantity, sys.RequireUnit, sys.RequireItem, sys.RequireServiceDescription, sys.RequireAssetDetails, sys.RequireInvoiceNumber, sys.RequireVendor, sys.RequirePaymentDetails);
+            }
+
+            // 2. Custom tenant category from DB
+            var customCat = await _context.PurchaseCategories
                 .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.TenantId == tenantId && !c.IsDeleted &&
                     (c.Code == trimmed || c.Name == trimmed));
 
-            if (category != null && !string.IsNullOrWhiteSpace(category.Treatment))
+            if (customCat != null)
             {
-                return category.Treatment;
+                return new CategoryResolution(
+                    customCat.Code,
+                    customCat.Name,
+                    customCat.Treatment ?? "Expense",
+                    customCat.DefaultLedgerAccount,
+                    customCat.AffectsInventory,
+                    customCat.RequiresAsset,
+                    customCat.RequiresExpense,
+                    customCat.AffectsVendorLedger,
+                    customCat.IsGstApplicable,
+                    customCat.DefaultGstRate,
+                    customCat.AllowGstRateChange,
+                    customCat.AllowCustomGstRate,
+                    customCat.RequireQuantity,
+                    customCat.RequireUnit,
+                    customCat.RequireItem,
+                    customCat.RequireServiceDescription,
+                    customCat.RequireAssetDetails,
+                    customCat.RequireInvoiceNumber,
+                    customCat.RequireVendor,
+                    customCat.RequirePaymentDetails
+                );
             }
 
-            return "Expense";
+            var fallback = SystemCategoryDefinitions.First(s => s.Code == "Other");
+            return new CategoryResolution(trimmed, trimmed, "Expense", fallback.DefaultLedgerAccount, false, false, true, true, true, 18.0m, true, true, false, false, false, false, false, false, true, true);
+        }
+
+        private async Task<string> ResolveCategoryTreatmentAsync(string categoryCode)
+        {
+            var config = await ResolveCategoryConfigAsync(categoryCode);
+            return config.Treatment;
+        }
+
+        // ==========================================
+        // AUTHORITATIVE PURCHASE CALCULATION ENGINE
+        // ==========================================
+
+        public record PurchaseCalculationResult(
+            decimal SubTotal,
+            decimal DiscountAmount,
+            decimal OtherCharges,
+            decimal TaxableAmount,
+            string TaxMode,
+            decimal GSTRate,
+            decimal CalculatedGst,
+            decimal FinalGst,
+            decimal CGSTAmount,
+            decimal SGSTAmount,
+            decimal IGSTAmount,
+            bool IsGstOverridden,
+            bool IsInclusiveTax,
+            decimal GrandTotal,
+            decimal AmountPaid,
+            decimal BalanceAmount,
+            string PaymentStatus
+        );
+
+        public static PurchaseCalculationResult CalculatePurchaseTotals(
+            decimal subTotal,
+            decimal discountAmount,
+            decimal otherCharges,
+            string? taxMode,
+            decimal gstRate,
+            bool isInclusiveTax,
+            bool isGstOverridden,
+            decimal manualTaxAmount,
+            bool isInterState,
+            decimal amountPaid,
+            string? paymentMethod
+        )
+        {
+            var cleanSubTotal = Math.Max(0, Math.Round(subTotal, 2, MidpointRounding.AwayFromZero));
+            var cleanDiscount = Math.Max(0, Math.Round(discountAmount, 2, MidpointRounding.AwayFromZero));
+            var cleanCharges = Math.Max(0, Math.Round(otherCharges, 2, MidpointRounding.AwayFromZero));
+            var cleanRate = Math.Max(0, Math.Round(gstRate, 2, MidpointRounding.AwayFromZero));
+            var cleanMode = string.Equals(taxMode, "NonGST", StringComparison.OrdinalIgnoreCase) ? "NonGST" : "GST";
+
+            decimal taxableAmount;
+            decimal calculatedGst = 0m;
+            decimal finalGst = 0m;
+            decimal grandTotal;
+
+            if (cleanMode == "NonGST" || cleanRate == 0)
+            {
+                taxableAmount = Math.Max(0, cleanSubTotal - cleanDiscount + cleanCharges);
+                calculatedGst = 0m;
+                finalGst = 0m;
+                grandTotal = taxableAmount;
+            }
+            else if (!isInclusiveTax)
+            {
+                // GST Exclusive: Taxable = SubTotal - Discount + OtherCharges
+                taxableAmount = Math.Max(0, cleanSubTotal - cleanDiscount + cleanCharges);
+                calculatedGst = Math.Round(taxableAmount * (cleanRate / 100m), 2, MidpointRounding.AwayFromZero);
+                finalGst = isGstOverridden
+                    ? Math.Max(0, Math.Round(manualTaxAmount, 2, MidpointRounding.AwayFromZero))
+                    : calculatedGst;
+                grandTotal = Math.Max(0, taxableAmount + finalGst);
+            }
+            else
+            {
+                // GST Inclusive: Total with Tax = SubTotal - Discount + OtherCharges
+                var totalInclusive = Math.Max(0, cleanSubTotal - cleanDiscount + cleanCharges);
+                taxableAmount = Math.Round(totalInclusive / (1m + (cleanRate / 100m)), 2, MidpointRounding.AwayFromZero);
+                calculatedGst = Math.Max(0, totalInclusive - taxableAmount);
+                if (isGstOverridden)
+                {
+                    finalGst = Math.Max(0, Math.Round(manualTaxAmount, 2, MidpointRounding.AwayFromZero));
+                    grandTotal = Math.Max(0, taxableAmount + finalGst);
+                }
+                else
+                {
+                    finalGst = calculatedGst;
+                    grandTotal = totalInclusive;
+                }
+            }
+
+            decimal cgst = 0m;
+            decimal sgst = 0m;
+            decimal igst = 0m;
+
+            if (cleanMode == "GST" && finalGst > 0)
+            {
+                if (isInterState)
+                {
+                    igst = finalGst;
+                    cgst = 0m;
+                    sgst = 0m;
+                }
+                else
+                {
+                    cgst = Math.Round(finalGst / 2.0m, 2, MidpointRounding.AwayFromZero);
+                    sgst = finalGst - cgst; // Exact decimal balance
+                    igst = 0m;
+                }
+            }
+
+            var cleanPaid = Math.Max(0, Math.Round(amountPaid, 2, MidpointRounding.AwayFromZero));
+            if (string.Equals(paymentMethod, "Credit", StringComparison.OrdinalIgnoreCase))
+            {
+                cleanPaid = 0m;
+            }
+            else if (cleanPaid > grandTotal)
+            {
+                cleanPaid = grandTotal;
+            }
+
+            var balance = Math.Max(0, Math.Round(grandTotal - cleanPaid, 2, MidpointRounding.AwayFromZero));
+
+            string status = "Unpaid";
+            if (cleanPaid >= grandTotal && grandTotal > 0) status = "Paid";
+            else if (cleanPaid > 0) status = "PartiallyPaid";
+
+            return new PurchaseCalculationResult(
+                cleanSubTotal,
+                cleanDiscount,
+                cleanCharges,
+                taxableAmount,
+                cleanMode,
+                cleanRate,
+                calculatedGst,
+                finalGst,
+                cgst,
+                sgst,
+                igst,
+                isGstOverridden,
+                isInclusiveTax,
+                grandTotal,
+                cleanPaid,
+                balance,
+                status
+            );
         }
 
         public async Task<List<PurchaseCategoryDto>> GetPurchaseCategoriesAsync(bool includeInactive = false)
@@ -1449,14 +2010,58 @@ namespace Aquora.Application.Services
                 .Where(c => c.TenantId == tenantId && !c.IsDeleted)
                 .ToListAsync();
 
-            var existingCodes = new HashSet<string>(existingCategories.Select(c => c.Code.Trim()), StringComparer.OrdinalIgnoreCase);
-            var toAdd = new List<PurchaseCategory>();
+            var handledCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var categoriesToKeep = new List<PurchaseCategory>();
+            var categoriesToDelete = new List<PurchaseCategory>();
 
-            foreach (var sys in SystemCategories)
+            foreach (var sys in SystemCategoryDefinitions)
             {
-                if (!existingCodes.Contains(sys.Code))
+                var matches = existingCategories.Where(c =>
+                    string.Equals(c.Code.Trim(), sys.Code, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(c.Code.Replace(" ", "").Replace("/", "").Trim(), sys.Code.Replace(" ", "").Replace("/", "").Trim(), StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(c.Name.Trim(), sys.Name.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                    c.Name.StartsWith(sys.Code, StringComparison.OrdinalIgnoreCase)
+                ).OrderBy(c => c.IsSystem ? 0 : 1).ThenBy(c => c.CreatedAt).ToList();
+
+                if (matches.Count > 0)
                 {
-                    var cat = new PurchaseCategory
+                    var canonical = matches[0];
+                    canonical.Code = sys.Code;
+                    canonical.Name = sys.Name;
+                    canonical.Treatment = sys.Treatment;
+                    canonical.Description = sys.Description;
+                    canonical.IsSystem = true;
+                    canonical.IsActive = true;
+                    canonical.DefaultLedgerAccount = sys.DefaultLedgerAccount;
+                    canonical.AffectsInventory = sys.AffectsInventory;
+                    canonical.RequiresAsset = sys.RequiresAsset;
+                    canonical.RequiresExpense = sys.RequiresExpense;
+                    canonical.AffectsVendorLedger = sys.AffectsVendorLedger;
+                    canonical.IsGstApplicable = sys.IsGstApplicable;
+                    canonical.DefaultGstRate = sys.DefaultGstRate;
+                    canonical.AllowGstRateChange = sys.AllowGstRateChange;
+                    canonical.AllowCustomGstRate = sys.AllowCustomGstRate;
+                    canonical.RequireQuantity = sys.RequireQuantity;
+                    canonical.RequireUnit = sys.RequireUnit;
+                    canonical.RequireItem = sys.RequireItem;
+                    canonical.RequireServiceDescription = sys.RequireServiceDescription;
+                    canonical.RequireAssetDetails = sys.RequireAssetDetails;
+                    canonical.RequireInvoiceNumber = sys.RequireInvoiceNumber;
+                    canonical.RequireVendor = sys.RequireVendor;
+                    canonical.RequirePaymentDetails = sys.RequirePaymentDetails;
+
+                    categoriesToKeep.Add(canonical);
+                    handledCodes.Add(sys.Code);
+
+                    for (int i = 1; i < matches.Count; i++)
+                    {
+                        matches[i].IsDeleted = true;
+                        categoriesToDelete.Add(matches[i]);
+                    }
+                }
+                else
+                {
+                    var newCat = new PurchaseCategory
                     {
                         Id = Guid.NewGuid(),
                         TenantId = tenantId,
@@ -1467,24 +2072,49 @@ namespace Aquora.Application.Services
                         Description = sys.Description,
                         IsSystem = true,
                         IsActive = true,
+                        DefaultLedgerAccount = sys.DefaultLedgerAccount,
+                        AffectsInventory = sys.AffectsInventory,
+                        RequiresAsset = sys.RequiresAsset,
+                        RequiresExpense = sys.RequiresExpense,
+                        AffectsVendorLedger = sys.AffectsVendorLedger,
+                        IsGstApplicable = sys.IsGstApplicable,
+                        DefaultGstRate = sys.DefaultGstRate,
+                        AllowGstRateChange = sys.AllowGstRateChange,
+                        AllowCustomGstRate = sys.AllowCustomGstRate,
+                        RequireQuantity = sys.RequireQuantity,
+                        RequireUnit = sys.RequireUnit,
+                        RequireItem = sys.RequireItem,
+                        RequireServiceDescription = sys.RequireServiceDescription,
+                        RequireAssetDetails = sys.RequireAssetDetails,
+                        RequireInvoiceNumber = sys.RequireInvoiceNumber,
+                        RequireVendor = sys.RequireVendor,
+                        RequirePaymentDetails = sys.RequirePaymentDetails,
                         CreatedAt = DateTime.UtcNow,
                         CreatedBy = "System"
                     };
-                    toAdd.Add(cat);
-                    existingCategories.Add(cat);
-                    existingCodes.Add(sys.Code);
+                    _context.PurchaseCategories.Add(newCat);
+                    categoriesToKeep.Add(newCat);
+                    handledCodes.Add(sys.Code);
                 }
             }
 
-            if (toAdd.Count > 0)
+            foreach (var custom in existingCategories)
             {
-                await _context.PurchaseCategories.AddRangeAsync(toAdd);
+                if (!handledCodes.Contains(custom.Code) && !categoriesToDelete.Contains(custom))
+                {
+                    categoriesToKeep.Add(custom);
+                }
+            }
+
+            var dbCtx = _context as DbContext;
+            if (categoriesToDelete.Count > 0 || (dbCtx != null && dbCtx.ChangeTracker.HasChanges()))
+            {
                 await _context.SaveChangesAsync();
             }
 
-            var systemCodesOrder = SystemCategories.Select(s => s.Code).ToList();
+            var systemCodesOrder = SystemCategoryDefinitions.Select(s => s.Code).ToList();
 
-            var result = existingCategories
+            var result = categoriesToKeep
                 .Where(c => includeInactive || c.IsActive)
                 .OrderBy(c => c.IsSystem ? 0 : 1)
                 .ThenBy(c => c.IsSystem ? systemCodesOrder.IndexOf(c.Code) : 0)
@@ -1500,6 +2130,23 @@ namespace Aquora.Application.Services
                     Treatment = c.Treatment,
                     IsSystem = c.IsSystem,
                     IsActive = c.IsActive,
+                    DefaultLedgerAccount = c.DefaultLedgerAccount,
+                    AffectsInventory = c.AffectsInventory,
+                    RequiresAsset = c.RequiresAsset,
+                    RequiresExpense = c.RequiresExpense,
+                    AffectsVendorLedger = c.AffectsVendorLedger,
+                    IsGstApplicable = c.IsGstApplicable,
+                    DefaultGstRate = c.DefaultGstRate,
+                    AllowGstRateChange = c.AllowGstRateChange,
+                    AllowCustomGstRate = c.AllowCustomGstRate,
+                    RequireQuantity = c.RequireQuantity,
+                    RequireUnit = c.RequireUnit,
+                    RequireItem = c.RequireItem,
+                    RequireServiceDescription = c.RequireServiceDescription,
+                    RequireAssetDetails = c.RequireAssetDetails,
+                    RequireInvoiceNumber = c.RequireInvoiceNumber,
+                    RequireVendor = c.RequireVendor,
+                    RequirePaymentDetails = c.RequirePaymentDetails,
                     CreatedAt = c.CreatedAt,
                     UpdatedAt = c.UpdatedAt
                 })
@@ -1528,6 +2175,23 @@ namespace Aquora.Application.Services
                 Treatment = c.Treatment,
                 IsSystem = c.IsSystem,
                 IsActive = c.IsActive,
+                DefaultLedgerAccount = c.DefaultLedgerAccount,
+                AffectsInventory = c.AffectsInventory,
+                RequiresAsset = c.RequiresAsset,
+                RequiresExpense = c.RequiresExpense,
+                AffectsVendorLedger = c.AffectsVendorLedger,
+                IsGstApplicable = c.IsGstApplicable,
+                DefaultGstRate = c.DefaultGstRate,
+                AllowGstRateChange = c.AllowGstRateChange,
+                AllowCustomGstRate = c.AllowCustomGstRate,
+                RequireQuantity = c.RequireQuantity,
+                RequireUnit = c.RequireUnit,
+                RequireItem = c.RequireItem,
+                RequireServiceDescription = c.RequireServiceDescription,
+                RequireAssetDetails = c.RequireAssetDetails,
+                RequireInvoiceNumber = c.RequireInvoiceNumber,
+                RequireVendor = c.RequireVendor,
+                RequirePaymentDetails = c.RequirePaymentDetails,
                 CreatedAt = c.CreatedAt,
                 UpdatedAt = c.UpdatedAt
             };
@@ -1560,7 +2224,6 @@ namespace Aquora.Application.Services
                 throw new InvalidOperationException($"A purchase category with the name '{trimmedName}' already exists.");
             }
 
-            // Generate clean alphanumeric code
             var baseCode = System.Text.RegularExpressions.Regex.Replace(trimmedName, @"[^a-zA-Z0-9]", "");
             if (string.IsNullOrWhiteSpace(baseCode)) baseCode = "CAT";
             var code = baseCode;
@@ -1581,6 +2244,23 @@ namespace Aquora.Application.Services
                 Treatment = treatment,
                 IsSystem = false,
                 IsActive = true,
+                DefaultLedgerAccount = request.DefaultLedgerAccount?.Trim(),
+                AffectsInventory = request.AffectsInventory || treatment == "Inventory",
+                RequiresAsset = request.RequiresAsset || treatment == "Asset",
+                RequiresExpense = request.RequiresExpense || treatment == "Expense",
+                AffectsVendorLedger = request.AffectsVendorLedger,
+                IsGstApplicable = request.IsGstApplicable,
+                DefaultGstRate = request.DefaultGstRate,
+                AllowGstRateChange = request.AllowGstRateChange,
+                AllowCustomGstRate = request.AllowCustomGstRate,
+                RequireQuantity = request.RequireQuantity,
+                RequireUnit = request.RequireUnit,
+                RequireItem = request.RequireItem,
+                RequireServiceDescription = request.RequireServiceDescription,
+                RequireAssetDetails = request.RequireAssetDetails,
+                RequireInvoiceNumber = request.RequireInvoiceNumber,
+                RequireVendor = request.RequireVendor,
+                RequirePaymentDetails = request.RequirePaymentDetails,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = currentUser
             };
@@ -1599,6 +2279,23 @@ namespace Aquora.Application.Services
                 Treatment = newCategory.Treatment,
                 IsSystem = newCategory.IsSystem,
                 IsActive = newCategory.IsActive,
+                DefaultLedgerAccount = newCategory.DefaultLedgerAccount,
+                AffectsInventory = newCategory.AffectsInventory,
+                RequiresAsset = newCategory.RequiresAsset,
+                RequiresExpense = newCategory.RequiresExpense,
+                AffectsVendorLedger = newCategory.AffectsVendorLedger,
+                IsGstApplicable = newCategory.IsGstApplicable,
+                DefaultGstRate = newCategory.DefaultGstRate,
+                AllowGstRateChange = newCategory.AllowGstRateChange,
+                AllowCustomGstRate = newCategory.AllowCustomGstRate,
+                RequireQuantity = newCategory.RequireQuantity,
+                RequireUnit = newCategory.RequireUnit,
+                RequireItem = newCategory.RequireItem,
+                RequireServiceDescription = newCategory.RequireServiceDescription,
+                RequireAssetDetails = newCategory.RequireAssetDetails,
+                RequireInvoiceNumber = newCategory.RequireInvoiceNumber,
+                RequireVendor = newCategory.RequireVendor,
+                RequirePaymentDetails = newCategory.RequirePaymentDetails,
                 CreatedAt = newCategory.CreatedAt,
                 UpdatedAt = newCategory.UpdatedAt
             };
@@ -1625,6 +2322,10 @@ namespace Aquora.Application.Services
             {
                 category.Description = request.Description?.Trim();
                 category.IsActive = request.IsActive;
+                category.DefaultLedgerAccount = request.DefaultLedgerAccount?.Trim() ?? category.DefaultLedgerAccount;
+                category.DefaultGstRate = request.DefaultGstRate > 0 ? request.DefaultGstRate : category.DefaultGstRate;
+                category.AllowGstRateChange = request.AllowGstRateChange;
+                category.AllowCustomGstRate = request.AllowCustomGstRate;
                 category.UpdatedAt = DateTime.UtcNow;
                 category.UpdatedBy = currentUser;
             }
@@ -1642,6 +2343,23 @@ namespace Aquora.Application.Services
                 category.Treatment = treatment;
                 category.Description = request.Description?.Trim();
                 category.IsActive = request.IsActive;
+                category.DefaultLedgerAccount = request.DefaultLedgerAccount?.Trim();
+                category.AffectsInventory = request.AffectsInventory;
+                category.RequiresAsset = request.RequiresAsset;
+                category.RequiresExpense = request.RequiresExpense;
+                category.AffectsVendorLedger = request.AffectsVendorLedger;
+                category.IsGstApplicable = request.IsGstApplicable;
+                category.DefaultGstRate = request.DefaultGstRate;
+                category.AllowGstRateChange = request.AllowGstRateChange;
+                category.AllowCustomGstRate = request.AllowCustomGstRate;
+                category.RequireQuantity = request.RequireQuantity;
+                category.RequireUnit = request.RequireUnit;
+                category.RequireItem = request.RequireItem;
+                category.RequireServiceDescription = request.RequireServiceDescription;
+                category.RequireAssetDetails = request.RequireAssetDetails;
+                category.RequireInvoiceNumber = request.RequireInvoiceNumber;
+                category.RequireVendor = request.RequireVendor;
+                category.RequirePaymentDetails = request.RequirePaymentDetails;
                 category.UpdatedAt = DateTime.UtcNow;
                 category.UpdatedBy = currentUser;
             }
@@ -1659,6 +2377,23 @@ namespace Aquora.Application.Services
                 Treatment = category.Treatment,
                 IsSystem = category.IsSystem,
                 IsActive = category.IsActive,
+                DefaultLedgerAccount = category.DefaultLedgerAccount,
+                AffectsInventory = category.AffectsInventory,
+                RequiresAsset = category.RequiresAsset,
+                RequiresExpense = category.RequiresExpense,
+                AffectsVendorLedger = category.AffectsVendorLedger,
+                IsGstApplicable = category.IsGstApplicable,
+                DefaultGstRate = category.DefaultGstRate,
+                AllowGstRateChange = category.AllowGstRateChange,
+                AllowCustomGstRate = category.AllowCustomGstRate,
+                RequireQuantity = category.RequireQuantity,
+                RequireUnit = category.RequireUnit,
+                RequireItem = category.RequireItem,
+                RequireServiceDescription = category.RequireServiceDescription,
+                RequireAssetDetails = category.RequireAssetDetails,
+                RequireInvoiceNumber = category.RequireInvoiceNumber,
+                RequireVendor = category.RequireVendor,
+                RequirePaymentDetails = category.RequirePaymentDetails,
                 CreatedAt = category.CreatedAt,
                 UpdatedAt = category.UpdatedAt
             };

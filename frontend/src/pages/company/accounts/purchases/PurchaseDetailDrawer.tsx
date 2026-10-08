@@ -312,21 +312,89 @@ export const PurchaseDetailDrawer: React.FC<PurchaseDetailDrawerProps> = ({
                 </div>
               )}
 
-              {/* Totals under line items: gross, paid, balance */}
-              <div className="mt-3 p-3 bg-white border border-[#E5E9F2] rounded-xl space-y-1.5 font-medium">
+              {/* Financial Breakdown & Tax Snapshot */}
+              <div className="mt-3 p-3.5 bg-white border border-[#E5E9F2] rounded-xl space-y-2 text-xs font-medium">
                 <div className="flex justify-between text-slate-600">
-                  <span>Gross Total</span>
-                  <span className="font-mono font-bold text-slate-900">{formatINR(gross)}</span>
+                  <span>Base Subtotal</span>
+                  <span className="font-mono text-slate-800">{formatINR(p.subTotal || gross)}</span>
                 </div>
-                <div className="flex justify-between text-slate-600">
+
+                {Boolean(p.discountAmount && p.discountAmount > 0) && (
+                  <div className="flex justify-between text-emerald-700">
+                    <span>Discount</span>
+                    <span className="font-mono">- {formatINR(p.discountAmount)}</span>
+                  </div>
+                )}
+
+                {Boolean(p.otherCharges && p.otherCharges > 0) && (
+                  <div className="flex justify-between text-slate-600">
+                    <span>Freight / Other Charges</span>
+                    <span className="font-mono">+ {formatINR(p.otherCharges)}</span>
+                  </div>
+                )}
+
+                {Boolean(p.taxableAmount && p.taxableAmount > 0 && (p.discountAmount > 0 || p.otherCharges > 0)) && (
+                  <div className="flex justify-between text-slate-500 text-[11px] border-t border-dashed border-slate-200 pt-1">
+                    <span>Taxable Amount</span>
+                    <span className="font-mono">{formatINR(p.taxableAmount || 0)}</span>
+                  </div>
+                )}
+
+                {/* GST Breakdown Snapshot */}
+                {p.taxMode === 'NonGST' || (p.taxAmount === 0 && !p.taxMode) ? (
+                  <div className="flex justify-between text-slate-500 text-[11px] pt-1 border-t border-slate-100">
+                    <span>Tax Mode</span>
+                    <span className="font-semibold text-slate-600">Non-GST (Exempt)</span>
+                  </div>
+                ) : (
+                  <div className="pt-1.5 border-t border-slate-100 space-y-1 text-[11px]">
+                    <div className="flex justify-between items-center text-slate-700">
+                      <span className="font-semibold flex items-center gap-1">
+                        GST ({p.gstRate ?? 18}%{p.isInclusiveTax ? ' Incl' : ''})
+                        {p.isGstOverridden && (
+                          <span className="text-[9px] bg-amber-100 text-amber-800 px-1 py-0.2 rounded font-bold">
+                            Override
+                          </span>
+                        )}
+                      </span>
+                      <span className="font-mono font-bold text-slate-900">{formatINR(p.taxAmount)}</span>
+                    </div>
+
+                    {(p.isInterState || (p.igstAmount && p.igstAmount > 0)) ? (
+                      <div className="flex justify-between text-indigo-700 pl-2">
+                        <span>IGST</span>
+                        <span className="font-mono">{formatINR(p.igstAmount || p.taxAmount)}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex justify-between text-slate-500 pl-2">
+                          <span>CGST (Central)</span>
+                          <span className="font-mono">{formatINR(p.cgstAmount || (p.taxAmount / 2))}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-500 pl-2">
+                          <span>SGST (State)</span>
+                          <span className="font-mono">{formatINR(p.sgstAmount || (p.taxAmount / 2))}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                <div className="pt-2 border-t border-slate-200 flex justify-between font-bold text-sm">
+                  <span className="text-slate-900">Grand Total</span>
+                  <span className="font-mono text-[#1A56DB]">{formatINR(gross)}</span>
+                </div>
+
+                <div className="flex justify-between text-slate-600 pt-1">
                   <span>Paid Amount</span>
                   <span className="font-mono font-semibold text-slate-800">{formatINR(paid)}</span>
                 </div>
+
                 <div className="pt-1.5 border-t border-slate-100 flex justify-between font-bold">
                   <span className={balance > 0 ? 'text-rose-600' : 'text-slate-800'}>
                     Outstanding Balance
                   </span>
-                  <span className={`font-mono text-sm ${balance > 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                  <span className={`font-mono text-sm ${balance > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
                     {formatINR(balance)}
                   </span>
                 </div>

@@ -1529,6 +1529,81 @@ namespace Aquora.Persistence.Services
                                             ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""IGST"" numeric(18,2) NOT NULL DEFAULT 0.0;
                                             ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""MetadataJson"" text NULL;
 
+                                            -- Purchase Categories Configuration Upgrade
+                                            ALTER TABLE ""{schema}"".""PurchaseCategories"" ADD COLUMN IF NOT EXISTS ""DefaultLedgerAccount"" text NULL;
+                                            ALTER TABLE ""{schema}"".""PurchaseCategories"" ADD COLUMN IF NOT EXISTS ""AffectsInventory"" boolean NOT NULL DEFAULT false;
+                                            ALTER TABLE ""{schema}"".""PurchaseCategories"" ADD COLUMN IF NOT EXISTS ""RequiresAsset"" boolean NOT NULL DEFAULT false;
+                                            ALTER TABLE ""{schema}"".""PurchaseCategories"" ADD COLUMN IF NOT EXISTS ""RequiresExpense"" boolean NOT NULL DEFAULT false;
+                                            ALTER TABLE ""{schema}"".""PurchaseCategories"" ADD COLUMN IF NOT EXISTS ""AffectsVendorLedger"" boolean NOT NULL DEFAULT true;
+                                            ALTER TABLE ""{schema}"".""PurchaseCategories"" ADD COLUMN IF NOT EXISTS ""IsGstApplicable"" boolean NOT NULL DEFAULT true;
+                                            ALTER TABLE ""{schema}"".""PurchaseCategories"" ADD COLUMN IF NOT EXISTS ""DefaultGstRate"" numeric(18,2) NOT NULL DEFAULT 18.0;
+                                            ALTER TABLE ""{schema}"".""PurchaseCategories"" ADD COLUMN IF NOT EXISTS ""AllowGstRateChange"" boolean NOT NULL DEFAULT true;
+                                            ALTER TABLE ""{schema}"".""PurchaseCategories"" ADD COLUMN IF NOT EXISTS ""AllowCustomGstRate"" boolean NOT NULL DEFAULT true;
+                                            ALTER TABLE ""{schema}"".""PurchaseCategories"" ADD COLUMN IF NOT EXISTS ""RequireQuantity"" boolean NOT NULL DEFAULT false;
+                                            ALTER TABLE ""{schema}"".""PurchaseCategories"" ADD COLUMN IF NOT EXISTS ""RequireUnit"" boolean NOT NULL DEFAULT false;
+                                            ALTER TABLE ""{schema}"".""PurchaseCategories"" ADD COLUMN IF NOT EXISTS ""RequireItem"" boolean NOT NULL DEFAULT false;
+                                            ALTER TABLE ""{schema}"".""PurchaseCategories"" ADD COLUMN IF NOT EXISTS ""RequireServiceDescription"" boolean NOT NULL DEFAULT false;
+                                            ALTER TABLE ""{schema}"".""PurchaseCategories"" ADD COLUMN IF NOT EXISTS ""RequireAssetDetails"" boolean NOT NULL DEFAULT false;
+                                            ALTER TABLE ""{schema}"".""PurchaseCategories"" ADD COLUMN IF NOT EXISTS ""RequireInvoiceNumber"" boolean NOT NULL DEFAULT false;
+                                            ALTER TABLE ""{schema}"".""PurchaseCategories"" ADD COLUMN IF NOT EXISTS ""RequireVendor"" boolean NOT NULL DEFAULT true;
+                                            ALTER TABLE ""{schema}"".""PurchaseCategories"" ADD COLUMN IF NOT EXISTS ""RequirePaymentDetails"" boolean NOT NULL DEFAULT true;
+
+                                            -- Purchases GST Breakdown & Calculation Upgrade
+                                            ALTER TABLE ""{schema}"".""Purchases"" ADD COLUMN IF NOT EXISTS ""TaxMode"" text NOT NULL DEFAULT 'GST';
+                                            ALTER TABLE ""{schema}"".""Purchases"" ADD COLUMN IF NOT EXISTS ""GSTRate"" numeric(18,2) NOT NULL DEFAULT 0.0;
+                                            ALTER TABLE ""{schema}"".""Purchases"" ADD COLUMN IF NOT EXISTS ""TaxableAmount"" numeric(18,2) NOT NULL DEFAULT 0.0;
+                                            ALTER TABLE ""{schema}"".""Purchases"" ADD COLUMN IF NOT EXISTS ""CGSTAmount"" numeric(18,2) NOT NULL DEFAULT 0.0;
+                                            ALTER TABLE ""{schema}"".""Purchases"" ADD COLUMN IF NOT EXISTS ""SGSTAmount"" numeric(18,2) NOT NULL DEFAULT 0.0;
+                                            ALTER TABLE ""{schema}"".""Purchases"" ADD COLUMN IF NOT EXISTS ""IGSTAmount"" numeric(18,2) NOT NULL DEFAULT 0.0;
+                                            ALTER TABLE ""{schema}"".""Purchases"" ADD COLUMN IF NOT EXISTS ""IsGstOverridden"" boolean NOT NULL DEFAULT false;
+                                            ALTER TABLE ""{schema}"".""Purchases"" ADD COLUMN IF NOT EXISTS ""IsInclusiveTax"" boolean NOT NULL DEFAULT false;
+                                            ALTER TABLE ""{schema}"".""Purchases"" ADD COLUMN IF NOT EXISTS ""IsInterState"" boolean NOT NULL DEFAULT false;
+
+                                            -- Safe Category Deduplication and Normalization
+                                            UPDATE ""{schema}"".""PurchaseCategories"" SET ""Code"" = 'RawMaterial', ""Treatment"" = 'Inventory', ""AffectsInventory"" = true, ""RequireQuantity"" = true, ""RequireUnit"" = true, ""RequireItem"" = true, ""DefaultGstRate"" = 18.0 WHERE ""Code"" = 'Raw Material';
+                                            UPDATE ""{schema}"".""PurchaseCategories"" SET ""Code"" = 'Machine', ""Treatment"" = 'Asset', ""RequiresAsset"" = true, ""RequireAssetDetails"" = true, ""DefaultGstRate"" = 18.0 WHERE ""Code"" = 'Machine / Equipment';
+                                            UPDATE ""{schema}"".""PurchaseCategories"" SET ""Code"" = 'OfficeAsset', ""Treatment"" = 'Asset', ""RequiresAsset"" = true, ""RequireAssetDetails"" = true, ""RequireQuantity"" = true, ""RequireUnit"" = true, ""DefaultGstRate"" = 18.0 WHERE ""Code"" = 'Office Asset';
+                                            UPDATE ""{schema}"".""PurchaseCategories"" SET ""Code"" = 'OfficeExpense', ""Treatment"" = 'Expense', ""RequiresExpense"" = true, ""DefaultGstRate"" = 18.0 WHERE ""Code"" = 'Office Expense';
+                                            UPDATE ""{schema}"".""PurchaseCategories"" SET ""Code"" = 'Service', ""Treatment"" = 'Expense', ""RequiresExpense"" = true, ""RequireServiceDescription"" = true, ""DefaultGstRate"" = 18.0 WHERE ""Code"" = 'Service / Consulting';
+                                            UPDATE ""{schema}"".""PurchaseCategories"" SET ""Code"" = 'Maintenance', ""Treatment"" = 'Expense', ""RequiresExpense"" = true, ""RequireServiceDescription"" = true, ""DefaultGstRate"" = 18.0 WHERE ""Code"" = 'Maintenance & Repair';
+                                            UPDATE ""{schema}"".""PurchaseCategories"" SET ""Code"" = 'Utility', ""Treatment"" = 'Expense', ""RequiresExpense"" = true, ""DefaultGstRate"" = 18.0 WHERE ""Code"" = 'Utility Bills';
+                                            UPDATE ""{schema}"".""PurchaseCategories"" SET ""Code"" = 'Vehicle', ""Treatment"" = 'Expense', ""RequiresExpense"" = true, ""DefaultGstRate"" = 0.0 WHERE ""Code"" = 'Vehicle & Fuel Expense';
+                                            UPDATE ""{schema}"".""PurchaseCategories"" SET ""Code"" = 'Software', ""Treatment"" = 'Expense', ""RequiresExpense"" = true, ""DefaultGstRate"" = 18.0 WHERE ""Code"" = 'Software & Subscriptions';
+                                            UPDATE ""{schema}"".""PurchaseCategories"" SET ""Code"" = 'Other', ""Treatment"" = 'Expense', ""DefaultGstRate"" = 18.0 WHERE ""Code"" = 'Other Category';
+
+                                            UPDATE ""{schema}"".""Purchases"" SET ""PurchaseCategory"" = 'RawMaterial' WHERE ""PurchaseCategory"" = 'Raw Material';
+                                            UPDATE ""{schema}"".""Purchases"" SET ""PurchaseCategory"" = 'Machine' WHERE ""PurchaseCategory"" = 'Machine / Equipment';
+                                            UPDATE ""{schema}"".""Purchases"" SET ""PurchaseCategory"" = 'OfficeAsset' WHERE ""PurchaseCategory"" = 'Office Asset';
+                                            UPDATE ""{schema}"".""Purchases"" SET ""PurchaseCategory"" = 'OfficeExpense' WHERE ""PurchaseCategory"" = 'Office Expense';
+                                            UPDATE ""{schema}"".""Purchases"" SET ""PurchaseCategory"" = 'Service' WHERE ""PurchaseCategory"" = 'Service / Consulting';
+                                            UPDATE ""{schema}"".""Purchases"" SET ""PurchaseCategory"" = 'Maintenance' WHERE ""PurchaseCategory"" = 'Maintenance & Repair';
+                                            UPDATE ""{schema}"".""Purchases"" SET ""PurchaseCategory"" = 'Utility' WHERE ""PurchaseCategory"" = 'Utility Bills';
+                                            UPDATE ""{schema}"".""Purchases"" SET ""PurchaseCategory"" = 'Vehicle' WHERE ""PurchaseCategory"" = 'Vehicle & Fuel Expense';
+                                            UPDATE ""{schema}"".""Purchases"" SET ""PurchaseCategory"" = 'Software' WHERE ""PurchaseCategory"" = 'Software & Subscriptions';
+                                            UPDATE ""{schema}"".""Purchases"" SET ""PurchaseCategory"" = 'Other' WHERE ""PurchaseCategory"" = 'Other Category';
+
+                                            -- Soft delete duplicates, keeping canonical record for each Code
+                                            UPDATE ""{schema}"".""PurchaseCategories""
+                                            SET ""IsDeleted"" = true
+                                            WHERE ""Id"" IN (
+                                                SELECT ""Id"" FROM (
+                                                    SELECT ""Id"", ROW_NUMBER() OVER (PARTITION BY ""TenantId"", LOWER(""Code"") ORDER BY ""CreatedAt"" ASC, ""Id"") as rn
+                                                    FROM ""{schema}"".""PurchaseCategories""
+                                                    WHERE ""IsDeleted"" = false
+                                                ) t WHERE t.rn > 1
+                                            );
+
+                                            -- Backfill historical Purchases TaxableAmount and GST splits safely
+                                            UPDATE ""{schema}"".""Purchases""
+                                            SET ""TaxableAmount"" = GREATEST(0, ""SubTotal"" - ""DiscountAmount"" + ""OtherCharges""),
+                                                ""TaxMode"" = CASE WHEN ""TaxAmount"" > 0 THEN 'GST' ELSE 'NonGST' END,
+                                                ""CGSTAmount"" = CASE WHEN ""TaxAmount"" > 0 THEN ROUND(""TaxAmount"" / 2.0, 2) ELSE 0 END,
+                                                ""SGSTAmount"" = CASE WHEN ""TaxAmount"" > 0 THEN ROUND(""TaxAmount"" - ROUND(""TaxAmount"" / 2.0, 2), 2) ELSE 0 END,
+                                                ""GSTRate"" = CASE WHEN ""TaxAmount"" > 0 AND GREATEST(0, ""SubTotal"" - ""DiscountAmount"" + ""OtherCharges"") > 0 
+                                                                 THEN ROUND((""TaxAmount"" / GREATEST(0, ""SubTotal"" - ""DiscountAmount"" + ""OtherCharges"")) * 100.0, 2)
+                                                                 ELSE 0 END
+                                            WHERE (""TaxableAmount"" = 0 AND ""SubTotal"" > 0) OR ""TaxMode"" IS NULL;
+
                                             CREATE TABLE IF NOT EXISTS ""{schema}"".""WaterTestParameters"" (
                                                 ""Id"" uuid NOT NULL PRIMARY KEY,
                                                 ""Name"" text NOT NULL,

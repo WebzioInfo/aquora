@@ -479,9 +479,45 @@ export const PurchaseDetailsPage: React.FC = () => {
                   <span className="font-mono text-slate-800">+ ₹{purchase.otherCharges.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>GST Tax amount:</span>
-                  <span className="font-mono text-slate-800">₹{purchase.taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <span>Taxable Amount:</span>
+                  <span className="font-mono text-slate-900 font-semibold">
+                    ₹{((purchase.taxableAmount ?? 0) > 0 ? (purchase.taxableAmount ?? 0) : (purchase.subTotal - purchase.discountAmount + purchase.otherCharges)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
                 </div>
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-1">
+                    GST Tax ({purchase.gstRate ?? 18}%{purchase.isInclusiveTax ? ' Incl' : ''}):
+                    {purchase.isGstOverridden && (
+                      <span className="text-[10px] bg-amber-100 text-amber-800 px-1 py-0.2 rounded font-bold">
+                        Override
+                      </span>
+                    )}
+                  </span>
+                  <span className="font-mono font-bold text-slate-900">₹{purchase.taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+
+                {purchase.taxAmount > 0 && (
+                  <div className="bg-slate-50 p-2 rounded border border-slate-200 text-[11px] space-y-0.5">
+                    {(purchase.isInterState || (purchase.igstAmount && purchase.igstAmount > 0)) ? (
+                      <div className="flex justify-between text-indigo-700 font-medium">
+                        <span>IGST (Integrated Tax):</span>
+                        <span className="font-mono font-bold">₹{(purchase.igstAmount || purchase.taxAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex justify-between text-slate-600">
+                          <span>CGST (Central Tax):</span>
+                          <span className="font-mono font-bold text-slate-800">₹{(purchase.cgstAmount || (purchase.taxAmount / 2)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-600">
+                          <span>SGST (State Tax):</span>
+                          <span className="font-mono font-bold text-slate-800">₹{(purchase.sgstAmount || (purchase.taxAmount / 2)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex justify-between text-slate-900 font-extrabold text-sm border-t border-slate-200 pt-2">
                   <span>Grand Total:</span>
                   <span className="font-mono text-blue-600">₹{purchase.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>

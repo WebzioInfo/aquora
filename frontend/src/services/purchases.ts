@@ -85,6 +85,16 @@ export interface Purchase {
   grandTotal: number
   amountPaid: number
   balanceAmount: number
+  // Tax Snapshot
+  taxMode?: 'GST' | 'NonGST' | string
+  gstRate?: number
+  taxableAmount?: number
+  cgstAmount?: number
+  sgstAmount?: number
+  igstAmount?: number
+  isGstOverridden?: boolean
+  isInclusiveTax?: boolean
+  isInterState?: boolean
   paymentStatus: string
   isCancelled?: boolean
   cancelledAt?: string
@@ -120,6 +130,16 @@ export interface CreatePurchaseRequest {
   otherCharges: number
   grandTotal: number
   amountPaid: number
+  // Tax Breakdown Snapshot
+  taxMode?: 'GST' | 'NonGST' | string
+  gstRate?: number
+  taxableAmount?: number
+  cgstAmount?: number
+  sgstAmount?: number
+  igstAmount?: number
+  isGstOverridden?: boolean
+  isInclusiveTax?: boolean
+  isInterState?: boolean
   notes?: string
   attachmentUrl?: string
   categoryMetadataJson?: string
@@ -238,6 +258,23 @@ export interface PurchaseCategory {
   treatment: 'Inventory' | 'Asset' | 'Expense' | string
   isSystem: boolean
   isActive: boolean
+  defaultLedgerAccount?: string
+  affectsInventory: boolean
+  requiresAsset: boolean
+  requiresExpense: boolean
+  affectsVendorLedger: boolean
+  isGstApplicable: boolean
+  defaultGstRate: number
+  allowGstRateChange: boolean
+  allowCustomGstRate: boolean
+  requireQuantity: boolean
+  requireUnit: boolean
+  requireItem: boolean
+  requireServiceDescription: boolean
+  requireAssetDetails: boolean
+  requireInvoiceNumber: boolean
+  requireVendor: boolean
+  requirePaymentDetails: boolean
   createdAt: string
   updatedAt?: string
 }

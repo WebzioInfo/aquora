@@ -39,6 +39,17 @@ namespace Aquora.Domain.Entities.Finance
         public decimal AmountPaid { get; set; }
         public decimal BalanceAmount { get; set; }
 
+        // GST & Tax Breakdown Snapshot
+        public string TaxMode { get; set; } = "GST"; // GST, NonGST
+        public decimal GSTRate { get; set; } = 0m;
+        public decimal TaxableAmount { get; set; } = 0m;
+        public decimal CGSTAmount { get; set; } = 0m;
+        public decimal SGSTAmount { get; set; } = 0m;
+        public decimal IGSTAmount { get; set; } = 0m;
+        public bool IsGstOverridden { get; set; } = false;
+        public bool IsInclusiveTax { get; set; } = false;
+        public bool IsInterState { get; set; } = false;
+
         // Status: Paid, PartiallyPaid, Unpaid, Cancelled
         public string PaymentStatus { get; set; } = "Unpaid";
         public bool IsCancelled { get; set; }

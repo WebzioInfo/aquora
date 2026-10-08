@@ -50,6 +50,17 @@ namespace Aquora.Application.DTOs.Purchase
         public decimal AmountPaid { get; set; }
         public decimal BalanceAmount { get; set; }
 
+        // GST & Tax Breakdown Snapshot
+        public string TaxMode { get; set; } = "GST"; // GST, NonGST
+        public decimal GSTRate { get; set; }
+        public decimal TaxableAmount { get; set; }
+        public decimal CGSTAmount { get; set; }
+        public decimal SGSTAmount { get; set; }
+        public decimal IGSTAmount { get; set; }
+        public bool IsGstOverridden { get; set; }
+        public bool IsInclusiveTax { get; set; }
+        public bool IsInterState { get; set; }
+
         public string PaymentStatus { get; set; } = "Unpaid";
         public bool IsCancelled { get; set; }
         public DateTime? CancelledAt { get; set; }
@@ -154,6 +165,17 @@ namespace Aquora.Application.DTOs.Purchase
         public decimal OtherCharges { get; set; }
         public decimal GrandTotal { get; set; }
         public decimal AmountPaid { get; set; }
+
+        // GST & Tax Breakdown Snapshot
+        public string TaxMode { get; set; } = "GST"; // GST, NonGST
+        public decimal GSTRate { get; set; } = 0m;
+        public decimal TaxableAmount { get; set; } = 0m;
+        public decimal CGSTAmount { get; set; } = 0m;
+        public decimal SGSTAmount { get; set; } = 0m;
+        public decimal IGSTAmount { get; set; } = 0m;
+        public bool IsGstOverridden { get; set; } = false;
+        public bool IsInclusiveTax { get; set; } = false;
+        public bool IsInterState { get; set; } = false;
 
         public string? Notes { get; set; }
         public string? AttachmentUrl { get; set; }

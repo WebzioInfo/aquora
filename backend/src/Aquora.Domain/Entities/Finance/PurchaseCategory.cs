@@ -16,6 +16,25 @@ namespace Aquora.Domain.Entities.Finance
         // Treatment / Behavior: Inventory, Asset, Expense
         public string Treatment { get; set; } = "Expense"; // "Inventory", "Asset", "Expense"
 
+        // Category Configuration Architecture
+        public string? DefaultLedgerAccount { get; set; }
+        public bool AffectsInventory { get; set; } = false;
+        public bool RequiresAsset { get; set; } = false;
+        public bool RequiresExpense { get; set; } = false;
+        public bool AffectsVendorLedger { get; set; } = true;
+        public bool IsGstApplicable { get; set; } = true;
+        public decimal DefaultGstRate { get; set; } = 18.0m;
+        public bool AllowGstRateChange { get; set; } = true;
+        public bool AllowCustomGstRate { get; set; } = true;
+        public bool RequireQuantity { get; set; } = false;
+        public bool RequireUnit { get; set; } = false;
+        public bool RequireItem { get; set; } = false;
+        public bool RequireServiceDescription { get; set; } = false;
+        public bool RequireAssetDetails { get; set; } = false;
+        public bool RequireInvoiceNumber { get; set; } = false;
+        public bool RequireVendor { get; set; } = true;
+        public bool RequirePaymentDetails { get; set; } = true;
+
         // IsSystem: true for the 10 built-in system categories, preventing deletion
         public bool IsSystem { get; set; } = false;
 

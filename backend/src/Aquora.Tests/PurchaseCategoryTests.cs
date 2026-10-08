@@ -359,5 +359,109 @@ namespace Aquora.Tests
 
             Assert.DoesNotContain("Tenant A Secret Procurement", namesB);
         }
+
+        [Fact]
+        public void Test_GSTCalculationEngine_MatrixVerification()
+        {
+            // TEST 1: 10,000 @ 18% -> GST 1,800, CGST 900, SGST 900
+            var res1 = PurchaseService.CalculatePurchaseTotals(10000m, 0m, 0m, "GST", 18m, false, false, 0m, false, 0m, "Credit");
+            Assert.Equal(10000m, res1.TaxableAmount);
+            Assert.Equal(1800m, res1.FinalGst);
+            Assert.Equal(900m, res1.CGSTAmount);
+            Assert.Equal(900m, res1.SGSTAmount);
+            Assert.Equal(0m, res1.IGSTAmount);
+            Assert.Equal(11800m, res1.GrandTotal);
+
+            // TEST 2: 10,000 @ 5% -> GST 500
+            var res2 = PurchaseService.CalculatePurchaseTotals(10000m, 0m, 0m, "GST", 5m, false, false, 0m, false, 0m, "Credit");
+            Assert.Equal(500m, res2.FinalGst);
+            Assert.Equal(10500m, res2.GrandTotal);
+
+            // TEST 3: 10,000 @ 0% -> GST 0
+            var res3 = PurchaseService.CalculatePurchaseTotals(10000m, 0m, 0m, "GST", 0m, false, false, 0m, false, 0m, "Credit");
+            Assert.Equal(0m, res3.FinalGst);
+            Assert.Equal(10000m, res3.GrandTotal);
+
+            // TEST 6: Discount: Subtotal 10,000, Discount 500 @ 18% -> Taxable 9,500, GST 1,710
+            var res6 = PurchaseService.CalculatePurchaseTotals(10000m, 500m, 0m, "GST", 18m, false, false, 0m, false, 0m, "Credit");
+            Assert.Equal(9500m, res6.TaxableAmount);
+            Assert.Equal(1710m, res6.FinalGst);
+            Assert.Equal(11210m, res6.GrandTotal);
+
+            // TEST 7: Freight: Subtotal 10,000, Discount 500, Freight 200 @ 18% -> Taxable 9,700, GST 1,746, Grand 11,446
+            var res7 = PurchaseService.CalculatePurchaseTotals(10000m, 500m, 200m, "GST", 18m, false, false, 0m, false, 5000m, "BankAccount");
+            Assert.Equal(9700m, res7.TaxableAmount);
+            Assert.Equal(1746m, res7.FinalGst);
+            Assert.Equal(11446m, res7.GrandTotal);
+            Assert.Equal(5000m, res7.AmountPaid);
+            Assert.Equal(6446m, res7.BalanceAmount);
+            Assert.Equal("PartiallyPaid", res7.PaymentStatus);
+
+            // TEST 8: Manual Override: 1,800 -> 1,750
+            var res8 = PurchaseService.CalculatePurchaseTotals(10000m, 0m, 0m, "GST", 18m, false, true, 1750m, false, 0m, "Credit");
+            Assert.Equal(1750m, res8.FinalGst);
+            Assert.Equal(875m, res8.CGSTAmount);
+            Assert.Equal(875m, res8.SGSTAmount);
+            Assert.Equal(11750m, res8.GrandTotal);
+            Assert.True(res8.IsGstOverridden);
+
+            // TEST 10: Inter-state: IGST 1,800
+            var res10 = PurchaseService.CalculatePurchaseTotals(10000m, 0m, 0m, "GST", 18m, false, false, 0m, true, 0m, "Credit");
+            Assert.Equal(1800m, res10.IGSTAmount);
+            Assert.Equal(0m, res10.CGSTAmount);
+            Assert.Equal(0m, res10.SGSTAmount);
+
+            // TEST 11: Inclusive GST: 11,800 total @ 18% -> Taxable 10,000, GST 1,800
+            var res11 = PurchaseService.CalculatePurchaseTotals(11800m, 0m, 0m, "GST", 18m, true, false, 0m, false, 11800m, "BankAccount");
+            Assert.Equal(10000m, res11.TaxableAmount);
+            Assert.Equal(1800m, res11.FinalGst);
+            Assert.Equal(11800m, res11.GrandTotal);
+            Assert.Equal(0m, res11.BalanceAmount);
+            Assert.Equal("Paid", res11.PaymentStatus);
+        }
+
+        [Fact]
+        public async Task Test_CreatePurchaseWithGstSnapshot_PersistsAccurately()
+        {
+            var (context, service, tenantId, companyId) = CreateTestService();
+
+            var req = new CreatePurchaseRequest
+            {
+                PurchaseDate = DateTime.UtcNow,
+                VendorName = "Apex Water Packaging",
+                PurchaseCategory = "RawMaterial",
+                PaymentMethod = "BankAccount",
+                SubTotal = 20000m,
+                DiscountAmount = 1000m,
+                OtherCharges = 500m,
+                TaxMode = "GST",
+                GSTRate = 18m,
+                IsInterState = true,
+                AmountPaid = 10000m,
+                Items = new List<CreatePurchaseItemRequest>
+                {
+                    new CreatePurchaseItemRequest
+                    {
+                        ItemName = "Preform 20L 700g",
+                        Quantity = 1000,
+                        UnitPrice = 20,
+                        TotalAmount = 20000
+                    }
+                }
+            };
+
+            var purchase = await service.CreatePurchaseAsync(req);
+            Assert.NotNull(purchase);
+            Assert.Equal("RawMaterial", purchase.PurchaseCategory);
+            Assert.Equal(19500m, purchase.TaxableAmount);
+            Assert.Equal(3510m, purchase.TaxAmount);
+            Assert.Equal(3510m, purchase.IGSTAmount);
+            Assert.Equal(0m, purchase.CGSTAmount);
+            Assert.Equal(0m, purchase.SGSTAmount);
+            Assert.Equal(23010m, purchase.GrandTotal);
+            Assert.Equal(10000m, purchase.AmountPaid);
+            Assert.Equal(13010m, purchase.BalanceAmount);
+            Assert.Equal("PartiallyPaid", purchase.PaymentStatus);
+        }
     }
 }
