@@ -2199,15 +2199,15 @@ export const CompanyDashboardPage: React.FC = () => {
       errs.roleCode = 'System Admin role cannot be created or assigned by Company Admin.'
     }
     if (!addPasswordOrPin) {
-      errs.passwordOrPin = 'PIN is required.'
-    } else if (addPasswordOrPin.length !== 4 || !/^\d{4}$/.test(addPasswordOrPin)) {
-      errs.passwordOrPin = 'PIN must contain exactly 4 digits.'
+      errs.passwordOrPin = 'Password or PIN is required.'
+    } else if (addPasswordOrPin.length < 4) {
+      errs.passwordOrPin = 'Password or PIN must be at least 4 characters.'
     }
 
-    if (!addCurrentSalary) {
+    if (addCurrentSalary === '' || addCurrentSalary === null || addCurrentSalary === undefined) {
       errs.currentSalary = 'Current Salary is required.'
-    } else if (isNaN(Number(addCurrentSalary)) || Number(addCurrentSalary) <= 0) {
-      errs.currentSalary = 'Current Salary must be greater than zero.'
+    } else if (isNaN(Number(addCurrentSalary)) || Number(addCurrentSalary) < 0) {
+      errs.currentSalary = 'Current Salary cannot be negative.'
     }
 
     if (Object.keys(errs).length > 0) {
@@ -2251,8 +2251,8 @@ export const CompanyDashboardPage: React.FC = () => {
     }
 
     if (editPin.trim()) {
-      if (editPin.trim().length !== 4 || !/^\d{4}$/.test(editPin.trim())) {
-        errs.pin = 'PIN must contain exactly 4 digits.'
+      if (editPin.trim().length < 4) {
+        errs.pin = 'Password or PIN must be at least 4 characters.'
       }
     }
 
@@ -2262,10 +2262,10 @@ export const CompanyDashboardPage: React.FC = () => {
       errs.roleCode = 'System Admin role cannot be assigned by Company Admin.'
     }
 
-    if (!editCurrentSalary) {
+    if (editCurrentSalary === '' || editCurrentSalary === null || editCurrentSalary === undefined) {
       errs.currentSalary = 'Current Salary is required.'
-    } else if (isNaN(Number(editCurrentSalary)) || Number(editCurrentSalary) <= 0) {
-      errs.currentSalary = 'Current Salary must be greater than zero.'
+    } else if (isNaN(Number(editCurrentSalary)) || Number(editCurrentSalary) < 0) {
+      errs.currentSalary = 'Current Salary cannot be negative.'
     }
 
     if (Object.keys(errs).length > 0) {
@@ -3869,7 +3869,7 @@ export const CompanyDashboardPage: React.FC = () => {
             <EnterpriseInput
               label="Current Salary (₹) *"
               type="number"
-              min="0.01"
+              min="0"
               step="0.01"
               placeholder="Enter Current Monthly Salary"
               value={addCurrentSalary}
@@ -3928,16 +3928,15 @@ export const CompanyDashboardPage: React.FC = () => {
 
             <div>
               <EnterpriseInput
-                label="PIN (Optional)"
+                label="Password or PIN (Optional)"
                 type="password"
-                maxLength={4}
                 value={editPin}
                 onChange={(e) => setEditPin(e.target.value)}
-                placeholder="Leave blank to keep existing PIN"
+                placeholder="Leave blank to keep existing password"
                 error={editEmployeeErrors.pin}
               />
               <p className="text-[11px] text-[#6B7280] mt-1 ml-0.5">
-                Leave blank to keep current PIN unchanged. Enter 4 digits to set a new PIN.
+                Leave blank to keep current password unchanged. Min 4 characters to set a new password or PIN.
               </p>
             </div>
 
@@ -4005,7 +4004,7 @@ export const CompanyDashboardPage: React.FC = () => {
             <EnterpriseInput
               label="Current Salary (₹) *"
               type="number"
-              min="0.01"
+              min="0"
               step="0.01"
               placeholder="Enter Current Monthly Salary"
               value={editCurrentSalary}

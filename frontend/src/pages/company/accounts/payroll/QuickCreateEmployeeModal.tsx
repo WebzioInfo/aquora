@@ -131,8 +131,8 @@ export const QuickCreateEmployeeModal: React.FC<QuickCreateEmployeeModalProps> =
     }
 
     const salaryNum = Number(currentSalary)
-    if (!currentSalary || isNaN(salaryNum) || salaryNum <= 0) {
-      newErrors.currentSalary = 'Monthly base salary must be greater than zero.'
+    if (currentSalary === '' || currentSalary === null || currentSalary === undefined || isNaN(salaryNum) || salaryNum < 0) {
+      newErrors.currentSalary = 'Monthly base salary cannot be negative.'
     }
 
     setErrors(newErrors)
@@ -368,7 +368,7 @@ export const QuickCreateEmployeeModal: React.FC<QuickCreateEmployeeModalProps> =
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">₹</span>
               <input
                 type="number"
-                min="0.01"
+                min="0"
                 step="0.01"
                 value={currentSalary}
                 onChange={e => setCurrentSalary(e.target.value)}

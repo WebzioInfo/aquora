@@ -25,7 +25,7 @@ namespace Aquora.Application.DTOs.Employees
         public string? Department { get; set; }
 
         [Required(ErrorMessage = "Current Salary is required.")]
-        [Range(0.01, double.MaxValue, ErrorMessage = "Current Salary must be greater than zero.")]
+        [Range(0, double.MaxValue, ErrorMessage = "Current Salary cannot be negative.")]
         public decimal CurrentSalary { get; set; }
 
         public string? Phone { get; set; }
