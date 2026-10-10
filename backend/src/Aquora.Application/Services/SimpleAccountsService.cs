@@ -1124,41 +1124,155 @@ namespace Aquora.Application.Services
                 }
             }
 
-            var owner = new Owner
-            {
-                Id = Guid.NewGuid(),
-                TenantId = tenantId,
-                CompanyId = companyId,
-                UserId = linkedUserId,
-                Name = request.Name.Trim(),
-                Phone = request.Phone.Trim(),
-                Email = request.Email?.Trim(),
-                OwnershipPercentage = request.OwnershipPercentage,
-                InitialInvestment = request.InitialInvestment,
-                CurrentInvestment = request.InitialInvestment, // Starts at initial
-                Notes = request.Notes?.Trim(),
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = userId
-            };
+            var dest = string.IsNullOrWhiteSpace(request.InvestmentReceivedIn)
+                ? "Cash"
+                : request.InvestmentReceivedIn.Trim();
 
-            _context.Owners.Add(owner);
-            await _context.SaveChangesAsync();
-
-            return new OwnerDto
+            if (!dest.Equals("Cash", StringComparison.OrdinalIgnoreCase) &&
+                !dest.Equals("BankAccount", StringComparison.OrdinalIgnoreCase))
             {
-                Id = owner.Id,
-                UserId = owner.UserId,
-                Name = owner.Name,
-                Phone = owner.Phone,
-                Email = owner.Email,
-                OwnershipPercentage = owner.OwnershipPercentage,
-                InitialInvestment = owner.InitialInvestment,
-                CurrentInvestment = owner.CurrentInvestment,
-                Notes = owner.Notes,
-                CreatedAt = owner.CreatedAt,
-                CreatedBy = owner.CreatedBy,
-                Transactions = new List<OwnerInvestmentTransactionDto>()
-            };
+                throw new ArgumentException("Investment destination must be either 'Cash' or 'BankAccount'.");
+            }
+
+            if (dest.Equals("BankAccount", StringComparison.OrdinalIgnoreCase) && request.InitialInvestment > 0 && !request.BankAccountId.HasValue)
+            {
+                throw new ArgumentException("A valid bank account must be selected when initial investment is received in Bank Account.");
+            }
+
+            async Task<OwnerDto> executeBodyAsync()
+            {
+                var owner = new Owner
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    CompanyId = companyId,
+                    UserId = linkedUserId,
+                    Name = request.Name.Trim(),
+                    Phone = request.Phone.Trim(),
+                    Email = request.Email?.Trim(),
+                    OwnershipPercentage = request.OwnershipPercentage,
+                    InitialInvestment = request.InitialInvestment,
+                    CurrentInvestment = request.InitialInvestment, // Starts at initial
+                    Notes = request.Notes?.Trim(),
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = userId
+                };
+
+                _context.Owners.Add(owner);
+                await _context.SaveChangesAsync();
+
+                if (dest.Equals("BankAccount", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (request.BankAccountId.HasValue && request.InitialInvestment > 0)
+                    {
+                        var bankAccount = await _context.BankAccounts
+                            .FirstOrDefaultAsync(b => b.Id == request.BankAccountId.Value && b.TenantId == tenantId && !b.IsDeleted);
+                        if (bankAccount == null)
+                        {
+                            throw new KeyNotFoundException("Selected bank account was not found or access is denied.");
+                        }
+
+                        await _bankLedgerService.RecordTransactionAsync(
+                            bankAccountId: request.BankAccountId.Value,
+                            transactionDate: owner.CreatedAt,
+                            referenceNumber: $"OWNER-{owner.Id.ToString()[..8].ToUpper()}",
+                            transactionType: "Owner Investment",
+                            description: $"Initial investment by owner {owner.Name}",
+                            debit: 0m,
+                            credit: request.InitialInvestment,
+                            relatedEntityId: owner.Id,
+                            relatedEntityType: "Owner"
+                        );
+                    }
+                }
+                else
+                {
+                    // Cash option: Create dedicated Cashbook for this owner
+                    var cashBookBaseName = $"{owner.Name.Trim()} Cashbook";
+                    var cashBookName = cashBookBaseName;
+
+                    var existingCashBook = await _context.CashBooks
+                        .FirstOrDefaultAsync(c => c.TenantId == tenantId && !c.IsDeleted && c.Name.ToLower() == cashBookName.ToLower());
+                    if (existingCashBook != null)
+                    {
+                        cashBookName = $"{cashBookBaseName} ({owner.Id.ToString()[..4].ToUpper()})";
+                    }
+
+                    var cashBook = new CashBook
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenantId,
+                        CompanyId = companyId,
+                        Name = cashBookName,
+                        Description = $"Dedicated cashbook for owner {owner.Name.Trim()}",
+                        OpeningBalance = 0m,
+                        CurrentBalance = 0m,
+                        Notes = $"Created automatically for owner {owner.Name}",
+                        Status = "Active",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = userId
+                    };
+
+                    _context.CashBooks.Add(cashBook);
+                    await _context.SaveChangesAsync();
+
+                    if (request.InitialInvestment > 0)
+                    {
+                        await _bankLedgerService.RecordCashTransactionAsync(
+                            cashBookId: cashBook.Id,
+                            transactionDate: owner.CreatedAt,
+                            referenceNumber: $"OWNER-{owner.Id.ToString()[..8].ToUpper()}",
+                            transactionType: "Owner Investment",
+                            description: $"Initial investment by owner {owner.Name}",
+                            debit: 0m,
+                            credit: request.InitialInvestment,
+                            relatedEntityId: owner.Id,
+                            relatedEntityType: "Owner"
+                        );
+                    }
+                }
+
+                return new OwnerDto
+                {
+                    Id = owner.Id,
+                    UserId = owner.UserId,
+                    Name = owner.Name,
+                    Phone = owner.Phone,
+                    Email = owner.Email,
+                    OwnershipPercentage = owner.OwnershipPercentage,
+                    InitialInvestment = owner.InitialInvestment,
+                    CurrentInvestment = owner.CurrentInvestment,
+                    Notes = owner.Notes,
+                    CreatedAt = owner.CreatedAt,
+                    CreatedBy = owner.CreatedBy,
+                    Transactions = new List<OwnerInvestmentTransactionDto>()
+                };
+            }
+
+            if (_context.Database.CurrentTransaction != null || !_context.Database.IsRelational())
+            {
+                return await executeBodyAsync();
+            }
+            else
+            {
+                var strategy = _context.Database.CreateExecutionStrategy();
+                return await strategy.ExecuteAsync(async () =>
+                {
+                    using var dbTxn = await _context.Database.BeginTransactionAsync();
+                    try
+                    {
+                        var res = await executeBodyAsync();
+                        await dbTxn.CommitAsync();
+                        return res;
+                    }
+                    catch
+                    {
+                        await dbTxn.RollbackAsync();
+                        throw;
+                    }
+                });
+            }
         }
 
         public async Task<OwnerDto?> UpdateOwnerAsync(Guid id, UpdateOwnerRequest request)

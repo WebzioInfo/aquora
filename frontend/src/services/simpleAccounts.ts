@@ -258,6 +258,8 @@ export interface CreateOwnerRequest {
   ownershipPercentage: number
   initialInvestment: number
   notes?: string
+  investmentReceivedIn?: 'Cash' | 'BankAccount'
+  bankAccountId?: string
 }
 
 export interface UpdateOwnerRequest {

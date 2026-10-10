@@ -224,6 +224,16 @@ namespace Aquora.Application.DTOs.SimpleAccounts
         public decimal InitialInvestment { get; set; }
 
         public string? Notes { get; set; }
+
+        /// <summary>
+        /// Destination for initial investment: "Cash" (creates dedicated cashbook) or "BankAccount" (credits selected bank account).
+        /// </summary>
+        public string? InvestmentReceivedIn { get; set; }
+
+        /// <summary>
+        /// Target BankAccountId when InvestmentReceivedIn is "BankAccount".
+        /// </summary>
+        public Guid? BankAccountId { get; set; }
     }
 
     public class UpdateOwnerRequest

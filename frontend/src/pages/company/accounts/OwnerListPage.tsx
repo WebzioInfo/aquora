@@ -139,6 +139,12 @@ export const OwnerListPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['ownersList'] })
       queryClient.invalidateQueries({ queryKey: ['companyTotalInvestment'] })
       queryClient.invalidateQueries({ queryKey: ['simpleAccountsDashboardSummary'] })
+      queryClient.invalidateQueries({ queryKey: ['cashBookDropdownList'] })
+      queryClient.invalidateQueries({ queryKey: ['cashBooksList'] })
+      queryClient.invalidateQueries({ queryKey: ['bankAccountDropdownList'] })
+      queryClient.invalidateQueries({ queryKey: ['bankAccountsList'] })
+      queryClient.invalidateQueries({ queryKey: ['unifiedLedger'] })
+      queryClient.invalidateQueries({ queryKey: ['unifiedLedgerSummary'] })
       setIsFormModalOpen(false)
       setOwnerToEdit(null)
     },
@@ -362,6 +368,7 @@ export const OwnerListPage: React.FC = () => {
           }}
           ownerToEdit={ownerToEdit}
           existingOwners={owners}
+          bankAccounts={bankAccounts}
           onCreate={async req => {
             await createOwnerMutation.mutateAsync(req)
           }}
