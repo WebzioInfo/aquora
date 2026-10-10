@@ -36,6 +36,9 @@ namespace Aquora.Application.Interfaces.Services
         Task<bool> DeletePurchaseAsync(Guid id);
 
         Task<PurchaseDto?> AddPaymentAsync(Guid purchaseId, AddPurchasePaymentRequest request);
+        Task<PurchasePaymentDto?> GetPaymentByIdAsync(Guid purchaseId, Guid paymentId);
+        Task<PurchaseDto?> UpdatePaymentAsync(Guid purchaseId, Guid paymentId, UpdatePurchasePaymentRequest request);
+        Task<PurchaseDto?> DeletePaymentAsync(Guid purchaseId, Guid paymentId);
         Task<List<AssetHistoryDto>> GetAssetHistoryAsync(Guid assetId);
 
         Task<List<PurchaseCategoryDto>> GetPurchaseCategoriesAsync(bool includeInactive = false);

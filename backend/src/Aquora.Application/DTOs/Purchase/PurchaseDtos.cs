@@ -213,4 +213,15 @@ namespace Aquora.Application.DTOs.Purchase
         public string? ReferenceNo { get; set; }
         public string? Notes { get; set; }
     }
+
+    public class UpdatePurchasePaymentRequest
+    {
+        public DateTime PaymentDate { get; set; } = DateTime.UtcNow;
+        public string PaymentMethod { get; set; } = "BankAccount";
+        public Guid? BankAccountId { get; set; }
+        public Guid? CashBookId { get; set; }
+        public decimal Amount { get; set; }
+        public string? ReferenceNo { get; set; }
+        public string? Notes { get; set; }
+    }
 }

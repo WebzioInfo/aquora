@@ -397,7 +397,7 @@ namespace Aquora.Application.Services
 
             if (amountPaid > 0)
             {
-                purchase.Payments.Add(new PurchasePayment
+                var initialPayment = new PurchasePayment
                 {
                     Id = Guid.NewGuid(),
                     PurchaseId = purchase.Id,
@@ -410,7 +410,8 @@ namespace Aquora.Application.Services
                     Notes = "Initial payment on purchase creation",
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = currentUser
-                });
+                };
+                purchase.Payments.Add(initialPayment);
 
                 if (request.PaymentMethod == "BankAccount" && request.BankAccountId.HasValue)
                 {
@@ -418,22 +419,39 @@ namespace Aquora.Application.Services
                     if (bank != null)
                     {
                         bank.CurrentBalance -= amountPaid;
-                        _context.BankLedgerEntries.Add(new BankLedgerEntry
+                        var bEntry = new BankLedgerEntry
                         {
                             Id = Guid.NewGuid(),
                             TenantId = tenantId,
                             CompanyId = companyId,
                             BankAccountId = bank.Id,
                             LedgerAccountType = "BankAccount",
-                            TransactionDate = DateTime.UtcNow,
+                            TransactionDate = initialPayment.PaymentDate,
                             ReferenceNumber = purchaseNo,
-                            TransactionType = "Debit",
+                            TransactionType = "Purchase Payment",
+                            EventType = "CREATED",
+                            EventLabel = "Purchase Payment",
                             Description = $"Purchase payment to {vendorName} ({request.PurchaseCategory})",
                             Debit = amountPaid,
                             Credit = 0,
                             RunningBalance = bank.CurrentBalance,
-                            RelatedEntityId = purchase.Id,
-                            RelatedEntityType = "Purchase",
+                            RelatedEntityId = initialPayment.Id,
+                            RelatedEntityType = "PurchasePayment",
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedBy = currentUser
+                        };
+                        _context.BankLedgerEntries.Add(bEntry);
+
+                        _context.BankLedgerAuditEntries.Add(new BankLedgerAuditEntry
+                        {
+                            Id = Guid.NewGuid(),
+                            TenantId = tenantId,
+                            CompanyId = companyId,
+                            BankLedgerEntryId = bEntry.Id,
+                            Action = "Created",
+                            OldAmount = 0m,
+                            NewAmount = amountPaid,
+                            Remarks = $"Initial payment recorded for purchase {purchaseNo}",
                             CreatedAt = DateTime.UtcNow,
                             CreatedBy = currentUser
                         });
@@ -445,22 +463,39 @@ namespace Aquora.Application.Services
                     if (cash != null)
                     {
                         cash.CurrentBalance -= amountPaid;
-                        _context.BankLedgerEntries.Add(new BankLedgerEntry
+                        var cEntry = new BankLedgerEntry
                         {
                             Id = Guid.NewGuid(),
                             TenantId = tenantId,
                             CompanyId = companyId,
                             CashBookId = cash.Id,
                             LedgerAccountType = "CashBook",
-                            TransactionDate = DateTime.UtcNow,
+                            TransactionDate = initialPayment.PaymentDate,
                             ReferenceNumber = purchaseNo,
-                            TransactionType = "Debit",
+                            TransactionType = "Purchase Payment",
+                            EventType = "CREATED",
+                            EventLabel = "Purchase Payment",
                             Description = $"Cash purchase payment to {vendorName} ({request.PurchaseCategory})",
                             Debit = amountPaid,
                             Credit = 0,
                             RunningBalance = cash.CurrentBalance,
-                            RelatedEntityId = purchase.Id,
-                            RelatedEntityType = "Purchase",
+                            RelatedEntityId = initialPayment.Id,
+                            RelatedEntityType = "PurchasePayment",
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedBy = currentUser
+                        };
+                        _context.BankLedgerEntries.Add(cEntry);
+
+                        _context.BankLedgerAuditEntries.Add(new BankLedgerAuditEntry
+                        {
+                            Id = Guid.NewGuid(),
+                            TenantId = tenantId,
+                            CompanyId = companyId,
+                            BankLedgerEntryId = cEntry.Id,
+                            Action = "Created",
+                            OldAmount = 0m,
+                            NewAmount = amountPaid,
+                            Remarks = $"Initial cash payment recorded for purchase {purchaseNo}",
                             CreatedAt = DateTime.UtcNow,
                             CreatedBy = currentUser
                         });
@@ -1016,7 +1051,10 @@ namespace Aquora.Application.Services
                         CreatedBy = currentUser
                     };
                     _context.PurchasePayments.Add(initialPayment);
-                    purchase.Payments.Add(initialPayment);
+                    if (!purchase.Payments.Any(p => p.Id == initialPayment.Id))
+                    {
+                        purchase.Payments.Add(initialPayment);
+                    }
                 }
                 else
                 {
@@ -1287,7 +1325,10 @@ namespace Aquora.Application.Services
                 CreatedBy = currentUser
             };
             _context.PurchasePayments.Add(payment);
-            purchase.Payments.Add(payment);
+            if (!purchase.Payments.Any(p => p.Id == payment.Id))
+            {
+                purchase.Payments.Add(payment);
+            }
 
             if (request.PaymentMethod == "BankAccount" && request.BankAccountId.HasValue)
             {
@@ -1295,22 +1336,39 @@ namespace Aquora.Application.Services
                 if (bank != null)
                 {
                     bank.CurrentBalance -= paymentAmount;
-                    _context.BankLedgerEntries.Add(new BankLedgerEntry
+                    var bEntry = new BankLedgerEntry
                     {
                         Id = Guid.NewGuid(),
                         TenantId = tenantId,
                         CompanyId = companyId,
                         BankAccountId = bank.Id,
                         LedgerAccountType = "BankAccount",
-                        TransactionDate = DateTime.UtcNow,
-                        ReferenceNumber = purchase.PurchaseNo,
-                        TransactionType = "Debit",
-                        Description = $"Subsequent purchase payment for {purchase.PurchaseNo} ({purchase.VendorName})",
+                        TransactionDate = payment.PaymentDate,
+                        ReferenceNumber = !string.IsNullOrWhiteSpace(request.ReferenceNo) ? request.ReferenceNo.Trim() : purchase.PurchaseNo,
+                        TransactionType = "Purchase Payment",
+                        EventType = "CREATED",
+                        EventLabel = "Purchase Payment",
+                        Description = $"Purchase payment for {purchase.PurchaseNo} ({purchase.VendorName})",
                         Debit = paymentAmount,
                         Credit = 0,
                         RunningBalance = bank.CurrentBalance,
-                        RelatedEntityId = purchase.Id,
-                        RelatedEntityType = "Purchase",
+                        RelatedEntityId = payment.Id,
+                        RelatedEntityType = "PurchasePayment",
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = currentUser
+                    };
+                    _context.BankLedgerEntries.Add(bEntry);
+
+                    _context.BankLedgerAuditEntries.Add(new BankLedgerAuditEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenantId,
+                        CompanyId = companyId,
+                        BankLedgerEntryId = bEntry.Id,
+                        Action = "Created",
+                        OldAmount = 0m,
+                        NewAmount = paymentAmount,
+                        Remarks = $"Purchase payment recorded for {purchase.PurchaseNo}",
                         CreatedAt = DateTime.UtcNow,
                         CreatedBy = currentUser
                     });
@@ -1322,22 +1380,39 @@ namespace Aquora.Application.Services
                 if (cash != null)
                 {
                     cash.CurrentBalance -= paymentAmount;
-                    _context.BankLedgerEntries.Add(new BankLedgerEntry
+                    var cEntry = new BankLedgerEntry
                     {
                         Id = Guid.NewGuid(),
                         TenantId = tenantId,
                         CompanyId = companyId,
                         CashBookId = cash.Id,
                         LedgerAccountType = "CashBook",
-                        TransactionDate = DateTime.UtcNow,
-                        ReferenceNumber = purchase.PurchaseNo,
-                        TransactionType = "Debit",
-                        Description = $"Subsequent cash purchase payment for {purchase.PurchaseNo} ({purchase.VendorName})",
+                        TransactionDate = payment.PaymentDate,
+                        ReferenceNumber = !string.IsNullOrWhiteSpace(request.ReferenceNo) ? request.ReferenceNo.Trim() : purchase.PurchaseNo,
+                        TransactionType = "Purchase Payment",
+                        EventType = "CREATED",
+                        EventLabel = "Purchase Payment",
+                        Description = $"Cash purchase payment for {purchase.PurchaseNo} ({purchase.VendorName})",
                         Debit = paymentAmount,
                         Credit = 0,
                         RunningBalance = cash.CurrentBalance,
-                        RelatedEntityId = purchase.Id,
-                        RelatedEntityType = "Purchase",
+                        RelatedEntityId = payment.Id,
+                        RelatedEntityType = "PurchasePayment",
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = currentUser
+                    };
+                    _context.BankLedgerEntries.Add(cEntry);
+
+                    _context.BankLedgerAuditEntries.Add(new BankLedgerAuditEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenantId,
+                        CompanyId = companyId,
+                        BankLedgerEntryId = cEntry.Id,
+                        Action = "Created",
+                        OldAmount = 0m,
+                        NewAmount = paymentAmount,
+                        Remarks = $"Cash purchase payment recorded for {purchase.PurchaseNo}",
                         CreatedAt = DateTime.UtcNow,
                         CreatedBy = currentUser
                     });
@@ -1366,6 +1441,396 @@ namespace Aquora.Application.Services
             purchase.TimelineEvents.Add(timelineEvent);
 
             await _context.SaveChangesAsync();
+            return await GetPurchaseByIdAsync(purchaseId);
+        }
+
+        public async Task<PurchasePaymentDto?> GetPaymentByIdAsync(Guid purchaseId, Guid paymentId)
+        {
+            var p = await _context.Purchases
+                .Include(x => x.Payments)
+                    .ThenInclude(pay => pay.BankAccount)
+                .Include(x => x.Payments)
+                    .ThenInclude(pay => pay.CashBook)
+                .FirstOrDefaultAsync(x => x.Id == purchaseId && !x.IsDeleted);
+
+            if (p == null) return null;
+            var pay = p.Payments.FirstOrDefault(x => x.Id == paymentId);
+            if (pay == null) return null;
+
+            var resolveName = await GetUserResolverAsync(new[] { pay.CreatedBy });
+            return new PurchasePaymentDto
+            {
+                Id = pay.Id,
+                PurchaseId = pay.PurchaseId,
+                PaymentDate = pay.PaymentDate,
+                PaymentMethod = pay.PaymentMethod,
+                BankAccountId = pay.BankAccountId,
+                BankAccountName = pay.BankAccount?.BankName,
+                CashBookId = pay.CashBookId,
+                CashBookName = pay.CashBook?.Name,
+                Amount = pay.Amount,
+                ReferenceNo = pay.ReferenceNo,
+                Notes = pay.Notes,
+                CreatedAt = pay.CreatedAt,
+                CreatedBy = pay.CreatedBy,
+                CreatedByName = resolveName(pay.CreatedBy)
+            };
+        }
+
+        public async Task<PurchaseDto?> UpdatePaymentAsync(Guid purchaseId, Guid paymentId, UpdatePurchasePaymentRequest request)
+        {
+            if (request.Amount <= 0)
+            {
+                throw new ArgumentException("Payment amount must be greater than zero.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.PaymentMethod))
+            {
+                throw new ArgumentException("Payment method is required.");
+            }
+
+            if (request.PaymentMethod == "BankAccount")
+            {
+                if (!request.BankAccountId.HasValue || request.BankAccountId.Value == Guid.Empty)
+                {
+                    throw new ArgumentException("Please select a bank account.");
+                }
+                var bankExists = await _context.BankAccounts.AnyAsync(b => b.Id == request.BankAccountId.Value && !b.IsDeleted);
+                if (!bankExists)
+                {
+                    throw new ArgumentException("Selected bank account was not found or is inactive.");
+                }
+            }
+            else if (request.PaymentMethod == "Cash")
+            {
+                if (!request.CashBookId.HasValue || request.CashBookId.Value == Guid.Empty)
+                {
+                    throw new ArgumentException("Please select a cash book.");
+                }
+                var cashExists = await _context.CashBooks.AnyAsync(c => c.Id == request.CashBookId.Value && !c.IsDeleted);
+                if (!cashExists)
+                {
+                    throw new ArgumentException("Selected cash book was not found or is inactive.");
+                }
+            }
+
+            var dbContext = _context as DbContext;
+            if (dbContext == null) throw new InvalidOperationException("Could not cast context to DbContext");
+
+            var tenantId = GetTenantId();
+            var companyId = await GetCompanyIdAsync();
+            var currentUser = _currentUserContext.Email ?? "Company Administrator";
+
+            using var transaction = await dbContext.Database.BeginTransactionAsync();
+            try
+            {
+                var purchase = await _context.Purchases
+                    .Include(p => p.Payments)
+                    .Include(p => p.TimelineEvents)
+                    .Include(p => p.Vendor)
+                    .FirstOrDefaultAsync(p => p.Id == purchaseId && !p.IsDeleted);
+
+                if (purchase == null) return null;
+
+                if (purchase.IsCancelled)
+                {
+                    throw new InvalidOperationException("Cannot modify payments on a cancelled purchase.");
+                }
+
+                var payment = purchase.Payments.FirstOrDefault(p => p.Id == paymentId);
+                if (payment == null)
+                {
+                    return null;
+                }
+
+                var oldAmount = payment.Amount;
+                var newAmount = Math.Round(request.Amount, 2);
+                var amountDelta = newAmount - oldAmount;
+
+                var oldMethod = payment.PaymentMethod;
+                var oldBankAccountId = payment.BankAccountId;
+                var oldCashBookId = payment.CashBookId;
+                var oldDate = payment.PaymentDate;
+                var newDate = request.PaymentDate.ToUniversalTime();
+
+                // 1. Update Payment record
+                payment.Amount = newAmount;
+                payment.PaymentDate = newDate;
+                payment.PaymentMethod = request.PaymentMethod;
+                payment.BankAccountId = request.PaymentMethod == "BankAccount" ? request.BankAccountId : null;
+                payment.CashBookId = request.PaymentMethod == "Cash" ? request.CashBookId : null;
+                payment.ReferenceNo = request.ReferenceNo?.Trim();
+                payment.Notes = request.Notes?.Trim();
+
+                // 2. Recalculate Purchase totals
+                var totalPaid = Math.Round(purchase.Payments.Sum(p => p.Amount), 2);
+                purchase.AmountPaid = totalPaid;
+                purchase.BalanceAmount = Math.Round(Math.Max(0m, purchase.GrandTotal - purchase.AmountPaid), 2);
+
+                if (purchase.AmountPaid >= purchase.GrandTotal) purchase.PaymentStatus = "Paid";
+                else if (purchase.AmountPaid > 0) purchase.PaymentStatus = "PartiallyPaid";
+                else purchase.PaymentStatus = "Unpaid";
+
+                purchase.UpdatedAt = DateTime.UtcNow;
+                purchase.UpdatedBy = currentUser;
+
+                // Sync purchase-level payment method if this is the primary payment
+                var primaryPayment = purchase.Payments.OrderBy(p => p.CreatedAt).FirstOrDefault();
+                if (primaryPayment != null)
+                {
+                    purchase.PaymentMethod = primaryPayment.PaymentMethod;
+                    purchase.BankAccountId = primaryPayment.BankAccountId;
+                    purchase.CashBookId = primaryPayment.CashBookId;
+                }
+
+                // 3. Adjust Vendor Payable Balance
+                if (purchase.VendorId.HasValue && amountDelta != 0)
+                {
+                    var vendor = await _context.Vendors.FirstOrDefaultAsync(v => v.Id == purchase.VendorId.Value && !v.IsDeleted);
+                    if (vendor != null)
+                    {
+                        vendor.CurrentBalance = Math.Max(0m, vendor.CurrentBalance - amountDelta);
+                    }
+                }
+
+                // 4. Update / Sync BankLedgerEntry
+                var ledgerEntry = await _context.BankLedgerEntries
+                    .FirstOrDefaultAsync(e => e.TenantId == tenantId &&
+                        ((e.RelatedEntityId == payment.Id && e.RelatedEntityType == "PurchasePayment") ||
+                         (e.RelatedEntityId == purchase.Id && e.RelatedEntityType == "Purchase" && e.Debit == oldAmount &&
+                          (e.BankAccountId == oldBankAccountId || e.CashBookId == oldCashBookId))));
+
+                if (ledgerEntry != null)
+                {
+                    ledgerEntry.RelatedEntityId = payment.Id;
+                    ledgerEntry.RelatedEntityType = "PurchasePayment";
+                    ledgerEntry.TransactionDate = newDate;
+                    ledgerEntry.ReferenceNumber = !string.IsNullOrWhiteSpace(request.ReferenceNo) ? request.ReferenceNo.Trim() : purchase.PurchaseNo;
+                    ledgerEntry.TransactionType = "Purchase Payment";
+                    ledgerEntry.EventType = "UPDATED";
+                    ledgerEntry.EventLabel = "Purchase Payment Updated";
+                    ledgerEntry.AuditNotes = $"Payment edited: amount changed from ₹{oldAmount:N2} to ₹{newAmount:N2}, method: {request.PaymentMethod}.";
+                    ledgerEntry.Debit = newAmount;
+                    ledgerEntry.Credit = 0m;
+                    ledgerEntry.UpdatedAt = DateTime.UtcNow;
+                    ledgerEntry.UpdatedBy = currentUser;
+
+                    if (request.PaymentMethod == "BankAccount")
+                    {
+                        ledgerEntry.LedgerAccountType = "BankAccount";
+                        ledgerEntry.BankAccountId = request.BankAccountId;
+                        ledgerEntry.CashBookId = null;
+                        ledgerEntry.Description = $"Purchase payment to {purchase.VendorName} ({purchase.PurchaseCategory}) - Updated";
+                    }
+                    else
+                    {
+                        ledgerEntry.LedgerAccountType = "CashBook";
+                        ledgerEntry.BankAccountId = null;
+                        ledgerEntry.CashBookId = request.CashBookId;
+                        ledgerEntry.Description = $"Cash purchase payment to {purchase.VendorName} ({purchase.PurchaseCategory}) - Updated";
+                    }
+
+                    _context.BankLedgerAuditEntries.Add(new BankLedgerAuditEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenantId,
+                        CompanyId = companyId,
+                        BankLedgerEntryId = ledgerEntry.Id,
+                        Action = "Updated",
+                        OldAmount = oldAmount,
+                        NewAmount = newAmount,
+                        Remarks = $"Purchase payment edited on purchase {purchase.PurchaseNo}. Notes: {request.Notes}",
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = currentUser
+                    });
+                }
+                else
+                {
+                    // Fallback create if entry did not exist
+                    var newEntry = new BankLedgerEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenantId,
+                        CompanyId = companyId,
+                        BankAccountId = request.PaymentMethod == "BankAccount" ? request.BankAccountId : null,
+                        CashBookId = request.PaymentMethod == "Cash" ? request.CashBookId : null,
+                        LedgerAccountType = request.PaymentMethod == "BankAccount" ? "BankAccount" : "CashBook",
+                        TransactionDate = newDate,
+                        ReferenceNumber = !string.IsNullOrWhiteSpace(request.ReferenceNo) ? request.ReferenceNo.Trim() : purchase.PurchaseNo,
+                        TransactionType = "Purchase Payment",
+                        EventType = "CREATED",
+                        EventLabel = "Purchase Payment",
+                        Description = request.PaymentMethod == "BankAccount"
+                            ? $"Purchase payment to {purchase.VendorName} ({purchase.PurchaseCategory})"
+                            : $"Cash purchase payment to {purchase.VendorName} ({purchase.PurchaseCategory})",
+                        Debit = newAmount,
+                        Credit = 0m,
+                        RunningBalance = 0m,
+                        RelatedEntityId = payment.Id,
+                        RelatedEntityType = "PurchasePayment",
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = currentUser
+                    };
+                    _context.BankLedgerEntries.Add(newEntry);
+
+                    _context.BankLedgerAuditEntries.Add(new BankLedgerAuditEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenantId,
+                        CompanyId = companyId,
+                        BankLedgerEntryId = newEntry.Id,
+                        Action = "Created",
+                        OldAmount = 0m,
+                        NewAmount = newAmount,
+                        Remarks = $"Purchase payment entry created for {purchase.PurchaseNo}",
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = currentUser
+                    });
+                }
+
+                // 5. Timeline Event
+                var auditDetails = $"Updated payment of ₹{oldAmount:N2} -> ₹{newAmount:N2} via {request.PaymentMethod}. Remaining purchase balance: ₹{purchase.BalanceAmount:N2}";
+                if (oldMethod != request.PaymentMethod)
+                {
+                    auditDetails += $" (Method changed from {oldMethod} to {request.PaymentMethod})";
+                }
+                var timelineEvent = new PurchaseTimelineEvent
+                {
+                    Id = Guid.NewGuid(),
+                    PurchaseId = purchase.Id,
+                    EventDate = DateTime.UtcNow,
+                    Action = "Payment Updated",
+                    PerformedBy = currentUser,
+                    Details = auditDetails
+                };
+                _context.PurchaseTimelineEvents.Add(timelineEvent);
+                purchase.TimelineEvents.Add(timelineEvent);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Transaction failed and rolled back during payment update for purchase {PurchaseId}", purchaseId);
+                throw;
+            }
+
+            return await GetPurchaseByIdAsync(purchaseId);
+        }
+
+        public async Task<PurchaseDto?> DeletePaymentAsync(Guid purchaseId, Guid paymentId)
+        {
+            var dbContext = _context as DbContext;
+            if (dbContext == null) throw new InvalidOperationException("Could not cast context to DbContext");
+
+            var tenantId = GetTenantId();
+            var currentUser = _currentUserContext.Email ?? "Company Administrator";
+
+            using var transaction = await dbContext.Database.BeginTransactionAsync();
+            try
+            {
+                var purchase = await _context.Purchases
+                    .Include(p => p.Payments)
+                    .Include(p => p.TimelineEvents)
+                    .Include(p => p.Vendor)
+                    .FirstOrDefaultAsync(p => p.Id == purchaseId && !p.IsDeleted);
+
+                if (purchase == null) return null;
+
+                if (purchase.IsCancelled)
+                {
+                    throw new InvalidOperationException("Cannot modify payments on a cancelled purchase.");
+                }
+
+                var payment = purchase.Payments.FirstOrDefault(p => p.Id == paymentId);
+                if (payment == null)
+                {
+                    return null;
+                }
+
+                var amount = payment.Amount;
+                var method = payment.PaymentMethod;
+                var bankAccountId = payment.BankAccountId;
+                var cashBookId = payment.CashBookId;
+
+                // 1. Remove payment
+                _context.PurchasePayments.Remove(payment);
+                purchase.Payments.Remove(payment);
+
+                // 2. Recalculate Purchase totals
+                var totalPaid = Math.Round(purchase.Payments.Sum(p => p.Amount), 2);
+                purchase.AmountPaid = totalPaid;
+                purchase.BalanceAmount = Math.Round(Math.Max(0m, purchase.GrandTotal - purchase.AmountPaid), 2);
+
+                if (purchase.AmountPaid >= purchase.GrandTotal) purchase.PaymentStatus = "Paid";
+                else if (purchase.AmountPaid > 0) purchase.PaymentStatus = "PartiallyPaid";
+                else purchase.PaymentStatus = "Unpaid";
+
+                purchase.UpdatedAt = DateTime.UtcNow;
+                purchase.UpdatedBy = currentUser;
+
+                // Sync purchase-level payment method
+                var remainingPrimary = purchase.Payments.OrderBy(p => p.CreatedAt).FirstOrDefault();
+                if (remainingPrimary != null)
+                {
+                    purchase.PaymentMethod = remainingPrimary.PaymentMethod;
+                    purchase.BankAccountId = remainingPrimary.BankAccountId;
+                    purchase.CashBookId = remainingPrimary.CashBookId;
+                }
+                else
+                {
+                    purchase.PaymentMethod = "Credit";
+                    purchase.BankAccountId = null;
+                    purchase.CashBookId = null;
+                }
+
+                // 3. Restore Vendor Payable Balance
+                if (purchase.VendorId.HasValue && amount > 0)
+                {
+                    var vendor = await _context.Vendors.FirstOrDefaultAsync(v => v.Id == purchase.VendorId.Value && !v.IsDeleted);
+                    if (vendor != null)
+                    {
+                        vendor.CurrentBalance = Math.Max(0m, vendor.CurrentBalance + amount);
+                    }
+                }
+
+                // 4. Remove matching BankLedgerEntry
+                var matchingLedgerEntries = await _context.BankLedgerEntries
+                    .Where(e => e.TenantId == tenantId &&
+                        ((e.RelatedEntityId == payment.Id && e.RelatedEntityType == "PurchasePayment") ||
+                         (e.RelatedEntityId == purchase.Id && e.RelatedEntityType == "Purchase" && e.Debit == amount &&
+                          (e.BankAccountId == bankAccountId || e.CashBookId == cashBookId))))
+                    .ToListAsync();
+
+                if (matchingLedgerEntries.Any())
+                {
+                    _context.BankLedgerEntries.RemoveRange(matchingLedgerEntries);
+                }
+
+                // 5. Timeline Event
+                var timelineEvent = new PurchaseTimelineEvent
+                {
+                    Id = Guid.NewGuid(),
+                    PurchaseId = purchase.Id,
+                    EventDate = DateTime.UtcNow,
+                    Action = "Payment Deleted",
+                    PerformedBy = currentUser,
+                    Details = $"Deleted payment of ₹{amount:N2} ({method}). Remaining purchase balance increased to ₹{purchase.BalanceAmount:N2}"
+                };
+                _context.PurchaseTimelineEvents.Add(timelineEvent);
+                purchase.TimelineEvents.Add(timelineEvent);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Transaction failed and rolled back during payment deletion for purchase {PurchaseId}", purchaseId);
+                throw;
+            }
+
             return await GetPurchaseByIdAsync(purchaseId);
         }
 

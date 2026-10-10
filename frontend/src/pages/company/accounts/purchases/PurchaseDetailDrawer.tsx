@@ -20,6 +20,8 @@ import {
 import { purchaseService, type Purchase, type PurchaseItem, type PurchasePayment } from '../../../../services/purchases'
 import { CategoryPill } from '../expenses/categoryMeta'
 import { formatINR, getStatusStyle } from './purchaseHelpers'
+import { EditPaymentModal } from './EditPaymentModal'
+import { DeletePaymentDialog } from './DeletePaymentDialog'
 
 interface PurchaseDetailDrawerProps {
   isOpen: boolean
@@ -35,6 +37,7 @@ interface PurchaseDetailDrawerProps {
   onRecordPayment: (purchase: Purchase) => void
   onCancel: (purchase: Purchase) => void
   onDelete: (purchase: Purchase) => void
+  onPaymentModified?: (updatedPurchase: Purchase) => void
   canWrite: boolean
 }
 
@@ -52,10 +55,13 @@ export const PurchaseDetailDrawer: React.FC<PurchaseDetailDrawerProps> = ({
   onRecordPayment,
   onCancel,
   onDelete,
+  onPaymentModified,
   canWrite
 }) => {
   const [fullPurchase, setFullPurchase] = useState<Purchase | null>(null)
   const [loadingDetails, setLoadingDetails] = useState<boolean>(false)
+  const [editingPayment, setEditingPayment] = useState<PurchasePayment | null>(null)
+  const [deletingPayment, setDeletingPayment] = useState<PurchasePayment | null>(null)
   const drawerRef = useRef<HTMLDivElement>(null)
   const lastActiveElementRef = useRef<HTMLElement | null>(null)
 
@@ -411,26 +417,64 @@ export const PurchaseDetailDrawer: React.FC<PurchaseDetailDrawerProps> = ({
                   {payments.map((pmt) => (
                     <div
                       key={pmt.id}
-                      className="p-3 rounded-lg border border-slate-200 bg-slate-50/70 flex items-center justify-between"
+                      className="p-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50/70 transition-colors flex items-center justify-between gap-3 group"
                     >
-                      <div>
-                        <span className="font-semibold text-slate-900 block text-xs">
+                      <div className="min-w-0 flex-1">
+                        <span className="font-semibold text-slate-900 block text-xs truncate">
                           {pmt.paymentMethod} {pmt.bankAccountName ? `· ${pmt.bankAccountName}` : pmt.cashBookName ? `· ${pmt.cashBookName}` : ''}
                         </span>
-                        <div className="text-[11px] text-slate-500 font-normal mt-0.5">
+                        <div className="text-[11px] text-slate-500 font-normal mt-0.5 flex flex-wrap items-center gap-1">
                           <span>{new Date(pmt.paymentDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                           {pmt.referenceNo && (
                             <>
-                              <span className="mx-1">·</span>
+                              <span>·</span>
                               <span className="font-mono text-slate-600">Ref: {pmt.referenceNo}</span>
+                            </>
+                          )}
+                          {pmt.notes && (
+                            <>
+                              <span>·</span>
+                              <span className="text-slate-400 italic truncate max-w-[140px]">{pmt.notes}</span>
                             </>
                           )}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <span className="font-mono font-bold text-emerald-700 text-xs block">
-                          {formatINR(pmt.amount)}
-                        </span>
+
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        <div className="text-right">
+                          <span className="font-mono font-bold text-emerald-700 text-xs block">
+                            {formatINR(pmt.amount)}
+                          </span>
+                        </div>
+
+                        {canWrite && !isCancelled && (
+                          <div className="flex items-center gap-1 pl-1.5 border-l border-slate-200">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setEditingPayment(pmt)
+                              }}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#1A56DB] hover:bg-blue-50 transition-colors cursor-pointer"
+                              title="Edit payment"
+                              aria-label="Edit payment"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setDeletingPayment(pmt)
+                              }}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                              title="Delete payment"
+                              aria-label="Delete payment"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -514,6 +558,34 @@ export const PurchaseDetailDrawer: React.FC<PurchaseDetailDrawerProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Edit Payment Modal */}
+      {editingPayment && fullPurchase && (
+        <EditPaymentModal
+          isOpen={!!editingPayment}
+          onClose={() => setEditingPayment(null)}
+          purchase={fullPurchase}
+          payment={editingPayment}
+          onSuccess={(updatedPurchase) => {
+            setFullPurchase(updatedPurchase)
+            onPaymentModified?.(updatedPurchase)
+          }}
+        />
+      )}
+
+      {/* Delete Payment Dialog */}
+      {deletingPayment && fullPurchase && (
+        <DeletePaymentDialog
+          isOpen={!!deletingPayment}
+          onClose={() => setDeletingPayment(null)}
+          purchase={fullPurchase}
+          payment={deletingPayment}
+          onSuccess={(updatedPurchase) => {
+            setFullPurchase(updatedPurchase)
+            onPaymentModified?.(updatedPurchase)
+          }}
+        />
+      )}
     </div>
   )
 }

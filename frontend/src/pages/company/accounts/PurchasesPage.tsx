@@ -625,6 +625,11 @@ export const PurchasesPage: React.FC = () => {
     fetchPurchases()
   }
 
+  const handlePaymentModified = (updatedPurchase: Purchase) => {
+    setActiveDrawerPurchase(updatedPurchase)
+    fetchPurchases()
+  }
+
   // Drawer Next/Prev navigation
   const drawerIndex = activeDrawerPurchase
     ? purchases.findIndex(p => p.id === activeDrawerPurchase.id)
@@ -776,6 +781,7 @@ export const PurchasesPage: React.FC = () => {
         onRecordPayment={handleOpenPaymentModal}
         onCancel={handleOpenCancelDialog}
         onDelete={handleOpenDeleteDialog}
+        onPaymentModified={handlePaymentModified}
         canWrite={canWrite}
       />
 

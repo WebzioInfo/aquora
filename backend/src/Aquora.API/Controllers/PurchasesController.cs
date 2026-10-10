@@ -207,6 +207,81 @@ namespace Aquora.API.Controllers
             }
         }
 
+        [HttpGet("{id:guid}/payments/{paymentId:guid}")]
+        public async Task<IActionResult> GetPayment(Guid id, Guid paymentId)
+        {
+            try
+            {
+                var payment = await _purchaseService.GetPaymentByIdAsync(id, paymentId);
+                if (payment == null)
+                {
+                    return NotFound(ApiResponse<object>.CreateFailure("Payment record not found.", "Not Found", HttpContext.TraceIdentifier));
+                }
+                return Ok(ApiResponse<PurchasePaymentDto>.CreateSuccess(payment, "Payment details retrieved successfully."));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve payment {PaymentId} for purchase {Id}", paymentId, id);
+                return BadRequest(ApiResponse<object>.CreateFailure("Unable to load payment details.", "Error", HttpContext.TraceIdentifier));
+            }
+        }
+
+        [HttpPut("{id:guid}/payments/{paymentId:guid}")]
+        public async Task<IActionResult> UpdatePayment(Guid id, Guid paymentId, [FromBody] UpdatePurchasePaymentRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errorMsg = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).FirstOrDefault() ?? "Please enter valid payment details.";
+                return BadRequest(ApiResponse<object>.CreateFailure(errorMsg, "Validation Error", HttpContext.TraceIdentifier));
+            }
+
+            try
+            {
+                var updated = await _purchaseService.UpdatePaymentAsync(id, paymentId, request);
+                if (updated == null)
+                {
+                    return NotFound(ApiResponse<object>.CreateFailure("Purchase or payment record not found.", "Not Found", HttpContext.TraceIdentifier));
+                }
+                return Ok(ApiResponse<PurchaseDto>.CreateSuccess(updated, "Payment updated successfully."));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Validation Error", HttpContext.TraceIdentifier));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Invalid Operation", HttpContext.TraceIdentifier));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to update payment {PaymentId} for purchase {Id}", paymentId, id);
+                return BadRequest(ApiResponse<object>.CreateFailure("Something went wrong while updating the payment. Please try again.", "Error", HttpContext.TraceIdentifier));
+            }
+        }
+
+        [HttpDelete("{id:guid}/payments/{paymentId:guid}")]
+        public async Task<IActionResult> DeletePayment(Guid id, Guid paymentId)
+        {
+            try
+            {
+                var updated = await _purchaseService.DeletePaymentAsync(id, paymentId);
+                if (updated == null)
+                {
+                    return NotFound(ApiResponse<object>.CreateFailure("Purchase or payment record not found.", "Not Found", HttpContext.TraceIdentifier));
+                }
+                return Ok(ApiResponse<PurchaseDto>.CreateSuccess(updated, "Payment deleted successfully."));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Invalid Operation", HttpContext.TraceIdentifier));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete payment {PaymentId} for purchase {Id}", paymentId, id);
+                return BadRequest(ApiResponse<object>.CreateFailure("Something went wrong while deleting the payment. Please try again.", "Error", HttpContext.TraceIdentifier));
+            }
+        }
+
         [HttpGet("assets/{assetId:guid}/history")]
         public async Task<IActionResult> GetAssetHistory(Guid assetId)
         {

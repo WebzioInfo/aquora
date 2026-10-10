@@ -156,6 +156,16 @@ export interface AddPurchasePaymentRequest {
   notes?: string
 }
 
+export interface UpdatePurchasePaymentRequest {
+  paymentDate: string
+  paymentMethod: string
+  bankAccountId?: string
+  cashBookId?: string
+  amount: number
+  referenceNo?: string
+  notes?: string
+}
+
 export interface PagedPurchasesResponse {
   items: Purchase[]
   totalCount: number
@@ -211,6 +221,21 @@ export const purchaseService = {
 
   addPayment: async (id: string, request: AddPurchasePaymentRequest) => {
     const res = await api.post<{ data: Purchase }>(`/api/v1/purchases/${id}/payments`, request)
+    return res.data.data
+  },
+
+  getPaymentById: async (purchaseId: string, paymentId: string) => {
+    const res = await getDeduplicated<{ data: PurchasePayment }>(`/api/v1/purchases/${purchaseId}/payments/${paymentId}`)
+    return res.data.data
+  },
+
+  updatePayment: async (purchaseId: string, paymentId: string, request: UpdatePurchasePaymentRequest) => {
+    const res = await api.put<{ data: Purchase }>(`/api/v1/purchases/${purchaseId}/payments/${paymentId}`, request)
+    return res.data.data
+  },
+
+  deletePayment: async (purchaseId: string, paymentId: string) => {
+    const res = await api.delete<{ data: Purchase }>(`/api/v1/purchases/${purchaseId}/payments/${paymentId}`)
     return res.data.data
   },
 
