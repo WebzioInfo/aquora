@@ -200,5 +200,120 @@ namespace Aquora.Tests
                 }
             }
         }
+
+        [Fact]
+        public async Task InspectLedgerTimestamps()
+        {
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            var schemas = new List<string>();
+            await using (var cmd = new NpgsqlCommand("SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE '%sinan%' OR schema_name = 'public';", conn))
+            await using (var reader = await cmd.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    schemas.Add(reader.GetString(0));
+                }
+            }
+
+            foreach (var schema in schemas)
+            {
+                bool tableExists = false;
+                await using (var cmd = new NpgsqlCommand($"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = '{schema}' AND table_name = 'BankLedgerEntries');", conn))
+                {
+                    tableExists = (bool)(await cmd.ExecuteScalarAsync() ?? false);
+                }
+
+                if (!tableExists) continue;
+
+                _output.WriteLine($"\n=== BankLedgerEntries in {schema} ===");
+                await using (var cmd = new NpgsqlCommand($@"
+                    SELECT ""Id"", ""TransactionType"", ""TransactionDate"", ""CreatedAt"", ""ReferenceNumber"", ""Description""
+                    FROM ""{schema}"".""BankLedgerEntries""
+                    ORDER BY ""CreatedAt"" DESC
+                    LIMIT 20;", conn))
+                await using (var reader = await cmd.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        var id = reader.GetGuid(0).ToString()[..8];
+                        var type = reader.GetString(1);
+                        var txDate = reader.GetDateTime(2);
+                        var createdAt = reader.GetDateTime(3);
+                        var refNo = reader.IsDBNull(4) ? "" : reader.GetString(4);
+                        var desc = reader.IsDBNull(5) ? "" : reader.GetString(5);
+                        _output.WriteLine($"ID: {id} | Type: {type,-18} | TxDate: {txDate:o} | CreatedAt: {createdAt:o} | Ref: {refNo,-12} | Desc: {desc}");
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public async Task ReconcileLedgerTimestampsAndVerifySorting()
+        {
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            var schemas = new List<string>();
+            await using (var cmd = new NpgsqlCommand("SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE '%sinan%' OR schema_name = 'public' OR schema_name LIKE 'aquora_tenant_%';", conn))
+            await using (var reader = await cmd.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    schemas.Add(reader.GetString(0));
+                }
+            }
+
+            foreach (var schema in schemas)
+            {
+                bool tableExists = false;
+                await using (var cmd = new NpgsqlCommand($"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = '{schema}' AND table_name = 'BankLedgerEntries');", conn))
+                {
+                    tableExists = (bool)(await cmd.ExecuteScalarAsync() ?? false);
+                }
+
+                if (!tableExists) continue;
+
+                // Reconcile: If TransactionDate was saved as date-only (00:00:00) on the same date as CreatedAt,
+                // restore the true transaction occurrence timestamp from CreatedAt without changing the business date.
+                int updatedRows = 0;
+                await using (var cmd = new NpgsqlCommand($@"
+                    UPDATE ""{schema}"".""BankLedgerEntries""
+                    SET ""TransactionDate"" = ""CreatedAt""
+                    WHERE CAST(""TransactionDate"" AS date) = CAST(""CreatedAt"" AS date)
+                      AND EXTRACT(HOUR FROM ""TransactionDate"") = 0
+                      AND EXTRACT(MINUTE FROM ""TransactionDate"") = 0
+                      AND EXTRACT(SECOND FROM ""TransactionDate"") = 0;", conn))
+                {
+                    updatedRows = await cmd.ExecuteNonQueryAsync();
+                    _output.WriteLine($"Updated {updatedRows} entries in {schema} to use their actual occurrence timestamps.");
+                }
+
+                if (schema.Contains("sinan"))
+                {
+                    _output.WriteLine($"\n=== Verified Sorting for {schema} (Latest-First) ===");
+                    await using (var cmd = new NpgsqlCommand($@"
+                        SELECT ""Id"", ""TransactionType"", ""TransactionDate"", ""CreatedAt"", ""ReferenceNumber"", ""Description""
+                        FROM ""{schema}"".""BankLedgerEntries""
+                        ORDER BY ""TransactionDate"" DESC, ""CreatedAt"" DESC, ""Id"" DESC
+                        LIMIT 20;", conn))
+                    await using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        int row = 1;
+                        while (await reader.ReadAsync())
+                        {
+                            var id = reader.GetGuid(0).ToString()[..8];
+                            var type = reader.GetString(1);
+                            var txDate = reader.GetDateTime(2);
+                            var createdAt = reader.GetDateTime(3);
+                            var desc = reader.IsDBNull(5) ? "" : reader.GetString(5);
+                            _output.WriteLine($"Row {row,2}: ID: {id} | TxDate: {txDate:yyyy-MM-dd HH:mm:ss} | CreatedAt: {createdAt:yyyy-MM-dd HH:mm:ss} | Type: {type,-18} | Desc: {desc}");
+                            row++;
+                        }
+                    }
+                }
+            }
+        }
     }
 }

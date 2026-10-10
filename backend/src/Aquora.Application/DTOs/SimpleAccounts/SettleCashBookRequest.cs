@@ -21,5 +21,9 @@ namespace Aquora.Application.DTOs.SimpleAccounts
         public string? ReferenceNo { get; set; }
 
         public string? Description { get; set; }
+
+        public bool IsOwnerContribution { get; set; } = false;
+
+        public Guid? OwnerId { get; set; }
     }
 }

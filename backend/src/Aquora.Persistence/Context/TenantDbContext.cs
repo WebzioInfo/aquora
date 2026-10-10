@@ -727,6 +727,11 @@ namespace Aquora.Persistence.Context
                 .HasIndex(b => b.TenantId);
             modelBuilder.Entity<Aquora.Domain.Entities.Finance.CashBook>()
                 .HasIndex(b => b.TenantId);
+            modelBuilder.Entity<Aquora.Domain.Entities.Finance.CashBook>()
+                .HasOne(c => c.Owner)
+                .WithMany(o => o.CashBooks)
+                .HasForeignKey(c => c.OwnerId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<Aquora.Domain.Entities.Finance.Owner>()
                 .HasIndex(o => o.TenantId);

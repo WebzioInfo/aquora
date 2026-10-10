@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { X, ArrowRight, AlertCircle, AlertTriangle, Loader2, ArrowLeftRight, Landmark, Wallet } from 'lucide-react'
-import type { Owner, BankAccountDropdown, CashBookDropdown } from '../../../../services/simpleAccounts'
+import type { Owner, BankAccountDropdown, CashBookDropdown, CreateOwnerTransactionRequest } from '../../../../services/simpleAccounts'
 import { formatINR, getOwnerTransactionTotals } from './ownerHelpers'
 
 interface OwnerTransactionModalProps {
@@ -10,12 +10,7 @@ interface OwnerTransactionModalProps {
   prefilledOwner?: Owner | null
   bankAccounts?: BankAccountDropdown[]
   cashBooks?: CashBookDropdown[]
-  onSubmit: (ownerId: string, req: {
-    transactionDate: string
-    amount: number
-    transactionType: 'Investment' | 'Withdrawal'
-    notes?: string
-  }) => Promise<void>
+  onSubmit: (ownerId: string, req: CreateOwnerTransactionRequest) => Promise<void>
 }
 
 export const OwnerTransactionModal: React.FC<OwnerTransactionModalProps> = ({
@@ -152,6 +147,15 @@ export const OwnerTransactionModal: React.FC<OwnerTransactionModalProps> = ({
       return
     }
 
+    if (paymentMethod === 'BankAccount' && !bankAccountId) {
+      setErrorBanner('Please select a bank account.')
+      return
+    }
+    if (paymentMethod === 'CashBook' && !cashBookId) {
+      setErrorBanner('Please select a cashbook.')
+      return
+    }
+
     try {
       setIsSubmitting(true)
       setErrorBanner(null)
@@ -159,6 +163,9 @@ export const OwnerTransactionModal: React.FC<OwnerTransactionModalProps> = ({
         transactionDate: new Date(transactionDate).toISOString(),
         amount: amountNum,
         transactionType,
+        paymentMethod,
+        bankAccountId: paymentMethod === 'BankAccount' ? bankAccountId : undefined,
+        cashBookId: paymentMethod === 'CashBook' ? cashBookId : undefined,
         notes: notes.trim() || undefined
       })
       onClose()

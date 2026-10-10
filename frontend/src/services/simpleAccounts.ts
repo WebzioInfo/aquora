@@ -170,6 +170,8 @@ export interface CashBook {
   currentBalance: number
   status: string
   notes?: string
+  ownerId?: string
+  ownerName?: string
   createdAt: string
   createdBy: string
 }
@@ -180,6 +182,7 @@ export interface CreateCashBookRequest {
   openingBalance: number
   notes?: string
   status: string
+  ownerId?: string
 }
 
 export interface UpdateCashBookRequest {
@@ -187,6 +190,7 @@ export interface UpdateCashBookRequest {
   description?: string
   notes?: string
   status: string
+  ownerId?: string
 }
 
 export interface AddMoneyRequest {
@@ -195,12 +199,15 @@ export interface AddMoneyRequest {
   referenceNo?: string
   date: string
   description?: string
+  ownerId?: string
 }
 
 export interface CashBookDropdown {
   id: string
   name: string
   currentBalance: number
+  ownerId?: string
+  ownerName?: string
 }
 
 export interface SettleCashBookRequest {
@@ -211,6 +218,8 @@ export interface SettleCashBookRequest {
   date: string
   referenceNo?: string
   description?: string
+  isOwnerContribution?: boolean
+  ownerId?: string
 }
 
 export interface PagedCashBooksResponse {
@@ -275,6 +284,9 @@ export interface CreateOwnerTransactionRequest {
   amount: number
   transactionType: 'Investment' | 'Withdrawal'
   notes?: string
+  paymentMethod?: 'BankAccount' | 'CashBook' | 'Bank' | 'Cash'
+  bankAccountId?: string
+  cashBookId?: string
 }
 
 export interface OwnerSummary {

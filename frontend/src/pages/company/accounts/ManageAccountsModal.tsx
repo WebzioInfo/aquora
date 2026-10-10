@@ -10,7 +10,8 @@ import {
   XCircle,
   Building2,
   DollarSign,
-  Scale
+  Scale,
+  UserCheck
 } from 'lucide-react'
 import EnterpriseModal from '../../../components/ui/EnterpriseModal'
 import EnterpriseButton from '../../../components/ui/EnterpriseButton'
@@ -37,7 +38,7 @@ interface ManageAccountsModalProps {
   cashBooks: CashBook[]
   canWrite: boolean
   onRefresh: () => void
-  onOpenAddMoney: (type: 'bank' | 'cash', accountId: string) => void
+  onOpenAddMoney: (type: 'bank' | 'cash', accountId: string, account?: BankAccount | CashBook) => void
 }
 
 export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
@@ -350,7 +351,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                           <button
                             type="button"
                             title="Deposit Money"
-                            onClick={() => onOpenAddMoney('bank', account.id)}
+                            onClick={() => onOpenAddMoney('bank', account.id, account)}
                             className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                           >
                             <DollarSign className="w-4 h-4" />
@@ -407,6 +408,12 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                           >
                             {book.status}
                           </EnterpriseBadge>
+                          {book.ownerName && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                              <UserCheck className="w-3 h-3" />
+                              Owner: {book.ownerName}
+                            </span>
+                          )}
                         </div>
                         <p className="mt-1 text-xs text-slate-500 truncate">
                           {book.description || 'General Cash Book'}
@@ -441,7 +448,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                           <button
                             type="button"
                             title="Add Cash"
-                            onClick={() => onOpenAddMoney('cash', book.id)}
+                            onClick={() => onOpenAddMoney('cash', book.id, book)}
                             className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
                           >
                             <DollarSign className="w-4 h-4" />

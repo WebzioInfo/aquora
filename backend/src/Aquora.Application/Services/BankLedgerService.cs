@@ -42,6 +42,17 @@ namespace Aquora.Application.Services
             };
         }
 
+        private static DateTime ResolveTransactionTimestamp(DateTime transactionDate)
+        {
+            var utc = EnsureUtc(transactionDate);
+            var nowUtc = DateTime.UtcNow;
+            if (utc.TimeOfDay == TimeSpan.Zero && utc.Date == nowUtc.Date)
+            {
+                return nowUtc;
+            }
+            return utc;
+        }
+
         private async Task<Guid> GetCompanyIdAsync()
         {
             var company = await _context.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
@@ -131,6 +142,8 @@ namespace Aquora.Application.Services
             if (cat.Equals("Transfer", StringComparison.OrdinalIgnoreCase)) return "Transfer Between Accounts";
             if (cat.Equals("Cashbook Settlement", StringComparison.OrdinalIgnoreCase)) return "Cashbook Settlement";
             if (cat.Equals("Opening Balance", StringComparison.OrdinalIgnoreCase)) return "Opening Balance Added";
+            if (cat.Equals("Owner Investment", StringComparison.OrdinalIgnoreCase)) return "Owner Investment";
+            if (cat.Equals("Owner Withdrawal", StringComparison.OrdinalIgnoreCase)) return "Owner Withdrawal";
 
             return cat;
         }
@@ -182,7 +195,7 @@ namespace Aquora.Application.Services
         {
             var tenantId = GetTenantId();
             var companyId = await GetCompanyIdAsync();
-            var utcExpenseDate = EnsureUtc(expenseDate);
+            var utcExpenseDate = ResolveTransactionTimestamp(expenseDate);
             var formattedDescription = string.IsNullOrWhiteSpace(description) 
                 ? $"Expense ({category})" 
                 : $"[{category}] {description}";
@@ -436,7 +449,7 @@ namespace Aquora.Application.Services
                             TenantId = tenantId,
                             CompanyId = companyId,
                             BankAccountId = bank.Id,
-                            TransactionDate = EnsureUtc(exp.ExpenseDate),
+                            TransactionDate = (exp.ExpenseDate.Date == exp.CreatedAt.Date && exp.ExpenseDate.TimeOfDay == TimeSpan.Zero) ? EnsureUtc(exp.CreatedAt) : EnsureUtc(exp.ExpenseDate),
                             ReferenceNumber = exp.ExpenseNumber,
                             TransactionType = exp.UpdatedAt.HasValue ? "Expense Updated" : "Expense",
                             Description = formattedDescription,
@@ -732,7 +745,7 @@ namespace Aquora.Application.Services
             if (bankAccount == null)
                 throw new KeyNotFoundException("Bank account not found or access denied.");
 
-            var utcTransactionDate = EnsureUtc(transactionDate);
+            var utcTransactionDate = ResolveTransactionTimestamp(transactionDate);
 
             async Task<Guid> executeBodyAsync()
             {
@@ -905,7 +918,7 @@ namespace Aquora.Application.Services
                 var entry = new BankLedgerEntry
                 {
                     Id = Guid.NewGuid(), TenantId = tenantId, CompanyId = companyId, BankAccountId = null,
-                    CashBookId = cashBookId, LedgerAccountType = "CashBook", TransactionDate = EnsureUtc(transactionDate),
+                    CashBookId = cashBookId, LedgerAccountType = "CashBook", TransactionDate = ResolveTransactionTimestamp(transactionDate),
                     ReferenceNumber = referenceNumber, TransactionType = transactionType,
                     EventType = "CREATED", EventLabel = ComputeEventLabel(transactionType, "CREATED", null),
                     Description = description,
@@ -969,7 +982,7 @@ namespace Aquora.Application.Services
                     existingEntry.BankAccountId = null;
                     existingEntry.CashBookId = cashBookId;
                     existingEntry.LedgerAccountType = "CashBook";
-                    existingEntry.TransactionDate = EnsureUtc(expenseDate);
+                    existingEntry.TransactionDate = ResolveTransactionTimestamp(expenseDate);
                     existingEntry.ReferenceNumber = expenseNumber;
                     existingEntry.TransactionType = transactionType;
                     existingEntry.EventType = "UPDATED";
@@ -1031,7 +1044,7 @@ namespace Aquora.Application.Services
                 var expenses = await _context.SimpleExpenses.Where(e => e.TenantId == tenantId && !e.IsDeleted && e.CashBookId == cashBook.Id && e.PaymentMethod == "Cash").ToListAsync();
                 foreach (var exp in expenses.Where(exp => !existingEntries.Any(e => e.RelatedEntityId == exp.Id && e.RelatedEntityType == "Expense")))
                 {
-                    newEntries.Add(new BankLedgerEntry { Id = Guid.NewGuid(), TenantId = tenantId, CompanyId = companyId, BankAccountId = null, CashBookId = cashBook.Id, LedgerAccountType = "CashBook", TransactionDate = EnsureUtc(exp.ExpenseDate), ReferenceNumber = exp.ExpenseNumber, TransactionType = exp.UpdatedAt.HasValue ? "Expense Updated" : "Expense", Description = string.IsNullOrWhiteSpace(exp.Description) ? $"Expense ({exp.Category})" : $"[{exp.Category}] {exp.Description}", Debit = exp.Amount, Credit = 0m, RunningBalance = 0m, RelatedEntityId = exp.Id, RelatedEntityType = "Expense", CreatedAt = EnsureUtc(exp.CreatedAt), CreatedBy = exp.CreatedBy ?? "System" });
+                    newEntries.Add(new BankLedgerEntry { Id = Guid.NewGuid(), TenantId = tenantId, CompanyId = companyId, BankAccountId = null, CashBookId = cashBook.Id, LedgerAccountType = "CashBook", TransactionDate = (exp.ExpenseDate.Date == exp.CreatedAt.Date && exp.ExpenseDate.TimeOfDay == TimeSpan.Zero) ? EnsureUtc(exp.CreatedAt) : EnsureUtc(exp.ExpenseDate), ReferenceNumber = exp.ExpenseNumber, TransactionType = exp.UpdatedAt.HasValue ? "Expense Updated" : "Expense", Description = string.IsNullOrWhiteSpace(exp.Description) ? $"Expense ({exp.Category})" : $"[{exp.Category}] {exp.Description}", Debit = exp.Amount, Credit = 0m, RunningBalance = 0m, RelatedEntityId = exp.Id, RelatedEntityType = "Expense", CreatedAt = EnsureUtc(exp.CreatedAt), CreatedBy = exp.CreatedBy ?? "System" });
                 }
                 if (newEntries.Any()) { _context.BankLedgerEntries.AddRange(newEntries); await _context.SaveChangesAsync(); }
                 await RecalculateCashBookLedgerBalancesAsync(cashBook.Id);
@@ -1218,47 +1231,153 @@ namespace Aquora.Application.Services
 
             var tenantId = GetTenantId();
             var companyId = await GetCompanyIdAsync();
+            var userId = _currentUserContext.UserId ?? "System";
             var desc = string.IsNullOrWhiteSpace(request.Description) ? request.Source : $"{request.Source} - {request.Description}";
+            var isOwnerInvestment = request.Source.Trim().Equals("Owner Investment", StringComparison.OrdinalIgnoreCase);
 
-            if (bankAccountId.HasValue)
+            async Task<Guid> executeAddMoneyAsync()
             {
-                var bankAccount = await _context.BankAccounts
-                    .FirstOrDefaultAsync(b => b.Id == bankAccountId.Value && b.TenantId == tenantId && !b.IsDeleted);
-                if (bankAccount == null) throw new KeyNotFoundException("Bank account not found or access denied.");
+                if (bankAccountId.HasValue)
+                {
+                    var bankAccount = await _context.BankAccounts
+                        .FirstOrDefaultAsync(b => b.Id == bankAccountId.Value && b.TenantId == tenantId && !b.IsDeleted);
+                    if (bankAccount == null) throw new KeyNotFoundException("Bank account not found or access denied.");
 
-                return await RecordTransactionAsync(
-                    bankAccountId: bankAccountId.Value,
-                    transactionDate: request.Date,
-                    referenceNumber: request.ReferenceNo ?? "",
-                    transactionType: "Deposit",
-                    description: desc,
-                    debit: 0m,
-                    credit: request.Amount,
-                    relatedEntityId: null,
-                    relatedEntityType: "Deposit"
-                );
+                    Guid? relatedEntityId = null;
+                    string relatedEntityType = "Deposit";
+                    string txnType = "Deposit";
+
+                    if (isOwnerInvestment && request.OwnerId.HasValue)
+                    {
+                        var owner = await _context.Owners
+                            .FirstOrDefaultAsync(o => o.Id == request.OwnerId.Value && o.TenantId == tenantId && !o.IsDeleted);
+                        if (owner == null) throw new KeyNotFoundException("Linked owner not found or access denied.");
+
+                        var ownerTxn = new OwnerInvestmentTransaction
+                        {
+                            Id = Guid.NewGuid(),
+                            TenantId = tenantId,
+                            CompanyId = companyId,
+                            OwnerId = owner.Id,
+                            TransactionDate = ResolveTransactionTimestamp(request.Date),
+                            Amount = request.Amount,
+                            TransactionType = "Investment",
+                            Notes = request.Description ?? $"Deposit to {bankAccount.BankName} - {bankAccount.AccountName}",
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedBy = userId
+                        };
+                        _context.OwnerInvestmentTransactions.Add(ownerTxn);
+
+                        owner.CurrentInvestment += request.Amount;
+                        owner.UpdatedAt = DateTime.UtcNow;
+                        owner.UpdatedBy = userId;
+                        await _context.SaveChangesAsync();
+
+                        relatedEntityId = ownerTxn.Id;
+                        relatedEntityType = "OwnerInvestmentTransaction";
+                        txnType = "Owner Investment";
+                    }
+
+                    return await RecordTransactionAsync(
+                        bankAccountId: bankAccountId.Value,
+                        transactionDate: request.Date,
+                        referenceNumber: request.ReferenceNo ?? "",
+                        transactionType: txnType,
+                        description: desc,
+                        debit: 0m,
+                        credit: request.Amount,
+                        relatedEntityId: relatedEntityId,
+                        relatedEntityType: relatedEntityType
+                    );
+                }
+                else if (cashBookId.HasValue)
+                {
+                    var cashBook = await _context.CashBooks
+                        .Include(c => c.Owner)
+                        .FirstOrDefaultAsync(b => b.Id == cashBookId.Value && b.TenantId == tenantId && !b.IsDeleted);
+                    if (cashBook == null) throw new KeyNotFoundException("Cash book not found or access denied.");
+
+                    Guid? relatedEntityId = null;
+                    string relatedEntityType = "Deposit";
+                    string txnType = "Deposit";
+                    var targetOwnerId = request.OwnerId ?? cashBook.OwnerId;
+
+                    if (isOwnerInvestment)
+                    {
+                        if (!targetOwnerId.HasValue)
+                        {
+                            throw new InvalidOperationException($"Cashbook '{cashBook.Name}' is not linked to an owner. An owner investment can only be recorded against an owner-linked cashbook.");
+                        }
+
+                        var owner = await _context.Owners
+                            .FirstOrDefaultAsync(o => o.Id == targetOwnerId.Value && o.TenantId == tenantId && !o.IsDeleted);
+                        if (owner == null) throw new KeyNotFoundException("Linked owner not found or access denied.");
+
+                        var ownerTxn = new OwnerInvestmentTransaction
+                        {
+                            Id = Guid.NewGuid(),
+                            TenantId = tenantId,
+                            CompanyId = companyId,
+                            OwnerId = owner.Id,
+                            TransactionDate = ResolveTransactionTimestamp(request.Date),
+                            Amount = request.Amount,
+                            TransactionType = "Investment",
+                            Notes = request.Description ?? $"Add Cash to {cashBook.Name}",
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedBy = userId
+                        };
+                        _context.OwnerInvestmentTransactions.Add(ownerTxn);
+
+                        owner.CurrentInvestment += request.Amount;
+                        owner.UpdatedAt = DateTime.UtcNow;
+                        owner.UpdatedBy = userId;
+                        await _context.SaveChangesAsync();
+
+                        relatedEntityId = ownerTxn.Id;
+                        relatedEntityType = "OwnerInvestmentTransaction";
+                        txnType = "Owner Investment";
+                    }
+
+                    return await RecordCashTransactionAsync(
+                        cashBookId: cashBookId.Value,
+                        transactionDate: request.Date,
+                        referenceNumber: request.ReferenceNo ?? "",
+                        transactionType: txnType,
+                        description: desc,
+                        debit: 0m,
+                        credit: request.Amount,
+                        relatedEntityId: relatedEntityId,
+                        relatedEntityType: relatedEntityType
+                    );
+                }
+                else
+                {
+                    throw new ArgumentException("Either Bank Account ID or Cash Book ID must be specified.");
+                }
             }
-            else if (cashBookId.HasValue)
-            {
-                var cashBook = await _context.CashBooks
-                    .FirstOrDefaultAsync(b => b.Id == cashBookId.Value && b.TenantId == tenantId && !b.IsDeleted);
-                if (cashBook == null) throw new KeyNotFoundException("Cash book not found or access denied.");
 
-                return await RecordCashTransactionAsync(
-                    cashBookId: cashBookId.Value,
-                    transactionDate: request.Date,
-                    referenceNumber: request.ReferenceNo ?? "",
-                    transactionType: "Deposit",
-                    description: desc,
-                    debit: 0m,
-                    credit: request.Amount,
-                    relatedEntityId: null,
-                    relatedEntityType: "Deposit"
-                );
+            if (_context.Database.CurrentTransaction != null || !_context.Database.IsRelational())
+            {
+                return await executeAddMoneyAsync();
             }
             else
             {
-                throw new ArgumentException("Either Bank Account ID or Cash Book ID must be specified.");
+                var strategy = _context.Database.CreateExecutionStrategy();
+                return await strategy.ExecuteAsync(async () =>
+                {
+                    using var dbTxn = await _context.Database.BeginTransactionAsync();
+                    try
+                    {
+                        var res = await executeAddMoneyAsync();
+                        await dbTxn.CommitAsync();
+                        return res;
+                    }
+                    catch
+                    {
+                        await dbTxn.RollbackAsync();
+                        throw;
+                    }
+                });
             }
         }
 
@@ -1284,8 +1403,22 @@ namespace Aquora.Application.Services
                 var oldAmount = entry.Credit;
                 var desc = string.IsNullOrWhiteSpace(request.Description) ? request.Source : $"{request.Source} - {request.Description}";
 
+                var updatedUtcDate = EnsureUtc(request.Date);
+                if (updatedUtcDate.TimeOfDay == TimeSpan.Zero)
+                {
+                    if (updatedUtcDate.Date == entry.TransactionDate.Date && entry.TransactionDate.TimeOfDay != TimeSpan.Zero)
+                    {
+                        // Preserve existing occurrence time if the date was not changed
+                        updatedUtcDate = entry.TransactionDate;
+                    }
+                    else if (updatedUtcDate.Date == DateTime.UtcNow.Date)
+                    {
+                        updatedUtcDate = DateTime.UtcNow;
+                    }
+                }
+
                 entry.Credit = request.Amount;
-                entry.TransactionDate = EnsureUtc(request.Date);
+                entry.TransactionDate = updatedUtcDate;
                 entry.ReferenceNumber = request.ReferenceNo ?? "";
                 entry.Description = desc;
                 entry.EventType = "UPDATED";
@@ -1356,9 +1489,29 @@ namespace Aquora.Application.Services
                 if (entry == null)
                     throw new KeyNotFoundException("Deposit entry not found.");
 
-                var allowedTypes = new[] { "Deposit", "Withdrawal", "Opening Balance" };
+                var allowedTypes = new[] { "Deposit", "Withdrawal", "Opening Balance", "Owner Investment" };
                 if (!allowedTypes.Contains(entry.TransactionType, StringComparer.OrdinalIgnoreCase))
-                    throw new ArgumentException("Only manual transactions (Deposit, Withdrawal, Opening Balance) can be deleted through this workflow.");
+                    throw new ArgumentException("Only manual transactions (Deposit, Withdrawal, Opening Balance, Owner Investment) can be deleted through this workflow.");
+
+                if (entry.RelatedEntityType == "OwnerInvestmentTransaction" && entry.RelatedEntityId.HasValue)
+                {
+                    var ownerTxn = await _context.OwnerInvestmentTransactions
+                        .FirstOrDefaultAsync(t => t.Id == entry.RelatedEntityId.Value && t.TenantId == tenantId && !t.IsDeleted);
+                    if (ownerTxn != null)
+                    {
+                        ownerTxn.IsDeleted = true;
+                        ownerTxn.DeletedAt = DateTime.UtcNow;
+                        ownerTxn.DeletedBy = _currentUserContext.UserId ?? "System";
+
+                        var owner = await _context.Owners.FirstOrDefaultAsync(o => o.Id == ownerTxn.OwnerId && o.TenantId == tenantId && !o.IsDeleted);
+                        if (owner != null)
+                        {
+                            owner.CurrentInvestment -= entry.Credit;
+                            owner.UpdatedAt = DateTime.UtcNow;
+                            owner.UpdatedBy = _currentUserContext.UserId ?? "System";
+                        }
+                    }
+                }
 
                 if (entry.TransactionType.Equals("Opening Balance", StringComparison.OrdinalIgnoreCase))
                 {
@@ -1570,6 +1723,7 @@ namespace Aquora.Application.Services
                 .ToListAsync();
 
             var cashBooks = await _context.CashBooks
+                .Include(c => c.Owner)
                 .AsNoTracking()
                 .Where(c => c.TenantId == tenantId && !c.IsDeleted)
                 .OrderBy(c => c.Name)
@@ -1594,6 +1748,8 @@ namespace Aquora.Application.Services
                 CashBooks = cashBooks.Select(c => new CashBookDropdownDto
                 {
                     Id = c.Id,
+                    OwnerId = c.OwnerId,
+                    OwnerName = c.Owner != null ? c.Owner.Name : null,
                     Name = c.Name,
                     CurrentBalance = c.CurrentBalance
                 }).ToList(),
@@ -2003,22 +2159,53 @@ namespace Aquora.Application.Services
             if (!isCash && !isBank)
                 throw new ArgumentException("Settlement mode must be either 'Cash' or 'Bank'.");
 
+            Owner? owner = null;
+            if (request.IsOwnerContribution)
+            {
+                if (!request.OwnerId.HasValue || request.OwnerId.Value == Guid.Empty)
+                    throw new ArgumentException("Owner must be selected when Owner Contribution is enabled.");
+
+                owner = await _context.Owners
+                    .FirstOrDefaultAsync(o => o.Id == request.OwnerId.Value && o.TenantId == tenantId && !o.IsDeleted);
+
+                if (owner == null)
+                    throw new KeyNotFoundException("Selected owner was not found or access denied.");
+            }
+
             CashBook? sourceCashBook = null;
             BankAccount? sourceBankAccount = null;
 
             if (isCash)
             {
-                if (!request.SourceCashBookId.HasValue || request.SourceCashBookId.Value == Guid.Empty)
-                    throw new ArgumentException("Source cash book must be selected for Cash settlement.");
+                if (request.IsOwnerContribution)
+                {
+                    if (!request.SourceCashBookId.HasValue || request.SourceCashBookId.Value == Guid.Empty || request.SourceCashBookId.Value == targetCashBookId)
+                    {
+                        sourceCashBook = targetCashBook;
+                    }
+                    else
+                    {
+                        sourceCashBook = await _context.CashBooks
+                            .FirstOrDefaultAsync(b => b.Id == request.SourceCashBookId.Value && b.TenantId == tenantId && !b.IsDeleted);
 
-                if (request.SourceCashBookId.Value == targetCashBookId)
-                    throw new ArgumentException("Source cash book cannot be the same as the target cash book being settled.");
+                        if (sourceCashBook == null)
+                            throw new KeyNotFoundException("Source cash book not found or access denied.");
+                    }
+                }
+                else
+                {
+                    if (!request.SourceCashBookId.HasValue || request.SourceCashBookId.Value == Guid.Empty)
+                        throw new ArgumentException("Source cash book must be selected for Cash settlement.");
 
-                sourceCashBook = await _context.CashBooks
-                    .FirstOrDefaultAsync(b => b.Id == request.SourceCashBookId.Value && b.TenantId == tenantId && !b.IsDeleted);
+                    if (request.SourceCashBookId.Value == targetCashBookId)
+                        throw new ArgumentException("Source cash book cannot be the same as the target cash book being settled.");
 
-                if (sourceCashBook == null)
-                    throw new KeyNotFoundException("Source cash book not found or access denied.");
+                    sourceCashBook = await _context.CashBooks
+                        .FirstOrDefaultAsync(b => b.Id == request.SourceCashBookId.Value && b.TenantId == tenantId && !b.IsDeleted);
+
+                    if (sourceCashBook == null)
+                        throw new KeyNotFoundException("Source cash book not found or access denied.");
+                }
             }
             else
             {
@@ -2033,13 +2220,18 @@ namespace Aquora.Application.Services
             }
 
             var settlementId = Guid.NewGuid();
-            var utcDate = EnsureUtc(request.Date);
+            var utcDate = ResolveTransactionTimestamp(request.Date);
+            var isDirectCashSettlement = request.IsOwnerContribution && isCash && sourceCashBook!.Id == targetCashBook.Id;
             var sourceName = isCash ? sourceCashBook!.Name : $"{sourceBankAccount!.BankName} ({sourceBankAccount.AccountNumber})";
             var refNo = request.ReferenceNo ?? "";
 
             var targetDesc = string.IsNullOrWhiteSpace(request.Description)
-                ? $"Settlement received from {sourceName}"
-                : $"Settlement received from {sourceName} - {request.Description.Trim()}";
+                ? (request.IsOwnerContribution
+                    ? $"Settlement received from {sourceName} (Owner: {owner!.Name})"
+                    : $"Settlement received from {sourceName}")
+                : (request.IsOwnerContribution
+                    ? $"Settlement received from {sourceName} (Owner: {owner!.Name}) - {request.Description.Trim()}"
+                    : $"Settlement received from {sourceName} - {request.Description.Trim()}");
 
             var sourceDesc = string.IsNullOrWhiteSpace(request.Description)
                 ? $"Settlement paid to {targetCashBook.Name}"
@@ -2047,8 +2239,126 @@ namespace Aquora.Application.Services
 
             async Task<Guid> executeBodyAsync()
             {
-                // 1. Credit Target Cash Book (Money coming in to settle deficit)
-                var targetEntry = new BankLedgerEntry
+                if (request.IsOwnerContribution && owner != null)
+                {
+                    // 1. Record Owner Investment Transaction & update owner capital balance
+                    var ownerTxn = new OwnerInvestmentTransaction
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenantId,
+                        CompanyId = companyId,
+                        OwnerId = owner.Id,
+                        TransactionDate = utcDate,
+                        Amount = request.Amount,
+                        TransactionType = "Investment",
+                        Notes = string.IsNullOrWhiteSpace(request.Description)
+                            ? $"Cash settlement contribution for {targetCashBook.Name}"
+                            : $"Cash settlement contribution for {targetCashBook.Name} - {request.Description.Trim()}",
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = _currentUserContext.UserId ?? "System"
+                    };
+                    _context.OwnerInvestmentTransactions.Add(ownerTxn);
+
+                    owner.CurrentInvestment += request.Amount;
+                    owner.UpdatedAt = DateTime.UtcNow;
+                    owner.UpdatedBy = _currentUserContext.UserId ?? "System";
+
+                    if (isDirectCashSettlement)
+                    {
+                        // Direct contribution into target cashbook:
+                        // Credit Target Cash Book directly as Owner Investment
+                        var targetEntry = new BankLedgerEntry
+                        {
+                            Id = Guid.NewGuid(),
+                            TenantId = tenantId,
+                            CompanyId = companyId,
+                            BankAccountId = null,
+                            CashBookId = targetCashBook.Id,
+                            LedgerAccountType = "CashBook",
+                            TransactionDate = utcDate,
+                            ReferenceNumber = refNo,
+                            TransactionType = "Owner Investment",
+                            EventType = "CREATED",
+                            EventLabel = "Owner Investment",
+                            Description = string.IsNullOrWhiteSpace(request.Description)
+                                ? $"Owner contribution by {owner.Name} to settle cash deficit"
+                                : $"Owner contribution by {owner.Name} to settle cash deficit - {request.Description.Trim()}",
+                            Debit = 0m,
+                            Credit = request.Amount,
+                            RunningBalance = 0m,
+                            RelatedEntityId = settlementId,
+                            RelatedEntityType = "CashBookSettlement",
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedBy = _currentUserContext.UserId ?? "System"
+                        };
+                        _context.BankLedgerEntries.Add(targetEntry);
+
+                        var targetAudit = new BankLedgerAuditEntry
+                        {
+                            Id = Guid.NewGuid(),
+                            TenantId = tenantId,
+                            CompanyId = companyId,
+                            BankLedgerEntryId = targetEntry.Id,
+                            Action = "Created",
+                            OldAmount = 0m,
+                            NewAmount = request.Amount,
+                            Remarks = $"Cashbook settlement funded by owner contribution from {owner.Name}.",
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedBy = _currentUserContext.UserId ?? "System"
+                        };
+                        _context.BankLedgerAuditEntries.Add(targetAudit);
+
+                        await _context.SaveChangesAsync();
+                        await RecalculateCashBookLedgerBalancesAsync(targetCashBook.Id);
+                        return settlementId;
+                    }
+
+                    // Otherwise (Bank destination or intermediate Cashbook destination):
+                    // 2a. Inflow into receiving account as Owner Investment
+                    var ownerInflowEntry = new BankLedgerEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenantId,
+                        CompanyId = companyId,
+                        BankAccountId = isCash ? null : sourceBankAccount!.Id,
+                        CashBookId = isCash ? sourceCashBook!.Id : null,
+                        LedgerAccountType = isCash ? "CashBook" : "BankAccount",
+                        TransactionDate = utcDate,
+                        ReferenceNumber = refNo,
+                        TransactionType = "Owner Investment",
+                        EventType = "CREATED",
+                        EventLabel = "Owner Investment",
+                        Description = string.IsNullOrWhiteSpace(request.Description)
+                            ? $"Owner contribution received from {owner.Name}"
+                            : $"Owner contribution received from {owner.Name} - {request.Description.Trim()}",
+                        Debit = 0m,
+                        Credit = request.Amount,
+                        RunningBalance = 0m,
+                        RelatedEntityId = settlementId,
+                        RelatedEntityType = "CashBookSettlement",
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = _currentUserContext.UserId ?? "System"
+                    };
+                    _context.BankLedgerEntries.Add(ownerInflowEntry);
+
+                    var ownerInflowAudit = new BankLedgerAuditEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenantId,
+                        CompanyId = companyId,
+                        BankLedgerEntryId = ownerInflowEntry.Id,
+                        Action = "Created",
+                        OldAmount = 0m,
+                        NewAmount = request.Amount,
+                        Remarks = $"Owner contribution received from {owner.Name} into {sourceName}.",
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = _currentUserContext.UserId ?? "System"
+                    };
+                    _context.BankLedgerAuditEntries.Add(ownerInflowAudit);
+                }
+
+                // Credit Target Cash Book (Money received to settle deficit)
+                var creditTargetEntry = new BankLedgerEntry
                 {
                     Id = Guid.NewGuid(),
                     TenantId = tenantId,
@@ -2070,25 +2380,27 @@ namespace Aquora.Application.Services
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = _currentUserContext.UserId ?? "System"
                 };
-                _context.BankLedgerEntries.Add(targetEntry);
+                _context.BankLedgerEntries.Add(creditTargetEntry);
 
-                var targetAudit = new BankLedgerAuditEntry
+                var creditTargetAudit = new BankLedgerAuditEntry
                 {
                     Id = Guid.NewGuid(),
                     TenantId = tenantId,
                     CompanyId = companyId,
-                    BankLedgerEntryId = targetEntry.Id,
+                    BankLedgerEntryId = creditTargetEntry.Id,
                     Action = "Created",
                     OldAmount = 0m,
                     NewAmount = request.Amount,
-                    Remarks = $"Cashbook settlement credit received from {sourceName}.",
+                    Remarks = request.IsOwnerContribution && owner != null
+                        ? $"Cashbook settlement credit received from {sourceName} (Owner: {owner.Name})."
+                        : $"Cashbook settlement credit received from {sourceName}.",
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = _currentUserContext.UserId ?? "System"
                 };
-                _context.BankLedgerAuditEntries.Add(targetAudit);
+                _context.BankLedgerAuditEntries.Add(creditTargetAudit);
 
-                // 2. Debit Source Account (Money going out to fund settlement)
-                var sourceEntry = new BankLedgerEntry
+                // Debit Source Account (Money going out to fund settlement)
+                var debitSourceEntry = new BankLedgerEntry
                 {
                     Id = Guid.NewGuid(),
                     TenantId = tenantId,
@@ -2110,14 +2422,14 @@ namespace Aquora.Application.Services
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = _currentUserContext.UserId ?? "System"
                 };
-                _context.BankLedgerEntries.Add(sourceEntry);
+                _context.BankLedgerEntries.Add(debitSourceEntry);
 
-                var sourceAudit = new BankLedgerAuditEntry
+                var debitSourceAudit = new BankLedgerAuditEntry
                 {
                     Id = Guid.NewGuid(),
                     TenantId = tenantId,
                     CompanyId = companyId,
-                    BankLedgerEntryId = sourceEntry.Id,
+                    BankLedgerEntryId = debitSourceEntry.Id,
                     Action = "Created",
                     OldAmount = 0m,
                     NewAmount = request.Amount,
@@ -2125,11 +2437,11 @@ namespace Aquora.Application.Services
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = _currentUserContext.UserId ?? "System"
                 };
-                _context.BankLedgerAuditEntries.Add(sourceAudit);
+                _context.BankLedgerAuditEntries.Add(debitSourceAudit);
 
                 await _context.SaveChangesAsync();
 
-                // 3. Recalculate ledger balances for both accounts
+                // Recalculate ledger balances for both accounts
                 await RecalculateCashBookLedgerBalancesAsync(targetCashBook.Id);
                 if (isCash)
                 {
@@ -2143,7 +2455,7 @@ namespace Aquora.Application.Services
                 return settlementId;
             }
 
-            if (_context.Database.CurrentTransaction != null)
+            if (_context.Database.CurrentTransaction != null || !_context.Database.IsRelational())
             {
                 return await executeBodyAsync();
             }

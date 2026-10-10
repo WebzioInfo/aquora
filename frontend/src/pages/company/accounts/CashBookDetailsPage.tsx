@@ -19,7 +19,8 @@ import {
   Printer,
   Download,
   RotateCcw,
-  Scale
+  Scale,
+  UserCheck
 } from 'lucide-react'
 import { simpleAccountsService } from '../../../services/simpleAccounts'
 import { getTransactionEventBadge } from '../../../utils/transactionBadge'
@@ -27,6 +28,7 @@ import { AddMoneyModal } from './AddMoneyModal'
 import { SettleCashBookModal } from './SettleCashBookModal'
 import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
 import { formatBalanceCurrency, getBalanceColorClass, parseBalance } from '../../../utils/balanceFormat'
+import { formatLedgerDateTime } from '../../../utils/dateFormatter'
 import type {
   CashBook,
   BankSummary,
@@ -378,24 +380,19 @@ const CashBookDetailsPage: React.FC = () => {
       maximumFractionDigits: 2
     }).format(amount || 0)
 
-  const formatDateTime = (dateStr: string) => {
-    if (!dateStr) return { dayStr: '—', timeStr: '' }
-    const dateToParse = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : `${dateStr}Z`;
-    const date = new Date(dateToParse)
-    if (isNaN(date.getTime())) return { dayStr: '—', timeStr: '' }
-    const dayStr = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' })
-    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })
-    return { dayStr, timeStr }
+  const formatDateTime = (txDate?: string, createdAt?: string) => {
+    return formatLedgerDateTime(txDate, createdAt)
   }
 
   const handlePrintLedgerEntry = (item: BankLedgerEntry) => {
     const isOutflow = item.debit > 0;
     const amount = isOutflow ? item.debit : item.credit;
+    const { dayStr } = formatLedgerDateTime(item.transactionDate, item.createdAt);
 
     setPrintDocData({
       title: isOutflow ? 'Cash Payment Voucher' : 'Cash Deposit Receipt',
       docNumber: item.referenceNumber || 'VOUCHER-TEMP',
-      date: new Date(item.createdAt || item.transactionDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }),
+      date: dayStr,
       partyLabel: isOutflow ? 'Paid To' : 'Received From',
       partyInfo: {
         name: item.description?.split('Paid to')?.[1]?.trim() || item.description?.split('Received from')?.[1]?.trim() || 'Internal Allocation',
@@ -579,12 +576,19 @@ const CashBookDetailsPage: React.FC = () => {
         description={cashBook.description || 'Cash ledger running balance statement'}
         icon={Wallet}
         badge={
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${cashBook.status === 'Active'
-            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-            : 'bg-slate-100 text-slate-700 border border-slate-200'
-            }`}>
-            {cashBook.status}
-          </span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${cashBook.status === 'Active'
+              ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+              : 'bg-slate-100 text-slate-700 border border-slate-200'
+              }`}>
+              {cashBook.status}
+            </span>
+            {cashBook.ownerName && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                <UserCheck className="w-3 h-3" /> Owner: {cashBook.ownerName}
+              </span>
+            )}
+          </div>
         }
         actions={
           <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -705,7 +709,7 @@ const CashBookDetailsPage: React.FC = () => {
                 </tr>
               ) : (
                 ledgerItems.map((item) => {
-                  const { dayStr, timeStr } = formatDateTime(item.createdAt || item.transactionDate)
+                  const { dayStr, timeStr } = formatDateTime(item.transactionDate, item.createdAt)
                   const relType = (item.relatedEntityType || '').toLowerCase()
                   const type = (item.transactionType || '').toLowerCase()
 
@@ -1218,6 +1222,17 @@ const CashBookDetailsPage: React.FC = () => {
         isOpen={isSettleOpen}
         onClose={() => setIsSettleOpen(false)}
         targetCashBook={cashBook}
+        onSuccess={() => {
+          fetchData()
+          fetchLedger()
+        }}
+      />
+
+      <AddMoneyModal
+        isOpen={isAddMoneyOpen}
+        onClose={() => setIsAddMoneyOpen(false)}
+        cashBookId={cashBook.id}
+        prefilledCashBook={cashBook}
         onSuccess={() => {
           fetchData()
           fetchLedger()

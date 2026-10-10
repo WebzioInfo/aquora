@@ -138,3 +138,60 @@ export const formatDateTime = (utcDate: Date | string | null | undefined): strin
   if (!utcDate) return '—';
   return `${formatDate(utcDate)} ${formatTime(utcDate)}`;
 };
+
+/**
+ * Formats a ledger transaction entry date and time consistently in the company's configured timezone.
+ *
+ * Rules:
+ * - Uses the company's configured timezone ('company_timezone' or 'Asia/Kolkata').
+ * - Preserves the business date from transactionDate.
+ * - Extracts the true occurrence time:
+ *   - If transactionDate has a non-midnight time, formats that time.
+ *   - If transactionDate was midnight UTC (date-only) but was recorded on the same day as createdAt,
+ *     extracts the time from createdAt (the actual saved system occurrence time).
+ *   - If it is a historical/backdated transaction without any time recorded, returns '—' instead of false '05:30 AM'.
+ */
+export const formatLedgerDateTime = (
+  transactionDateStr: string | null | undefined,
+  createdAtStr?: string | null | undefined
+): { dayStr: string; timeStr: string } => {
+  if (!transactionDateStr && !createdAtStr) {
+    return { dayStr: '—', timeStr: '' };
+  }
+
+  const primaryDateStr = transactionDateStr || createdAtStr!;
+  const dayStr = formatDate(primaryDateStr);
+
+  const parseUtc = (s: string) => {
+    const normalized = s.endsWith('Z') || s.includes('+') ? s : `${s}Z`;
+    return new Date(normalized);
+  };
+
+  const rawTxDate = transactionDateStr ? parseUtc(transactionDateStr) : null;
+  const hasTxTime =
+    rawTxDate &&
+    !isNaN(rawTxDate.getTime()) &&
+    (rawTxDate.getUTCHours() !== 0 || rawTxDate.getUTCMinutes() !== 0 || rawTxDate.getUTCSeconds() !== 0);
+
+  if (hasTxTime) {
+    return { dayStr, timeStr: formatTime(transactionDateStr) };
+  }
+
+  if (createdAtStr) {
+    const rawCreatedDate = parseUtc(createdAtStr);
+    if (!isNaN(rawCreatedDate.getTime())) {
+      const sameDay =
+        !rawTxDate ||
+        (rawTxDate.getUTCFullYear() === rawCreatedDate.getUTCFullYear() &&
+          rawTxDate.getUTCMonth() === rawCreatedDate.getUTCMonth() &&
+          rawTxDate.getUTCDate() === rawCreatedDate.getUTCDate());
+
+      if (sameDay) {
+        return { dayStr, timeStr: formatTime(createdAtStr) };
+      }
+    }
+  }
+
+  return { dayStr, timeStr: '—' };
+};
+

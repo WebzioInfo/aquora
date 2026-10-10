@@ -544,6 +544,7 @@ namespace Aquora.Persistence.Services
                             ""CurrentBalance"" numeric(18,2) NOT NULL DEFAULT 0.0,
                             ""Status"" text NOT NULL DEFAULT 'Active',
                             ""Notes"" text NULL,
+                            ""OwnerId"" uuid NULL,
                             ""IsActive"" boolean NOT NULL DEFAULT true,
                             ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
                             ""CreatedBy"" text NOT NULL DEFAULT 'System',
@@ -1734,6 +1735,15 @@ namespace Aquora.Persistence.Services
                                       AND u.""IsDeleted"" = false
                                       AND o.""IsDeleted"" = false;
                                 END IF;
+                            
+                                 IF EXISTS (
+                                     SELECT FROM information_schema.tables 
+                                     WHERE table_schema = '{schema}' AND table_name = 'CashBooks'
+                                 ) THEN
+                                     ALTER TABLE ""{schema}"".""CashBooks"" ADD COLUMN IF NOT EXISTS ""OwnerId"" uuid NULL;
+                                     CREATE INDEX IF NOT EXISTS ""IX_CashBooks_TenantId_OwnerId_{schema}"" 
+                                         ON ""{schema}"".""CashBooks"" (""TenantId"", ""OwnerId"");
+                                 END IF;
                             END $$;";
                         await alterCmd.ExecuteNonQueryAsync();
                         _logger.LogInformation("[SCHEMA AUTO-REPAIR] Verified Price, Discount columns, and Owner Role for schema {Schema}", schema);

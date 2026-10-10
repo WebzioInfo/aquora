@@ -21,6 +21,7 @@ namespace Aquora.Domain.Entities.Finance
         public string? Notes { get; set; }
 
         public virtual ICollection<OwnerInvestmentTransaction> InvestmentTransactions { get; set; } = new List<OwnerInvestmentTransaction>();
+        public virtual ICollection<CashBook> CashBooks { get; set; } = new List<CashBook>();
 
         // Auditable fields
         public DateTime CreatedAt { get; set; }

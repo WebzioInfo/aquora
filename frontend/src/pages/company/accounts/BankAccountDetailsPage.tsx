@@ -25,6 +25,7 @@ import { simpleAccountsService } from '../../../services/simpleAccounts'
 import { getTransactionEventBadge } from '../../../utils/transactionBadge'
 import { AddMoneyModal } from './AddMoneyModal'
 import { PrintPreviewModal } from '../../../components/ui/PrintPreviewModal'
+import { formatLedgerDateTime } from '../../../utils/dateFormatter'
 import type {
   BankAccount,
   BankSummary,
@@ -388,29 +389,19 @@ export const BankAccountDetailsPage: React.FC = () => {
       maximumFractionDigits: 2
     }).format(amount || 0)
 
-  const formatDateTime = (dateStr: string) => {
-    if (!dateStr) return { dayStr: '—', timeStr: '' }
-
-    // Ensure the date string is treated as UTC if it doesn't have timezone info,
-    // although our backend now explicitly returns UTC with Z
-    const dateToParse = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : `${dateStr}Z`;
-    const date = new Date(dateToParse)
-
-    if (isNaN(date.getTime())) return { dayStr: '—', timeStr: '' }
-
-    const dayStr = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' })
-    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })
-    return { dayStr, timeStr }
+  const formatDateTime = (txDate?: string, createdAt?: string) => {
+    return formatLedgerDateTime(txDate, createdAt)
   }
 
   const handlePrintLedgerEntry = (item: BankLedgerEntry) => {
     const isOutflow = item.debit > 0;
     const amount = isOutflow ? item.debit : item.credit;
+    const { dayStr } = formatLedgerDateTime(item.transactionDate, item.createdAt);
 
     setPrintDocData({
       title: isOutflow ? 'Bank Payment Voucher' : 'Bank Deposit Receipt',
       docNumber: item.referenceNumber || 'VOUCHER-TEMP',
-      date: new Date(item.createdAt || item.transactionDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }),
+      date: dayStr,
       partyLabel: isOutflow ? 'Paid To' : 'Received From',
       partyInfo: {
         name: item.description?.split('Paid to')?.[1]?.trim() || item.description?.split('Received from')?.[1]?.trim() || 'Internal Allocation',
@@ -708,7 +699,7 @@ export const BankAccountDetailsPage: React.FC = () => {
                 </tr>
               ) : (
                 ledgerItems.map((item) => {
-                  const { dayStr, timeStr } = formatDateTime(item.createdAt || item.transactionDate)
+                  const { dayStr, timeStr } = formatDateTime(item.transactionDate, item.createdAt)
                   const relType = (item.relatedEntityType || '').toLowerCase()
                   const type = (item.transactionType || '').toLowerCase()
 

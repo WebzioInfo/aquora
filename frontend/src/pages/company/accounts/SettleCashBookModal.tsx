@@ -16,7 +16,8 @@ import type {
   BankAccountDropdown,
   CashBookDropdown,
   SettleCashBookRequest,
-  CreateCashBookRequest
+  CreateCashBookRequest,
+  Owner
 } from '../../../services/simpleAccounts'
 import { useNotificationStore } from '../../../store/useNotificationStore'
 import { formatBalanceCurrency } from '../../../utils/balanceFormat'
@@ -44,7 +45,13 @@ export const SettleCashBookModal: React.FC<SettleCashBookModalProps> = ({
   const [settlementType, setSettlementType] = useState<'full' | 'partial'>('full')
   const [amountStr, setAmountStr] = useState<string>('')
 
-  // Funding Source
+  // Owner Contribution Toggle & Selection
+  const [isOwnerContribution, setIsOwnerContribution] = useState<boolean>(false)
+  const [selectedOwnerId, setSelectedOwnerId] = useState<string>('')
+  const [ownersList, setOwnersList] = useState<Owner[]>([])
+  const [loadingOwners, setLoadingOwners] = useState<boolean>(false)
+
+  // Funding Source / Destination
   const [settlementVia, setSettlementVia] = useState<'Cash' | 'Bank'>('Cash')
   const [sourceCashBookId, setSourceCashBookId] = useState<string>('')
   const [sourceBankAccountId, setSourceBankAccountId] = useState<string>('')
@@ -70,20 +77,24 @@ export const SettleCashBookModal: React.FC<SettleCashBookModalProps> = ({
   const [submitting, setSubmitting] = useState<boolean>(false)
   const [formError, setFormError] = useState<string | null>(null)
 
-  // Load available sources
+  // Load available sources & owners
   const loadSources = async () => {
     try {
       setLoadingSources(true)
-      const [cbData, baData] = await Promise.all([
+      setLoadingOwners(true)
+      const [cbData, baData, ownersData] = await Promise.all([
         simpleAccountsService.getCashBookDropdown().catch(() => []),
-        simpleAccountsService.getBankAccountDropdown().catch(() => [])
+        simpleAccountsService.getBankAccountDropdown().catch(() => []),
+        simpleAccountsService.getOwners().catch(() => [])
       ])
       setCashBooksList(cbData || [])
       setBankAccountsList(baData || [])
+      setOwnersList(ownersData || [])
     } catch (err: any) {
       console.error('Failed to load sources for settlement', err)
     } finally {
       setLoadingSources(false)
+      setLoadingOwners(false)
     }
   }
 
@@ -92,6 +103,8 @@ export const SettleCashBookModal: React.FC<SettleCashBookModalProps> = ({
       setFormError(null)
       setSettlementType('full')
       setAmountStr(deficitAmount.toString())
+      setIsOwnerContribution(false)
+      setSelectedOwnerId('')
       setSettlementVia('Cash')
       setSourceCashBookId('')
       setSourceBankAccountId('')
@@ -120,11 +133,14 @@ export const SettleCashBookModal: React.FC<SettleCashBookModalProps> = ({
   // Validation
   const isSourceSelected =
     settlementVia === 'Cash'
-      ? Boolean(sourceCashBookId && sourceCashBookId !== targetCashBook?.id)
+      ? isOwnerContribution
+        ? Boolean(sourceCashBookId)
+        : Boolean(sourceCashBookId && sourceCashBookId !== targetCashBook?.id)
       : Boolean(sourceBankAccountId)
+  const isOwnerValid = !isOwnerContribution || Boolean(selectedOwnerId)
   const isAmountValid = parsedAmount > 0 && parsedAmount <= deficitAmount
   const isDateValid = Boolean(date && date.trim())
-  const canSubmit = isSourceSelected && isAmountValid && isDateValid && !submitting
+  const canSubmit = isSourceSelected && isOwnerValid && isAmountValid && isDateValid && !submitting
 
   // Handle Quick Create Cashbook
   const handleQuickCreateCashBook = async (e: React.FormEvent) => {
@@ -188,6 +204,11 @@ export const SettleCashBookModal: React.FC<SettleCashBookModalProps> = ({
       return
     }
 
+    if (isOwnerContribution && !selectedOwnerId) {
+      setFormError('Please select an owner for this contribution.')
+      return
+    }
+
     if (!isDateValid) {
       setFormError('Select a settlement date.')
       return
@@ -203,11 +224,18 @@ export const SettleCashBookModal: React.FC<SettleCashBookModalProps> = ({
         sourceBankAccountId: settlementVia === 'Bank' ? sourceBankAccountId : undefined,
         date: new Date(date).toISOString(),
         referenceNo: referenceNo.trim() || undefined,
-        description: description.trim() || undefined
+        description: description.trim() || undefined,
+        isOwnerContribution,
+        ownerId: isOwnerContribution ? selectedOwnerId : undefined
       }
 
       await simpleAccountsService.settleCashBook(targetCashBook.id, payload)
-      showToast(`Settled ${formatBalanceCurrency(parsedAmount)} for ${targetCashBook.name}`, 'success')
+      const selectedOwner = ownersList.find((o) => o.id === selectedOwnerId)
+      if (isOwnerContribution && selectedOwner) {
+        showToast(`Settled ${formatBalanceCurrency(parsedAmount)} as contribution by ${selectedOwner.name} for ${targetCashBook.name}`, 'success')
+      } else {
+        showToast(`Settled ${formatBalanceCurrency(parsedAmount)} for ${targetCashBook.name}`, 'success')
+      }
       onSuccess()
       onClose()
     } catch (err: any) {
@@ -220,8 +248,17 @@ export const SettleCashBookModal: React.FC<SettleCashBookModalProps> = ({
 
   if (!targetCashBook) return null
 
-  // Filter available cashbooks (cannot pick the target cashbook itself)
-  const availableCashBooks = cashBooksList.filter((cb) => cb.id !== targetCashBook.id)
+  // Filter available cashbooks (allow target cashbook for direct deposit when Owner Contribution is enabled)
+  const availableCashBooks = isOwnerContribution
+    ? [
+        {
+          id: targetCashBook.id,
+          name: `${targetCashBook.name} (Direct Deposit)`,
+          currentBalance: targetCashBook.currentBalance
+        },
+        ...cashBooksList.filter((cb) => cb.id !== targetCashBook.id)
+      ]
+    : cashBooksList.filter((cb) => cb.id !== targetCashBook.id)
 
   return (
     <EnterpriseModal
@@ -316,15 +353,76 @@ export const SettleCashBookModal: React.FC<SettleCashBookModalProps> = ({
           </div>
         )}
 
-        {/* 4. FUND SOURCE (CASH / BANK) */}
+        {/* OWNER CONTRIBUTION TOGGLE */}
+        <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-semibold text-slate-800 block">Owner Contribution</span>
+              <span className="text-[11px] text-slate-500 block">Record this settlement as an owner's investment.</span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isOwnerContribution}
+              onClick={() => {
+                const next = !isOwnerContribution
+                setIsOwnerContribution(next)
+                if (next) {
+                  if (!sourceCashBookId && settlementVia === 'Cash' && targetCashBook) {
+                    setSourceCashBookId(targetCashBook.id)
+                  }
+                } else {
+                  if (sourceCashBookId === targetCashBook?.id) {
+                    setSourceCashBookId('')
+                  }
+                }
+              }}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                isOwnerContribution ? 'bg-indigo-600' : 'bg-slate-300'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                  isOwnerContribution ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Conditional Owner Dropdown */}
+          {isOwnerContribution && (
+            <div className="pt-2 border-t border-slate-200/60">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Owner *</label>
+              <EnterpriseSelect
+                value={selectedOwnerId}
+                onChange={(e) => setSelectedOwnerId(e.target.value)}
+                options={[
+                  { value: '', label: loadingOwners ? 'Loading owners...' : 'Select Owner' },
+                  ...ownersList.map((owner) => ({
+                    value: owner.id,
+                    label: `${owner.name}${owner.ownershipPercentage ? ` (${owner.ownershipPercentage}%)` : ''}`
+                  }))
+                ]}
+                required
+              />
+            </div>
+          )}
+        </div>
+
+        {/* 4. FUND SOURCE / DESTINATION (CASH / BANK) */}
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-            Settlement From *
+            {isOwnerContribution ? 'Payment Destination *' : 'Settlement From *'}
           </label>
           <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100/90 rounded-lg">
             <button
               type="button"
-              onClick={() => setSettlementVia('Cash')}
+              onClick={() => {
+                setSettlementVia('Cash')
+                if (isOwnerContribution && !sourceCashBookId && targetCashBook) {
+                  setSourceCashBookId(targetCashBook.id)
+                }
+              }}
               className={`py-1.5 px-3 text-xs font-semibold rounded-md flex items-center justify-center gap-2 transition-all cursor-pointer ${
                 settlementVia === 'Cash'
                   ? 'bg-white text-slate-900 shadow-xs'

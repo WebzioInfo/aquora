@@ -8,9 +8,8 @@ import EnterpriseHeader from '../../../components/ui/EnterpriseHeader'
 import EnterpriseCard from '../../../components/ui/EnterpriseCard'
 import EnterpriseButton from '../../../components/ui/EnterpriseButton'
 import EnterpriseBadge from '../../../components/ui/EnterpriseBadge'
-import EnterpriseModal from '../../../components/ui/EnterpriseModal'
 import EnterpriseLoading from '../../../components/ui/EnterpriseLoading'
-import EnterpriseNumberInput from '../../../components/ui/EnterpriseNumberInput'
+import OwnerTransactionModal from './owners/OwnerTransactionModal'
 import { ArrowLeft, Plus, Landmark, TrendingUp, TrendingDown, Calendar, User, Phone, Mail } from 'lucide-react'
 
 export const OwnerDetailsPage: React.FC = () => {
@@ -20,20 +19,23 @@ export const OwnerDetailsPage: React.FC = () => {
   const { showToast } = useNotificationStore()
 
   const [isTxModalOpen, setIsTxModalOpen] = useState(false)
-  const [formError, setFormError] = useState<string | null>(null)
-
-  const [txForm, setTxForm] = useState({
-    transactionDate: new Date().toISOString().split('T')[0],
-    amount: 0,
-    transactionType: 'Investment' as 'Investment' | 'Withdrawal',
-    notes: ''
-  })
 
   // Query Owner details
   const { data: owner, isLoading } = useQuery({
     queryKey: ['ownerDetails', id],
     queryFn: () => simpleAccountsService.getOwnerById(id!),
     enabled: !!id
+  })
+
+  // Query Bank accounts & Cashbooks for transaction destination
+  const { data: bankAccounts = [] } = useQuery({
+    queryKey: ['bankAccountDropdownList'],
+    queryFn: () => simpleAccountsService.getBankAccountDropdown()
+  })
+
+  const { data: cashBooks = [] } = useQuery({
+    queryKey: ['cashBookDropdownList'],
+    queryFn: () => simpleAccountsService.getCashBookDropdown()
   })
 
   // Mutation
@@ -45,33 +47,19 @@ export const OwnerDetailsPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['ownersList'] })
       queryClient.invalidateQueries({ queryKey: ['companyTotalInvestment'] })
       queryClient.invalidateQueries({ queryKey: ['simpleAccountsDashboardSummary'] })
+      queryClient.invalidateQueries({ queryKey: ['cashBookDropdownList'] })
+      queryClient.invalidateQueries({ queryKey: ['cashBooksList'] })
+      queryClient.invalidateQueries({ queryKey: ['bankAccountDropdownList'] })
+      queryClient.invalidateQueries({ queryKey: ['bankAccountsList'] })
+      queryClient.invalidateQueries({ queryKey: ['unifiedLedger'] })
+      queryClient.invalidateQueries({ queryKey: ['unifiedLedgerSummary'] })
+      queryClient.invalidateQueries({ queryKey: ['assetSummary'] })
       setIsTxModalOpen(false)
-      setTxForm({
-        transactionDate: new Date().toISOString().split('T')[0],
-        amount: 0,
-        transactionType: 'Investment',
-        notes: ''
-      })
     },
     onError: (err: any) => {
-      setFormError(err.message || 'Failed to record transaction.')
+      showToast(err.response?.data?.message || err.message || 'Failed to record transaction.', 'error')
     }
   })
-
-  const handleSubmitTx = (e: React.FormEvent) => {
-    e.preventDefault()
-    setFormError(null)
-    if (txForm.amount <= 0) {
-      setFormError('Amount must be greater than zero.')
-      return
-    }
-    txMutation.mutate({
-      transactionDate: new Date(txForm.transactionDate).toISOString(),
-      amount: txForm.amount,
-      transactionType: txForm.transactionType,
-      notes: txForm.notes || undefined
-    })
-  }
 
   const formatCurrency = (val?: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val || 0)
@@ -221,75 +209,18 @@ export const OwnerDetailsPage: React.FC = () => {
       </EnterpriseCard>
 
       {/* ADD TRANSACTION MODAL */}
-      {isTxModalOpen && (
-        <EnterpriseModal
+      {isTxModalOpen && owner && (
+        <OwnerTransactionModal
           isOpen={isTxModalOpen}
           onClose={() => setIsTxModalOpen(false)}
-          title={`Record Investment Transaction - ${owner.name}`}
-        >
-          <form onSubmit={handleSubmitTx} className="space-y-4">
-            {formError && (
-              <div className="p-3 text-xs bg-rose-50 border border-rose-200 text-rose-700 rounded-lg">
-                {formError}
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Transaction Type</label>
-                <select
-                  value={txForm.transactionType}
-                  onChange={(e) => setTxForm({ ...txForm, transactionType: e.target.value as 'Investment' | 'Withdrawal' })}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 font-bold"
-                >
-                  <option value="Investment">Investment (+)</option>
-                  <option value="Withdrawal">Withdrawal (-)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Date</label>
-                <input
-                  type="date"
-                  required
-                  value={txForm.transactionDate}
-                  onChange={(e) => setTxForm({ ...txForm, transactionDate: e.target.value })}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
-                />
-              </div>
-            </div>
-
-            <div>
-              <EnterpriseNumberInput
-                label="Amount (₹)"
-                placeholder="0.00"
-                min={0.01}
-                value={txForm.amount}
-                onValueChange={(val) => setTxForm({ ...txForm, amount: Number(val) || 0 })}
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Notes (Optional)</label>
-              <textarea
-                rows={2}
-                placeholder="Reason or notes..."
-                value={txForm.notes}
-                onChange={(e) => setTxForm({ ...txForm, notes: e.target.value })}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-              <EnterpriseButton variant="secondary" type="button" onClick={() => setIsTxModalOpen(false)}>
-                Cancel
-              </EnterpriseButton>
-              <EnterpriseButton variant="primary" type="submit" loading={txMutation.isPending}>
-                Save Transaction
-              </EnterpriseButton>
-            </div>
-          </form>
-        </EnterpriseModal>
+          owners={[owner]}
+          prefilledOwner={owner}
+          bankAccounts={bankAccounts}
+          cashBooks={cashBooks}
+          onSubmit={async (ownerId, req) => {
+            await txMutation.mutateAsync(req)
+          }}
+        />
       )}
     </div>
   )

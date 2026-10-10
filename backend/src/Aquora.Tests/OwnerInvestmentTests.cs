@@ -273,5 +273,259 @@ namespace Aquora.Tests
             Assert.Contains(cashbooks, c => c.Name == "John Doe Cashbook");
             Assert.Contains(cashbooks, c => c.Name.StartsWith("John Doe Cashbook ("));
         }
+
+        [Fact]
+        public async Task AddOwnerTransactionAsync_CashInvestment_IncreasesCashbookBalance_AndCreatesLedgerEntry()
+        {
+            // Arrange
+            var (context, service, tenantId, companyId, _) = CreateTestSetup();
+
+            // Create owner with initial investment
+            var owner = new Owner
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Name = "Sinaan",
+                Phone = "+91 9999999999",
+                OwnershipPercentage = 40m,
+                InitialInvestment = 50000m,
+                CurrentInvestment = 50000m,
+                CreatedAt = DateTime.UtcNow
+            };
+            context.Owners.Add(owner);
+
+            // Create cashbook with ₹50,000 starting balance
+            var cashBook = new CashBook
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Name = "Sinaan Cashbook",
+                OpeningBalance = 50000m,
+                CurrentBalance = 50000m,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            context.CashBooks.Add(cashBook);
+            await context.SaveChangesAsync();
+
+            // Act: Additional owner investment of ₹10,000 to Sinaan Cashbook
+            var request = new CreateOwnerInvestmentTransactionRequest
+            {
+                TransactionDate = DateTime.UtcNow,
+                Amount = 10000m,
+                TransactionType = "Investment",
+                PaymentMethod = "CashBook",
+                CashBookId = cashBook.Id,
+                Notes = "Q3 capital infusion"
+            };
+
+            var result = await service.AddOwnerTransactionAsync(owner.Id, request);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(10000m, result.Amount);
+            Assert.Equal("Investment", result.TransactionType);
+
+            // Owner investment total updated
+            var updatedOwner = await context.Owners.FindAsync(owner.Id);
+            Assert.NotNull(updatedOwner);
+            Assert.Equal(60000m, updatedOwner.CurrentInvestment); // 50,000 + 10,000
+
+            // Cashbook balance updated to ₹60,000
+            var updatedCashBook = await context.CashBooks.FindAsync(cashBook.Id);
+            Assert.NotNull(updatedCashBook);
+            Assert.Equal(60000m, updatedCashBook.CurrentBalance);
+
+            // Financial ledger entry created
+            var ledgerEntry = await context.BankLedgerEntries
+                .FirstOrDefaultAsync(e => e.CashBookId == cashBook.Id && e.RelatedEntityId == result.Id);
+            Assert.NotNull(ledgerEntry);
+            Assert.Equal("Owner Investment", ledgerEntry.TransactionType);
+            Assert.Equal(0m, ledgerEntry.Debit);
+            Assert.Equal(10000m, ledgerEntry.Credit);
+            Assert.Equal(60000m, ledgerEntry.RunningBalance);
+            Assert.Equal("OwnerInvestmentTransaction", ledgerEntry.RelatedEntityType);
+        }
+
+        [Fact]
+        public async Task AddOwnerTransactionAsync_BankInvestment_IncreasesBankAccountBalance_AndCreatesLedgerEntry()
+        {
+            // Arrange
+            var (context, service, tenantId, companyId, _) = CreateTestSetup();
+
+            var owner = new Owner
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Name = "Equity Partner",
+                OwnershipPercentage = 25m,
+                InitialInvestment = 100000m,
+                CurrentInvestment = 100000m,
+                CreatedAt = DateTime.UtcNow
+            };
+            context.Owners.Add(owner);
+
+            // Create bank account with exact prompt balance: ₹6,31,339.04
+            var bankAccount = new BankAccount
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                BankName = "SBI Bank",
+                AccountName = "Primary Operating Account",
+                AccountNumber = "SBI-631339",
+                OpeningBalance = 631339.04m,
+                CurrentBalance = 631339.04m,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            context.BankAccounts.Add(bankAccount);
+            await context.SaveChangesAsync();
+
+            // Act: Additional owner investment of ₹10,000 to SBI Bank
+            var request = new CreateOwnerInvestmentTransactionRequest
+            {
+                TransactionDate = DateTime.UtcNow,
+                Amount = 10000m,
+                TransactionType = "Investment",
+                PaymentMethod = "BankAccount",
+                BankAccountId = bankAccount.Id,
+                Notes = "Growth investment"
+            };
+
+            var result = await service.AddOwnerTransactionAsync(owner.Id, request);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(10000m, result.Amount);
+
+            // Bank balance updated: ₹6,31,339.04 + ₹10,000 = ₹6,41,339.04
+            var updatedBank = await context.BankAccounts.FindAsync(bankAccount.Id);
+            Assert.NotNull(updatedBank);
+            Assert.Equal(641339.04m, updatedBank.CurrentBalance);
+
+            // Owner total updated
+            var updatedOwner = await context.Owners.FindAsync(owner.Id);
+            Assert.NotNull(updatedOwner);
+            Assert.Equal(110000m, updatedOwner.CurrentInvestment);
+
+            // Ledger entry created
+            var ledgerEntry = await context.BankLedgerEntries
+                .FirstOrDefaultAsync(e => e.BankAccountId == bankAccount.Id && e.RelatedEntityId == result.Id);
+            Assert.NotNull(ledgerEntry);
+            Assert.Equal("Owner Investment", ledgerEntry.TransactionType);
+            Assert.Equal(0m, ledgerEntry.Debit);
+            Assert.Equal(10000m, ledgerEntry.Credit);
+            Assert.Equal(641339.04m, ledgerEntry.RunningBalance);
+            Assert.Equal("OwnerInvestmentTransaction", ledgerEntry.RelatedEntityType);
+        }
+
+        [Fact]
+        public async Task AddOwnerTransactionAsync_CashWithdrawal_DecreasesCashbookBalance_AndOwnerInvestment()
+        {
+            // Arrange
+            var (context, service, tenantId, companyId, _) = CreateTestSetup();
+
+            var owner = new Owner
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Name = "Withdrawing Owner",
+                OwnershipPercentage = 30m,
+                InitialInvestment = 60000m,
+                CurrentInvestment = 60000m,
+                CreatedAt = DateTime.UtcNow
+            };
+            context.Owners.Add(owner);
+
+            var cashBook = new CashBook
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Name = "Main Cashbook",
+                OpeningBalance = 60000m,
+                CurrentBalance = 60000m,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            context.CashBooks.Add(cashBook);
+            await context.SaveChangesAsync();
+
+            // Act: Withdrawal of ₹5,000 from Main Cashbook
+            var request = new CreateOwnerInvestmentTransactionRequest
+            {
+                TransactionDate = DateTime.UtcNow,
+                Amount = 5000m,
+                TransactionType = "Withdrawal",
+                PaymentMethod = "CashBook",
+                CashBookId = cashBook.Id,
+                Notes = "Personal withdrawal"
+            };
+
+            var result = await service.AddOwnerTransactionAsync(owner.Id, request);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(5000m, result.Amount);
+            Assert.Equal("Withdrawal", result.TransactionType);
+
+            // Cashbook decreased: 60,000 - 5,000 = 55,000
+            var updatedCashBook = await context.CashBooks.FindAsync(cashBook.Id);
+            Assert.NotNull(updatedCashBook);
+            Assert.Equal(55000m, updatedCashBook.CurrentBalance);
+
+            // Owner investment decreased: 60,000 - 5,000 = 55,000
+            var updatedOwner = await context.Owners.FindAsync(owner.Id);
+            Assert.NotNull(updatedOwner);
+            Assert.Equal(55000m, updatedOwner.CurrentInvestment);
+
+            // Ledger entry has Debit = 5,000, Credit = 0
+            var ledgerEntry = await context.BankLedgerEntries
+                .FirstOrDefaultAsync(e => e.CashBookId == cashBook.Id && e.RelatedEntityId == result.Id);
+            Assert.NotNull(ledgerEntry);
+            Assert.Equal("Owner Withdrawal", ledgerEntry.TransactionType);
+            Assert.Equal(5000m, ledgerEntry.Debit);
+            Assert.Equal(0m, ledgerEntry.Credit);
+            Assert.Equal(55000m, ledgerEntry.RunningBalance);
+        }
+
+        [Fact]
+        public async Task AddOwnerTransactionAsync_CrossTenantAccount_ThrowsKeyNotFoundException()
+        {
+            var (_, service, _, companyId, _) = CreateTestSetup();
+            var (otherContext, _, otherTenantId, _, _) = CreateTestSetup();
+
+            // Account belonging to another tenant
+            var foreignBank = new BankAccount
+            {
+                Id = Guid.NewGuid(),
+                TenantId = otherTenantId,
+                CompanyId = companyId,
+                BankName = "Foreign Bank",
+                AccountName = "Foreign Account",
+                AccountNumber = "FOR-123",
+                OpeningBalance = 10000m,
+                CurrentBalance = 10000m
+            };
+            otherContext.BankAccounts.Add(foreignBank);
+            await otherContext.SaveChangesAsync();
+
+            // Request targeting foreign bank
+            var request = new CreateOwnerInvestmentTransactionRequest
+            {
+                TransactionDate = DateTime.UtcNow,
+                Amount = 10000m,
+                TransactionType = "Investment",
+                PaymentMethod = "BankAccount",
+                BankAccountId = foreignBank.Id
+            };
+
+            await Assert.ThrowsAsync<KeyNotFoundException>(() => service.AddOwnerTransactionAsync(Guid.NewGuid(), request));
+        }
     }
 }

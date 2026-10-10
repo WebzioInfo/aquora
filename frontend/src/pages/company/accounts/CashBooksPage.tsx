@@ -315,7 +315,14 @@ const CashBooksPage: React.FC = () => {
                         <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
                           <Wallet className="w-4 h-4" />
                         </div>
-                        {book.name}
+                        <div>
+                          <div className="font-bold text-slate-900">{book.name}</div>
+                          {book.ownerName && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">
+                              Owner: {book.ownerName}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="p-3.5 text-slate-600 font-medium">
@@ -533,6 +540,8 @@ const CashBooksPage: React.FC = () => {
           setSelectedBook(null)
         }}
         cashBookId={selectedBook?.id}
+        prefilledCashBook={selectedBook}
+        cashBooks={cashBooks}
         onSuccess={fetchCashBooks}
       />
 

@@ -970,9 +970,23 @@ namespace Aquora.Application.Services
         public async Task<PagedResult<CashBookDto>> GetCashBooksAsync(int pageNumber, int pageSize, string? search, string? status)
         {
             var tenantId = GetTenantId();
-            var query = _context.CashBooks.Where(b => b.TenantId == tenantId && !b.IsDeleted).AsQueryable();
-            if (!string.IsNullOrWhiteSpace(search)) { var term = search.Trim().ToLower(); query = query.Where(b => b.Name.ToLower().Contains(term) || (b.Description != null && b.Description.ToLower().Contains(term))); }
-            if (!string.IsNullOrWhiteSpace(status)) { var st = status.Trim().ToLower(); query = query.Where(b => b.Status.ToLower() == st); }
+            var query = _context.CashBooks
+                .Include(b => b.Owner)
+                .Where(b => b.TenantId == tenantId && !b.IsDeleted)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.Trim().ToLower();
+                query = query.Where(b => b.Name.ToLower().Contains(term) || (b.Description != null && b.Description.ToLower().Contains(term)) || (b.Owner != null && b.Owner.Name.ToLower().Contains(term)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                var st = status.Trim().ToLower();
+                query = query.Where(b => b.Status.ToLower() == st);
+            }
+
             var totalCount = await query.CountAsync();
             var items = await query.OrderByDescending(b => b.CreatedAt).Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync();
             return new PagedResult<CashBookDto>(items.Select(ToCashBookDto).ToList(), totalCount, pageNumber, pageSize);
@@ -981,43 +995,128 @@ namespace Aquora.Application.Services
         public async Task<List<CashBookDropdownDto>> GetCashBookDropdownAsync()
         {
             var tenantId = GetTenantId();
-            return await _context.CashBooks.Where(b => b.TenantId == tenantId && !b.IsDeleted && b.IsActive && b.Status == "Active").OrderBy(b => b.Name).Select(b => new CashBookDropdownDto { Id = b.Id, Name = b.Name, CurrentBalance = b.CurrentBalance }).ToListAsync();
+            return await _context.CashBooks
+                .Include(b => b.Owner)
+                .Where(b => b.TenantId == tenantId && !b.IsDeleted && b.IsActive && b.Status == "Active")
+                .OrderBy(b => b.Name)
+                .Select(b => new CashBookDropdownDto
+                {
+                    Id = b.Id,
+                    OwnerId = b.OwnerId,
+                    OwnerName = b.Owner != null ? b.Owner.Name : null,
+                    Name = b.Name,
+                    CurrentBalance = b.CurrentBalance
+                })
+                .ToListAsync();
         }
 
         public async Task<CashBookDto?> GetCashBookByIdAsync(Guid id)
         {
             var tenantId = GetTenantId();
-            var cashBook = await _context.CashBooks.FirstOrDefaultAsync(b => b.Id == id && b.TenantId == tenantId && !b.IsDeleted);
+            var cashBook = await _context.CashBooks
+                .Include(b => b.Owner)
+                .FirstOrDefaultAsync(b => b.Id == id && b.TenantId == tenantId && !b.IsDeleted);
             return cashBook == null ? null : ToCashBookDto(cashBook);
         }
 
         public async Task<CashBookDto> CreateCashBookAsync(CreateCashBookRequest request)
         {
-            var tenantId = GetTenantId(); var companyId = await GetCompanyIdAsync(); var userId = _currentUserContext.UserId ?? "System";
-            var cashBook = new CashBook { Id = Guid.NewGuid(), TenantId = tenantId, CompanyId = companyId, Name = request.Name.Trim(), Description = request.Description?.Trim(), OpeningBalance = request.OpeningBalance, CurrentBalance = 0m, Notes = request.Notes?.Trim(), Status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : request.Status.Trim(), IsActive = string.IsNullOrWhiteSpace(request.Status) || request.Status.Equals("Active", StringComparison.OrdinalIgnoreCase), CreatedAt = DateTime.UtcNow, CreatedBy = userId };
-            _context.CashBooks.Add(cashBook); await _context.SaveChangesAsync();
-            if (request.OpeningBalance > 0) { await _bankLedgerService.RecordCashTransactionAsync(cashBook.Id, cashBook.CreatedAt, "INIT", "Opening Balance", "Opening Balance", 0m, request.OpeningBalance, cashBook.Id, "CashBook"); var refreshed = await _context.CashBooks.FirstOrDefaultAsync(b => b.Id == cashBook.Id); if (refreshed != null) cashBook.CurrentBalance = refreshed.CurrentBalance; }
-            return ToCashBookDto(cashBook);
+            var tenantId = GetTenantId();
+            var companyId = await GetCompanyIdAsync();
+            var userId = _currentUserContext.UserId ?? "System";
+
+            if (request.OwnerId.HasValue)
+            {
+                var ownerExists = await _context.Owners.AnyAsync(o => o.Id == request.OwnerId.Value && o.TenantId == tenantId && !o.IsDeleted);
+                if (!ownerExists) throw new KeyNotFoundException("Specified owner not found or access denied.");
+            }
+
+            var cashBook = new CashBook
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                OwnerId = request.OwnerId,
+                Name = request.Name.Trim(),
+                Description = request.Description?.Trim(),
+                OpeningBalance = request.OpeningBalance,
+                CurrentBalance = 0m,
+                Notes = request.Notes?.Trim(),
+                Status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : request.Status.Trim(),
+                IsActive = string.IsNullOrWhiteSpace(request.Status) || request.Status.Equals("Active", StringComparison.OrdinalIgnoreCase),
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = userId
+            };
+
+            _context.CashBooks.Add(cashBook);
+            await _context.SaveChangesAsync();
+
+            if (request.OpeningBalance > 0)
+            {
+                await _bankLedgerService.RecordCashTransactionAsync(cashBook.Id, cashBook.CreatedAt, "INIT", "Opening Balance", "Opening Balance", 0m, request.OpeningBalance, cashBook.Id, "CashBook");
+                var refreshed = await _context.CashBooks.Include(b => b.Owner).FirstOrDefaultAsync(b => b.Id == cashBook.Id);
+                if (refreshed != null) cashBook.CurrentBalance = refreshed.CurrentBalance;
+            }
+
+            var createdWithNav = await _context.CashBooks.Include(b => b.Owner).FirstOrDefaultAsync(b => b.Id == cashBook.Id);
+            return ToCashBookDto(createdWithNav ?? cashBook);
         }
 
         public async Task<CashBookDto?> UpdateCashBookAsync(Guid id, UpdateCashBookRequest request)
         {
-            var tenantId = GetTenantId(); var userId = _currentUserContext.UserId ?? "System";
-            var cashBook = await _context.CashBooks.FirstOrDefaultAsync(b => b.Id == id && b.TenantId == tenantId && !b.IsDeleted);
+            var tenantId = GetTenantId();
+            var userId = _currentUserContext.UserId ?? "System";
+            var cashBook = await _context.CashBooks
+                .Include(b => b.Owner)
+                .FirstOrDefaultAsync(b => b.Id == id && b.TenantId == tenantId && !b.IsDeleted);
             if (cashBook == null) return null;
-            cashBook.Name = request.Name.Trim(); cashBook.Description = request.Description?.Trim(); cashBook.Notes = request.Notes?.Trim(); cashBook.Status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : request.Status.Trim(); cashBook.IsActive = cashBook.Status.Equals("Active", StringComparison.OrdinalIgnoreCase); cashBook.UpdatedAt = DateTime.UtcNow; cashBook.UpdatedBy = userId;
-            await _context.SaveChangesAsync(); return ToCashBookDto(cashBook);
+
+            if (request.OwnerId.HasValue)
+            {
+                var ownerExists = await _context.Owners.AnyAsync(o => o.Id == request.OwnerId.Value && o.TenantId == tenantId && !o.IsDeleted);
+                if (!ownerExists) throw new KeyNotFoundException("Specified owner not found or access denied.");
+                cashBook.OwnerId = request.OwnerId.Value;
+            }
+
+            cashBook.Name = request.Name.Trim();
+            cashBook.Description = request.Description?.Trim();
+            cashBook.Notes = request.Notes?.Trim();
+            cashBook.Status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : request.Status.Trim();
+            cashBook.IsActive = cashBook.Status.Equals("Active", StringComparison.OrdinalIgnoreCase);
+            cashBook.UpdatedAt = DateTime.UtcNow;
+            cashBook.UpdatedBy = userId;
+
+            await _context.SaveChangesAsync();
+            return ToCashBookDto(cashBook);
         }
 
         public async Task<bool> DeleteCashBookAsync(Guid id)
         {
-            var tenantId = GetTenantId(); var userId = _currentUserContext.UserId ?? "System";
+            var tenantId = GetTenantId();
+            var userId = _currentUserContext.UserId ?? "System";
             var cashBook = await _context.CashBooks.FirstOrDefaultAsync(b => b.Id == id && b.TenantId == tenantId && !b.IsDeleted);
             if (cashBook == null) return false;
-            cashBook.IsDeleted = true; cashBook.DeletedAt = DateTime.UtcNow; cashBook.DeletedBy = userId; await _context.SaveChangesAsync(); return true;
+            cashBook.IsDeleted = true;
+            cashBook.DeletedAt = DateTime.UtcNow;
+            cashBook.DeletedBy = userId;
+            await _context.SaveChangesAsync();
+            return true;
         }
 
-        private static CashBookDto ToCashBookDto(CashBook b) => new CashBookDto { Id = b.Id, Name = b.Name, Description = b.Description, OpeningBalance = b.OpeningBalance, CurrentBalance = b.CurrentBalance, Notes = b.Notes, Status = b.Status, CreatedAt = b.CreatedAt, CreatedBy = b.CreatedBy };
+        private static CashBookDto ToCashBookDto(CashBook b) => new CashBookDto
+        {
+            Id = b.Id,
+            OwnerId = b.OwnerId,
+            OwnerName = b.Owner != null ? b.Owner.Name : null,
+            Name = b.Name,
+            Description = b.Description,
+            OpeningBalance = b.OpeningBalance,
+            CurrentBalance = b.CurrentBalance,
+            Notes = b.Notes,
+            Status = b.Status,
+            CreatedAt = b.CreatedAt,
+            CreatedBy = b.CreatedBy
+        };
 
         // ==========================================
         // 3. OWNER INVESTMENT MANAGEMENT
@@ -1203,6 +1302,7 @@ namespace Aquora.Application.Services
                         Id = Guid.NewGuid(),
                         TenantId = tenantId,
                         CompanyId = companyId,
+                        OwnerId = owner.Id,
                         Name = cashBookName,
                         Description = $"Dedicated cashbook for owner {owner.Name.Trim()}",
                         OpeningBalance = 0m,
@@ -1344,6 +1444,11 @@ namespace Aquora.Application.Services
 
         public async Task<OwnerInvestmentTransactionDto> AddOwnerTransactionAsync(Guid ownerId, CreateOwnerInvestmentTransactionRequest request)
         {
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
             if (request.Amount <= 0)
             {
                 throw new ArgumentException("Transaction amount must be greater than zero.");
@@ -1368,46 +1473,198 @@ namespace Aquora.Application.Services
                 throw new ArgumentException("Transaction type must be 'Investment' or 'Withdrawal'.");
             }
 
-            // Create Transaction Record
-            var txn = new OwnerInvestmentTransaction
-            {
-                Id = Guid.NewGuid(),
-                TenantId = tenantId,
-                CompanyId = companyId,
-                OwnerId = owner.Id,
-                TransactionDate = request.TransactionDate.ToUniversalTime(),
-                Amount = request.Amount,
-                TransactionType = type.Equals("Investment", StringComparison.OrdinalIgnoreCase) ? "Investment" : "Withdrawal",
-                Notes = request.Notes?.Trim(),
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = userId
-            };
+            var isInvestment = type.Equals("Investment", StringComparison.OrdinalIgnoreCase);
 
-            // Update Owner's Current Investment
-            if (txn.TransactionType == "Investment")
+            // Determine destination / source account
+            var isBank = request.PaymentMethod?.Equals("BankAccount", StringComparison.OrdinalIgnoreCase) == true ||
+                         request.PaymentMethod?.Equals("Bank", StringComparison.OrdinalIgnoreCase) == true ||
+                         (request.BankAccountId.HasValue && !request.CashBookId.HasValue);
+
+            var isCash = request.PaymentMethod?.Equals("CashBook", StringComparison.OrdinalIgnoreCase) == true ||
+                         request.PaymentMethod?.Equals("Cash", StringComparison.OrdinalIgnoreCase) == true ||
+                         (request.CashBookId.HasValue && !request.BankAccountId.HasValue);
+
+            BankAccount? bankAccount = null;
+            CashBook? cashBook = null;
+
+            if (isBank)
             {
-                owner.CurrentInvestment += request.Amount;
+                if (!request.BankAccountId.HasValue || request.BankAccountId.Value == Guid.Empty)
+                {
+                    throw new ArgumentException("Bank account must be selected for bank transactions.");
+                }
+
+                bankAccount = await _context.BankAccounts
+                    .FirstOrDefaultAsync(b => b.Id == request.BankAccountId.Value && b.TenantId == tenantId && !b.IsDeleted);
+
+                if (bankAccount == null)
+                {
+                    throw new KeyNotFoundException("Selected bank account was not found or access is denied.");
+                }
+            }
+            else if (isCash)
+            {
+                if (request.CashBookId.HasValue && request.CashBookId.Value != Guid.Empty)
+                {
+                    cashBook = await _context.CashBooks
+                        .FirstOrDefaultAsync(c => c.Id == request.CashBookId.Value && c.TenantId == tenantId && !c.IsDeleted);
+
+                    if (cashBook == null)
+                    {
+                        throw new KeyNotFoundException("Selected cashbook was not found or access is denied.");
+                    }
+                }
+                else
+                {
+                    var dedicatedName = $"{owner.Name.Trim()} Cashbook".ToLower();
+                    cashBook = await _context.CashBooks
+                        .FirstOrDefaultAsync(c => c.TenantId == tenantId && !c.IsDeleted && c.Name.ToLower() == dedicatedName);
+
+                    if (cashBook == null)
+                    {
+                        cashBook = await _context.CashBooks
+                            .FirstOrDefaultAsync(c => c.TenantId == tenantId && !c.IsDeleted);
+                    }
+
+                    if (cashBook == null)
+                    {
+                        throw new ArgumentException("Cashbook must be selected for cash transactions.");
+                    }
+                }
             }
             else
             {
-                owner.CurrentInvestment -= request.Amount;
+                if (request.BankAccountId.HasValue)
+                {
+                    bankAccount = await _context.BankAccounts
+                        .FirstOrDefaultAsync(b => b.Id == request.BankAccountId.Value && b.TenantId == tenantId && !b.IsDeleted);
+                    if (bankAccount == null)
+                        throw new KeyNotFoundException("Selected bank account was not found or access is denied.");
+                    isBank = true;
+                }
+                else if (request.CashBookId.HasValue)
+                {
+                    cashBook = await _context.CashBooks
+                        .FirstOrDefaultAsync(c => c.Id == request.CashBookId.Value && c.TenantId == tenantId && !c.IsDeleted);
+                    if (cashBook == null)
+                        throw new KeyNotFoundException("Selected cashbook was not found or access is denied.");
+                    isCash = true;
+                }
+                else
+                {
+                    throw new ArgumentException("Please select a payment method and destination account (Bank or Cash).");
+                }
             }
 
-            _context.OwnerInvestmentTransactions.Add(txn);
-            await _context.SaveChangesAsync();
-
-            return new OwnerInvestmentTransactionDto
+            async Task<OwnerInvestmentTransactionDto> executeBodyAsync()
             {
-                Id = txn.Id,
-                OwnerId = owner.Id,
-                OwnerName = owner.Name,
-                TransactionDate = txn.TransactionDate,
-                Amount = txn.Amount,
-                TransactionType = txn.TransactionType,
-                Notes = txn.Notes,
-                CreatedAt = txn.CreatedAt,
-                CreatedBy = txn.CreatedBy
-            };
+                // 1. Create Transaction Record
+                var txn = new OwnerInvestmentTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    CompanyId = companyId,
+                    OwnerId = owner.Id,
+                    TransactionDate = request.TransactionDate.ToUniversalTime(),
+                    Amount = request.Amount,
+                    TransactionType = isInvestment ? "Investment" : "Withdrawal",
+                    Notes = request.Notes?.Trim(),
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = userId
+                };
+
+                // 2. Update Owner's Current Investment
+                if (isInvestment)
+                {
+                    owner.CurrentInvestment += request.Amount;
+                }
+                else
+                {
+                    owner.CurrentInvestment -= request.Amount;
+                }
+                owner.UpdatedAt = DateTime.UtcNow;
+                owner.UpdatedBy = userId;
+
+                _context.OwnerInvestmentTransactions.Add(txn);
+                await _context.SaveChangesAsync();
+
+                // 3. Post to destination financial ledger and recalculate balances
+                var debit = isInvestment ? 0m : request.Amount;
+                var credit = isInvestment ? request.Amount : 0m;
+                var txnType = isInvestment ? "Owner Investment" : "Owner Withdrawal";
+                var refNo = isInvestment
+                    ? $"OWNER-TX-{txn.Id.ToString()[..8].ToUpper()}"
+                    : $"OWNER-WD-{txn.Id.ToString()[..8].ToUpper()}";
+                var desc = string.IsNullOrWhiteSpace(request.Notes)
+                    ? $"Owner {txn.TransactionType.ToLower()} by {owner.Name}"
+                    : $"Owner {txn.TransactionType.ToLower()} by {owner.Name} - {request.Notes.Trim()}";
+
+                if (isBank && bankAccount != null)
+                {
+                    await _bankLedgerService.RecordTransactionAsync(
+                        bankAccountId: bankAccount.Id,
+                        transactionDate: txn.TransactionDate,
+                        referenceNumber: refNo,
+                        transactionType: txnType,
+                        description: desc,
+                        debit: debit,
+                        credit: credit,
+                        relatedEntityId: txn.Id,
+                        relatedEntityType: "OwnerInvestmentTransaction"
+                    );
+                }
+                else if (isCash && cashBook != null)
+                {
+                    await _bankLedgerService.RecordCashTransactionAsync(
+                        cashBookId: cashBook.Id,
+                        transactionDate: txn.TransactionDate,
+                        referenceNumber: refNo,
+                        transactionType: txnType,
+                        description: desc,
+                        debit: debit,
+                        credit: credit,
+                        relatedEntityId: txn.Id,
+                        relatedEntityType: "OwnerInvestmentTransaction"
+                    );
+                }
+
+                return new OwnerInvestmentTransactionDto
+                {
+                    Id = txn.Id,
+                    OwnerId = owner.Id,
+                    OwnerName = owner.Name,
+                    TransactionDate = txn.TransactionDate,
+                    Amount = txn.Amount,
+                    TransactionType = txn.TransactionType,
+                    Notes = txn.Notes,
+                    CreatedAt = txn.CreatedAt,
+                    CreatedBy = txn.CreatedBy
+                };
+            }
+
+            if (_context.Database.CurrentTransaction != null || !_context.Database.IsRelational())
+            {
+                return await executeBodyAsync();
+            }
+            else
+            {
+                var strategy = _context.Database.CreateExecutionStrategy();
+                return await strategy.ExecuteAsync(async () =>
+                {
+                    using var dbTxn = await _context.Database.BeginTransactionAsync();
+                    try
+                    {
+                        var res = await executeBodyAsync();
+                        await dbTxn.CommitAsync();
+                        return res;
+                    }
+                    catch
+                    {
+                        await dbTxn.RollbackAsync();
+                        throw;
+                    }
+                });
+            }
         }
 
         public async Task<List<OwnerSummaryDto>> GetOwnerSummariesAsync()

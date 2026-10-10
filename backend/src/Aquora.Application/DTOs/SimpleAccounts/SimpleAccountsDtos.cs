@@ -149,6 +149,8 @@ namespace Aquora.Application.DTOs.SimpleAccounts
     public class CashBookDto
     {
         public Guid Id { get; set; }
+        public Guid? OwnerId { get; set; }
+        public string? OwnerName { get; set; }
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public decimal OpeningBalance { get; set; }
@@ -168,6 +170,7 @@ namespace Aquora.Application.DTOs.SimpleAccounts
         public decimal OpeningBalance { get; set; } = 0m;
         public string Status { get; set; } = "Active";
         public string? Notes { get; set; }
+        public Guid? OwnerId { get; set; }
     }
 
     public class UpdateCashBookRequest
@@ -177,11 +180,14 @@ namespace Aquora.Application.DTOs.SimpleAccounts
         public string? Description { get; set; }
         public string Status { get; set; } = "Active";
         public string? Notes { get; set; }
+        public Guid? OwnerId { get; set; }
     }
 
     public class CashBookDropdownDto
     {
         public Guid Id { get; set; }
+        public Guid? OwnerId { get; set; }
+        public string? OwnerName { get; set; }
         public string Name { get; set; } = string.Empty;
         public decimal CurrentBalance { get; set; }
     }
@@ -276,6 +282,12 @@ namespace Aquora.Application.DTOs.SimpleAccounts
         public string TransactionType { get; set; } = "Investment"; // Investment or Withdrawal
 
         public string? Notes { get; set; }
+
+        public string? PaymentMethod { get; set; } // "CashBook" (or "Cash") vs "BankAccount" (or "Bank")
+
+        public Guid? CashBookId { get; set; }
+
+        public Guid? BankAccountId { get; set; }
     }
 
     public class OwnerSummaryDto

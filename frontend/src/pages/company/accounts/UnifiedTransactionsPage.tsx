@@ -46,6 +46,7 @@ import { useAuthStore } from '../../../store/useAuthStore'
 import { ManageAccountsModal } from './ManageAccountsModal'
 import { AddMoneyModal } from './AddMoneyModal'
 import { formatBalanceCurrency, getBalanceColorClass, parseBalance } from '../../../utils/balanceFormat'
+import { formatLedgerDateTime } from '../../../utils/dateFormatter'
 
 const DATE_PRESETS = [
   { value: 'all', label: 'All Time' },
@@ -115,7 +116,11 @@ export const UnifiedTransactionsPage: React.FC = () => {
   // Modals state
   const [isManageAccountsOpen, setIsManageAccountsOpen] = useState(false)
   const [isAddMoneyOpen, setIsAddMoneyOpen] = useState(false)
-  const [addMoneyTarget, setAddMoneyTarget] = useState<{ type: 'bank' | 'cash', id?: string }>({ type: 'bank' })
+  const [addMoneyTarget, setAddMoneyTarget] = useState<{
+    type: 'bank' | 'cash'
+    id?: string
+    prefilledAccount?: BankAccount | CashBook | null
+  }>({ type: 'bank' })
   const [selectedEntryDetails, setSelectedEntryDetails] = useState<UnifiedLedgerEntry | null>(null)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
 
@@ -398,8 +403,16 @@ export const UnifiedTransactionsPage: React.FC = () => {
   }
 
   // Open Add Money Modal
-  const openAddMoney = (type: 'bank' | 'cash', accountId?: string) => {
-    setAddMoneyTarget({ type, id: accountId })
+  const openAddMoney = (type: 'bank' | 'cash', accountId?: string, prefilledAccount?: BankAccount | CashBook | null) => {
+    let resolvedAccount = prefilledAccount
+    if (!resolvedAccount && accountId) {
+      if (type === 'cash') {
+        resolvedAccount = allCashBooks.find(c => c.id === accountId) || null
+      } else {
+        resolvedAccount = allBankAccounts.find(b => b.id === accountId) || null
+      }
+    }
+    setAddMoneyTarget({ type, id: accountId, prefilledAccount: resolvedAccount })
     setIsAddMoneyOpen(true)
     setIsAddDropdownOpen(false)
   }
@@ -410,16 +423,10 @@ export const UnifiedTransactionsPage: React.FC = () => {
   }
 
   // Format date
-  const formatDateTime = (dateStr: string) => {
-    if (!dateStr) return '-'
-    const d = new Date(dateStr)
-    return d.toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+  const formatDateTime = (dateStr: string, createdAtStr?: string) => {
+    if (!dateStr && !createdAtStr) return '-'
+    const { dayStr, timeStr } = formatLedgerDateTime(dateStr, createdAtStr)
+    return timeStr && timeStr !== '—' ? `${dayStr} ${timeStr}` : dayStr
   }
 
   // Dropdown items for Add Money modal
@@ -930,19 +937,25 @@ export const UnifiedTransactionsPage: React.FC = () => {
                       >
                         {/* Date & Time */}
                         <td className="py-2 px-3.5 whitespace-nowrap">
-                          <span className="font-semibold text-slate-900 block text-xs">
-                            {new Date(txn.transactionDate).toLocaleDateString('en-IN', {
-                              day: '2-digit',
-                              month: 'short',
-                              year: 'numeric'
-                            })}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-mono block">
-                            {new Date(txn.transactionDate).toLocaleTimeString('en-IN', {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </span>
+                          {(() => {
+                            const { dayStr, timeStr } = formatLedgerDateTime(txn.transactionDate, txn.createdAt)
+                            return (
+                              <>
+                                <span className="font-semibold text-slate-900 block text-xs">
+                                  {dayStr}
+                                </span>
+                                {timeStr && timeStr !== '—' ? (
+                                  <span className="text-[10px] text-slate-500 font-mono block">
+                                    {timeStr}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 font-mono block">
+                                    —
+                                  </span>
+                                )}
+                              </>
+                            )
+                          })()}
                         </td>
 
                         {/* Account */}
@@ -1158,9 +1171,9 @@ export const UnifiedTransactionsPage: React.FC = () => {
             loadAccountsMetadata()
             fetchLedgerData()
           }}
-          onOpenAddMoney={(type, id) => {
+          onOpenAddMoney={(type, id, account) => {
             setIsManageAccountsOpen(false)
-            openAddMoney(type, id)
+            openAddMoney(type, id, account)
           }}
         />
       )}
@@ -1172,9 +1185,11 @@ export const UnifiedTransactionsPage: React.FC = () => {
           onClose={() => setIsAddMoneyOpen(false)}
           bankAccountId={addMoneyTarget.type === 'bank' ? addMoneyTarget.id : undefined}
           cashBookId={addMoneyTarget.type === 'cash' ? addMoneyTarget.id : undefined}
+          prefilledCashBook={addMoneyTarget.type === 'cash' ? (addMoneyTarget.prefilledAccount as CashBook) : undefined}
+          prefilledBankAccount={addMoneyTarget.type === 'bank' ? (addMoneyTarget.prefilledAccount as BankAccount) : undefined}
           targetType={addMoneyTarget.type}
           bankAccounts={dropdownBankOptions}
-          cashBooks={dropdownCashOptions}
+          cashBooks={allCashBooks.length > 0 ? allCashBooks : dropdownCashOptions}
           onSuccess={() => {
             fetchLedgerData()
             loadAccountsMetadata()
@@ -1293,7 +1308,7 @@ export const UnifiedTransactionsPage: React.FC = () => {
               </div>
               <div className="p-2.5 bg-white rounded-lg border border-slate-100">
                 <span className="text-slate-400 block text-[10px] font-bold uppercase">Date & Time</span>
-                <span className="font-medium text-slate-800 mt-0.5 block">{formatDateTime(selectedEntryDetails.transactionDate)}</span>
+                <span className="font-medium text-slate-800 mt-0.5 block">{formatDateTime(selectedEntryDetails.transactionDate, selectedEntryDetails.createdAt)}</span>
               </div>
               <div className="p-2.5 bg-white rounded-lg border border-slate-100">
                 <span className="text-slate-400 block text-[10px] font-bold uppercase">Account Running Balance</span>

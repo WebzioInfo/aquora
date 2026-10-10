@@ -9,6 +9,9 @@ namespace Aquora.Domain.Entities.Finance
         public Guid CompanyId { get; set; }
         public virtual Company Company { get; set; } = null!;
 
+        public Guid? OwnerId { get; set; }
+        public virtual Owner? Owner { get; set; }
+
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public decimal OpeningBalance { get; set; }

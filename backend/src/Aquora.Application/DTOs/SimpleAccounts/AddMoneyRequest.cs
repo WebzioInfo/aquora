@@ -17,5 +17,7 @@ namespace Aquora.Application.DTOs.SimpleAccounts
         public DateTime Date { get; set; } = DateTime.UtcNow;
 
         public string? Description { get; set; }
+
+        public Guid? OwnerId { get; set; }
     }
 }
