@@ -12,6 +12,9 @@ export interface SearchableDropdownProps {
   disabled?: boolean
   required?: boolean
   labelRight?: React.ReactNode
+  labelClassName?: string
+  buttonClassName?: string
+  error?: string
 }
 
 export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
@@ -24,7 +27,10 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
   isLoading = false,
   disabled = false,
   required = false,
-  labelRight
+  labelRight,
+  labelClassName,
+  buttonClassName,
+  error
 }) => {
   const dropdownItems = useMemo(() => items || options || [], [items, options])
   const [isOpen, setIsOpen] = useState(false)
@@ -68,7 +74,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
   return (
     <div className="flex flex-col gap-1.5 text-left" ref={containerRef}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <label className="text-xs font-semibold text-gray-700">
+        <label className={labelClassName || "text-xs font-semibold text-gray-700"}>
           {label} {required && <span className="text-red-500">*</span>}
         </label>
         {labelRight}
@@ -80,8 +86,9 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
           disabled={disabled}
           onClick={() => !disabled && setIsOpen(!isOpen)}
           className={`w-full h-10 px-3 bg-white border rounded-[10px] text-left text-sm flex items-center justify-between transition-colors
-            ${isOpen ? 'border-[#1A56DB] ring-2 ring-blue-50' : 'border-gray-200 hover:border-gray-300'}
+            ${isOpen ? 'border-[#1A56DB] ring-2 ring-blue-50' : error ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-200 hover:border-gray-300'}
             ${disabled ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'text-gray-900 cursor-pointer'}
+            ${buttonClassName || ''}
           `}
         >
           <span className={`block truncate ${!selectedItem ? 'text-gray-400' : ''}`}>
@@ -140,6 +147,11 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
           </div>
         )}
       </div>
+      {error && (
+        <span className="text-[10px] font-semibold text-rose-600 select-none">
+          {error}
+        </span>
+      )}
     </div>
   )
 }

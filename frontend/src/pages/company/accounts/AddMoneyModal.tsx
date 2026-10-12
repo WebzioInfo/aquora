@@ -10,12 +10,13 @@ import {
   ArrowDownRight,
   Lock
 } from 'lucide-react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import EnterpriseModal from '../../../components/ui/EnterpriseModal'
 import EnterpriseSelect from '../../../components/ui/EnterpriseSelect'
 import EnterpriseButton from '../../../components/ui/EnterpriseButton'
+import { SearchableDropdown } from '../../../components/ui/SearchableDropdown'
 import { simpleAccountsService } from '../../../services/simpleAccounts'
-import type { AddMoneyRequest, CashBook, BankAccount } from '../../../services/simpleAccounts'
+import type { AddMoneyRequest, CashBook, BankAccount, Owner } from '../../../services/simpleAccounts'
 import { useNotificationStore } from '../../../store/useNotificationStore'
 
 interface AddMoneyModalProps {
@@ -61,6 +62,13 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
   const { showToast } = useNotificationStore()
   const isEdit = !!ledgerEntry
 
+  // Fetch active eligible owners from existing owner management module
+  const { data: owners = [], isLoading: loadingOwners } = useQuery<Owner[]>({
+    queryKey: ['ownersList'],
+    queryFn: () => simpleAccountsService.getOwners(),
+    enabled: isOpen
+  })
+
   const initialType = (cashBookId || prefilledCashBook) ? 'cash' : ((bankAccountId || prefilledBankAccount) ? 'bank' : targetType)
   const [selectedType, setSelectedType] = useState<'bank' | 'cash'>(initialType)
   const [selectedBankId, setSelectedBankId] = useState<string>(bankAccountId || prefilledBankAccount?.id || '')
@@ -69,6 +77,7 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
   // Form states
   const [amount, setAmount] = useState<string>('')
   const [source, setSource] = useState<string>('Owner Investment')
+  const [selectedOwnerId, setSelectedOwnerId] = useState<string>('')
   const [referenceNo, setReferenceNo] = useState<string>('')
   const [date, setDate] = useState<string>(new Date().toISOString().substring(0, 10))
   const [description, setDescription] = useState<string>('')
@@ -94,11 +103,24 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
     return bankAccounts.find(b => b.id === selectedBankId) || null
   }, [selectedType, prefilledBankAccount, bankAccounts, selectedBankId])
 
-  // Resolve linked owner strictly from the database relationship (never inferred from name)
+  // Resolve linked owner strictly from the database relationship
   const isOwnerLinked = Boolean(currentCashBook?.ownerId || currentCashBook?.ownerName)
   const linkedOwnerName = currentCashBook?.ownerName || ''
-  const linkedOwnerId = currentCashBook?.ownerId || undefined
   const isDirectAccountTarget = Boolean((cashBookId || bankAccountId || prefilledCashBook || prefilledBankAccount) && !isEdit)
+
+  // Format owner options for searchable dropdown with name and identifier/investment context
+  const ownerDropdownOptions = useMemo(() => {
+    return owners.map((o) => ({
+      id: o.id,
+      name: `${o.name}${o.phone ? ` (${o.phone})` : ''} • Current Inv: ₹${Number(o.currentInvestment || 0).toLocaleString('en-IN')}`
+    }))
+  }, [owners])
+
+  const selectedOwnerName = useMemo(() => {
+    if (!selectedOwnerId) return ''
+    const found = owners.find(o => o.id === selectedOwnerId)
+    return found ? found.name : ''
+  }, [selectedOwnerId, owners])
 
   // Initialize and synchronize fields on open/edit change
   useEffect(() => {
@@ -122,16 +144,37 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
 
         const desc = ledgerEntry.description || ''
         const matchedSource = SOURCES.find(src => desc.startsWith(src))
-        if (matchedSource) {
-          setSource(matchedSource)
-          if (desc.startsWith(matchedSource + ' - ')) {
-            setDescription(desc.substring(matchedSource.length + 3))
+        const effectiveSource = matchedSource || (ledgerEntry.transactionType === 'Owner Investment' ? 'Owner Investment' : 'Other')
+        setSource(effectiveSource)
+
+        if (matchedSource && desc.startsWith(matchedSource + ' - ')) {
+          setDescription(desc.substring(matchedSource.length + 3))
+        } else if (!matchedSource) {
+          setDescription(desc)
+        } else {
+          setDescription('')
+        }
+
+        // Resolve editing owner
+        if (effectiveSource === 'Owner Investment') {
+          if (ledgerEntry.ownerId) {
+            setSelectedOwnerId(ledgerEntry.ownerId)
+          } else if (ledgerEntry.relatedEntityId && owners.length > 0) {
+            const matchedOwner = owners.find(o => o.transactions?.some(t => t.id === ledgerEntry.relatedEntityId))
+            if (matchedOwner) {
+              setSelectedOwnerId(matchedOwner.id)
+            } else if (currentCashBook?.ownerId) {
+              setSelectedOwnerId(currentCashBook.ownerId)
+            } else {
+              setSelectedOwnerId('')
+            }
+          } else if (currentCashBook?.ownerId) {
+            setSelectedOwnerId(currentCashBook.ownerId)
           } else {
-            setDescription('')
+            setSelectedOwnerId('')
           }
         } else {
-          setSource('Other')
-          setDescription(desc)
+          setSelectedOwnerId('')
         }
       } else {
         // Create Mode
@@ -145,13 +188,39 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
         const isTargetOwnerLinked = Boolean(targetBook?.ownerId || targetBook?.ownerName)
 
         if (effectiveType === 'cash') {
-          setSource(isTargetOwnerLinked ? 'Owner Investment' : 'Cash Deposit')
+          if (isTargetOwnerLinked) {
+            setSource('Owner Investment')
+            setSelectedOwnerId(targetBook?.ownerId || '')
+          } else {
+            setSource('Cash Deposit')
+            setSelectedOwnerId('')
+          }
         } else {
           setSource('Bank Deposit')
+          setSelectedOwnerId('')
         }
       }
     }
-  }, [isOpen, ledgerEntry, cashBookId, bankAccountId, prefilledCashBook, prefilledBankAccount, targetType])
+  }, [isOpen, ledgerEntry, cashBookId, bankAccountId, prefilledCashBook, prefilledBankAccount, targetType, owners.length])
+
+  // Handle switching transaction category
+  const handleSourceChange = (newSource: string) => {
+    setSource(newSource)
+    setFormError(null)
+
+    if (newSource === 'Owner Investment') {
+      // If the cashbook already has a linked owner, prefill it for convenience;
+      // otherwise, start unselected so the user must select an eligible owner
+      if (currentCashBook?.ownerId) {
+        setSelectedOwnerId(currentCashBook.ownerId)
+      } else {
+        setSelectedOwnerId('')
+      }
+    } else {
+      // Clear owner selection immediately when switching away from Owner Investment
+      setSelectedOwnerId('')
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -181,13 +250,21 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
       return
     }
 
+    // Enforce owner selection when category is Owner Investment
+    if (source === 'Owner Investment') {
+      if (!selectedOwnerId) {
+        setFormError('Investing Owner is required for Owner Investment transactions.')
+        return
+      }
+      if (owners.length > 0 && !owners.some(o => o.id === selectedOwnerId)) {
+        setFormError('The selected investing owner is invalid or not available.')
+        return
+      }
+    }
+
     try {
       setSubmitting(true)
 
-      // Resolve transaction date payload:
-      // If date is today, preserve current timestamp so the exact occurrence time is recorded.
-      // If editing and date was not changed, preserve existing transaction timestamp.
-      // If historical date, preserve the chosen business date.
       let txDatePayload: string
       const todayStr = new Date().toISOString().substring(0, 10)
       if (isEdit && ledgerEntry?.transactionDate) {
@@ -211,7 +288,7 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
         referenceNo: referenceNo.trim() || undefined,
         date: txDatePayload,
         description: description.trim() || undefined,
-        ownerId: (selectedType === 'cash' && isOwnerLinked) ? linkedOwnerId : undefined
+        ownerId: source === 'Owner Investment' ? selectedOwnerId : undefined
       }
 
       if (isEdit) {
@@ -232,10 +309,10 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
         } else if (targetCashId) {
           await simpleAccountsService.addCashMoney(targetCashId, payload)
         }
-        showToast('Money added successfully!', 'success')
+        showToast('Deposit recorded successfully!', 'success')
       }
 
-      // Invalidate relevant caches to ensure instant and persisted sync
+      // Invalidate relevant caches to ensure instant sync across modules
       queryClient.invalidateQueries({ queryKey: ['cashBooksList'] })
       queryClient.invalidateQueries({ queryKey: ['cashBookDropdownList'] })
       queryClient.invalidateQueries({ queryKey: ['bankAccountsList'] })
@@ -317,11 +394,11 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
               <div className="flex items-center justify-between pt-2.5 border-t border-slate-200/80 text-xs">
                 <div className="flex items-center gap-2 text-slate-700">
                   <UserCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                  <span className="text-slate-500 font-medium">Linked Owner:</span>
+                  <span className="text-slate-500 font-medium">Cashbook Associated Owner:</span>
                   <span className="font-bold text-slate-900">{linkedOwnerName}</span>
                 </div>
                 <span className="text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
-                  Owner-Linked Account
+                  Dedicated Owner Cashbook
                 </span>
               </div>
             )}
@@ -338,6 +415,7 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
                     setSelectedType('bank')
                     if (!selectedBankId && bankAccounts.length > 0) setSelectedBankId(bankAccounts[0].id)
                     setSource('Bank Deposit')
+                    setSelectedOwnerId('')
                   }}
                   className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${
                     selectedType === 'bank'
@@ -353,7 +431,13 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
                     setSelectedType('cash')
                     if (!selectedCashId && cashBooks.length > 0) setSelectedCashId(cashBooks[0].id)
                     const targetBook = cashBooks.find(c => c.id === (selectedCashId || cashBooks[0]?.id))
-                    setSource(targetBook?.ownerId || targetBook?.ownerName ? 'Owner Investment' : 'Cash Deposit')
+                    if (targetBook?.ownerId || targetBook?.ownerName) {
+                      setSource('Owner Investment')
+                      setSelectedOwnerId(targetBook.ownerId || '')
+                    } else {
+                      setSource('Cash Deposit')
+                      setSelectedOwnerId('')
+                    }
                   }}
                   className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${
                     selectedType === 'cash'
@@ -388,8 +472,10 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
                     const nextBook = cashBooks.find(c => c.id === nextId)
                     if (nextBook?.ownerId || nextBook?.ownerName) {
                       setSource('Owner Investment')
+                      setSelectedOwnerId(nextBook.ownerId || '')
                     } else {
                       setSource('Cash Deposit')
+                      setSelectedOwnerId('')
                     }
                   }}
                   options={[
@@ -407,11 +493,11 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
               <div className="col-span-full pt-2 border-t border-slate-200/80 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1.5 text-slate-700">
                   <UserCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                  <span className="text-slate-500 font-medium">Linked Owner:</span>
+                  <span className="text-slate-500 font-medium">Cashbook Associated Owner:</span>
                   <span className="font-bold text-slate-900">{linkedOwnerName}</span>
                 </div>
                 <span className="text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
-                  Auto-Selected
+                  Dedicated Owner Cashbook
                 </span>
               </div>
             )}
@@ -459,47 +545,89 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Transaction Source *</label>
             <EnterpriseSelect
               value={source}
-              onChange={(e) => setSource(e.target.value)}
+              onChange={(e) => handleSourceChange(e.target.value)}
               options={SOURCES.map((src) => ({ value: src, label: src }))}
             />
           </div>
 
-          {/* Reference No */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-              Reference / Cheque No (Optional)
-            </label>
-            <div className="relative">
-              <Hash className="absolute left-3 top-[13px] text-slate-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="e.g. CASH-REC-01, CHQ-1002"
-                className="h-[42px] pl-9 pr-3 w-full border border-slate-200 rounded-[8px] text-sm focus:border-emerald-500 focus:outline-none"
-                value={referenceNo}
-                onChange={(e) => setReferenceNo(e.target.value)}
+          {/* Dynamic Investing Owner Selector - Displayed ONLY when source is Owner Investment */}
+          {source === 'Owner Investment' ? (
+            <div className="flex flex-col gap-1">
+              <SearchableDropdown
+                label="Investing Owner"
+                required
+                labelClassName="text-xs font-bold text-slate-700 uppercase tracking-wide"
+                placeholder={loadingOwners ? 'Loading owners...' : (owners.length === 0 ? 'No owners available' : 'Select investing owner...')}
+                value={selectedOwnerId}
+                onChange={(val) => {
+                  setSelectedOwnerId(val)
+                  setFormError(null)
+                }}
+                options={ownerDropdownOptions}
+                isLoading={loadingOwners}
+                disabled={submitting}
+                buttonClassName="rounded-[8px] h-[42px] border-slate-200"
               />
             </div>
-          </div>
-        </div>
+          ) : (
+            /* Reference No when not Owner Investment to keep balanced 2-column grid */
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                Reference / Cheque No (Optional)
+              </label>
+              <div className="relative">
+                <Hash className="absolute left-3 top-[13px] text-slate-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="e.g. CASH-REC-01, CHQ-1002"
+                  className="h-[42px] pl-9 pr-3 w-full border border-slate-200 rounded-[8px] text-sm focus:border-emerald-500 focus:outline-none"
+                  value={referenceNo}
+                  onChange={(e) => setReferenceNo(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
 
-        {/* 3. Description / Remarks */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-            Description / Remarks (Optional)
-          </label>
-          <div className="relative">
-            <FileText className="absolute left-3 top-[13px] text-slate-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder={
-                source === 'Owner Investment' && isOwnerLinked
-                  ? `e.g. Additional capital contribution by ${linkedOwnerName}`
-                  : 'e.g. Operational cash deposit'
-              }
-              className="h-[42px] pl-9 pr-3 w-full border border-slate-200 rounded-[8px] text-sm focus:border-emerald-500 focus:outline-none"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
+          {/* Reference No row when Owner Investment is selected */}
+          {source === 'Owner Investment' && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                Reference / Cheque No (Optional)
+              </label>
+              <div className="relative">
+                <Hash className="absolute left-3 top-[13px] text-slate-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="e.g. CASH-REC-01, CHQ-1002"
+                  className="h-[42px] pl-9 pr-3 w-full border border-slate-200 rounded-[8px] text-sm focus:border-emerald-500 focus:outline-none"
+                  value={referenceNo}
+                  onChange={(e) => setReferenceNo(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Description / Remarks */}
+          <div className={`flex flex-col gap-1 ${source !== 'Owner Investment' ? 'col-span-full' : ''}`}>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+              Description / Remarks (Optional)
+            </label>
+            <div className="relative">
+              <FileText className="absolute left-3 top-[13px] text-slate-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder={
+                  source === 'Owner Investment'
+                    ? selectedOwnerName
+                      ? `e.g. Capital contribution by ${selectedOwnerName}`
+                      : 'e.g. Additional capital contribution'
+                    : 'e.g. Operational cash deposit'
+                }
+                className="h-[42px] pl-9 pr-3 w-full border border-slate-200 rounded-[8px] text-sm focus:border-emerald-500 focus:outline-none"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
           </div>
         </div>
 

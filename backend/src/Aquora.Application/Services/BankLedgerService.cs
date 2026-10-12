@@ -1235,6 +1235,14 @@ namespace Aquora.Application.Services
             var desc = string.IsNullOrWhiteSpace(request.Description) ? request.Source : $"{request.Source} - {request.Description}";
             var isOwnerInvestment = request.Source.Trim().Equals("Owner Investment", StringComparison.OrdinalIgnoreCase);
 
+            if (isOwnerInvestment)
+            {
+                if (!request.OwnerId.HasValue || request.OwnerId.Value == Guid.Empty)
+                {
+                    throw new ArgumentException("Investing owner must be selected for Owner Investment transactions.");
+                }
+            }
+
             async Task<Guid> executeAddMoneyAsync()
             {
                 if (bankAccountId.HasValue)
@@ -1247,11 +1255,12 @@ namespace Aquora.Application.Services
                     string relatedEntityType = "Deposit";
                     string txnType = "Deposit";
 
-                    if (isOwnerInvestment && request.OwnerId.HasValue)
+                    if (isOwnerInvestment)
                     {
                         var owner = await _context.Owners
-                            .FirstOrDefaultAsync(o => o.Id == request.OwnerId.Value && o.TenantId == tenantId && !o.IsDeleted);
+                            .FirstOrDefaultAsync(o => o.Id == request.OwnerId!.Value && o.TenantId == tenantId && !o.IsDeleted);
                         if (owner == null) throw new KeyNotFoundException("Linked owner not found or access denied.");
+                        if (owner.CompanyId != companyId) throw new UnauthorizedAccessException("Owner does not belong to the current company.");
 
                         var ownerTxn = new OwnerInvestmentTransaction
                         {
@@ -1300,18 +1309,13 @@ namespace Aquora.Application.Services
                     Guid? relatedEntityId = null;
                     string relatedEntityType = "Deposit";
                     string txnType = "Deposit";
-                    var targetOwnerId = request.OwnerId ?? cashBook.OwnerId;
 
                     if (isOwnerInvestment)
                     {
-                        if (!targetOwnerId.HasValue)
-                        {
-                            throw new InvalidOperationException($"Cashbook '{cashBook.Name}' is not linked to an owner. An owner investment can only be recorded against an owner-linked cashbook.");
-                        }
-
                         var owner = await _context.Owners
-                            .FirstOrDefaultAsync(o => o.Id == targetOwnerId.Value && o.TenantId == tenantId && !o.IsDeleted);
+                            .FirstOrDefaultAsync(o => o.Id == request.OwnerId!.Value && o.TenantId == tenantId && !o.IsDeleted);
                         if (owner == null) throw new KeyNotFoundException("Linked owner not found or access denied.");
+                        if (owner.CompanyId != companyId) throw new UnauthorizedAccessException("Owner does not belong to the current company.");
 
                         var ownerTxn = new OwnerInvestmentTransaction
                         {
@@ -1388,6 +1392,16 @@ namespace Aquora.Application.Services
 
             var tenantId = GetTenantId();
             var companyId = await GetCompanyIdAsync();
+            var userId = _currentUserContext.UserId ?? "System";
+            var isNewOwnerInvestment = request.Source.Trim().Equals("Owner Investment", StringComparison.OrdinalIgnoreCase);
+
+            if (isNewOwnerInvestment)
+            {
+                if (!request.OwnerId.HasValue || request.OwnerId.Value == Guid.Empty)
+                {
+                    throw new ArgumentException("Investing owner must be selected for Owner Investment transactions.");
+                }
+            }
 
             async Task executeBodyAsync()
             {
@@ -1397,7 +1411,8 @@ namespace Aquora.Application.Services
                 if (entry == null)
                     throw new KeyNotFoundException("Deposit entry not found.");
 
-                if (!entry.TransactionType.Equals("Deposit", StringComparison.OrdinalIgnoreCase))
+                var allowedTypes = new[] { "Deposit", "Owner Investment" };
+                if (!allowedTypes.Contains(entry.TransactionType, StringComparer.OrdinalIgnoreCase))
                     throw new ArgumentException("Only deposit transactions can be updated through this workflow.");
 
                 var oldAmount = entry.Credit;
@@ -1417,15 +1432,147 @@ namespace Aquora.Application.Services
                     }
                 }
 
+                var wasOwnerInvestment = entry.RelatedEntityType == "OwnerInvestmentTransaction" && entry.RelatedEntityId.HasValue;
+
+                if (isNewOwnerInvestment)
+                {
+                    var newOwner = await _context.Owners
+                        .FirstOrDefaultAsync(o => o.Id == request.OwnerId!.Value && o.TenantId == tenantId && !o.IsDeleted);
+                    if (newOwner == null) throw new KeyNotFoundException("Linked owner not found or access denied.");
+                    if (newOwner.CompanyId != companyId) throw new UnauthorizedAccessException("Owner does not belong to the current company.");
+
+                    if (wasOwnerInvestment)
+                    {
+                        var existingOwnerTxn = await _context.OwnerInvestmentTransactions
+                            .FirstOrDefaultAsync(t => t.Id == entry.RelatedEntityId!.Value && t.TenantId == tenantId && !t.IsDeleted);
+
+                        if (existingOwnerTxn != null)
+                        {
+                            if (existingOwnerTxn.OwnerId == newOwner.Id)
+                            {
+                                newOwner.CurrentInvestment += (request.Amount - oldAmount);
+                                newOwner.UpdatedAt = DateTime.UtcNow;
+                                newOwner.UpdatedBy = userId;
+
+                                existingOwnerTxn.Amount = request.Amount;
+                                existingOwnerTxn.TransactionDate = updatedUtcDate;
+                                if (!string.IsNullOrWhiteSpace(request.Description))
+                                    existingOwnerTxn.Notes = request.Description;
+                                existingOwnerTxn.UpdatedAt = DateTime.UtcNow;
+                                existingOwnerTxn.UpdatedBy = userId;
+                            }
+                            else
+                            {
+                                var oldOwner = await _context.Owners
+                                    .FirstOrDefaultAsync(o => o.Id == existingOwnerTxn.OwnerId && o.TenantId == tenantId && !o.IsDeleted);
+                                if (oldOwner != null)
+                                {
+                                    oldOwner.CurrentInvestment -= oldAmount;
+                                    oldOwner.UpdatedAt = DateTime.UtcNow;
+                                    oldOwner.UpdatedBy = userId;
+                                }
+
+                                newOwner.CurrentInvestment += request.Amount;
+                                newOwner.UpdatedAt = DateTime.UtcNow;
+                                newOwner.UpdatedBy = userId;
+
+                                existingOwnerTxn.OwnerId = newOwner.Id;
+                                existingOwnerTxn.Amount = request.Amount;
+                                existingOwnerTxn.TransactionDate = updatedUtcDate;
+                                if (!string.IsNullOrWhiteSpace(request.Description))
+                                    existingOwnerTxn.Notes = request.Description;
+                                existingOwnerTxn.UpdatedAt = DateTime.UtcNow;
+                                existingOwnerTxn.UpdatedBy = userId;
+                            }
+                        }
+                        else
+                        {
+                            var newTxn = new OwnerInvestmentTransaction
+                            {
+                                Id = Guid.NewGuid(),
+                                TenantId = tenantId,
+                                CompanyId = companyId,
+                                OwnerId = newOwner.Id,
+                                TransactionDate = updatedUtcDate,
+                                Amount = request.Amount,
+                                TransactionType = "Investment",
+                                Notes = request.Description ?? "Updated owner investment",
+                                CreatedAt = DateTime.UtcNow,
+                                CreatedBy = userId
+                            };
+                            _context.OwnerInvestmentTransactions.Add(newTxn);
+                            newOwner.CurrentInvestment += request.Amount;
+                            newOwner.UpdatedAt = DateTime.UtcNow;
+                            newOwner.UpdatedBy = userId;
+
+                            entry.RelatedEntityId = newTxn.Id;
+                        }
+                    }
+                    else
+                    {
+                        var newTxn = new OwnerInvestmentTransaction
+                        {
+                            Id = Guid.NewGuid(),
+                            TenantId = tenantId,
+                            CompanyId = companyId,
+                            OwnerId = newOwner.Id,
+                            TransactionDate = updatedUtcDate,
+                            Amount = request.Amount,
+                            TransactionType = "Investment",
+                            Notes = request.Description ?? "Converted to owner investment",
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedBy = userId
+                        };
+                        _context.OwnerInvestmentTransactions.Add(newTxn);
+                        newOwner.CurrentInvestment += request.Amount;
+                        newOwner.UpdatedAt = DateTime.UtcNow;
+                        newOwner.UpdatedBy = userId;
+
+                        entry.RelatedEntityId = newTxn.Id;
+                        entry.RelatedEntityType = "OwnerInvestmentTransaction";
+                    }
+
+                    entry.TransactionType = "Owner Investment";
+                }
+                else
+                {
+                    if (wasOwnerInvestment)
+                    {
+                        var existingOwnerTxn = await _context.OwnerInvestmentTransactions
+                            .FirstOrDefaultAsync(t => t.Id == entry.RelatedEntityId!.Value && t.TenantId == tenantId && !t.IsDeleted);
+
+                        if (existingOwnerTxn != null)
+                        {
+                            existingOwnerTxn.IsDeleted = true;
+                            existingOwnerTxn.DeletedAt = DateTime.UtcNow;
+                            existingOwnerTxn.DeletedBy = userId;
+
+                            var oldOwner = await _context.Owners
+                                .FirstOrDefaultAsync(o => o.Id == existingOwnerTxn.OwnerId && o.TenantId == tenantId && !o.IsDeleted);
+                            if (oldOwner != null)
+                            {
+                                oldOwner.CurrentInvestment -= oldAmount;
+                                oldOwner.UpdatedAt = DateTime.UtcNow;
+                                oldOwner.UpdatedBy = userId;
+                            }
+                        }
+
+                        entry.RelatedEntityId = null;
+                        entry.RelatedEntityType = "Deposit";
+                    }
+
+                    entry.TransactionType = "Deposit";
+                }
+
                 entry.Credit = request.Amount;
                 entry.TransactionDate = updatedUtcDate;
                 entry.ReferenceNumber = request.ReferenceNo ?? "";
                 entry.Description = desc;
                 entry.EventType = "UPDATED";
-                entry.EventLabel = "Bank Deposit Updated";
+                entry.EventLabel = entry.BankAccountId.HasValue ? "Bank Deposit Updated" : "Cash Deposit Updated";
                 entry.AuditNotes = $"Deposit updated. Amount changed from ₹{oldAmount:N2} to ₹{request.Amount:N2}";
                 entry.UpdatedAt = DateTime.UtcNow;
-                entry.UpdatedBy = _currentUserContext.UserId ?? "System";
+                entry.UpdatedBy = userId;
 
                 _context.BankLedgerAuditEntries.Add(new BankLedgerAuditEntry
                 {
@@ -1438,7 +1585,7 @@ namespace Aquora.Application.Services
                     NewAmount = request.Amount,
                     Remarks = $"Deposit updated. Amount changed from ₹{oldAmount:N2} to ₹{request.Amount:N2}",
                     CreatedAt = DateTime.UtcNow,
-                    CreatedBy = _currentUserContext.UserId ?? "System"
+                    CreatedBy = userId
                 });
 
                 await _context.SaveChangesAsync();

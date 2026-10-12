@@ -393,7 +393,8 @@ namespace Aquora.Tests
             {
                 Amount = 10000m,
                 Source = "Owner Investment",
-                Date = DateTime.UtcNow
+                Date = DateTime.UtcNow,
+                OwnerId = owner.Id
             };
             var entryId = await ledgerService.AddMoneyAsync(null, cashBook.Id, addRequest);
 
@@ -416,6 +417,332 @@ namespace Aquora.Tests
                 .FirstOrDefaultAsync(t => t.OwnerId == owner.Id && t.Amount == 10000m);
             Assert.NotNull(ownerTx);
             Assert.True(ownerTx.IsDeleted);
+        }
+
+        [Fact]
+        public async Task AddCash_OwnerInvestment_MissingOwnerId_ThrowsArgumentException()
+        {
+            // Acceptance: Server-side rejection of missing owner ID for Owner Investment
+            var (context, ledgerService, _, tenantId, companyId) = CreateTestSetup();
+
+            var cashBook = new CashBook
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Name = "General Cash Register",
+                OpeningBalance = 10000m,
+                CurrentBalance = 10000m,
+                IsActive = true
+            };
+            context.CashBooks.Add(cashBook);
+            await context.SaveChangesAsync();
+
+            var request = new AddMoneyRequest
+            {
+                Amount = 5000m,
+                Source = "Owner Investment",
+                Date = DateTime.UtcNow,
+                OwnerId = null // Missing owner ID
+            };
+
+            var ex = await Assert.ThrowsAsync<ArgumentException>(() => ledgerService.AddMoneyAsync(null, cashBook.Id, request));
+            Assert.Contains("Investing owner must be selected", ex.Message);
+        }
+
+        [Fact]
+        public async Task AddCash_OrdinaryCashbook_OwnerInvestment_SucceedsAndLinksOwnerInvestment()
+        {
+            // Primary failing scenario from screenshots: Normal non-owner cashbook with Owner Investment
+            var (context, ledgerService, _, tenantId, companyId) = CreateTestSetup();
+
+            var owner = new Owner
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Name = "John Investor",
+                Phone = "+91 9876543210",
+                OwnershipPercentage = 40,
+                InitialInvestment = 200000m,
+                CurrentInvestment = 200000m
+            };
+            context.Owners.Add(owner);
+
+            // Ordinary cashbook (OwnerId is null)
+            var cashBook = new CashBook
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Name = "Cashbook 1 (Operating)",
+                OpeningBalance = 10000m,
+                CurrentBalance = 10000m,
+                OwnerId = null,
+                IsActive = true
+            };
+            context.CashBooks.Add(cashBook);
+            await context.SaveChangesAsync();
+
+            // Act: Owner invests ₹10,000 into Cashbook 1
+            var request = new AddMoneyRequest
+            {
+                Amount = 10000m,
+                Source = "Owner Investment",
+                Date = DateTime.UtcNow,
+                Description = "Fresh capital injection",
+                OwnerId = owner.Id
+            };
+
+            var entryId = await ledgerService.AddMoneyAsync(null, cashBook.Id, request);
+
+            // Assert: Cashbook balance increased from 10,000 to 20,000
+            var updatedCashBook = await context.CashBooks.FindAsync(cashBook.Id);
+            Assert.NotNull(updatedCashBook);
+            Assert.Equal(20000m, updatedCashBook.CurrentBalance);
+            Assert.Null(updatedCashBook.OwnerId); // Remains an ordinary cashbook
+
+            // Owner investment increased from 200,000 to 210,000
+            var updatedOwner = await context.Owners.FindAsync(owner.Id);
+            Assert.NotNull(updatedOwner);
+            Assert.Equal(210000m, updatedOwner.CurrentInvestment);
+
+            // Ledger entry created and linked
+            var entry = await context.BankLedgerEntries.FindAsync(entryId);
+            Assert.NotNull(entry);
+            Assert.Equal("Owner Investment", entry.TransactionType);
+            Assert.Equal(10000m, entry.Credit);
+            Assert.Equal(20000m, entry.RunningBalance);
+            Assert.Equal("OwnerInvestmentTransaction", entry.RelatedEntityType);
+
+            var ownerTxn = await context.OwnerInvestmentTransactions.FindAsync(entry.RelatedEntityId);
+            Assert.NotNull(ownerTxn);
+            Assert.Equal(owner.Id, ownerTxn.OwnerId);
+            Assert.Equal(10000m, ownerTxn.Amount);
+            Assert.Equal("Investment", ownerTxn.TransactionType);
+        }
+
+        [Fact]
+        public async Task AddCash_OwnerCashbook_DifferentOwner_PreservesActualContributingOwner()
+        {
+            // Case: Contributing owner identity is preserved, not silently attributed to cashbook's associated owner
+            var (context, ledgerService, _, tenantId, companyId) = CreateTestSetup();
+
+            var cashBookOwner = new Owner
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Name = "Owner Alice",
+                OwnershipPercentage = 50,
+                CurrentInvestment = 100000m
+            };
+            var contributingOwner = new Owner
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Name = "Owner Bob",
+                OwnershipPercentage = 50,
+                CurrentInvestment = 80000m
+            };
+            context.Owners.AddRange(cashBookOwner, contributingOwner);
+
+            var cashBook = new CashBook
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Name = "Alice Dedicated Cashbook",
+                OpeningBalance = 50000m,
+                CurrentBalance = 50000m,
+                OwnerId = cashBookOwner.Id,
+                IsActive = true
+            };
+            context.CashBooks.Add(cashBook);
+            await context.SaveChangesAsync();
+
+            // Bob contributes ₹15,000
+            var request = new AddMoneyRequest
+            {
+                Amount = 15000m,
+                Source = "Owner Investment",
+                Date = DateTime.UtcNow,
+                Description = "Bob's capital contribution",
+                OwnerId = contributingOwner.Id
+            };
+
+            var entryId = await ledgerService.AddMoneyAsync(null, cashBook.Id, request);
+
+            // Alice's investment remains unchanged
+            var updatedAlice = await context.Owners.FindAsync(cashBookOwner.Id);
+            Assert.NotNull(updatedAlice);
+            Assert.Equal(100000m, updatedAlice.CurrentInvestment);
+
+            // Bob's investment is credited
+            var updatedBob = await context.Owners.FindAsync(contributingOwner.Id);
+            Assert.NotNull(updatedBob);
+            Assert.Equal(95000m, updatedBob.CurrentInvestment);
+
+            // Cashbook balance is updated
+            var updatedBook = await context.CashBooks.FindAsync(cashBook.Id);
+            Assert.NotNull(updatedBook);
+            Assert.Equal(65000m, updatedBook.CurrentBalance);
+
+            // Transaction links to Bob
+            var entry = await context.BankLedgerEntries.FindAsync(entryId);
+            Assert.NotNull(entry);
+            var ownerTxn = await context.OwnerInvestmentTransactions.FindAsync(entry.RelatedEntityId);
+            Assert.NotNull(ownerTxn);
+            Assert.Equal(contributingOwner.Id, ownerTxn.OwnerId);
+        }
+
+        [Fact]
+        public async Task AddCash_NonInvestmentSource_WithStaleOwnerId_DoesNotCreateOwnerInvestment()
+        {
+            // Case: Non-investment source must not create owner investment even if client sent stale OwnerId
+            var (context, ledgerService, _, tenantId, companyId) = CreateTestSetup();
+
+            var owner = new Owner
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Name = "Test Owner",
+                CurrentInvestment = 50000m
+            };
+            context.Owners.Add(owner);
+
+            var cashBook = new CashBook
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Name = "Main Cashbook",
+                OpeningBalance = 20000m,
+                CurrentBalance = 20000m,
+                IsActive = true
+            };
+            context.CashBooks.Add(cashBook);
+            await context.SaveChangesAsync();
+
+            var request = new AddMoneyRequest
+            {
+                Amount = 5000m,
+                Source = "Cash Deposit", // Non-investment source
+                Date = DateTime.UtcNow,
+                Description = "Cash from sales counter",
+                OwnerId = owner.Id // Stale ID from prior selection
+            };
+
+            var entryId = await ledgerService.AddMoneyAsync(null, cashBook.Id, request);
+
+            var entry = await context.BankLedgerEntries.FindAsync(entryId);
+            Assert.NotNull(entry);
+            Assert.Equal("Deposit", entry.TransactionType);
+            Assert.Null(entry.RelatedEntityId);
+
+            // Owner investment remains 50,000
+            var updatedOwner = await context.Owners.FindAsync(owner.Id);
+            Assert.NotNull(updatedOwner);
+            Assert.Equal(50000m, updatedOwner.CurrentInvestment);
+
+            // No OwnerInvestmentTransaction created
+            var ownerTxns = await context.OwnerInvestmentTransactions.Where(t => t.OwnerId == owner.Id).ToListAsync();
+            Assert.Empty(ownerTxns);
+        }
+
+        [Fact]
+        public async Task UpdateDepositAsync_CategorySwitching_MaintainsFinancialIntegrity()
+        {
+            // Case: Switch from regular deposit to Owner Investment, and update amounts atomically
+            var (context, ledgerService, _, tenantId, companyId) = CreateTestSetup();
+
+            var owner = new Owner
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Name = "Dynamic Owner",
+                CurrentInvestment = 100000m
+            };
+            context.Owners.Add(owner);
+
+            var cashBook = new CashBook
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Name = "Plant Petty Cash",
+                OpeningBalance = 30000m,
+                CurrentBalance = 30000m,
+                IsActive = true
+            };
+            context.CashBooks.Add(cashBook);
+            await context.SaveChangesAsync();
+
+            // 1. Initial Deposit as "Cash Deposit" ₹10,000
+            var initialRequest = new AddMoneyRequest
+            {
+                Amount = 10000m,
+                Source = "Cash Deposit",
+                Date = DateTime.UtcNow
+            };
+            var entryId = await ledgerService.AddMoneyAsync(null, cashBook.Id, initialRequest);
+
+            // 2. Edit Deposit: Switch to "Owner Investment" ₹12,000 with selected Owner
+            var updateRequest = new AddMoneyRequest
+            {
+                Amount = 12000m,
+                Source = "Owner Investment",
+                Date = DateTime.UtcNow,
+                Description = "Corrected to owner capital contribution",
+                OwnerId = owner.Id
+            };
+            await ledgerService.UpdateDepositAsync(entryId, updateRequest);
+
+            // Verify cashbook balance: 30,000 + 12,000 = 42,000
+            var updatedCashBook = await context.CashBooks.FindAsync(cashBook.Id);
+            Assert.NotNull(updatedCashBook);
+            Assert.Equal(42000m, updatedCashBook.CurrentBalance);
+
+            // Verify owner investment increased from 100,000 to 112,000
+            var updatedOwner = await context.Owners.FindAsync(owner.Id);
+            Assert.NotNull(updatedOwner);
+            Assert.Equal(112000m, updatedOwner.CurrentInvestment);
+
+            // Verify ledger entry updated to Owner Investment
+            var entry = await context.BankLedgerEntries.FindAsync(entryId);
+            Assert.NotNull(entry);
+            Assert.Equal("Owner Investment", entry.TransactionType);
+            Assert.Equal(12000m, entry.Credit);
+            Assert.Equal("OwnerInvestmentTransaction", entry.RelatedEntityType);
+
+            // 3. Edit again: Switch away from "Owner Investment" to "Cash Deposit" ₹8,000
+            var updateRequest2 = new AddMoneyRequest
+            {
+                Amount = 8000m,
+                Source = "Cash Deposit",
+                Date = DateTime.UtcNow,
+                Description = "Switched to standard cash deposit"
+            };
+            await ledgerService.UpdateDepositAsync(entryId, updateRequest2);
+
+            // Owner investment reverted back to 100,000
+            var revertedOwner = await context.Owners.FindAsync(owner.Id);
+            Assert.NotNull(revertedOwner);
+            Assert.Equal(100000m, revertedOwner.CurrentInvestment);
+
+            // Cashbook balance updated to 30,000 + 8,000 = 38,000
+            var revertedCashBook = await context.CashBooks.FindAsync(cashBook.Id);
+            Assert.NotNull(revertedCashBook);
+            Assert.Equal(38000m, revertedCashBook.CurrentBalance);
+
+            // Ledger entry reverted to Deposit
+            var entry2 = await context.BankLedgerEntries.FindAsync(entryId);
+            Assert.NotNull(entry2);
+            Assert.Equal("Deposit", entry2.TransactionType);
+            Assert.Null(entry2.RelatedEntityId);
         }
     }
 }
