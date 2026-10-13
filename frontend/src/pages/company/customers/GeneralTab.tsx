@@ -15,7 +15,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, handleFormChan
     <div className="space-y-5 animate-in fade-in duration-200">
       <PremiumSectionHeading title="General Partner Information" />
       
-      <div className="grid grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
         <PremiumSelect
           label="Partner Type *"
           name="customerType"
@@ -36,16 +36,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, handleFormChan
           placeholder="e.g. John Doe / Apex Distributors"
           required
         />
-      </div>
 
-      <div className="grid grid-cols-2 gap-5">
-        <PremiumInput
-          label="Contact Person Name"
-          name="contactPerson"
-          value={formData.contactPerson}
-          onChange={handleFormChange}
-          placeholder="e.g. Vance R."
-        />
         <PremiumInput
           label="Business Name"
           name="businessName"
@@ -56,7 +47,15 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, handleFormChan
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        <PremiumInput
+          label="Contact Person Name"
+          name="contactPerson"
+          value={formData.contactPerson}
+          onChange={handleFormChange}
+          placeholder="e.g. Vance R."
+        />
+
         <PremiumInput
           label="Primary Phone *"
           name="phone"
@@ -65,6 +64,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, handleFormChan
           placeholder="e.g. +91 9999999999"
           required
         />
+
         <PremiumInput
           label="WhatsApp Phone"
           name="whatsApp"
@@ -72,6 +72,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, handleFormChan
           onChange={handleFormChange}
           placeholder="WhatsApp Number"
         />
+
         <PremiumInput
           label="Alternate Phone"
           name="alternatePhone"
@@ -81,21 +82,23 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, handleFormChan
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-5">
-        <PremiumInput
-          label="Email Address"
-          name="email"
-          type="email"
-          value={formData.email}
-          onChange={handleFormChange}
-          placeholder="e.g. name@domain.com"
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+        <div className="sm:col-span-2 lg:col-span-2">
+          <PremiumInput
+            label="Email Address"
+            name="email"
+            type="email"
+            value={formData.email}
+            onChange={handleFormChange}
+            placeholder="e.g. name@domain.com"
+          />
+        </div>
       </div>
 
       {formData.customerType === 'Distributor' && (
-        <div className="pt-4 mt-6 border-t border-gray-100">
+        <div className="pt-4 border-t border-gray-100">
           <PremiumSectionHeading title="Distributor Information" />
-          <div className="grid grid-cols-2 gap-5 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 mt-4">
             <PremiumSelect
               label="Distributor Type"
               name="distributorType"
@@ -126,8 +129,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, handleFormChan
                 onChange={handleFormChange}
               />
             )}
-          </div>
-          <div className="grid grid-cols-2 gap-5 mt-4">
+
             <PremiumInput
               label="Route Name"
               name="assignedRoute"
@@ -135,6 +137,9 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, handleFormChan
               onChange={handleFormChange}
               placeholder="Optional route"
             />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:gap-5 mt-4">
             <PremiumInput
               label="Remarks"
               name="remarks"

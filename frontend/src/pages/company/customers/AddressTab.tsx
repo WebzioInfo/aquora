@@ -16,7 +16,7 @@ export const AddressTab: React.FC<AddressTabProps> = ({ formData, handleFormChan
     <div className="space-y-5 animate-in fade-in duration-200">
       <PremiumSectionHeading title="Primary Billing & Shipping Address" />
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
         <PremiumInput
           label="Address Line 1 *"
           name="addressLine1"
@@ -34,7 +34,7 @@ export const AddressTab: React.FC<AddressTabProps> = ({ formData, handleFormChan
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         <PremiumInput
           label="District *"
           name="district"
@@ -55,9 +55,6 @@ export const AddressTab: React.FC<AddressTabProps> = ({ formData, handleFormChan
             <option key={state} value={state}>{state}</option>
           ))}
         </PremiumSelect>
-      </div>
-
-      <div className="grid grid-cols-2 gap-5">
         <PremiumInput
           label="Country *"
           name="country"
