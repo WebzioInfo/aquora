@@ -55,9 +55,10 @@ namespace Aquora.API.Controllers
             try
             {
                 var query = _tenantContext.Products
+                    .IgnoreQueryFilters()
+                    .Where(p => !p.IsDeleted)
                     .Include(p => p.Brand)
                     .AsNoTracking()
-                    .Where(p => !p.IsDeleted)
                     .AsQueryable();
 
                 if (!string.IsNullOrWhiteSpace(searchTerm))
@@ -76,7 +77,7 @@ namespace Aquora.API.Controllers
                         Id = p.Id,
                         Name = p.Name,
                         BrandId = p.BrandId,
-                        BrandName = p.Brand.Name,
+                        BrandName = p.Brand != null ? p.Brand.Name : string.Empty,
                         SKU = p.SKU,
                         IsActive = p.IsActive,
                         CurrentStock = p.CurrentStock,
@@ -108,6 +109,7 @@ namespace Aquora.API.Controllers
             try
             {
                 var product = await _tenantContext.Products
+                    .IgnoreQueryFilters()
                     .Include(p => p.Brand)
                     .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
 
@@ -121,7 +123,7 @@ namespace Aquora.API.Controllers
                     Id = product.Id,
                     Name = product.Name,
                     BrandId = product.BrandId,
-                    BrandName = product.Brand.Name,
+                    BrandName = product.Brand != null ? product.Brand.Name : string.Empty,
                     SKU = product.SKU,
                     IsActive = product.IsActive,
                     CurrentStock = product.CurrentStock,
@@ -698,6 +700,7 @@ namespace Aquora.API.Controllers
                 }
 
                 var product = await _tenantContext.Products
+                    .IgnoreQueryFilters()
                     .Include(p => p.Brand)
                     .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
 

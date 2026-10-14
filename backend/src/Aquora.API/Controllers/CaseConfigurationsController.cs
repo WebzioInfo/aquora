@@ -141,9 +141,10 @@ namespace Aquora.API.Controllers
                 await EnsureSchemaAsync();
 
                 var query = _tenantContext.CaseConfigurations
+                    .IgnoreQueryFilters()
+                    .Where(c => !c.IsDeleted)
                     .Include(c => c.Product)
-                    .AsNoTracking()
-                    .Where(c => !c.IsDeleted);
+                    .AsNoTracking();
 
                 if (!includeInactive)
                 {
@@ -152,7 +153,7 @@ namespace Aquora.API.Controllers
 
                 var items = await query
                     .OrderByDescending(c => c.IsActive)
-                    .ThenBy(c => c.Product.Name)
+                    .ThenBy(c => c.Product != null ? c.Product.Name : c.Name)
                     .ThenBy(c => c.UnitsPerCase)
                     .Select(c => new CaseConfigurationDto
                     {
@@ -186,6 +187,7 @@ namespace Aquora.API.Controllers
                 await EnsureSchemaAsync();
 
                 var config = await _tenantContext.CaseConfigurations
+                    .IgnoreQueryFilters()
                     .Include(c => c.Product)
                     .AsNoTracking()
                     .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
@@ -226,6 +228,7 @@ namespace Aquora.API.Controllers
                 await EnsureSchemaAsync();
 
                 var config = await _tenantContext.CaseConfigurations
+                    .IgnoreQueryFilters()
                     .Include(c => c.Product)
                     .AsNoTracking()
                     .Where(c => c.ProductId == productId && c.IsActive && !c.IsDeleted)
@@ -398,6 +401,7 @@ namespace Aquora.API.Controllers
                 }
 
                 var config = await _tenantContext.CaseConfigurations
+                    .IgnoreQueryFilters()
                     .Include(c => c.Product)
                     .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
 
@@ -487,7 +491,9 @@ namespace Aquora.API.Controllers
 
             try
             {
-                var config = await _tenantContext.CaseConfigurations.FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
+                var config = await _tenantContext.CaseConfigurations
+                    .IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
                 if (config == null)
                 {
                     return NotFound(ApiResponse<bool>.CreateFailure("Case configuration not found.", "Not Found", HttpContext.TraceIdentifier));
