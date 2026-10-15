@@ -12,6 +12,8 @@ import {
   CheckCircle, Search, Edit2, Zap, Settings, HelpCircle, DollarSign, Activity,
   Plus, X, User, Phone, MapPin, CreditCard
 } from 'lucide-react'
+import { SearchableDropdown } from '../../components/ui/SearchableDropdown'
+import { QuickAddCustomerModal } from '../../components/modals/QuickAddCustomerModal'
 import { TwentyLOperationsHub } from './TwentyLOperationsHub'
 
 
@@ -47,17 +49,6 @@ export const OperationsPage: React.FC = () => {
 
   // Quick Customer Creation Modal State
   const [showQuickCustomerModal, setShowQuickCustomerModal] = useState(false)
-  const [quickCustLoading, setQuickCustLoading] = useState(false)
-  const [quickCustForm, setQuickCustForm] = useState({
-    customerName: '',
-    phone: '',
-    customerType: 'Distributor',
-    assignedVehicle: '',
-    assignedRoute: '',
-    addressLine1: '',
-    city: '',
-    paymentTerms: 'COD'
-  })
 
   // Form states - Section 2/3: Loading
   const [loadVisitId, setLoadVisitId] = useState<string | null>(null)
@@ -124,61 +115,15 @@ export const OperationsPage: React.FC = () => {
     }
   }
 
-  const handleQuickCustomerSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!quickCustForm.customerName.trim()) {
-      showToast('Customer Name is required.', 'error')
-      return
-    }
-    if (!quickCustForm.phone.trim()) {
-      showToast('Phone number is required.', 'error')
-      return
-    }
-
-    setQuickCustLoading(true)
-    try {
-      const res = await api.post('/api/v1/customers/quick', {
-        customerName: quickCustForm.customerName.trim(),
-        phone: quickCustForm.phone.trim(),
-        customerType: quickCustForm.customerType || 'Distributor',
-        assignedVehicle: quickCustForm.assignedVehicle.trim() || null,
-        assignedRoute: quickCustForm.assignedRoute.trim() || null,
-        addressLine1: quickCustForm.addressLine1.trim() || null,
-        city: quickCustForm.city.trim() || null,
-        paymentTerms: quickCustForm.paymentTerms || 'COD'
-      })
-
-      const newCustomer = res.data?.data
-      showToast(`Customer "${newCustomer?.customerName || quickCustForm.customerName}" created successfully!`, 'success')
-      
-      // Refresh master data
-      await loadMasterData()
-
-      // Auto-select newly created customer
-      const newId = newCustomer?.id || newCustomer?.customerId
-      if (newId) {
-        setReturnDistributor(newId)
-        setReturnVehicle(newCustomer?.assignedVehicle || quickCustForm.assignedVehicle.trim() || '')
+  const handleQuickCustomerSuccess = (newCustomer: any) => {
+    showToast(`Customer "${newCustomer?.customerName}" created successfully!`, 'success')
+    loadMasterData()
+    const newId = newCustomer?.id || newCustomer?.customerId
+    if (newId) {
+      setReturnDistributor(newId)
+      if (newCustomer?.assignedVehicle) {
+        setReturnVehicle(newCustomer.assignedVehicle)
       }
-
-      // Reset and close modal
-      setQuickCustForm({
-        customerName: '',
-        phone: '',
-        customerType: 'Distributor',
-        assignedVehicle: '',
-        assignedRoute: '',
-        addressLine1: '',
-        city: '',
-        paymentTerms: 'COD'
-      })
-      setShowQuickCustomerModal(false)
-    } catch (err: any) {
-      console.error('Error creating customer:', err)
-      const errorMsg = err?.response?.data?.message || err?.message || 'Failed to create customer. Please check fields and try again.'
-      showToast(errorMsg, 'error')
-    } finally {
-      setQuickCustLoading(false)
     }
   }
 
@@ -362,30 +307,22 @@ export const OperationsPage: React.FC = () => {
               </h2>
               <form onSubmit={handleReturnSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex flex-col">
-                    <div className="flex justify-between items-center mb-1">
-                      <label className="text-xs font-semibold text-slate-700">Distributor / Customer *</label>
-                      <button
-                        type="button"
-                        onClick={() => setShowQuickCustomerModal(true)}
-                        className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer transition-colors"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> Quick Add
-                      </button>
-                    </div>
-                    <select
+                  <div>
+                    <SearchableDropdown
+                      label="Distributor / Customer"
                       required
                       value={returnDistributor}
-                      onChange={e => handleDistributorChange(e.target.value)}
-                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">-- Select Distributor / Customer --</option>
-                      {distributors.map(d => (
-                        <option key={d.id || d.customerId} value={d.id || d.customerId}>
-                          {d.customerName || d.name} {d.assignedVehicle ? `(${d.assignedVehicle})` : ''}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={handleDistributorChange}
+                      options={distributors.map(d => ({
+                        id: d.id || d.customerId,
+                        name: d.customerName || d.name,
+                        subtitle: d.phone ? `Phone: ${d.phone}` : d.customerCode,
+                        badge: d.assignedVehicle ? `Vehicle: ${d.assignedVehicle}` : undefined
+                      }))}
+                      placeholder="Search distributor or customer..."
+                      onQuickAdd={() => setShowQuickCustomerModal(true)}
+                      quickAddLabel="+ Quick Add"
+                    />
                   </div>
                   <div className="flex flex-col">
                     <label className="text-xs font-semibold text-slate-700 mb-1">Vehicle Number *</label>
@@ -620,148 +557,14 @@ export const OperationsPage: React.FC = () => {
       )}
 
 
-        {/* QUICK CUSTOMER CREATION MODAL */}
-        {showQuickCustomerModal && (
-          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
-            <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/80">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
-                    <User className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">Quick Add Customer</h3>
-                    <p className="text-xs text-slate-500">Create and auto-assign a distributor / customer</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowQuickCustomerModal(false)}
-                  className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <form onSubmit={handleQuickCustomerSubmit} className="p-6 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-slate-700 mb-1">Customer Name *</label>
-                    <input
-                      required
-                      type="text"
-                      placeholder="e.g. Royal Waters"
-                      value={quickCustForm.customerName}
-                      onChange={e => setQuickCustForm(prev => ({ ...prev, customerName: e.target.value }))}
-                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                    />
-                  </div>
-                  <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-slate-700 mb-1">Phone Number *</label>
-                    <input
-                      required
-                      type="tel"
-                      placeholder="e.g. 9876543210"
-                      value={quickCustForm.phone}
-                      onChange={e => setQuickCustForm(prev => ({ ...prev, phone: e.target.value }))}
-                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-slate-700 mb-1">Customer Type</label>
-                    <select
-                      value={quickCustForm.customerType}
-                      onChange={e => setQuickCustForm(prev => ({ ...prev, customerType: e.target.value }))}
-                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                    >
-                      <option value="Distributor">Distributor</option>
-                      <option value="B2B">B2B Commercial</option>
-                      <option value="B2C">B2C Retail</option>
-                    </select>
-                  </div>
-                  <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-slate-700 mb-1">Assigned Vehicle Number</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. KL-07-CD-1234"
-                      value={quickCustForm.assignedVehicle}
-                      onChange={e => setQuickCustForm(prev => ({ ...prev, assignedVehicle: e.target.value }))}
-                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-slate-700 mb-1">Assigned Route</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Route 1 - North"
-                      value={quickCustForm.assignedRoute}
-                      onChange={e => setQuickCustForm(prev => ({ ...prev, assignedRoute: e.target.value }))}
-                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                    />
-                  </div>
-                  <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-slate-700 mb-1">Payment Terms</label>
-                    <select
-                      value={quickCustForm.paymentTerms}
-                      onChange={e => setQuickCustForm(prev => ({ ...prev, paymentTerms: e.target.value }))}
-                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                    >
-                      <option value="COD">Cash on Delivery (COD)</option>
-                      <option value="Credit">Credit Account</option>
-                      <option value="Prepaid">Prepaid</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-slate-700 mb-1">Address (Optional)</label>
-                    <input
-                      type="text"
-                      placeholder="Street / Building"
-                      value={quickCustForm.addressLine1}
-                      onChange={e => setQuickCustForm(prev => ({ ...prev, addressLine1: e.target.value }))}
-                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                    />
-                  </div>
-                  <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-slate-700 mb-1">City (Optional)</label>
-                    <input
-                      type="text"
-                      placeholder="City"
-                      value={quickCustForm.city}
-                      onChange={e => setQuickCustForm(prev => ({ ...prev, city: e.target.value }))}
-                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => setShowQuickCustomerModal(false)}
-                    className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={quickCustLoading}
-                    className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
-                  >
-                    {quickCustLoading ? 'Creating...' : 'Create & Select'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+        {/* SHARED QUICK CUSTOMER / DISTRIBUTOR MODAL */}
+        <QuickAddCustomerModal
+          isOpen={showQuickCustomerModal}
+          onClose={() => setShowQuickCustomerModal(false)}
+          onSuccess={handleQuickCustomerSuccess}
+          defaultCustomerType="Distributor"
+          title="Quick Add Distributor / Customer"
+        />
 
     </PageContainer>
   )

@@ -23,6 +23,7 @@ export interface SalesTransaction {
   updatedAt: string | null
   // Simple Accounts V1 & New ERP Fields
   paymentMethod?: string | null
+  paymentTerms?: string | null
   bankAccountId?: string | null
   bankAccountName?: string | null
   cashBookId?: string | null
@@ -73,6 +74,7 @@ export interface CreateSalesTransactionRequest {
 
   // ERP & V1 Fields
   paymentMethod?: string
+  paymentTerms?: string
   bankAccountId?: string
   cashBookId?: string
   unitPrice?: number

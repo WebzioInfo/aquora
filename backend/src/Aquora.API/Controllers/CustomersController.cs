@@ -38,11 +38,12 @@ namespace Aquora.API.Controllers
 
         private bool IsAuthorizedToWrite()
         {
-            var allowedRoles = new[] { "Owner", "CompanyOwner", "SuperAdmin", "PlatformAdmin", "CompanyAdmin", "Accountant", "Admin", "Manager" };
+            var allowedRoles = new[] { "Owner", "CompanyOwner", "SuperAdmin", "PlatformAdmin", "CompanyAdmin", "Accountant", "Admin", "Manager", "Operator", "PlantOperator", "Sales", "SalesExecutive" };
             return _currentUserContext.Roles.Any(r => allowedRoles.Contains(r, StringComparer.OrdinalIgnoreCase));
         }
 
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _healedCustomerSchemas = new();
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _healedProductPriceSchemas = new();
 
         private async Task EnsureCustomerColumnsAsync()
         {
@@ -64,6 +65,50 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to self-heal Customers table columns for schema {Schema}", schema);
+            }
+        }
+
+        private async Task EnsureCustomerProductPriceTableAsync()
+        {
+            var schema = string.IsNullOrWhiteSpace(_tenantContext.SchemaName)
+                ? "public"
+                : _tenantContext.SchemaName;
+
+            if (_healedProductPriceSchemas.ContainsKey(schema)) return;
+
+            try
+            {
+                var sql = $@"
+                    CREATE TABLE IF NOT EXISTS ""{schema}"".""CustomerProductPrices"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""TenantId"" uuid NOT NULL,
+                        ""CompanyId"" uuid NOT NULL,
+                        ""CustomerId"" uuid NOT NULL,
+                        ""ProductId"" uuid NOT NULL,
+                        ""CustomPrice"" numeric NOT NULL DEFAULT 0.0,
+                        ""DiscountPercentage"" numeric NULL,
+                        ""EffectiveFrom"" timestamp with time zone NULL,
+                        ""EffectiveTo"" timestamp with time zone NULL,
+                        ""IsActive"" boolean NOT NULL DEFAULT true,
+                        ""Notes"" text NULL,
+                        ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                        ""UpdatedAt"" timestamp with time zone NULL,
+                        ""UpdatedBy"" text NULL,
+                        ""CreatedByIP"" text NULL,
+                        ""UpdatedByIP"" text NULL,
+                        ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                        ""DeletedAt"" timestamp with time zone NULL,
+                        ""DeletedBy"" text NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS ""IX_CustomerProductPrices_Lookup"" ON ""{schema}"".""CustomerProductPrices"" (""TenantId"", ""CustomerId"", ""ProductId"", ""IsActive"", ""IsDeleted"");
+                ";
+                await _tenantContext.Database.ExecuteSqlRawAsync(sql);
+                _healedProductPriceSchemas.TryAdd(schema, true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to self-heal CustomerProductPrices table for schema {Schema}", schema);
             }
         }
 
@@ -357,6 +402,9 @@ namespace Aquora.API.Controllers
 
                 var customerType = string.IsNullOrWhiteSpace(request.CustomerType) ? "Distributor" : request.CustomerType.Trim();
                 var paymentTerms = string.IsNullOrWhiteSpace(request.PaymentTerms) ? "COD" : request.PaymentTerms.Trim();
+                var distributorType = string.IsNullOrWhiteSpace(request.DistributorType)
+                    ? (customerType.Equals("Distributor", StringComparison.OrdinalIgnoreCase) ? "Normal Distributor" : null)
+                    : request.DistributorType.Trim();
 
                 // 2. Duplicate checks
                 var phoneExists = await _tenantContext.Customers.AnyAsync(c => c.TenantId == tenantId && c.Phone == request.Phone.Trim() && !c.IsDeleted);
@@ -383,7 +431,7 @@ namespace Aquora.API.Controllers
                 }
                 var generatedCustomerCode = $"CUS-{nextNumber:D5}";
 
-                // 4. Initialize Customer Entity cleanly without requiring full address fields
+                // 4. Initialize Customer Entity cleanly without requiring single product price
                 var customer = new Customer
                 {
                     TenantId = tenantId,
@@ -391,7 +439,9 @@ namespace Aquora.API.Controllers
                     CustomerCode = generatedCustomerCode,
                     CustomerType = customerType,
                     CustomerName = request.CustomerName.Trim(),
+                    BusinessName = request.BusinessName?.Trim(),
                     Phone = request.Phone.Trim(),
+                    Email = request.Email?.Trim(),
                     AddressLine1 = request.AddressLine1?.Trim() ?? string.Empty,
                     City = request.City?.Trim() ?? string.Empty,
                     District = string.Empty,
@@ -399,16 +449,43 @@ namespace Aquora.API.Controllers
                     Country = string.Empty,
                     PinCode = string.Empty,
                     PaymentTerms = paymentTerms,
-                    OpeningBalance = 0,
-                    BalanceType = "Zero",
+                    OpeningBalance = request.OpeningBalance,
+                    BalanceType = string.IsNullOrWhiteSpace(request.BalanceType) ? (request.OpeningBalance > 0 ? "Debit" : "Zero") : request.BalanceType.Trim(),
                     CreditLimit = 0,
                     Status = "Active",
                     IsActive = true,
+                    DistributorType = distributorType,
                     AssignedVehicle = string.IsNullOrWhiteSpace(request.AssignedVehicle) ? null : request.AssignedVehicle.Trim(),
                     AssignedRoute = string.IsNullOrWhiteSpace(request.AssignedRoute) ? null : request.AssignedRoute.Trim()
                 };
 
                 _tenantContext.Customers.Add(customer);
+
+                // 5. If this is a Distributor, automatically link TwentyLDistributorProfile
+                if (customerType.Equals("Distributor", StringComparison.OrdinalIgnoreCase))
+                {
+                    var distProfile = new TwentyLDistributorProfile
+                    {
+                        TenantId = tenantId,
+                        CompanyId = company.Id,
+                        CustomerId = customer.Id,
+                        DistributorType = distributorType ?? "Normal Distributor",
+                        JarOwnershipModel = "MIXED",
+                        VehicleOwnership = "DISTRIBUTOR",
+                        RouteOwnership = "DISTRIBUTOR",
+                        PricingModel = "RATE_CARD",
+                        CommissionModel = "NONE",
+                        CreditLimit = 0,
+                        SecurityDeposit = 0,
+                        PaymentTerms = paymentTerms,
+                        EffectiveFrom = DateTime.UtcNow.Date,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = _currentUserContext.UserId ?? "System"
+                    };
+                    _tenantContext.TwentyLDistributorProfiles.Add(distProfile);
+                }
+
                 await _tenantContext.SaveChangesAsync();
 
                 var dto = MapCustomerToDto(customer);
@@ -417,6 +494,280 @@ namespace Aquora.API.Controllers
             catch (Exception ex)
             {
                 return Failure<CustomerDto>(ex.Message, "Failed to create customer.");
+            }
+        }
+
+        [HttpGet("{customerId}/product-prices")]
+        public async Task<ActionResult<ApiResponse<List<CustomerProductPriceDto>>>> GetCustomerProductPrices(Guid customerId)
+        {
+            try
+            {
+                await EnsureCustomerProductPriceTableAsync();
+                var tenantId = _currentUserContext.TenantId;
+
+                var prices = await _tenantContext.CustomerProductPrices
+                    .Where(p => p.TenantId == tenantId && p.CustomerId == customerId && !p.IsDeleted)
+                    .OrderByDescending(p => p.CreatedAt)
+                    .ToListAsync();
+
+                var productIds = prices.Select(p => p.ProductId).Distinct().ToList();
+                var products = await _tenantContext.Products
+                    .Where(p => productIds.Contains(p.Id))
+                    .ToDictionaryAsync(p => p.Id);
+
+                var customer = await _tenantContext.Customers
+                    .FirstOrDefaultAsync(c => c.Id == customerId && c.TenantId == tenantId);
+
+                var dtos = prices.Select(p =>
+                {
+                    products.TryGetValue(p.ProductId, out var prod);
+                    return new CustomerProductPriceDto
+                    {
+                        Id = p.Id,
+                        CustomerId = p.CustomerId,
+                        CustomerName = customer?.CustomerName ?? string.Empty,
+                        ProductId = p.ProductId,
+                        ProductName = prod?.Name ?? "Unknown Product",
+                        ProductSku = prod?.SKU ?? string.Empty,
+                        StandardSellingPrice = prod?.SellingPrice ?? 0m,
+                        CustomPrice = p.CustomPrice,
+                        DiscountPercentage = p.DiscountPercentage,
+                        EffectiveFrom = p.EffectiveFrom,
+                        EffectiveTo = p.EffectiveTo,
+                        IsActive = p.IsActive,
+                        Notes = p.Notes,
+                        CreatedAt = p.CreatedAt
+                    };
+                }).ToList();
+
+                return Success(dtos, "Customer product prices retrieved successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<List<CustomerProductPriceDto>>(ex.Message, "Failed to retrieve customer product prices.");
+            }
+        }
+
+        [HttpPost("{customerId}/product-prices")]
+        public async Task<ActionResult<ApiResponse<CustomerProductPriceDto>>> SaveCustomerProductPrice(Guid customerId, [FromBody] SaveCustomerProductPriceRequest request)
+        {
+            if (!IsAuthorizedToWrite())
+            {
+                return StatusCode(403, ApiResponse<CustomerProductPriceDto>.CreateFailure("You do not have permission to modify pricing.", "Forbidden", HttpContext.TraceIdentifier));
+            }
+
+            try
+            {
+                await EnsureCustomerProductPriceTableAsync();
+                var tenantId = _currentUserContext.TenantId;
+
+                var customer = await _tenantContext.Customers.FirstOrDefaultAsync(c => c.Id == customerId && c.TenantId == tenantId && !c.IsDeleted);
+                if (customer == null) return NotFound(ApiResponse<CustomerProductPriceDto>.CreateFailure("Customer not found.", "Not Found", HttpContext.TraceIdentifier));
+
+                var product = await _tenantContext.Products.FirstOrDefaultAsync(p => p.Id == request.ProductId && !p.IsDeleted);
+                if (product == null) return NotFound(ApiResponse<CustomerProductPriceDto>.CreateFailure("Product not found.", "Not Found", HttpContext.TraceIdentifier));
+
+                if (request.CustomPrice < 0)
+                {
+                    return BadRequest(ApiResponse<CustomerProductPriceDto>.CreateFailure("Custom price cannot be negative.", "Validation Error", HttpContext.TraceIdentifier));
+                }
+
+                var existingPrice = await _tenantContext.CustomerProductPrices
+                    .FirstOrDefaultAsync(p => p.TenantId == tenantId && p.CustomerId == customerId && p.ProductId == request.ProductId && !p.IsDeleted);
+
+                if (existingPrice == null)
+                {
+                    var company = await _tenantContext.Companies.FirstOrDefaultAsync(c => !c.IsDeleted);
+                    existingPrice = new CustomerProductPrice
+                    {
+                        TenantId = tenantId,
+                        CompanyId = company?.Id ?? customer.CompanyId,
+                        CustomerId = customerId,
+                        ProductId = request.ProductId,
+                        CustomPrice = request.CustomPrice,
+                        DiscountPercentage = request.DiscountPercentage,
+                        EffectiveFrom = request.EffectiveFrom?.ToUniversalTime(),
+                        EffectiveTo = request.EffectiveTo?.ToUniversalTime(),
+                        IsActive = request.IsActive,
+                        Notes = request.Notes?.Trim(),
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = _currentUserContext.UserId ?? "System"
+                    };
+                    _tenantContext.CustomerProductPrices.Add(existingPrice);
+                }
+                else
+                {
+                    existingPrice.CustomPrice = request.CustomPrice;
+                    existingPrice.DiscountPercentage = request.DiscountPercentage;
+                    existingPrice.EffectiveFrom = request.EffectiveFrom?.ToUniversalTime();
+                    existingPrice.EffectiveTo = request.EffectiveTo?.ToUniversalTime();
+                    existingPrice.IsActive = request.IsActive;
+                    existingPrice.Notes = request.Notes?.Trim();
+                    existingPrice.UpdatedAt = DateTime.UtcNow;
+                    existingPrice.UpdatedBy = _currentUserContext.UserId ?? "System";
+                }
+
+                await _tenantContext.SaveChangesAsync();
+
+                var dto = new CustomerProductPriceDto
+                {
+                    Id = existingPrice.Id,
+                    CustomerId = customerId,
+                    CustomerName = customer.CustomerName,
+                    ProductId = product.Id,
+                    ProductName = product.Name,
+                    ProductSku = product.SKU ?? string.Empty,
+                    StandardSellingPrice = product.SellingPrice,
+                    CustomPrice = existingPrice.CustomPrice,
+                    DiscountPercentage = existingPrice.DiscountPercentage,
+                    EffectiveFrom = existingPrice.EffectiveFrom,
+                    EffectiveTo = existingPrice.EffectiveTo,
+                    IsActive = existingPrice.IsActive,
+                    Notes = existingPrice.Notes,
+                    CreatedAt = existingPrice.CreatedAt
+                };
+
+                return Success(dto, "Customer product price saved successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<CustomerProductPriceDto>(ex.Message, "Failed to save customer product price.");
+            }
+        }
+
+        [HttpDelete("{customerId}/product-prices/{id}")]
+        public async Task<ActionResult<ApiResponse<bool>>> DeleteCustomerProductPrice(Guid customerId, Guid id)
+        {
+            if (!IsAuthorizedToWrite())
+            {
+                return StatusCode(403, ApiResponse<bool>.CreateFailure("You do not have permission to delete pricing.", "Forbidden", HttpContext.TraceIdentifier));
+            }
+
+            try
+            {
+                await EnsureCustomerProductPriceTableAsync();
+                var tenantId = _currentUserContext.TenantId;
+
+                var price = await _tenantContext.CustomerProductPrices
+                    .FirstOrDefaultAsync(p => p.Id == id && p.CustomerId == customerId && p.TenantId == tenantId && !p.IsDeleted);
+
+                if (price == null) return NotFound(ApiResponse<bool>.CreateFailure("Product price record not found.", "Not Found", HttpContext.TraceIdentifier));
+
+                price.IsDeleted = true;
+                price.IsActive = false;
+                price.DeletedAt = DateTime.UtcNow;
+                price.DeletedBy = _currentUserContext.UserId ?? "System";
+
+                await _tenantContext.SaveChangesAsync();
+                return Success(true, "Customer product price removed successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<bool>(ex.Message, "Failed to delete customer product price.");
+            }
+        }
+
+        [HttpGet("{customerId}/pricing/{productId}")]
+        public async Task<ActionResult<ApiResponse<ApplicablePriceResponseDto>>> GetApplicablePrice(Guid customerId, Guid productId)
+        {
+            try
+            {
+                await EnsureCustomerProductPriceTableAsync();
+                var tenantId = _currentUserContext.TenantId;
+                var now = DateTime.UtcNow;
+
+                var customer = await _tenantContext.Customers.FirstOrDefaultAsync(c => c.Id == customerId && c.TenantId == tenantId && !c.IsDeleted);
+                if (customer == null) return NotFound(ApiResponse<ApplicablePriceResponseDto>.CreateFailure("Customer not found.", "Not Found", HttpContext.TraceIdentifier));
+
+                var product = await _tenantContext.Products.FirstOrDefaultAsync(p => p.Id == productId && !p.IsDeleted);
+                if (product == null) return NotFound(ApiResponse<ApplicablePriceResponseDto>.CreateFailure("Product not found.", "Not Found", HttpContext.TraceIdentifier));
+
+                // 1. Check Customer-specific product price
+                var customPrice = await _tenantContext.CustomerProductPrices
+                    .Where(p => p.TenantId == tenantId && p.CustomerId == customerId && p.ProductId == productId && p.IsActive && !p.IsDeleted &&
+                                (p.EffectiveFrom == null || p.EffectiveFrom <= now) &&
+                                (p.EffectiveTo == null || p.EffectiveTo >= now))
+                    .OrderByDescending(p => p.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                decimal applicablePrice = product.SellingPrice;
+                string priceSource = "StandardCatalog";
+                decimal? negotiatedPrice = null;
+
+                if (customPrice != null && customPrice.CustomPrice > 0)
+                {
+                    applicablePrice = customPrice.CustomPrice;
+                    priceSource = "CustomerAgreement";
+                    negotiatedPrice = customPrice.CustomPrice;
+                }
+                else
+                {
+                    // 2. Check TwentyLRateRule if applicable
+                    var rateRule = await _tenantContext.TwentyLRateRules
+                        .Where(r => r.TenantId == tenantId && r.IsActive && !r.IsDeleted &&
+                                    (r.CustomerId == customerId || r.CustomerId == null) &&
+                                    r.ProductId == productId &&
+                                    r.EffectiveFrom <= now && (r.EffectiveTo == null || r.EffectiveTo >= now))
+                        .OrderByDescending(r => r.CustomerId.HasValue)
+                        .ThenByDescending(r => r.Priority)
+                        .FirstOrDefaultAsync();
+
+                    if (rateRule != null && rateRule.UnitRate > 0)
+                    {
+                        applicablePrice = rateRule.UnitRate;
+                        priceSource = "RateRule";
+                        negotiatedPrice = rateRule.UnitRate;
+                    }
+                }
+
+                // 3. Historical pricing info
+                var lastTxn = await _tenantContext.SalesTransactions
+                    .Where(t => t.TenantId == tenantId && t.CustomerId == customerId && t.ProductId == productId && !t.IsDeleted && t.TransactionType == "Sales Dispatch")
+                    .OrderByDescending(t => t.TransactionDate)
+                    .FirstOrDefaultAsync();
+
+                CustomerPricingHistoryDto? history = null;
+                if (lastTxn != null)
+                {
+                    history = new CustomerPricingHistoryDto
+                    {
+                        LastPriceCharged = lastTxn.UnitPrice,
+                        LastTransactionDate = lastTxn.TransactionDate,
+                        LastQuantity = lastTxn.Cases,
+                        LastPaymentStatus = lastTxn.PaymentStatus,
+                        CustomerOutstandingBalance = customer.OutstandingPlaceholder
+                    };
+                }
+                else
+                {
+                    history = new CustomerPricingHistoryDto
+                    {
+                        LastPriceCharged = 0,
+                        LastTransactionDate = null,
+                        LastQuantity = 0,
+                        LastPaymentStatus = "N/A",
+                        CustomerOutstandingBalance = customer.OutstandingPlaceholder
+                    };
+                }
+
+                var response = new ApplicablePriceResponseDto
+                {
+                    CustomerId = customerId,
+                    CustomerName = customer.CustomerName,
+                    ProductId = productId,
+                    ProductName = product.Name,
+                    ApplicablePrice = applicablePrice,
+                    PriceSource = priceSource,
+                    StandardSellingPrice = product.SellingPrice,
+                    NegotiatedPrice = negotiatedPrice,
+                    History = history
+                };
+
+                return Success(response, "Applicable price and pricing history retrieved successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<ApplicablePriceResponseDto>(ex.Message, "Failed to resolve applicable price.");
             }
         }
 

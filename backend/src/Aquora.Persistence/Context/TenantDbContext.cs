@@ -49,6 +49,7 @@ namespace Aquora.Persistence.Context
         public DbSet<Company> Companies => Set<Company>();
         public DbSet<Aquora.Domain.Entities.QC.ComplianceRecord> ComplianceRecords => Set<Aquora.Domain.Entities.QC.ComplianceRecord>();
         public DbSet<Customer> Customers => Set<Customer>();
+        public DbSet<CustomerProductPrice> CustomerProductPrices => Set<CustomerProductPrice>();
         public DbSet<DiscountGroup> DiscountGroups => Set<DiscountGroup>();
         public DbSet<Aquora.Domain.Entities.Finance.ExpenseRecord> ExpenseRecords => Set<Aquora.Domain.Entities.Finance.ExpenseRecord>();
         public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();

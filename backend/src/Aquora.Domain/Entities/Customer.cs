@@ -64,7 +64,7 @@ namespace Aquora.Domain.Entities
         public string? AccountingPlaceholder { get; set; }
 
         // Logistics/Distributor Profile details
-        public string? DistributorType { get; set; } // Company Owned, Commission, Salary, Independent
+        public string? DistributorType { get; set; } // Normal, Commission, Salary, Independent
         public decimal CommissionPercentage { get; set; } = 0;
         public decimal MonthlySalary { get; set; } = 0;
         public decimal SecurityDeposit { get; set; } = 0;

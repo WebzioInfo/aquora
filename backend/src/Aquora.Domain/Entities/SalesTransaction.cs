@@ -30,6 +30,7 @@ namespace Aquora.Domain.Entities
 
         // New ERP Sales Fields
         public string? PaymentMethod { get; set; }
+        public string? PaymentTerms { get; set; }
         public Guid? BankAccountId { get; set; }
         public Guid? CashBookId { get; set; }
         public decimal UnitPrice { get; set; }

@@ -15,6 +15,16 @@ namespace Aquora.Application.DTOs.Customers
 
         public string CustomerType { get; set; } = "Distributor"; // Distributor / B2B / B2C
 
+        [StringLength(100, ErrorMessage = "Distributor type cannot exceed 100 characters.")]
+        public string? DistributorType { get; set; } // Normal Distributor, Commission Distributor, Salary Distributor
+
+        [StringLength(150, ErrorMessage = "Business name cannot exceed 150 characters.")]
+        public string? BusinessName { get; set; }
+
+        [EmailAddress(ErrorMessage = "Invalid email address format.")]
+        [StringLength(100, ErrorMessage = "Email cannot exceed 100 characters.")]
+        public string? Email { get; set; }
+
         [StringLength(50, ErrorMessage = "Vehicle number cannot exceed 50 characters.")]
         public string? AssignedVehicle { get; set; }
 
@@ -29,5 +39,8 @@ namespace Aquora.Application.DTOs.Customers
 
         [StringLength(50, ErrorMessage = "Payment terms cannot exceed 50 characters.")]
         public string? PaymentTerms { get; set; } = "COD";
+
+        public decimal OpeningBalance { get; set; } = 0;
+        public string BalanceType { get; set; } = "Zero";
     }
 }

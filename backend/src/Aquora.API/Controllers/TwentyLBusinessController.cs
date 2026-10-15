@@ -1130,13 +1130,18 @@ public sealed class TwentyLBusinessController : ApiControllerBase
             .ToListAsync();
 
         var customerIds = rules.Where(r => r.BeneficiaryCustomerId.HasValue).Select(r => r.BeneficiaryCustomerId!.Value).Distinct().ToList();
+        var productIds = rules.Where(r => r.ProductId.HasValue).Select(r => r.ProductId!.Value).Distinct().ToList();
+
         var customerMap = await _db.Customers.Where(c => customerIds.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.CustomerName);
+        var productMap = await _db.Products.Where(p => productIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => p.Name);
 
         var items = rules.Select(r => new
         {
             r.Id,
             r.BeneficiaryCustomerId,
             BeneficiaryName = r.BeneficiaryCustomerId.HasValue && customerMap.TryGetValue(r.BeneficiaryCustomerId.Value, out var bName) ? bName : "All Distributors/Beneficiaries",
+            r.ProductId,
+            ProductName = r.ProductId.HasValue && productMap.TryGetValue(r.ProductId.Value, out var pName) ? pName : "All Eligible Products",
             r.BeneficiaryType,
             r.CalculationType,
             r.Value,
@@ -1168,6 +1173,47 @@ public sealed class TwentyLBusinessController : ApiControllerBase
         _db.TwentyLCommissionRules.Add(rule);
         await _db.SaveChangesAsync();
         return Success<object>(new { rule.Id }, "20L commission rule created.");
+    }
+
+    [HttpPut("commission-rules/{id}")]
+    public async Task<ActionResult<ApiResponse<object>>> UpdateCommissionRule(Guid id, UpdateTwentyLCommissionRuleRequest request)
+    {
+        var rule = await _db.TwentyLCommissionRules.FirstOrDefaultAsync(r => r.Id == id && r.TenantId == _user.TenantId && !r.IsDeleted);
+        if (rule == null) return Failure<object>("Commission rule not found.", "Resource not found", HttpStatusCode.NotFound);
+
+        if (request.Value < 0 || request.MinimumQuantity < 0 || (request.EffectiveTo.HasValue && request.EffectiveTo < request.EffectiveFrom) ||
+            request.CalculationType is not ("PERCENTAGE" or "FIXED_PER_UNIT"))
+            return ValidationError<object>("commissionRule", "Commission rule values, dates, or calculation type are invalid.");
+
+        rule.BeneficiaryCustomerId = request.BeneficiaryCustomerId;
+        rule.ProductId = request.ProductId;
+        rule.BeneficiaryType = request.BeneficiaryType;
+        rule.CalculationType = request.CalculationType;
+        rule.Value = request.Value;
+        rule.MinimumQuantity = request.MinimumQuantity;
+        rule.EffectiveFrom = request.EffectiveFrom.Date;
+        rule.EffectiveTo = request.EffectiveTo?.Date;
+        rule.Priority = request.Priority;
+        rule.IsActive = request.IsActive;
+        rule.UpdatedAt = DateTime.UtcNow;
+        rule.UpdatedBy = _user.UserId ?? string.Empty;
+
+        await _db.SaveChangesAsync();
+        return Success<object>(new { rule.Id }, "Commission rule updated successfully.");
+    }
+
+    [HttpDelete("commission-rules/{id}")]
+    public async Task<ActionResult<ApiResponse<object>>> DeleteCommissionRule(Guid id)
+    {
+        var rule = await _db.TwentyLCommissionRules.FirstOrDefaultAsync(r => r.Id == id && r.TenantId == _user.TenantId && !r.IsDeleted);
+        if (rule == null) return Failure<object>("Commission rule not found.", "Resource not found", HttpStatusCode.NotFound);
+
+        rule.IsDeleted = true;
+        rule.DeletedAt = DateTime.UtcNow;
+        rule.DeletedBy = _user.UserId ?? string.Empty;
+
+        await _db.SaveChangesAsync();
+        return Success<object>(new { id }, "Commission rule deleted successfully.");
     }
 
     [HttpGet("commission-transactions")]
@@ -3294,6 +3340,20 @@ public sealed class CreateTwentyLCommissionRuleRequest
     public DateTime EffectiveFrom { get; set; } = DateTime.UtcNow;
     public DateTime? EffectiveTo { get; set; }
     public int Priority { get; set; }
+}
+
+public sealed class UpdateTwentyLCommissionRuleRequest
+{
+    public Guid? BeneficiaryCustomerId { get; set; }
+    public Guid? ProductId { get; set; }
+    public string BeneficiaryType { get; set; } = "DISTRIBUTOR";
+    public string CalculationType { get; set; } = "PERCENTAGE";
+    public decimal Value { get; set; }
+    public decimal MinimumQuantity { get; set; }
+    public DateTime EffectiveFrom { get; set; }
+    public DateTime? EffectiveTo { get; set; }
+    public int Priority { get; set; }
+    public bool IsActive { get; set; } = true;
 }
 
 public sealed class CreateTwentyLDeliveryRequest

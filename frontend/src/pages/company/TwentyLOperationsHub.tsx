@@ -7,7 +7,7 @@ import {
   Clock, Settings, AlertTriangle, Play, Wrench, ShieldAlert,
   ArrowUpRight, ArrowDownLeft, RotateCcw, MapPin, Phone,
   Building2, Store, Smartphone, Route, Users, TrendingUp, Edit3, Trash2,
-  CheckSquare, Calendar, Navigation
+  CheckSquare, Calendar, Navigation, Award, Tag
 } from 'lucide-react'
 import { twentyLService } from '../../services/twentyL'
 import type {
@@ -20,6 +20,10 @@ import { useNotificationStore } from '../../store/useNotificationStore'
 import EnterpriseBadge from '../../components/ui/EnterpriseBadge'
 import EnterpriseButton from '../../components/ui/EnterpriseButton'
 import EnterpriseModal from '../../components/ui/EnterpriseModal'
+import { SearchableDropdown } from '../../components/ui/SearchableDropdown'
+import { QuickAddCustomerModal } from '../../components/modals/QuickAddCustomerModal'
+import { CustomerProductPricingModal } from '../../components/modals/CustomerProductPricingModal'
+import { DistributorCommissionModal } from '../../components/modals/DistributorCommissionModal'
 
 export const TwentyLOperationsHub: React.FC = () => {
   const queryClient = useQueryClient()
@@ -58,6 +62,12 @@ export const TwentyLOperationsHub: React.FC = () => {
   const [isQuickOpsModalOpen, setIsQuickOpsModalOpen] = useState(false)
   const [isRepairModalOpen, setIsRepairModalOpen] = useState(false)
   const [isNewRateRuleModalOpen, setIsNewRateRuleModalOpen] = useState(false)
+
+  // Global Quick Add & Product-Wise Management Modals
+  const [isQuickDistributorModalOpen, setIsQuickDistributorModalOpen] = useState(false)
+  const [isProductPricingModalOpen, setIsProductPricingModalOpen] = useState(false)
+  const [pricingCustomer, setPricingCustomer] = useState<{ id: string; name: string; code?: string } | null>(null)
+  const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false)
 
   // Selected Entities
   const [selectedTrip, setSelectedTrip] = useState<any | null>(null)
@@ -222,8 +232,8 @@ export const TwentyLOperationsHub: React.FC = () => {
     appliedRate: 25,
     amountPaid: 2500,
     paymentMode: 'CASH',
-    vehicleNumber: 'KL-07-BW-4040',
-    driverName: 'Ramesh Driver',
+    vehicleNumber: '',
+    driverName: '',
     dispatcherNotes: 'Factory dispatch'
   })
 
@@ -249,17 +259,17 @@ export const TwentyLOperationsHub: React.FC = () => {
     routeCode: 'RT-01',
     routeName: 'Town Area North',
     areaDescription: 'Commercial Main Road',
-    defaultDriverName: 'Suresh Driver',
-    defaultVehicleNumber: 'KL-07-CW-5050',
+    defaultDriverName: '',
+    defaultVehicleNumber: '',
     scheduleDays: 'DAILY'
   })
 
   // Distributor Vehicle Form
   const [vehicleForm, setVehicleForm] = useState({
-    registrationNumber: 'KL-07-EX-1010',
+    registrationNumber: '',
     vehicleType: 'MINI_TRUCK',
     capacityJars: 60,
-    assignedDriverName: 'Ramesh Driver'
+    assignedDriverName: ''
   })
 
   // Distributor Driver Form
@@ -525,11 +535,10 @@ export const TwentyLOperationsHub: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2 bg-slate-200/70 p-1.5 rounded-2xl border border-slate-300/60">
         <button
           onClick={() => setActiveTier('COMPANY_SUPPLY')}
-          className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-sm transition-all ${
-            activeTier === 'COMPANY_SUPPLY'
+          className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-sm transition-all ${activeTier === 'COMPANY_SUPPLY'
               ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
               : 'text-slate-700 hover:bg-white/60'
-          }`}
+            }`}
         >
           <Building2 className="w-4 h-4" />
           <span>Plant Supply (Upstream)</span>
@@ -537,11 +546,10 @@ export const TwentyLOperationsHub: React.FC = () => {
 
         <button
           onClick={() => setActiveTier('DISTRIBUTOR_PORTAL')}
-          className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-sm transition-all ${
-            activeTier === 'DISTRIBUTOR_PORTAL'
+          className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-sm transition-all ${activeTier === 'DISTRIBUTOR_PORTAL'
               ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
               : 'text-slate-700 hover:bg-white/60'
-          }`}
+            }`}
         >
           <Store className="w-4 h-4" />
           <span>Distributor Business</span>
@@ -549,11 +557,10 @@ export const TwentyLOperationsHub: React.FC = () => {
 
         <button
           onClick={() => setActiveTier('DRIVER_TERMINAL')}
-          className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-sm transition-all ${
-            activeTier === 'DRIVER_TERMINAL'
+          className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-sm transition-all ${activeTier === 'DRIVER_TERMINAL'
               ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
               : 'text-slate-700 hover:bg-white/60'
-          }`}
+            }`}
         >
           <Smartphone className="w-4 h-4" />
           <span>Driver Terminal</span>
@@ -561,11 +568,10 @@ export const TwentyLOperationsHub: React.FC = () => {
 
         <button
           onClick={() => setActiveTier('TRIPS_OPERATIONS')}
-          className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-sm transition-all ${
-            activeTier === 'TRIPS_OPERATIONS'
+          className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-sm transition-all ${activeTier === 'TRIPS_OPERATIONS'
               ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
               : 'text-slate-700 hover:bg-white/60'
-          }`}
+            }`}
         >
           <Truck className="w-4 h-4" />
           <span>Trips & Operations</span>
@@ -573,11 +579,10 @@ export const TwentyLOperationsHub: React.FC = () => {
 
         <button
           onClick={() => setActiveTier('LEDGER_AUDIT')}
-          className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-sm transition-all ${
-            activeTier === 'LEDGER_AUDIT'
+          className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-sm transition-all ${activeTier === 'LEDGER_AUDIT'
               ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
               : 'text-slate-700 hover:bg-white/60'
-          }`}
+            }`}
         >
           <Layers className="w-4 h-4" />
           <span>Authoritative Ledger</span>
@@ -659,21 +664,39 @@ export const TwentyLOperationsHub: React.FC = () => {
                 </p>
               </div>
 
-              <EnterpriseButton
-                variant="primary"
-                onClick={() => {
-                  setSupplyForm(prev => ({
-                    ...prev,
-                    distributorId: customers[0]?.id || '',
-                    productId: products[0]?.id || ''
-                  }))
-                  setIsDistributorSupplyModalOpen(true)
-                }}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <Plus className="w-4 h-4" />
-                New Distributor Supply
-              </EnterpriseButton>
+              <div className="flex flex-wrap items-center gap-2">
+                <EnterpriseButton
+                  variant="secondary"
+                  onClick={() => setIsQuickDistributorModalOpen(true)}
+                  className="flex items-center gap-1.5 text-xs"
+                >
+                  <Plus className="w-3.5 h-3.5 text-blue-600" />
+                  Quick Add Distributor
+                </EnterpriseButton>
+                <EnterpriseButton
+                  variant="secondary"
+                  onClick={() => setIsCommissionModalOpen(true)}
+                  className="flex items-center gap-1.5 text-xs text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200"
+                >
+                  <Award className="w-3.5 h-3.5" />
+                  Product Commissions
+                </EnterpriseButton>
+                <EnterpriseButton
+                  variant="primary"
+                  onClick={() => {
+                    setSupplyForm(prev => ({
+                      ...prev,
+                      distributorId: customers[0]?.id || '',
+                      productId: products[0]?.id || ''
+                    }))
+                    setIsDistributorSupplyModalOpen(true)
+                  }}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Plus className="w-4 h-4" />
+                  New Distributor Supply
+                </EnterpriseButton>
+              </div>
             </div>
 
             {/* Supplies Table */}
@@ -848,11 +871,10 @@ export const TwentyLOperationsHub: React.FC = () => {
           <div className="flex gap-2 border-b border-slate-200 pb-2">
             <button
               onClick={() => setDistributorSubTab('CUSTOMERS')}
-              className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${
-                distributorSubTab === 'CUSTOMERS'
+              className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${distributorSubTab === 'CUSTOMERS'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-slate-600 hover:bg-slate-100'
-              }`}
+                }`}
             >
               <Users className="w-4 h-4" />
               <span>Customers ({distCustomers?.length || 0})</span>
@@ -860,11 +882,10 @@ export const TwentyLOperationsHub: React.FC = () => {
 
             <button
               onClick={() => setDistributorSubTab('ROUTES_FLEET')}
-              className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${
-                distributorSubTab === 'ROUTES_FLEET'
+              className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${distributorSubTab === 'ROUTES_FLEET'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-slate-600 hover:bg-slate-100'
-              }`}
+                }`}
             >
               <Route className="w-4 h-4" />
               <span>Routes & Fleet</span>
@@ -872,11 +893,10 @@ export const TwentyLOperationsHub: React.FC = () => {
 
             <button
               onClick={() => setDistributorSubTab('DELIVERIES')}
-              className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${
-                distributorSubTab === 'DELIVERIES'
+              className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${distributorSubTab === 'DELIVERIES'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-slate-600 hover:bg-slate-100'
-              }`}
+                }`}
             >
               <Truck className="w-4 h-4" />
               <span>Customer Deliveries</span>
@@ -1117,17 +1137,15 @@ export const TwentyLOperationsHub: React.FC = () => {
             {driverPortalData?.stops?.map((stop: any) => (
               <div
                 key={stop.customerId}
-                className={`p-4 rounded-2xl border transition-all ${
-                  stop.isDeliveredToday
+                className={`p-4 rounded-2xl border transition-all ${stop.isDeliveredToday
                     ? 'bg-emerald-50/70 border-emerald-300'
                     : 'bg-white border-slate-200 shadow-sm hover:border-amber-400'
-                }`}
+                  }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm ${
-                      stop.isDeliveredToday ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
-                    }`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm ${stop.isDeliveredToday ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
+                      }`}>
                       {stop.stopNumber}
                     </div>
                     <div>
@@ -1319,18 +1337,29 @@ export const TwentyLOperationsHub: React.FC = () => {
       >
         <form onSubmit={handleCreateDistributorSupply} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Select Distributor *</label>
-            <select
-              value={supplyForm.distributorId}
-              onChange={(e) => setSupplyForm({ ...supplyForm, distributorId: e.target.value })}
-              className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold focus:ring-2 focus:ring-blue-500"
+            <SearchableDropdown
+              label="Select Distributor"
               required
-            >
-              <option value="">-- Choose Distributor --</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>{c.customerName}</option>
-              ))}
-            </select>
+              value={supplyForm.distributorId}
+              onChange={(val) => {
+                const found = customers.find(c => c.id === val)
+                setSupplyForm(prev => ({
+                  ...prev,
+                  distributorId: val,
+                  vehicleNumber: found?.assignedVehicle || prev.vehicleNumber,
+                  driverName: found?.assignedDriver || prev.driverName
+                }))
+              }}
+              options={customers.map(c => ({
+                id: c.id,
+                name: c.customerName,
+                subtitle: c.phone ? `Phone: ${c.phone}` : (c.customerCode || undefined),
+                badge: c.customerType || undefined
+              }))}
+              placeholder="Search or choose distributor..."
+              onQuickAdd={() => setIsQuickDistributorModalOpen(true)}
+              quickAddLabel="+ Quick Add Distributor"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -1848,6 +1877,44 @@ export const TwentyLOperationsHub: React.FC = () => {
           </div>
         </form>
       </EnterpriseModal>
+
+      {/* Quick Add Distributor / Customer Modal */}
+      <QuickAddCustomerModal
+        isOpen={isQuickDistributorModalOpen}
+        onClose={() => setIsQuickDistributorModalOpen(false)}
+        onSuccess={(cust) => {
+          setCustomers(prev => [cust, ...prev])
+          setSupplyForm(prev => ({
+            ...prev,
+            distributorId: cust.id,
+            vehicleNumber: cust.assignedVehicle || prev.vehicleNumber
+          }))
+          showToast(`Distributor "${cust.customerName}" created and selected!`, 'success')
+        }}
+        defaultCustomerType="Distributor"
+        title="Quick Add Distributor"
+      />
+
+      {/* Product-Wise Pricing Modal */}
+      {pricingCustomer && (
+        <CustomerProductPricingModal
+          isOpen={isProductPricingModalOpen}
+          onClose={() => {
+            setIsProductPricingModalOpen(false)
+            setPricingCustomer(null)
+          }}
+          customerId={pricingCustomer.id}
+          customerName={pricingCustomer.name}
+          customerCode={pricingCustomer.code}
+        />
+      )}
+
+      {/* Distributor Commission Modal */}
+      <DistributorCommissionModal
+        isOpen={isCommissionModalOpen}
+        onClose={() => setIsCommissionModalOpen(false)}
+        distributorId={selectedDistributorId}
+      />
     </div>
   )
 }
