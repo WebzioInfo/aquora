@@ -1,9 +1,7 @@
-import React, { useEffect, useMemo } from 'react'
+import React, { useEffect } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
 import ToastContainer from '../components/ui/ToastContainer'
-import BRAND from '../config/brand'
-import { Globe, HelpCircle } from 'lucide-react'
+import { Globe } from 'lucide-react'
 import { useThemeStore } from '../store/useThemeStore'
 
 export const AuthLayout: React.FC = () => {
@@ -12,118 +10,95 @@ export const AuthLayout: React.FC = () => {
 
   useEffect(() => {
     initTheme()
-  }, [])
+  }, [initTheme])
 
-  // Determine which background image to use based on the route
-  const getBackgroundImage = () => {
-    if (location.pathname === '/register') {
-      return '/assets/images/aquzio-register-water-packaging-4k.png'
-    }
-    return '/assets/images/aquzio-login-water-bottling-4k.png'
-  }
-
-  const bgImage = useMemo(() => getBackgroundImage(), [location.pathname])
+  const isLoginPage = location.pathname === '/login'
+  const isRegisterPage = location.pathname === '/register'
 
   return (
-    <div className="relative h-screen max-h-screen w-full overflow-hidden flex flex-col font-sans text-[#111827] select-none">
-      
-      {/* 1. FULL-SCREEN IMMERSIVE BACKGROUND */}
-      <div className="absolute inset-0 z-0">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={bgImage}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1 }}
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-            style={{ backgroundImage: `url(${bgImage})` }}
-          />
-        </AnimatePresence>
+    <div className="relative min-h-screen h-screen w-full flex flex-col justify-between overflow-x-hidden overflow-y-auto font-sans text-slate-900 select-none">
 
-        {/* SOFT CENTER-FOCUSED LIGHT OVERLAY */}
-        <div 
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: `radial-gradient(
-              circle at center,
-              rgba(255, 255, 255, 0.72) 0%,
-              rgba(255, 255, 255, 0.50) 45%,
-              rgba(255, 255, 255, 0.25) 75%,
-              rgba(255, 255, 255, 0.12) 100%
-            )`
-          }}
+      {/* 1. FACTORY TEXTURE BACKGROUND WITH FLAT BRAND-INK OVERLAY (NO BLUR) */}
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+        <img
+          src="/assets/images/aquzio-login-water-bottling-4k.png"
+          alt=""
+          aria-hidden="true"
+          decoding="async"
+          className="w-full h-full object-cover"
+        />
+        {/* Flat brand ink overlay at 83% opacity */}
+        <div
+          className="absolute inset-0"
+          style={{ backgroundColor: 'rgba(5, 48, 59, 0.83)' }}
+          aria-hidden="true"
         />
       </div>
 
-      {/* 2. TRANSLUCENT HEADER */}
-      <header className="px-6 lg:px-12 py-5 flex items-center justify-between z-20 shrink-0"
-        style={{ 
-          background: 'rgba(255,255,255,0.15)',
-          backdropFilter: 'blur(6px)',
-          WebkitBackdropFilter: 'blur(6px)'
-        }}
-      >
-        <Link to="/" className="flex items-center gap-2.5">
-          <img src={BRAND.logo} alt={BRAND.name} className="h-9 w-auto object-contain drop-shadow-sm" />
+      {/* 2. TRANSPARENT TOP BAR (NO BLUR) */}
+      <header className="relative z-10 w-full px-5 sm:px-8 lg:px-12 h-16 shrink-0 flex items-center justify-between">
+        {/* Full Aquzio Logo (white variant on dark overlay) */}
+        <Link to="/" className="flex items-center gap-2 focus:outline-none" aria-label="Aquzio Home">
+          <img
+            src="/brand/aquzio-logo-white.png"
+            alt="Aquzio"
+            className="h-7 sm:h-8 w-auto object-contain"
+          />
         </Link>
 
-        {/* Navigation & Controls */}
-        <div className="flex items-center gap-4 text-xs font-semibold text-[#111827] drop-shadow-sm">
-          {location.pathname === '/register' && (
-            <Link to="/login" className="px-3 py-1.5 rounded-lg bg-white/60 hover:bg-white/90 backdrop-blur-md transition-colors text-[#2563EB]">
-              Sign In
+        {/* Quiet text links on right */}
+        <nav className="flex items-center gap-5 sm:gap-6 text-[13px] font-medium" aria-label="Secondary navigation">
+          {isLoginPage && (
+            <Link
+              to="/register"
+              className="hidden sm:inline-block text-white/80 hover:text-white transition-colors duration-150"
+            >
+              Create account
             </Link>
           )}
-          {location.pathname === '/login' && (
-            <Link to="/register" className="px-3 py-1.5 rounded-lg bg-white/60 hover:bg-white/90 backdrop-blur-md transition-colors text-[#2563EB]">
-              Create Account
+
+          {isRegisterPage && (
+            <Link
+              to="/login"
+              className="hidden sm:inline-block text-white/80 hover:text-white transition-colors duration-150"
+            >
+              Sign in
             </Link>
           )}
-          <div className="h-4 w-px bg-white/40 hidden sm:block" />
-          <button className="hidden sm:flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-white/20 transition-colors cursor-pointer">
-            <Globe className="w-4 h-4" />
-            <span>EN</span>
-          </button>
-          <button className="hidden sm:flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-white/20 transition-colors cursor-pointer">
-            <HelpCircle className="w-4 h-4" />
-            <span>Support</span>
-          </button>
-        </div>
+
+          <a
+            href="mailto:support@aquzio.com"
+            className="text-white/70 hover:text-white transition-colors duration-150"
+          >
+            Support
+          </a>
+
+          <span className="text-white/60 text-[11px] font-semibold px-2 py-0.5 rounded border border-white/20 select-none">
+            EN
+          </span>
+        </nav>
       </header>
 
-      {/* 3. MAIN CONTENT AREA — CENTERED VIEWPORT CONTAINER */}
-      <main className="flex-1 relative z-10 w-full flex items-center justify-center px-4 sm:px-6 py-6 overflow-y-auto">
-        <div className="w-full max-w-[480px] my-auto flex justify-center items-center">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.3 }}
-              className="w-full flex justify-center items-center"
-            >
-              <Outlet />
-            </motion.div>
-          </AnimatePresence>
+      {/* 3. MAIN CENTERED CONTENT CONTAINER */}
+      <main className="relative z-10 w-full flex-1 flex items-center justify-center px-4 sm:px-6 py-6">
+        <div className="w-full flex justify-center items-center">
+          <Outlet />
         </div>
       </main>
 
-      {/* 4. TRANSLUCENT FOOTER */}
-      <footer className="px-6 lg:px-12 py-4 shrink-0 text-[11px] font-medium text-[#111827] flex items-center justify-between z-20"
-        style={{ 
-          background: 'rgba(255,255,255,0.15)',
-          backdropFilter: 'blur(6px)',
-          WebkitBackdropFilter: 'blur(6px)'
-        }}
-      >
-        <span className="drop-shadow-sm">© {new Date().getFullYear()} {BRAND.name} Platform</span>
-        <div className="flex gap-5 hidden sm:flex drop-shadow-sm">
-          <a href="#" className="hover:text-[#2563EB] transition-colors">Privacy</a>
-          <a href="#" className="hover:text-[#2563EB] transition-colors">Terms</a>
-          <a href="#" className="hover:text-[#2563EB] transition-colors">Security</a>
-          <a href="#" className="hover:text-[#2563EB] transition-colors">Status</a>
+      {/* 4. TRANSPARENT FOOTER */}
+      <footer className="relative z-10 w-full px-5 sm:px-8 lg:px-12 py-3.5 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-[12px] text-white/70 text-center sm:text-left">
+        <div className="flex items-center gap-2">
+          <span>© 2026 Aquzio</span>
+          <span className="text-white/30 hidden sm:inline">·</span>
+          <span className="text-white/50 text-[11px] sm:text-[12px]">A product of Webzio Technology</span>
+        </div>
+
+        <div className="flex items-center gap-4 text-[12px]">
+          <a href="#" className="hover:text-white transition-colors duration-150">Privacy</a>
+          <a href="#" className="hover:text-white transition-colors duration-150">Terms</a>
+          <a href="#" className="hover:text-white transition-colors duration-150">Security</a>
+          <a href="#" className="hover:text-white transition-colors duration-150">Status</a>
         </div>
       </footer>
 

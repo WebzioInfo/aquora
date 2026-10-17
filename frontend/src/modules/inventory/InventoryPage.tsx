@@ -339,12 +339,16 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
   const isOwner = isOwnerUser(user)
 
   const searchParams = new URLSearchParams(location.search)
-  const queryTab = searchParams.get('tab') as 'products' | 'raw_materials' | 'brands' | null
-  const inventoryTab = queryTab || 'products'
+  const queryTab = searchParams.get('tab')
+  const inventoryTab = (queryTab === 'raw_materials' ? 'raw_materials' : 'products') as 'products' | 'raw_materials'
 
   useEffect(() => {
-    if (isOwner && queryTab === 'brands') {
-      navigate('/company/dashboard', { replace: true })
+    if (queryTab === 'brands') {
+      if (isOwner) {
+        navigate('/company/dashboard', { replace: true })
+      } else {
+        navigate('/company/production-setup?tab=brands', { replace: true })
+      }
     }
   }, [isOwner, queryTab, navigate])
 
@@ -398,15 +402,6 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
     }
     updateCostMutation.mutate({ id: productId, unitCost: cost })
   }
-  const [brandsPage, setBrandsPage] = useState(1)
-  const [brandsSearch, setBrandsSearch] = useState('')
-  const [isAddBrandModalOpen, setIsAddBrandModalOpen] = useState(false)
-  const [isEditBrandModalOpen, setIsEditBrandModalOpen] = useState(false)
-  const [selectedBrand, setSelectedBrand] = useState<any | null>(null)
-  const [brandFormName, setBrandFormName] = useState('')
-  const [brandFormCode, setBrandFormCode] = useState('')
-  const [brandFormDescription, setBrandFormDescription] = useState('')
-  const [brandFormIsActive, setBrandFormIsActive] = useState(true)
   const [rawMaterialsPage, setRawMaterialsPage] = useState(1)
   const [rawMaterialsSearch, setRawMaterialsSearch] = useState('')
   const [isAddRawMaterialModalOpen, setIsAddRawMaterialModalOpen] = useState(false)
@@ -423,20 +418,14 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
   const [rawMaterialFormCurrentStock, setRawMaterialFormCurrentStock] = useState('0')
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
   const toggleRow = (id: string) => setExpandedRowId(prev => prev === id ? null : id)
-  const switchTab = (tab: 'products' | 'raw_materials' | 'brands') => {
-    if (isOwner && tab === 'brands') return
+  const switchTab = (tab: 'products' | 'raw_materials') => {
     navigate(`?tab=${tab}`); setExpandedRowId(null); setGlobalSearch('')
-    setProductsSearch(''); setRawMaterialsSearch(''); setBrandsSearch('')
+    setProductsSearch(''); setRawMaterialsSearch('')
   }
   const { data: productsData, isLoading: productsLoading, refetch: refetchProducts } = useQuery({
     queryKey: ['productsList', productsPage, productsSearch],
     queryFn: async () => (await productsService.getProducts(productsPage, 10, productsSearch)).data,
     enabled: inventoryTab === 'products'
-  })
-  const { data: paginatedBrandsData, isLoading: brandsLoading, refetch: refetchBrands } = useQuery({
-    queryKey: ['brandsPaginated', brandsPage, brandsSearch],
-    queryFn: async () => (await brandService.getBrands(brandsPage, 10, brandsSearch)).data,
-    enabled: !isOwner && inventoryTab === 'brands'
   })
   const { data: brands = [] } = useQuery({
     queryKey: ['brandsDropdown'],
@@ -491,21 +480,6 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
     onSuccess: (d) => { if (d.success) { showToast('Raw material deleted.', 'success'); queryClient.invalidateQueries({ queryKey: ['rawMaterialsList'] }); queryClient.invalidateQueries({ queryKey: ['rawMaterials'] }) } else showToast(d.message || 'Failed.', 'error') },
     onError: (e: any) => showToast(e.response?.data?.message || 'Error.', 'error')
   })
-  const createBrandMutation = useMutation({
-    mutationFn: brandService.createBrand,
-    onSuccess: (d) => { if (d.success) { showToast('Brand created.', 'success'); queryClient.invalidateQueries({ queryKey: ['brandsPaginated'] }); queryClient.invalidateQueries({ queryKey: ['brandsDropdown'] }); setIsAddBrandModalOpen(false); setBrandFormName(''); setBrandFormCode(''); setBrandFormDescription('') } else showToast(d.message || 'Failed.', 'error') },
-    onError: (e: any) => showToast(e.response?.data?.message || 'Error.', 'error')
-  })
-  const updateBrandMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => brandService.updateBrand(id, data),
-    onSuccess: (d) => { if (d.success) { showToast('Brand updated.', 'success'); queryClient.invalidateQueries({ queryKey: ['brandsPaginated'] }); queryClient.invalidateQueries({ queryKey: ['brandsDropdown'] }); setIsEditBrandModalOpen(false) } else showToast(d.message || 'Failed.', 'error') },
-    onError: (e: any) => showToast(e.response?.data?.message || 'Error.', 'error')
-  })
-  const deleteBrandMutation = useMutation({
-    mutationFn: brandService.deleteBrand,
-    onSuccess: (d) => { if (d.success) { showToast('Brand deleted.', 'success'); queryClient.invalidateQueries({ queryKey: ['brandsPaginated'] }); queryClient.invalidateQueries({ queryKey: ['brandsDropdown'] }) } else showToast(d.message || 'Failed.', 'error') },
-    onError: (e: any) => showToast(e.response?.data?.message || 'Error.', 'error')
-  })
   const handleCreateProductSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!productFormName.trim()) return showToast('Product Name is required.', 'warning'); if (!productFormBrandId) return showToast('Brand is required.', 'warning'); createProductMutation.mutate({ name: productFormName.trim(), brandId: productFormBrandId, sku: productFormSKU.trim() || undefined, isActive: productFormIsActive, openingStock: parseFloat(productFormOpeningStock) || 0 }) }
   const handleEditProductSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!selectedProduct || !productFormName.trim()) return showToast('Product Name is required.', 'warning'); if (!productFormBrandId) return showToast('Brand is required.', 'warning'); updateProductMutation.mutate({ id: selectedProduct.id, data: { name: productFormName.trim(), brandId: productFormBrandId, sku: productFormSKU.trim() || undefined, isActive: productFormIsActive, currentStock: parseFloat(productFormCurrentStock) || 0 } }) }
   const openEditProduct = (prod: any) => { setSelectedProduct(prod); setProductFormName(prod.name); setProductFormBrandId(prod.brandId); setProductFormSKU(prod.sku || ''); setProductFormIsActive(prod.isActive); setProductFormCurrentStock(prod.currentStock?.toString() || '0'); setIsEditProductModalOpen(true) }
@@ -527,10 +501,6 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
     })
   }
   const triggerDeleteRawMaterial = (id: string, name: string) => { if (confirm(`Delete raw material "${name}"?`)) deleteRawMaterialMutation.mutate(id) }
-  const handleCreateBrandSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!brandFormName.trim()) return showToast('Brand Name is required.', 'warning'); createBrandMutation.mutate({ name: brandFormName.trim(), code: brandFormCode.trim() || undefined, description: brandFormDescription.trim() || undefined, isActive: brandFormIsActive }) }
-  const handleEditBrandSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!selectedBrand || !brandFormName.trim()) return showToast('Brand Name is required.', 'warning'); updateBrandMutation.mutate({ id: selectedBrand.id, data: { name: brandFormName.trim(), code: brandFormCode.trim() || undefined, description: brandFormDescription.trim() || undefined, isActive: brandFormIsActive } }) }
-  const openEditBrand = (brand: any) => { setSelectedBrand(brand); setBrandFormName(brand.name); setBrandFormCode(brand.code || ''); setBrandFormDescription(brand.description || ''); setBrandFormIsActive(brand.isActive); setIsEditBrandModalOpen(true) }
-  const triggerDeleteBrand = (id: string, name: string) => { if (confirm(`Delete brand "${name}"?`)) deleteBrandMutation.mutate(id) }
 
   const handleCloseQuickBrandModal = () => {
     if (isSubmittingQuickBrand) return
@@ -674,8 +644,8 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
     if (mat.currentStock < 50) return 'bg-amber-50 hover:bg-amber-100/60'
     return i % 2 === 0 ? 'bg-white hover:bg-blue-50/30' : 'bg-[#FAFBFC] hover:bg-blue-50/30'
   }
-  const pageTitle = inventoryTab === 'raw_materials' ? 'Raw Materials' : inventoryTab === 'brands' ? 'Brands Directory' : 'Products Inventory'
-  const pageDesc = inventoryTab === 'raw_materials' ? 'Monitor raw material stock levels, units, and inventory movements' : inventoryTab === 'brands' ? 'Manage product brand registrations and codes' : 'Track finished goods inventory, SKU details, and stock levels'
+  const pageTitle = inventoryTab === 'raw_materials' ? 'Raw Materials' : 'Products Inventory'
+  const pageDesc = inventoryTab === 'raw_materials' ? 'Monitor raw material stock levels, units, and inventory movements' : 'Track finished goods inventory, SKU details, and stock levels'
 
   return (
     <div className="flex flex-col gap-4 font-sans text-slate-900 bg-[#F8FAFC] min-h-screen">
@@ -689,20 +659,19 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
             <input type="text" placeholder="Search inventory..." value={globalSearch}
-              onChange={e => { const v = e.target.value; setGlobalSearch(v); if (inventoryTab === 'products') { setProductsSearch(v); setProductsPage(1) } if (inventoryTab === 'raw_materials') { setRawMaterialsSearch(v); setRawMaterialsPage(1) } if (inventoryTab === 'brands') setBrandsSearch(v) }}
+              onChange={e => { const v = e.target.value; setGlobalSearch(v); if (inventoryTab === 'products') { setProductsSearch(v); setProductsPage(1) } else { setRawMaterialsSearch(v); setRawMaterialsPage(1) } }}
               className="h-[32px] pl-8 pr-3 text-[12px] border border-[#E5E7EB] rounded-lg bg-[#F8FAFC] focus:outline-none focus:border-blue-400 w-[200px] text-slate-800" />
           </div>
-          <button onClick={() => { if (inventoryTab === 'products') refetchProducts(); if (inventoryTab === 'raw_materials') refetchMaterials(); if (inventoryTab === 'brands') refetchBrands() }} className="h-[32px] px-2.5 text-[11px] font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg border border-[#E5E7EB] flex items-center gap-1 transition-all cursor-pointer">
+          <button onClick={() => { if (inventoryTab === 'products') refetchProducts(); else refetchMaterials() }} className="h-[32px] px-2.5 text-[11px] font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg border border-[#E5E7EB] flex items-center gap-1 transition-all cursor-pointer">
             <RotateCcw className="w-3 h-3" />Refresh
           </button>
-          {canWrite && inventoryTab === 'products' && <button onClick={() => { setProductFormName(''); setProductFormBrandId((brands[0] as any)?.id || ''); setProductFormSKU(''); setProductFormIsActive(true); setProductFormOpeningStock('0'); setIsAddProductModalOpen(true) }} className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"><Plus className="w-3.5 h-3.5" />Product</button>}
+          {canWrite && inventoryTab === 'products' && <button onClick={() => { setProductFormName(''); setProductFormBrandId((brands[0] as any)?.id || ''); setProductFormSKU(''); setProductFormIsActive(true); setProductFormOpeningStock('0'); setIsAddProductModalOpen(true) }} className="h-[32px] px-3 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"><Plus className="w-3.5 h-3.5" />Product</button>}
           {canWrite && inventoryTab === 'raw_materials' && (
             <div className="flex items-center gap-2">
-              <button onClick={() => { setRawMaterialFormName(''); setRawMaterialFormCategory('PREFORM'); setRawMaterialFormUnit('PIECE'); setRawMaterialFormIsActive(true); setRawMaterialFormCurrentStock('0'); setIsAddRawMaterialModalOpen(true) }} className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"><Plus className="w-3.5 h-3.5" />Material</button>
-              <button onClick={() => { setSelectedAddStockMaterialId(''); setAddStockFormQuantity(''); setAddStockFormNotes(''); setIsAddStockModalOpen(true) }} className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"><Plus className="w-3.5 h-3.5" />Add Stock</button>
+              <button onClick={() => { setRawMaterialFormName(''); setRawMaterialFormCategory('PREFORM'); setRawMaterialFormUnit('PIECE'); setRawMaterialFormIsActive(true); setRawMaterialFormCurrentStock('0'); setIsAddRawMaterialModalOpen(true) }} className="h-[32px] px-3 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"><Plus className="w-3.5 h-3.5" />Material</button>
+              <button onClick={() => { setSelectedAddStockMaterialId(''); setAddStockFormQuantity(''); setAddStockFormNotes(''); setIsAddStockModalOpen(true) }} className="h-[32px] px-3 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"><Plus className="w-3.5 h-3.5" />Add Stock</button>
             </div>
           )}
-          {canWrite && inventoryTab === 'brands' && <button onClick={() => setIsAddBrandModalOpen(true)} className="h-[32px] px-3 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"><Plus className="w-3.5 h-3.5" />Brand</button>}
         </div>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 select-none">
@@ -880,46 +849,6 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
               </div>
             ) : <div className="py-16 text-center"><Package className="w-8 h-8 text-slate-300 mx-auto mb-3" /><p className="text-[14px] font-semibold text-slate-600">No Raw Materials Found</p>{canWrite && <button onClick={() => setIsAddRawMaterialModalOpen(true)} className="mt-4 h-[32px] px-4 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg cursor-pointer transition-all">Add Material</button>}</div>
         )}
-        {inventoryTab === 'brands' && (
-          brandsLoading ? <div className="py-12 text-center text-[13px] text-slate-400">Loading brands...</div>
-            : paginatedBrandsData?.items && paginatedBrandsData.items.length > 0 ? (
-              <div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead><tr className="bg-[#F8FAFC] border-b border-[#E5E7EB] text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none h-[36px]">
-                      <th className="py-2 px-4">Brand Name</th><th className="py-2 px-4">Code</th><th className="py-2 px-4">Description</th>
-                      <th className="py-2 px-4 text-center">Status</th><th className="py-2 px-4">Created</th>
-                      {canWrite && <th className="py-2 px-4 text-center">Actions</th>}
-                    </tr></thead>
-                    <tbody className="divide-y divide-[#F1F5F9] text-[13px] text-slate-700">
-                      {paginatedBrandsData.items.map((row: any, i: number) => (
-                        <tr key={row.id} className={`h-[38px] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#FAFBFC]'} hover:bg-blue-50/30`}>
-                          <td className="py-2 px-4 font-bold text-slate-800">{row.name}</td>
-                          <td className="py-2 px-4 text-slate-500 font-mono text-[12px]">{row.code || '—'}</td>
-                          <td className="py-2 px-4 text-slate-500 text-[12px] max-w-[200px] truncate">{row.description || '—'}</td>
-                          <td className="py-2 px-4 text-center"><span className={`text-[9px] font-black px-2 py-0.5 rounded-full border uppercase tracking-wider ${row.isActive ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>{row.isActive ? 'Active' : 'Inactive'}</span></td>
-                          <td className="py-2 px-4 text-slate-500 text-[12px]">{fmtDate(row.createdAt)}</td>
-                          {canWrite && <td className="py-2 px-4 text-center"><div className="flex items-center justify-center gap-1">
-                            <button onClick={() => openEditBrand(row)} title="Edit" className="h-[26px] w-[26px] flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all"><Edit2 className="w-3.5 h-3.5" /></button>
-                            <button onClick={() => triggerDeleteBrand(row.id, row.name)} title="Delete" className="h-[26px] w-[26px] flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
-                          </div></td>}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {paginatedBrandsData.totalPages > 1 && (
-                  <div className="px-4 py-2 border-t border-[#F1F5F9] flex items-center justify-between select-none">
-                    <span className="text-[11px] text-slate-400 font-semibold">Page {brandsPage} of {paginatedBrandsData.totalPages}</span>
-                    <div className="flex gap-2">
-                      <button disabled={!paginatedBrandsData.hasPreviousPage} onClick={() => setBrandsPage(p => p - 1)} className="h-[26px] px-3 text-[11px] font-bold text-slate-600 border border-[#E5E7EB] rounded hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Prev</button>
-                      <button disabled={!paginatedBrandsData.hasNextPage} onClick={() => setBrandsPage(p => p + 1)} className="h-[26px] px-3 text-[11px] font-bold text-slate-600 border border-[#E5E7EB] rounded hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Next</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : <div className="py-16 text-center"><Package className="w-8 h-8 text-slate-300 mx-auto mb-3" /><p className="text-[14px] font-semibold text-slate-600">No Brands Found</p>{canWrite && <button onClick={() => setIsAddBrandModalOpen(true)} className="mt-4 h-[32px] px-4 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-lg cursor-pointer transition-all">Add Brand</button>}</div>
-        )}
       </div>
       {/* Redesigned Add New Product Modal */}
       {isAddProductModalOpen && (
@@ -972,7 +901,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                     value={productFormName}
                     onChange={e => setProductFormName(e.target.value)}
                     required
-                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 transition-all"
                   />
                 </div>
 
@@ -993,7 +922,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                             setQuickBrandError('')
                             setIsQuickBrandModalOpen(true)
                           }}
-                          className="text-xs font-semibold text-[#1A56DB] hover:text-blue-700 active:text-blue-800 transition-colors inline-flex items-center gap-1 cursor-pointer focus:outline-none focus-visible:underline"
+                          className="text-xs font-semibold text-[#0B7A70] hover:text-[#05303B] active:text-[#031F27] transition-colors inline-flex items-center gap-1 cursor-pointer focus:outline-none focus-visible:underline"
                         >
                           <Plus className="w-3.5 h-3.5" />
                           <span>New Brand</span>
@@ -1011,7 +940,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                     placeholder="Optional SKU"
                     value={productFormSKU}
                     onChange={e => setProductFormSKU(e.target.value)}
-                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 transition-all"
                   />
                 </div>
 
@@ -1036,7 +965,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                   role="switch"
                   aria-checked={productFormIsActive}
                   onClick={() => setProductFormIsActive(!productFormIsActive)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer ${productFormIsActive ? 'bg-[#1A56DB]' : 'bg-gray-200'}`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer ${productFormIsActive ? 'bg-[#12A89A]' : 'bg-gray-200'}`}
                 >
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${productFormIsActive ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
@@ -1055,7 +984,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                 <button
                   type="submit"
                   disabled={createProductMutation.isPending}
-                  className="px-6 h-10 bg-[#1A56DB] text-white font-semibold text-sm rounded-[10px] hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px] shadow-sm cursor-pointer"
+                  className="px-6 h-10 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white font-semibold text-sm rounded-[10px] transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px] shadow-sm cursor-pointer"
                 >
                   {createProductMutation.isPending ? (
                     <span className="flex items-center gap-2">
@@ -1130,7 +1059,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                   className={`w-full h-10 px-3 border rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none transition-all ${
                     quickBrandError
                       ? 'border-red-500 ring-2 ring-red-100'
-                      : 'border-gray-200 focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50'
+                      : 'border-gray-200 focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20'
                   }`}
                 />
                 {quickBrandError && (
@@ -1228,7 +1157,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                     value={rawMaterialFormName}
                     onChange={e => setRawMaterialFormName(e.target.value)}
                     required
-                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 transition-all"
                   />
                 </div>
 
@@ -1238,7 +1167,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                     value={rawMaterialFormCategory}
                     onChange={e => setRawMaterialFormCategory(e.target.value)}
                     required
-                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 transition-all cursor-pointer"
                   >
                     {Object.values(RAW_MATERIAL_CATEGORIES).map(cat => (
                       <option key={cat.value} value={cat.value}>{cat.label}</option>
@@ -1253,7 +1182,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                     value={rawMaterialFormUnit}
                     onChange={e => setRawMaterialFormUnit(e.target.value)}
                     required
-                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 transition-all cursor-pointer"
                   >
                     {['PIECE', 'KG', 'GRAM', 'ROLL', 'BOX', 'BAG', 'LITER', 'ML'].map(u => (
                       <option key={u} value={u}>{u}</option>
@@ -1282,7 +1211,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                   role="switch"
                   aria-checked={rawMaterialFormIsActive}
                   onClick={() => setRawMaterialFormIsActive(!rawMaterialFormIsActive)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer ${rawMaterialFormIsActive ? 'bg-[#1A56DB]' : 'bg-gray-200'}`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer ${rawMaterialFormIsActive ? 'bg-[#12A89A]' : 'bg-gray-200'}`}
                 >
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${rawMaterialFormIsActive ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
@@ -1301,7 +1230,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                 <button
                   type="submit"
                   disabled={createRawMaterialMutation.isPending}
-                  className="px-6 h-10 bg-[#1A56DB] text-white font-semibold text-sm rounded-[10px] hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px] shadow-sm cursor-pointer"
+                  className="px-6 h-10 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white font-semibold text-sm rounded-[10px] transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px] shadow-sm cursor-pointer"
                 >
                   {createRawMaterialMutation.isPending ? (
                     <span className="flex items-center gap-2">
@@ -1388,7 +1317,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                           setQuickRawMaterialError('')
                           setIsQuickRawMaterialModalOpen(true)
                         }}
-                        className="text-xs font-semibold text-[#1A56DB] hover:text-blue-700 active:text-blue-800 transition-colors inline-flex items-center gap-1 cursor-pointer focus:outline-none focus-visible:underline"
+                        className="text-xs font-semibold text-[#0B7A70] hover:text-[#05303B] active:text-[#031F27] transition-colors inline-flex items-center gap-1 cursor-pointer focus:outline-none focus-visible:underline"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>New Raw Material</span>
@@ -1428,8 +1357,8 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                   </div>
                   <div className="text-slate-300 font-light text-xl">+</div>
                   <div className="flex flex-col items-center w-1/3">
-                    <span className="text-[11px] text-[#1A56DB] font-bold uppercase tracking-wider mb-1">Adding</span>
-                    <span className="text-[15px] font-semibold text-[#1A56DB]">{(parseFloat(addStockFormQuantity) || 0)} {(allMats.find(m => m.id === selectedAddStockMaterialId)?.unit ?? '')}</span>
+                    <span className="text-[11px] text-[#0B7A70] font-bold uppercase tracking-wider mb-1">Adding</span>
+                    <span className="text-[15px] font-semibold text-[#0B7A70]">{(parseFloat(addStockFormQuantity) || 0)} {(allMats.find(m => m.id === selectedAddStockMaterialId)?.unit ?? '')}</span>
                   </div>
                   <div className="text-slate-300 font-light text-xl">=</div>
                   <div className="flex flex-col items-center w-1/3">
@@ -1446,7 +1375,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                   placeholder="E.g., Purchased from Supplier"
                   value={addStockFormNotes}
                   onChange={e => setAddStockFormNotes(e.target.value)}
-                  className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                  className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 transition-all"
                 />
               </div>
 
@@ -1463,7 +1392,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                 <button
                   type="submit"
                   disabled={addStockMutation.isPending}
-                  className="px-6 h-10 bg-[#1A56DB] text-white font-semibold text-sm rounded-[10px] hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px] shadow-sm cursor-pointer"
+                  className="px-6 h-10 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white font-semibold text-sm rounded-[10px] transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px] shadow-sm cursor-pointer"
                 >
                   {addStockMutation.isPending ? (
                     <span className="flex items-center gap-2">
@@ -1537,7 +1466,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                   className={`w-full h-10 px-3 border rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none transition-all ${
                     quickRawMaterialError
                       ? 'border-red-500 ring-2 ring-red-100'
-                      : 'border-gray-200 focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50'
+                      : 'border-gray-200 focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20'
                   }`}
                 />
                 {quickRawMaterialError && (
@@ -1554,7 +1483,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                     value={quickRawMaterialCategory}
                     onChange={(e) => setQuickRawMaterialCategory(e.target.value)}
                     disabled={isSubmittingQuickRawMaterial}
-                    className="w-full h-10 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                    className="w-full h-10 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 transition-all cursor-pointer"
                   >
                     {Object.values(RAW_MATERIAL_CATEGORIES).map(cat => (
                       <option key={cat.value} value={cat.value}>{cat.label}</option>
@@ -1570,7 +1499,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
                     value={quickRawMaterialUnit}
                     onChange={(e) => setQuickRawMaterialUnit(e.target.value)}
                     disabled={isSubmittingQuickRawMaterial}
-                    className="w-full h-10 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                    className="w-full h-10 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 transition-all cursor-pointer"
                   >
                     {['PIECE', 'KG', 'GRAM', 'ROLL', 'BOX', 'BAG', 'LITER', 'ML'].map(u => (
                       <option key={u} value={u}>{u}</option>
@@ -1608,24 +1537,6 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ canWrite, showToas
           </div>
         </div>
       )}
-      <EnterpriseModal isOpen={isAddBrandModalOpen} onClose={() => setIsAddBrandModalOpen(false)} title="Add New Brand" maxWidth="sm">
-        <form onSubmit={handleCreateBrandSubmit} className="flex flex-col gap-4">
-          <EnterpriseInput label="Brand Name" placeholder="E.g., Aquzio" value={brandFormName} onChange={e => setBrandFormName(e.target.value)} required />
-          <EnterpriseInput label="Brand Code (Optional)" placeholder="E.g., AQR" value={brandFormCode} onChange={e => setBrandFormCode(e.target.value)} />
-          <EnterpriseInput label="Description (Optional)" value={brandFormDescription} onChange={e => setBrandFormDescription(e.target.value)} />
-          <div className="flex items-center gap-2"><input type="checkbox" id="addBA" checked={brandFormIsActive} onChange={e => setBrandFormIsActive(e.target.checked)} className="w-4 h-4 accent-blue-600" /><label htmlFor="addBA" className="text-xs font-semibold text-slate-700 cursor-pointer select-none">Active Brand</label></div>
-          <div className="flex justify-end gap-2 mt-2"><EnterpriseButton type="button" onClick={() => setIsAddBrandModalOpen(false)} variant="secondary">Cancel</EnterpriseButton><EnterpriseButton type="submit" variant="primary" disabled={createBrandMutation.isPending}>{createBrandMutation.isPending ? 'Saving...' : 'Add Brand'}</EnterpriseButton></div>
-        </form>
-      </EnterpriseModal>
-      <EnterpriseModal isOpen={isEditBrandModalOpen} onClose={() => setIsEditBrandModalOpen(false)} title="Edit Brand" maxWidth="sm">
-        <form onSubmit={handleEditBrandSubmit} className="flex flex-col gap-4">
-          <EnterpriseInput label="Brand Name" value={brandFormName} onChange={e => setBrandFormName(e.target.value)} required />
-          <EnterpriseInput label="Brand Code (Optional)" value={brandFormCode} onChange={e => setBrandFormCode(e.target.value)} />
-          <EnterpriseInput label="Description (Optional)" value={brandFormDescription} onChange={e => setBrandFormDescription(e.target.value)} />
-          <div className="flex items-center gap-2"><input type="checkbox" id="editBA" checked={brandFormIsActive} onChange={e => setBrandFormIsActive(e.target.checked)} className="w-4 h-4 accent-blue-600" /><label htmlFor="editBA" className="text-xs font-semibold text-slate-700 cursor-pointer select-none">Active Brand</label></div>
-          <div className="flex justify-end gap-2 mt-2"><EnterpriseButton type="button" onClick={() => setIsEditBrandModalOpen(false)} variant="secondary">Cancel</EnterpriseButton><EnterpriseButton type="submit" variant="primary" disabled={updateBrandMutation.isPending}>{updateBrandMutation.isPending ? 'Saving...' : 'Save Changes'}</EnterpriseButton></div>
-        </form>
-      </EnterpriseModal>
     </div>
   )
 }

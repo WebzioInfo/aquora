@@ -271,25 +271,25 @@ export const VendorDetailsPage: React.FC = () => {
       <div className="flex border-b border-[#E5E9F2] gap-6 text-sm font-bold text-slate-600">
         <button
           onClick={() => setActiveTab('purchases')}
-          className={`pb-2.5 transition-colors border-b-2 ${activeTab === 'purchases' ? 'border-[#1A56DB] text-[#1A56DB]' : 'border-transparent hover:text-slate-900'}`}
+          className={`pb-2.5 transition-colors border-b-2 ${activeTab === 'purchases' ? 'border-[#12A89A] text-[#0B7A70]' : 'border-transparent hover:text-slate-900'}`}
         >
           Purchase History ({purchases.length})
         </button>
         <button
           onClick={() => setActiveTab('ledger')}
-          className={`pb-2.5 transition-colors border-b-2 ${activeTab === 'ledger' ? 'border-[#1A56DB] text-[#1A56DB]' : 'border-transparent hover:text-slate-900'}`}
+          className={`pb-2.5 transition-colors border-b-2 ${activeTab === 'ledger' ? 'border-[#12A89A] text-[#0B7A70]' : 'border-transparent hover:text-slate-900'}`}
         >
           Running Account Ledger ({ledger.length})
         </button>
         <button
           onClick={() => setActiveTab('timeline')}
-          className={`pb-2.5 transition-colors border-b-2 ${activeTab === 'timeline' ? 'border-[#1A56DB] text-[#1A56DB]' : 'border-transparent hover:text-slate-900'}`}
+          className={`pb-2.5 transition-colors border-b-2 ${activeTab === 'timeline' ? 'border-[#12A89A] text-[#0B7A70]' : 'border-transparent hover:text-slate-900'}`}
         >
           Vendor Audit Timeline ({timeline.length})
         </button>
         <button
           onClick={() => setActiveTab('summary')}
-          className={`pb-2.5 transition-colors border-b-2 ${activeTab === 'summary' ? 'border-[#1A56DB] text-[#1A56DB]' : 'border-transparent hover:text-slate-900'}`}
+          className={`pb-2.5 transition-colors border-b-2 ${activeTab === 'summary' ? 'border-[#12A89A] text-[#0B7A70]' : 'border-transparent hover:text-slate-900'}`}
         >
           Vendor Profile Summary
         </button>
@@ -321,7 +321,7 @@ export const VendorDetailsPage: React.FC = () => {
                 <tbody className="divide-y divide-[#E5E9F2]">
                   {purchases.map((p) => (
                     <tr key={p.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-bold text-[#1A56DB] font-mono whitespace-nowrap">{p.purchaseNo}</td>
+                      <td className="px-4 py-3 font-bold text-[#0B7A70] font-mono whitespace-nowrap">{p.purchaseNo}</td>
                       <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{new Date(p.purchaseDate).toLocaleDateString('en-IN')}</td>
                       <td className="px-4 py-3 whitespace-nowrap"><EnterpriseBadge variant="info">{p.purchaseCategory}</EnterpriseBadge></td>
                       <td className="px-4 py-3 font-mono text-slate-600 whitespace-nowrap">{p.invoiceNumber || '-'}</td>
@@ -429,7 +429,7 @@ export const VendorDetailsPage: React.FC = () => {
                       <td className="px-4 py-3 font-bold text-slate-800">
                         {entry.transactionType}
                       </td>
-                      <td className="px-4 py-3 font-mono text-[#1A56DB] whitespace-nowrap">
+                      <td className="px-4 py-3 font-mono text-[#0B7A70] whitespace-nowrap">
                         {entry.voucherNo}
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-emerald-600 font-bold">
@@ -462,7 +462,7 @@ export const VendorDetailsPage: React.FC = () => {
             <div className="relative border-l-2 border-slate-200 ml-3 space-y-5 py-2">
               {timeline.map((t) => (
                 <div key={t.id} className="relative pl-5">
-                  <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#1A56DB] border-2 border-white" />
+                  <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#12A89A] border-2 border-white" />
                   <p className="text-xs font-bold text-slate-900">{t.action}</p>
                   <p className="text-xs text-slate-600 mt-0.5">{t.details}</p>
                   <span className="text-[10px] text-slate-400 font-mono mt-1 block">
@@ -485,7 +485,7 @@ export const VendorDetailsPage: React.FC = () => {
             </div>
             <div>
               <span className="text-slate-400 block font-medium">Vendor Code</span>
-              <span className="font-mono text-[#1A56DB] font-bold">{vendor.vendorCode || '-'}</span>
+              <span className="font-mono text-[#0B7A70] font-bold">{vendor.vendorCode || '-'}</span>
             </div>
             <div>
               <span className="text-slate-400 block font-medium">GST Number</span>

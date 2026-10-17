@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { authService } from '../services/auth'
 import { useAuthStore } from '../store/useAuthStore'
 import { useNotificationStore } from '../store/useNotificationStore'
 import { getDefaultRouteForUser } from '../routes/AppRoutes'
-import BRAND from '../config/brand'
-import AuthWatermark from '../components/ui/AuthWatermark'
-import { RefreshCw, Key, ArrowRight, Loader2 } from 'lucide-react'
+import { RefreshCw, ArrowRight, Loader2, AlertCircle, Mail } from 'lucide-react'
+import { getFriendlyError } from '../utils/getFriendlyError'
 
 export const OtpVerificationPage: React.FC = () => {
   const navigate = useNavigate()
@@ -17,12 +16,20 @@ export const OtpVerificationPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [resending, setResending] = useState(false)
   const [countdown, setCountdown] = useState(60)
+  const [errorBanner, setErrorBanner] = useState<{ title: string; message: string } | null>(null)
 
   const initialEmail = (location.state as { email?: string })?.email || user?.email || ''
-  const [email, setEmail] = useState(initialEmail)
-  
+  const [email] = useState(initialEmail)
+
   const fromRegistration = (location.state as { fromRegistration?: boolean })?.fromRegistration || false
   const [sendingMsgVisible, setSendingMsgVisible] = useState(fromRegistration)
+
+  const [otp, setOtp] = useState<string[]>(Array(6).fill(''))
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([])
+
+  useEffect(() => {
+    document.title = 'Verify email · Aquzio'
+  }, [])
 
   useEffect(() => {
     if (sendingMsgVisible) {
@@ -30,9 +37,6 @@ export const OtpVerificationPage: React.FC = () => {
       return () => clearTimeout(timer)
     }
   }, [sendingMsgVisible])
-
-  const [otp, setOtp] = useState<string[]>(Array(6).fill(''))
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   useEffect(() => {
     if (isAuthenticated && user?.emailVerified) {
@@ -49,6 +53,7 @@ export const OtpVerificationPage: React.FC = () => {
   }, [countdown])
 
   const handleOtpChange = (value: string, index: number) => {
+    setErrorBanner(null)
     const cleanValue = value.replace(/[^0-9]/g, '')
     if (!cleanValue) {
       const newOtp = [...otp]
@@ -77,35 +82,50 @@ export const OtpVerificationPage: React.FC = () => {
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault()
+    setErrorBanner(null)
     const pastedData = e.clipboardData.getData('text').trim()
     if (/^\d{6}$/.test(pastedData)) {
       const digits = pastedData.split('')
       setOtp(digits)
       inputRefs.current[5]?.focus()
     } else {
-      showToast('Please paste a valid 6-digit verification PIN.', 'error')
+      setErrorBanner({
+        title: 'Invalid code format',
+        message: 'Please paste a 6-digit numerical verification code.'
+      })
     }
   }
 
   const handleResendOtp = async () => {
     if (countdown > 0 || resending) return
     if (!email) {
-      showToast('No email address provided for verification code dispatch.', 'error')
+      setErrorBanner({
+        title: 'Missing email',
+        message: 'No email address was provided for code dispatch.'
+      })
       return
     }
 
     setResending(true)
+    setErrorBanner(null)
     try {
       const response = await authService.sendOtp(email, 'Registration')
       if (response.success) {
-        showToast('Verification PIN dispatched to your email.', 'success')
+        showToast('Verification code sent to your email', 'success')
         setCountdown(60)
       } else {
-        showToast(response.message || 'Failed to dispatch verification PIN.', 'error')
+        const friendly = getFriendlyError(response, 'forgot-password')
+        setErrorBanner({
+          title: friendly.title,
+          message: friendly.message
+        })
       }
     } catch (error: any) {
-      const errMsg = error.response?.data?.message || error.message || 'Dispatch failed.'
-      showToast(errMsg, 'error')
+      const friendly = getFriendlyError(error, 'forgot-password')
+      setErrorBanner({
+        title: friendly.title,
+        message: friendly.message
+      })
     } finally {
       setResending(false)
     }
@@ -115,11 +135,15 @@ export const OtpVerificationPage: React.FC = () => {
     e.preventDefault()
     const codeStr = otp.join('')
     if (codeStr.length < 6) {
-      showToast('Please enter the complete 6-digit confirmation PIN.', 'error')
+      setErrorBanner({
+        title: 'Incomplete code',
+        message: 'Please enter all 6 digits of the verification code.'
+      })
       return
     }
 
     setLoading(true)
+    setErrorBanner(null)
     try {
       const response = await authService.verifyOtp({
         email,
@@ -128,8 +152,8 @@ export const OtpVerificationPage: React.FC = () => {
       })
 
       if (response.success) {
-        showToast('Email verified successfully!', 'success')
-        
+        showToast('Email verified successfully', 'success')
+
         if (response.data && response.data.accessToken) {
           const { accessToken, refreshToken, userId, email, firstName, lastName, tenantId, roles, permissions, isTenantInitialized, tenantStatus } = response.data
           setAuth(accessToken, refreshToken, {
@@ -145,134 +169,165 @@ export const OtpVerificationPage: React.FC = () => {
             emailVerified: true
           })
           
-          const targetRoute = getDefaultRouteForUser(response.data)
-          navigate(targetRoute)
-        } else if (user) {
-          setAuth(useAuthStore.getState().token || '', useAuthStore.getState().refreshToken || '', {
-            ...user,
-            emailVerified: true
-          })
-          const targetRoute = getDefaultRouteForUser({ ...user, emailVerified: true })
-          navigate(targetRoute)
+          if (tenantId && isTenantInitialized) {
+            navigate('/company/dashboard', { replace: true })
+          } else if (tenantId) {
+            navigate('/account-setup', { replace: true })
+          } else {
+            navigate('/onboarding', { replace: true })
+          }
         } else {
-          navigate('/login')
+          navigate('/onboarding', { replace: true })
         }
       } else {
-        showToast(response.message || 'Invalid verification PIN.', 'error')
+        const friendly = getFriendlyError(response, 'forgot-password')
+        setErrorBanner({
+          title: friendly.title,
+          message: friendly.message
+        })
+        setOtp(Array(6).fill(''))
+        inputRefs.current[0]?.focus()
       }
     } catch (error: any) {
-      const errMsg = error.response?.data?.message || error.message || 'Verification failed.'
-      showToast(errMsg, 'error')
+      const friendly = getFriendlyError(error, 'forgot-password')
+      setErrorBanner({
+        title: friendly.title,
+        message: friendly.message
+      })
+      setOtp(Array(6).fill(''))
+      inputRefs.current[0]?.focus()
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="w-full flex justify-center items-center font-sans">
-      
-      {/* FRESH WHITE SURFACE */}
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl shadow-xs p-8 sm:p-9 space-y-5 relative z-10"
-      >
-        
-        {/* Header */}
-        <div className="flex flex-col items-center text-center space-y-1.5 select-none">
-          <img src={BRAND.logo} alt={BRAND.name} className="h-12 w-auto object-contain mb-1" />
-          <h2 className="text-xl font-extrabold text-[#111827] tracking-tight">
-            Verify Email Address
-          </h2>
-          <p className="text-xs font-medium text-[#6B7280]">
-            Enter the 6-digit PIN sent to your email
-          </p>
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className="auth-card"
+    >
+      {/* Top circle mark, title, and subtitle */}
+      <div className="flex flex-col items-center text-center select-none mb-6">
+        <img
+          src="/brand/aquzio-icon-light.png"
+          alt="Aquzio"
+          className="w-11 h-11 object-contain mb-3"
+        />
+        <h1 className="text-[22px] font-semibold text-[#05303B] tracking-tight leading-tight">
+          Verify your email
+        </h1>
+        <p className="text-[14px] text-[#5B6B75] mt-1 leading-normal">
+          Enter the 6-digit confirmation code sent to your email.
+        </p>
+      </div>
+
+      {/* Target Email Callout */}
+      {email && (
+        <div className="p-3 bg-slate-50 border border-[#E3E8EC] rounded-lg flex items-center justify-between text-xs select-none mb-5">
+          <span className="text-[#5B6B75] flex items-center gap-1.5">
+            <Mail className="w-3.5 h-3.5" />
+            <span>Sent to</span>
+          </span>
+          <span className="font-semibold text-[#05303B] font-mono">{email}</span>
         </div>
+      )}
 
-        {/* Email Address Display */}
-        <div className="p-3 bg-[#FAFBFC] border border-[#E5E7EB] rounded-xl flex items-center justify-between text-xs select-none">
-          <span className="text-[#6B7280] font-medium">Target Email:</span>
-          <span className="font-bold text-[#111827] font-mono">{email || 'user@company.com'}</span>
-        </div>
-
-        {sendingMsgVisible && (
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800 font-medium select-none">
-            A 6-digit verification PIN has been dispatched to your email address.
-          </div>
-        )}
-
-        {/* Form */}
-        <form onSubmit={handleVerifySubmit} className="space-y-5">
-
-          {/* 6 OTP Boxes */}
-          <div className="flex justify-between items-center gap-2" onPaste={handlePaste}>
-            {otp.map((digit, index) => (
-              <input
-                key={index}
-                type="text"
-                maxLength={1}
-                value={digit}
-                disabled={loading}
-                ref={(el) => { inputRefs.current[index] = el }}
-                onChange={(e) => handleOtpChange(e.target.value, index)}
-                onKeyDown={(e) => handleKeyDown(e, index)}
-                className="w-11 h-13 text-center text-xl font-bold bg-white border border-[#E5E7EB] rounded-xl text-[#111827] focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB] transition-all outline-none"
-                autoFocus={index === 0}
-              />
-            ))}
-          </div>
-
-          {/* Submit Button */}
-          <motion.button
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
-            type="submit"
-            disabled={loading || otp.join('').length < 6}
-            className="w-full h-[54px] bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+      {/* Friendly Error Banner */}
+      <AnimatePresence>
+        {errorBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.15 }}
+            className="auth-error-banner mb-5"
+            role="alert"
           >
-            {loading ? (
-              <>
-                <Loader2 className="w-4.5 h-4.5 animate-spin" />
-                <span>Verifying PIN...</span>
-              </>
-            ) : (
-              <>
-                <span>Verify & Continue</span>
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </motion.button>
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <span className="font-semibold block text-[13px] text-red-900 leading-snug">
+                {errorBanner.title}
+              </span>
+              <span className="text-[13px] text-red-800 leading-snug mt-0.5 block">
+                {errorBanner.message}
+              </span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        </form>
+      {/* Form */}
+      <form onSubmit={handleVerifySubmit} className="space-y-5" noValidate>
+        {/* 6 Digit Input Boxes */}
+        <div className="flex justify-between items-center gap-2" onPaste={handlePaste}>
+          {otp.map((digit, index) => (
+            <input
+              key={index}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={1}
+              value={digit}
+              disabled={loading}
+              ref={(el) => { inputRefs.current[index] = el }}
+              onChange={(e) => handleOtpChange(e.target.value, index)}
+              onKeyDown={(e) => handleKeyDown(e, index)}
+              className="w-12 h-12 text-center text-lg font-bold bg-white border border-[#CBD5DB] rounded-lg text-[#05303B] focus:border-[#12A89A] focus:outline-none focus:ring-2 focus:ring-[#12A89A]/20 transition-all font-mono"
+              autoFocus={index === 0}
+              aria-label={`Digit ${index + 1}`}
+            />
+          ))}
+        </div>
 
-        {/* Resend PIN Row */}
-        <div className="pt-1 flex flex-col items-center gap-2 text-xs text-[#6B7280] select-none">
-          {countdown > 0 ? (
-            <span>Resend code in <strong className="text-[#111827] font-mono">{countdown}s</strong></span>
+        {/* Primary Action Button */}
+        <button
+          type="submit"
+          disabled={loading || otp.join('').length < 6}
+          className="auth-button-primary mt-2"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Verifying code...</span>
+            </>
           ) : (
-            <button
-              type="button"
-              onClick={handleResendOtp}
-              disabled={resending}
-              className="text-[#2563EB] hover:text-[#1D4ED8] font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${resending ? 'animate-spin' : ''}`} />
-              <span>Resend Verification PIN</span>
-            </button>
+            <>
+              <span>Verify & Continue</span>
+              <ArrowRight className="w-4 h-4" />
+            </>
           )}
-        </div>
+        </button>
+      </form>
 
-        {/* Return to Sign In */}
-        <div className="pt-2 border-t border-[#E5E7EB] text-center text-xs text-[#6B7280]">
-          Want to use a different account?{' '}
-          <Link to="/login" className="font-bold text-[#2563EB] hover:text-[#1D4ED8] transition-colors">
-            Return to Sign In
-          </Link>
-        </div>
+      {/* Resend Code Section */}
+      <div className="pt-4 flex flex-col items-center gap-2 text-xs text-[#5B6B75] select-none">
+        {countdown > 0 ? (
+          <span>
+            Resend code in <strong className="text-[#05303B] font-mono">{countdown}s</strong>
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={handleResendOtp}
+            disabled={resending}
+            className="auth-link flex items-center gap-1.5 cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${resending ? 'animate-spin' : ''}`} />
+            <span>Resend code</span>
+          </button>
+        )}
+      </div>
 
-      </motion.div>
-
-    </div>
+      {/* Return to Sign in */}
+      <div className="pt-4 border-t border-[#E8EDF0] mt-5 text-center text-[13px] text-[#5B6B75] select-none">
+        Want to use a different account?{' '}
+        <Link to="/login" className="auth-link font-medium">
+          Sign in
+        </Link>
+      </div>
+    </motion.div>
   )
 }
 

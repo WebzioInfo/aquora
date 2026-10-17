@@ -100,14 +100,14 @@ export const AssetTransferModal: React.FC<AssetTransferModalProps> = ({
               Destination Location / Plant <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
-              <MapPin className="w-3.5 h-3.5 absolute left-3 top-2.5 text-[#1A56DB]" />
+              <MapPin className="w-3.5 h-3.5 absolute left-3 top-2.5 text-[#0B7A70]" />
               <input
                 type="text"
                 required
                 placeholder="e.g. Bottling Plant Unit B / Site 2"
                 value={transferForm.toLocation}
                 onChange={(e) => setTransferForm({ ...transferForm, toLocation: e.target.value })}
-                className="w-full pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-2 focus:ring-blue-100 transition-all font-medium"
+                className="w-full pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A] focus:ring-2 focus:ring-blue-100 transition-all font-medium"
               />
             </div>
           </div>
@@ -125,7 +125,7 @@ export const AssetTransferModal: React.FC<AssetTransferModalProps> = ({
               placeholder="e.g. Production line capacity expansion"
               value={transferForm.reason}
               onChange={(e) => setTransferForm({ ...transferForm, reason: e.target.value })}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
             />
           </div>
 
@@ -140,7 +140,7 @@ export const AssetTransferModal: React.FC<AssetTransferModalProps> = ({
                 required
                 value={transferForm.transferDate?.slice(0, 10) ?? new Date().toISOString().slice(0, 10)}
                 onChange={(e) => setTransferForm({ ...transferForm, transferDate: e.target.value })}
-                className="w-full pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+                className="w-full pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
               />
             </div>
           </div>
@@ -156,7 +156,7 @@ export const AssetTransferModal: React.FC<AssetTransferModalProps> = ({
             placeholder="e.g. Transported via company truck; inspected upon arrival by site engineer."
             value={transferForm.notes || ''}
             onChange={(e) => setTransferForm({ ...transferForm, notes: e.target.value })}
-            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
           />
         </div>
       </form>

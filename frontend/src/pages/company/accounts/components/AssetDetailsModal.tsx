@@ -143,7 +143,7 @@ export const AssetDetailsModal: React.FC<AssetDetailsModalProps> = ({
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <span className="text-base font-extrabold text-slate-900">{asset.assetName}</span>
-            <span className="font-mono text-xs px-2 py-0.5 bg-blue-50 text-[#1A56DB] rounded-md font-bold border border-blue-100">
+            <span className="font-mono text-xs px-2 py-0.5 bg-blue-50 text-[#0B7A70] rounded-md font-bold border border-blue-100">
               {asset.assetTag || asset.assetCode}
             </span>
           </div>
@@ -203,7 +203,7 @@ export const AssetDetailsModal: React.FC<AssetDetailsModalProps> = ({
             onClick={() => setActiveTab('overview')}
             className={`px-3 py-2 rounded-lg transition-colors cursor-pointer ${
               activeTab === 'overview'
-                ? 'bg-blue-50 text-[#1A56DB] border border-blue-200/60'
+                ? 'bg-blue-50 text-[#0B7A70] border border-blue-200/60'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
             }`}
           >
@@ -214,7 +214,7 @@ export const AssetDetailsModal: React.FC<AssetDetailsModalProps> = ({
             onClick={() => setActiveTab('financial')}
             className={`px-3 py-2 rounded-lg transition-colors cursor-pointer ${
               activeTab === 'financial'
-                ? 'bg-blue-50 text-[#1A56DB] border border-blue-200/60'
+                ? 'bg-blue-50 text-[#0B7A70] border border-blue-200/60'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
             }`}
           >
@@ -225,7 +225,7 @@ export const AssetDetailsModal: React.FC<AssetDetailsModalProps> = ({
             onClick={() => setActiveTab('assignment')}
             className={`px-3 py-2 rounded-lg transition-colors cursor-pointer ${
               activeTab === 'assignment'
-                ? 'bg-blue-50 text-[#1A56DB] border border-blue-200/60'
+                ? 'bg-blue-50 text-[#0B7A70] border border-blue-200/60'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
             }`}
           >
@@ -236,7 +236,7 @@ export const AssetDetailsModal: React.FC<AssetDetailsModalProps> = ({
             onClick={() => setActiveTab('warranty')}
             className={`px-3 py-2 rounded-lg transition-colors cursor-pointer ${
               activeTab === 'warranty'
-                ? 'bg-blue-50 text-[#1A56DB] border border-blue-200/60'
+                ? 'bg-blue-50 text-[#0B7A70] border border-blue-200/60'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
             }`}
           >
@@ -247,7 +247,7 @@ export const AssetDetailsModal: React.FC<AssetDetailsModalProps> = ({
             onClick={() => setActiveTab('maintenance')}
             className={`px-3 py-2 rounded-lg transition-colors cursor-pointer ${
               activeTab === 'maintenance'
-                ? 'bg-blue-50 text-[#1A56DB] border border-blue-200/60'
+                ? 'bg-blue-50 text-[#0B7A70] border border-blue-200/60'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
             }`}
           >
@@ -258,7 +258,7 @@ export const AssetDetailsModal: React.FC<AssetDetailsModalProps> = ({
             onClick={() => setActiveTab('history')}
             className={`px-3 py-2 rounded-lg transition-colors cursor-pointer ${
               activeTab === 'history'
-                ? 'bg-blue-50 text-[#1A56DB] border border-blue-200/60'
+                ? 'bg-blue-50 text-[#0B7A70] border border-blue-200/60'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
             }`}
           >
@@ -276,7 +276,7 @@ export const AssetDetailsModal: React.FC<AssetDetailsModalProps> = ({
         {activeTab === 'overview' && (
           <div className="space-y-4">
             <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/70">
-              <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] mb-3 text-[#1A56DB]">
+              <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] mb-3 text-[#0B7A70]">
                 Asset Information
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -315,7 +315,7 @@ export const AssetDetailsModal: React.FC<AssetDetailsModalProps> = ({
             </div>
 
             <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/70">
-              <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] mb-3 text-[#1A56DB]">
+              <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] mb-3 text-[#0B7A70]">
                 Acquisition & Lifecycle Summary
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -368,7 +368,7 @@ export const AssetDetailsModal: React.FC<AssetDetailsModalProps> = ({
 
             {/* Breakdown Table */}
             <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/70 space-y-3">
-              <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] text-[#1A56DB]">
+              <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] text-[#0B7A70]">
                 Capitalization Cost Breakdown
               </h4>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -416,12 +416,12 @@ export const AssetDetailsModal: React.FC<AssetDetailsModalProps> = ({
         {activeTab === 'assignment' && (
           <div className="space-y-4">
             <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/70 space-y-4">
-              <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] text-[#1A56DB]">
+              <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] text-[#0B7A70]">
                 Current Location & Custody
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-200">
-                  <div className="p-2 bg-blue-50 text-[#1A56DB] rounded-lg">
+                  <div className="p-2 bg-blue-50 text-[#0B7A70] rounded-lg">
                     <MapPin className="w-5 h-5" />
                   </div>
                   <div>
@@ -455,7 +455,7 @@ export const AssetDetailsModal: React.FC<AssetDetailsModalProps> = ({
                         onClose()
                         onAssign()
                       }}
-                      className="px-2 py-1 text-xs font-semibold text-[#1A56DB] hover:bg-blue-50 rounded-lg transition-colors"
+                      className="px-2 py-1 text-xs font-semibold text-[#0B7A70] hover:bg-blue-50 rounded-lg transition-colors"
                     >
                       {asset.assignedEmployeeName ? 'Reassign' : 'Assign'}
                     </button>
@@ -469,7 +469,7 @@ export const AssetDetailsModal: React.FC<AssetDetailsModalProps> = ({
         {/* TAB 4: WARRANTY */}
         {activeTab === 'warranty' && (
           <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/70 space-y-3">
-            <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] text-[#1A56DB] flex items-center justify-between">
+            <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] text-[#0B7A70] flex items-center justify-between">
               <span>Warranty & Service Coverage</span>
               {asset.isWarrantyActive ? (
                 <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-[10px] font-bold border border-emerald-200">
@@ -542,7 +542,7 @@ export const AssetDetailsModal: React.FC<AssetDetailsModalProps> = ({
                       </div>
                     </div>
                     <div className="text-right font-mono font-bold text-slate-900 sm:self-center">
-                      <span className="text-xs text-[#1A56DB]">{formatCurrency(m.totalCost)}</span>
+                      <span className="text-xs text-[#0B7A70]">{formatCurrency(m.totalCost)}</span>
                     </div>
                   </div>
                 ))}
@@ -563,7 +563,7 @@ export const AssetDetailsModal: React.FC<AssetDetailsModalProps> = ({
               <div className="relative border-l-2 border-blue-200 ml-3 space-y-4 py-2">
                 {timelineHistory.map((h) => (
                   <div key={h.id} className="relative pl-5">
-                    <div className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-[#1A56DB] border-2 border-white shadow-xs" />
+                    <div className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-[#12A89A] border-2 border-white shadow-xs" />
                     <span className="font-bold text-slate-900 block">{h.action}</span>
                     <span className="text-[10px] text-slate-400 font-mono block">
                       {new Date(h.date).toLocaleString('en-IN')} by <strong className="text-slate-600">{h.performedBy}</strong>

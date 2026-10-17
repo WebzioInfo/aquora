@@ -192,7 +192,7 @@ export const VendorPaymentModal: React.FC<VendorPaymentModalProps> = ({
             <button
               type="button"
               onClick={handlePayFullBalance}
-              className="text-xs font-semibold text-[#1A56DB] hover:underline cursor-pointer bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200/60"
+              className="text-xs font-semibold text-[#0B7A70] hover:underline cursor-pointer bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200/60"
             >
               Pay full balance
             </button>
@@ -216,7 +216,7 @@ export const VendorPaymentModal: React.FC<VendorPaymentModalProps> = ({
                   value={amount}
                   onChange={e => setAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full h-[36px] pl-7 pr-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-mono font-semibold focus:outline-none focus:border-[#1A56DB]"
+                  className="w-full h-[36px] pl-7 pr-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-mono font-semibold focus:outline-none focus:border-[#12A89A]"
                   required
                 />
               </div>
@@ -230,7 +230,7 @@ export const VendorPaymentModal: React.FC<VendorPaymentModalProps> = ({
                 type="date"
                 value={paymentDate}
                 onChange={e => setPaymentDate(e.target.value)}
-                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-none focus:border-[#1A56DB]"
+                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-none focus:border-[#12A89A]"
                 required
               />
             </div>
@@ -247,7 +247,7 @@ export const VendorPaymentModal: React.FC<VendorPaymentModalProps> = ({
                 onClick={() => setPaymentMethod('BankAccount')}
                 className={`h-[36px] px-3 rounded-lg border font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all ${
                   paymentMethod === 'BankAccount'
-                    ? 'border-[#1A56DB] bg-blue-50 text-[#1A56DB]'
+                    ? 'border-[#12A89A] bg-blue-50 text-[#0B7A70]'
                     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                 }`}
               >
@@ -260,7 +260,7 @@ export const VendorPaymentModal: React.FC<VendorPaymentModalProps> = ({
                 onClick={() => setPaymentMethod('Cash')}
                 className={`h-[36px] px-3 rounded-lg border font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all ${
                   paymentMethod === 'Cash'
-                    ? 'border-[#1A56DB] bg-blue-50 text-[#1A56DB]'
+                    ? 'border-[#12A89A] bg-blue-50 text-[#0B7A70]'
                     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                 }`}
               >
@@ -281,7 +281,7 @@ export const VendorPaymentModal: React.FC<VendorPaymentModalProps> = ({
                 value={bankAccountId}
                 onChange={e => setBankAccountId(e.target.value)}
                 disabled={loadingAccounts || bankAccounts.length === 0}
-                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB]"
+                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#12A89A]"
                 required
               >
                 {bankAccounts.length === 0 && <option value="">No bank accounts available</option>}
@@ -296,7 +296,7 @@ export const VendorPaymentModal: React.FC<VendorPaymentModalProps> = ({
                 value={cashBookId}
                 onChange={e => setCashBookId(e.target.value)}
                 disabled={loadingAccounts || cashBooks.length === 0}
-                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB]"
+                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#12A89A]"
                 required
               >
                 {cashBooks.length === 0 && <option value="">No cash registers available</option>}
@@ -330,7 +330,7 @@ export const VendorPaymentModal: React.FC<VendorPaymentModalProps> = ({
                 value={referenceNumber}
                 onChange={e => setReferenceNumber(e.target.value)}
                 placeholder="e.g. UTR / CHQ-1049"
-                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#1A56DB]"
+                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#12A89A]"
               />
             </div>
 
@@ -343,7 +343,7 @@ export const VendorPaymentModal: React.FC<VendorPaymentModalProps> = ({
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
                 placeholder="Remarks about payment"
-                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#1A56DB]"
+                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#12A89A]"
               />
             </div>
           </div>

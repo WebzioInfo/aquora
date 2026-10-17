@@ -7,6 +7,7 @@ import {
 import { format } from 'date-fns';
 import PageContainer from '../../components/ui/layout/PageContainer';
 import PageHeader from '../../components/ui/layout/PageHeader';
+import toast from '../../utils/toast';
 import { 
   platformBackupsApi, 
   type PlatformBackupHistoryDto, 
@@ -178,11 +179,11 @@ export const PlatformBackupCenterPage: React.FC = () => {
     try {
       setActionLoading(true);
       await platformBackupsApi.restoreBackup(restorePreviewData.backupId, 'RESTORE', restorePreviewData.mode, restorePreviewData.targetSchemas);
-      alert('Platform restore completed successfully.');
+      toast.success('Platform restore completed successfully.');
       setRestorePreviewData(null);
       await loadData();
     } catch (err: any) {
-      alert(`RESTORE FAILED: ${err.message}`);
+      toast.error(err, 'backup');
     } finally {
       setActionLoading(false);
     }

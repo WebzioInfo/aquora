@@ -192,7 +192,7 @@ export const QuickCreateEmployeeModal: React.FC<QuickCreateEmployeeModalProps> =
         {/* Header */}
         <div className="px-5 py-4 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-[#1A56DB]">
+            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-[#0B7A70]">
               <UserPlus className="w-4 h-4" />
             </div>
             <div>
@@ -233,7 +233,7 @@ export const QuickCreateEmployeeModal: React.FC<QuickCreateEmployeeModalProps> =
                 value={fullName}
                 onChange={e => handleFullNameChange(e.target.value)}
                 placeholder="e.g. Rahul Sharma"
-                className={`w-full h-[36px] px-3 bg-white border rounded-lg text-slate-900 text-xs font-medium focus:outline-none focus:border-[#1A56DB] ${
+                className={`w-full h-[36px] px-3 bg-white border rounded-lg text-slate-900 text-xs font-medium focus:outline-none focus:border-[#12A89A] ${
                   errors.fullName ? 'border-rose-400 bg-rose-50/30' : 'border-slate-300'
                 }`}
                 disabled={isSubmitting}
@@ -255,7 +255,7 @@ export const QuickCreateEmployeeModal: React.FC<QuickCreateEmployeeModalProps> =
                   setIsUsernameCustomized(true)
                 }}
                 placeholder="e.g. rahul_sharma"
-                className={`w-full h-[36px] px-3 bg-white border rounded-lg text-slate-900 text-xs font-mono font-medium focus:outline-none focus:border-[#1A56DB] ${
+                className={`w-full h-[36px] px-3 bg-white border rounded-lg text-slate-900 text-xs font-mono font-medium focus:outline-none focus:border-[#12A89A] ${
                   errors.username ? 'border-rose-400 bg-rose-50/30' : 'border-slate-300'
                 }`}
                 disabled={isSubmitting}
@@ -277,7 +277,7 @@ export const QuickCreateEmployeeModal: React.FC<QuickCreateEmployeeModalProps> =
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="e.g. rahul@company.com"
-                className={`w-full h-[36px] px-3 bg-white border rounded-lg text-slate-900 text-xs font-medium focus:outline-none focus:border-[#1A56DB] ${
+                className={`w-full h-[36px] px-3 bg-white border rounded-lg text-slate-900 text-xs font-medium focus:outline-none focus:border-[#12A89A] ${
                   errors.email ? 'border-rose-400 bg-rose-50/30' : 'border-slate-300'
                 }`}
                 disabled={isSubmitting}
@@ -295,7 +295,7 @@ export const QuickCreateEmployeeModal: React.FC<QuickCreateEmployeeModalProps> =
                 value={roleCode}
                 onChange={e => setRoleCode(e.target.value)}
                 disabled={isSubmitting || isLoadingRoles}
-                className={`w-full h-[36px] px-3 bg-white border rounded-lg text-slate-900 text-xs font-medium focus:outline-none focus:border-[#1A56DB] ${
+                className={`w-full h-[36px] px-3 bg-white border rounded-lg text-slate-900 text-xs font-medium focus:outline-none focus:border-[#12A89A] ${
                   errors.roleCode ? 'border-rose-400 bg-rose-50/30' : 'border-slate-300'
                 }`}
               >
@@ -325,7 +325,7 @@ export const QuickCreateEmployeeModal: React.FC<QuickCreateEmployeeModalProps> =
                 value={department}
                 onChange={e => setDepartment(e.target.value)}
                 disabled={isSubmitting}
-                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-medium focus:outline-none focus:border-[#1A56DB]"
+                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-medium focus:outline-none focus:border-[#12A89A]"
               >
                 {departments.map(dept => (
                   <option key={dept} value={dept}>
@@ -345,7 +345,7 @@ export const QuickCreateEmployeeModal: React.FC<QuickCreateEmployeeModalProps> =
                   value={passwordOrPin}
                   onChange={e => setPasswordOrPin(e.target.value)}
                   placeholder="e.g. 1234"
-                  className={`w-full h-[36px] px-3 bg-white border rounded-lg text-slate-900 text-xs font-medium focus:outline-none focus:border-[#1A56DB] ${
+                  className={`w-full h-[36px] px-3 bg-white border rounded-lg text-slate-900 text-xs font-medium focus:outline-none focus:border-[#12A89A] ${
                     errors.passwordOrPin ? 'border-rose-400 bg-rose-50/30' : 'border-slate-300'
                   }`}
                   disabled={isSubmitting}
@@ -373,7 +373,7 @@ export const QuickCreateEmployeeModal: React.FC<QuickCreateEmployeeModalProps> =
                 value={currentSalary}
                 onChange={e => setCurrentSalary(e.target.value)}
                 placeholder="e.g. 25000.00"
-                className={`w-full h-[36px] pl-7 pr-3 bg-white border rounded-lg text-slate-900 font-mono text-xs font-medium focus:outline-none focus:border-[#1A56DB] ${
+                className={`w-full h-[36px] pl-7 pr-3 bg-white border rounded-lg text-slate-900 font-mono text-xs font-medium focus:outline-none focus:border-[#12A89A] ${
                   errors.currentSalary ? 'border-rose-400 bg-rose-50/30' : 'border-slate-300'
                 }`}
                 disabled={isSubmitting}
@@ -411,7 +411,7 @@ export const QuickCreateEmployeeModal: React.FC<QuickCreateEmployeeModalProps> =
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="h-[34px] px-4 bg-[#1A56DB] hover:bg-blue-700 text-white font-medium rounded-lg text-xs shadow-2xs transition-colors flex items-center gap-1.5 disabled:opacity-60"
+            className="h-[34px] px-4 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white font-medium rounded-lg text-xs shadow-2xs transition-colors flex items-center gap-1.5 disabled:opacity-60"
           >
             {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             <span>{isSubmitting ? 'Creating Employee...' : 'Create Employee'}</span>

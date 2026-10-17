@@ -100,7 +100,7 @@ export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
               placeholder="Search exp #, description..."
               value={filters.search}
               onChange={e => onChange({ search: e.target.value })}
-              className="w-full h-[32px] pl-8 pr-7 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-[#1A56DB] focus:outline-none transition-all placeholder:text-slate-400"
+              className="w-full h-[32px] pl-8 pr-7 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-[#12A89A] focus:outline-none transition-all placeholder:text-slate-400"
             />
             {filters.search && (
               <button
@@ -131,7 +131,7 @@ export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
               onClick={() => onChange({ method: 'Bank' })}
               className={`flex items-center gap-1 py-1 px-2.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
                 filters.method === 'Bank'
-                  ? 'bg-[#1A56DB] text-white shadow-xs font-bold'
+                  ? 'bg-[#05303B] text-white shadow-xs font-bold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -200,9 +200,9 @@ export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
             <select
               value={filters.datePreset}
               onChange={e => handlePresetChange(e.target.value as any)}
-              className={`h-[32px] pl-2.5 pr-7 text-xs border rounded-lg focus:outline-none focus:border-[#1A56DB] cursor-pointer appearance-none ${
+              className={`h-[32px] pl-2.5 pr-7 text-xs border rounded-lg focus:outline-none focus:border-[#12A89A] cursor-pointer appearance-none ${
                 filters.datePreset !== 'all'
-                  ? 'border-[#1A56DB] bg-blue-50 text-[#1A56DB] font-bold'
+                  ? 'border-[#12A89A] bg-blue-50 text-[#0B7A70] font-bold'
                   : 'border-slate-200 bg-slate-50 text-slate-700'
               }`}
             >
@@ -222,14 +222,14 @@ export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
                 type="date"
                 value={filters.startDate || ''}
                 onChange={e => onChange({ startDate: e.target.value })}
-                className="h-[32px] px-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-[#1A56DB] focus:outline-none"
+                className="h-[32px] px-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-[#12A89A] focus:outline-none"
               />
               <span className="text-slate-400 font-semibold">–</span>
               <input
                 type="date"
                 value={filters.endDate || ''}
                 onChange={e => onChange({ endDate: e.target.value })}
-                className="h-[32px] px-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-[#1A56DB] focus:outline-none"
+                className="h-[32px] px-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-[#12A89A] focus:outline-none"
               />
             </div>
           )}
@@ -257,7 +257,7 @@ export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
             placeholder="Search expenses..."
             value={filters.search}
             onChange={e => onChange({ search: e.target.value })}
-            className="w-full h-[36px] pl-8 pr-7 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-[#1A56DB] focus:outline-none"
+            className="w-full h-[36px] pl-8 pr-7 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-[#12A89A] focus:outline-none"
           />
           {filters.search && (
             <button
@@ -274,7 +274,7 @@ export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
           onClick={() => setMobileFilterOpen(true)}
           className={`h-[36px] px-3 text-xs font-semibold rounded-lg border flex items-center gap-1.5 cursor-pointer ${
             hasActiveFilters
-              ? 'bg-blue-50 border-[#1A56DB] text-[#1A56DB]'
+              ? 'bg-blue-50 border-[#12A89A] text-[#0B7A70]'
               : 'bg-white border-slate-200 text-slate-700'
           }`}
         >
@@ -315,7 +315,7 @@ export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
                     onClick={() => onChange({ method: m })}
                     className={`py-2 text-xs font-semibold rounded-lg border cursor-pointer ${
                       filters.method === m
-                        ? 'bg-[#1A56DB] text-white border-[#1A56DB]'
+                        ? 'bg-[#05303B] text-white border-[#12A89A]'
                         : 'bg-slate-50 text-slate-700 border-slate-200'
                     }`}
                   >
@@ -351,7 +351,7 @@ export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
                   }
                   className={`w-full h-9 ${
                     filters.category ? 'pl-7 font-bold' : 'px-3'
-                  } text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB]`}
+                  } text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A]`}
                 >
                   <option value="" style={{ color: '#334155', backgroundColor: '#ffffff' }}>All Categories</option>
                   {categories.map(c => {
@@ -378,7 +378,7 @@ export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
               <select
                 value={filters.datePreset}
                 onChange={e => handlePresetChange(e.target.value as any)}
-                className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB]"
+                className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A]"
               >
                 {DATE_PRESETS.map(p => (
                   <option key={p.value} value={p.value}>
@@ -427,7 +427,7 @@ export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
               <button
                 type="button"
                 onClick={() => setMobileFilterOpen(false)}
-                className="flex-1 py-2 text-xs font-bold text-white bg-[#1A56DB] rounded-lg shadow-xs"
+                className="flex-1 py-2 text-xs font-bold text-white bg-[#12A89A] rounded-lg shadow-xs"
               >
                 Apply
               </button>

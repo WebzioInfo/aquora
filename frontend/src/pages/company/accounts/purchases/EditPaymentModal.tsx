@@ -203,7 +203,7 @@ export const EditPaymentModal: React.FC<EditPaymentModalProps> = ({
         {/* Header */}
         <div className="px-5 py-4 border-b border-[#E5E9F2] bg-[#F8FAFC] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#1A56DB] flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0B7A70] flex items-center justify-center">
               <RefreshCw className="w-4 h-4" />
             </div>
             <div>
@@ -296,7 +296,7 @@ export const EditPaymentModal: React.FC<EditPaymentModalProps> = ({
               <button
                 type="button"
                 onClick={() => setAmount(maxAllowedAmount.toFixed(2))}
-                className="text-[11px] text-[#1A56DB] hover:underline font-semibold cursor-pointer"
+                className="text-[11px] text-[#0B7A70] hover:underline font-semibold cursor-pointer"
               >
                 Max allowed ({formatINR(maxAllowedAmount)})
               </button>
@@ -311,7 +311,7 @@ export const EditPaymentModal: React.FC<EditPaymentModalProps> = ({
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full h-[38px] pl-8 pr-3 text-sm font-mono font-bold text-slate-900 border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] bg-white"
+                className="w-full h-[38px] pl-8 pr-3 text-sm font-mono font-bold text-slate-900 border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] bg-white"
                 required
               />
             </div>
@@ -327,7 +327,7 @@ export const EditPaymentModal: React.FC<EditPaymentModalProps> = ({
                 type="date"
                 value={paymentDate}
                 onChange={e => setPaymentDate(e.target.value)}
-                className="w-full h-[36px] px-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] bg-white text-slate-800"
+                className="w-full h-[36px] px-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] bg-white text-slate-800"
                 required
               />
             </div>
@@ -342,7 +342,7 @@ export const EditPaymentModal: React.FC<EditPaymentModalProps> = ({
                   onClick={() => setPaymentMethod('BankAccount')}
                   className={`h-[36px] text-xs font-semibold rounded-lg border flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                     paymentMethod === 'BankAccount'
-                      ? 'bg-blue-50 border-[#1A56DB] text-[#1A56DB]'
+                      ? 'bg-blue-50 border-[#12A89A] text-[#0B7A70]'
                       : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
@@ -375,7 +375,7 @@ export const EditPaymentModal: React.FC<EditPaymentModalProps> = ({
                 value={bankAccountId}
                 onChange={e => setBankAccountId(e.target.value)}
                 disabled={loadingAccounts}
-                className="w-full h-[36px] px-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] bg-white text-slate-800"
+                className="w-full h-[36px] px-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] bg-white text-slate-800"
                 required
               >
                 <option value="">-- Choose Bank Account --</option>
@@ -390,7 +390,7 @@ export const EditPaymentModal: React.FC<EditPaymentModalProps> = ({
                 value={cashBookId}
                 onChange={e => setCashBookId(e.target.value)}
                 disabled={loadingAccounts}
-                className="w-full h-[36px] px-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] bg-white text-slate-800"
+                className="w-full h-[36px] px-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] bg-white text-slate-800"
                 required
               >
                 <option value="">-- Choose Cash Book --</option>
@@ -422,7 +422,7 @@ export const EditPaymentModal: React.FC<EditPaymentModalProps> = ({
               placeholder="e.g. UTR-98827138"
               value={referenceNo}
               onChange={e => setReferenceNo(e.target.value)}
-              className="w-full h-[36px] px-2.5 font-mono border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] bg-white text-slate-800"
+              className="w-full h-[36px] px-2.5 font-mono border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] bg-white text-slate-800"
             />
           </div>
 
@@ -436,7 +436,7 @@ export const EditPaymentModal: React.FC<EditPaymentModalProps> = ({
               placeholder="e.g. Corrected payment amount"
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              className="w-full h-[36px] px-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] bg-white text-slate-800"
+              className="w-full h-[36px] px-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] bg-white text-slate-800"
             />
           </div>
 
@@ -453,7 +453,7 @@ export const EditPaymentModal: React.FC<EditPaymentModalProps> = ({
             <button
               type="submit"
               disabled={submitting || newAmount <= 0}
-              className="h-[36px] px-4 text-xs font-semibold text-white bg-[#1A56DB] hover:bg-[#1746B3] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="h-[36px] px-4 text-xs font-semibold text-white bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               {submitting ? (
                 <>

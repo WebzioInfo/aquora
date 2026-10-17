@@ -20,11 +20,11 @@ export const EnterpriseButton: React.FC<EnterpriseButtonProps> = ({
   const baseStyle = 'inline-flex items-center justify-center font-medium transition-all duration-150 focus:outline-none rounded-[8px] select-none cursor-pointer disabled:cursor-not-allowed shrink-0'
   
   const variants = {
-    primary: 'bg-[#2563EB] text-white hover:bg-[#1D4ED8] active:bg-[#1E40AF] disabled:bg-[#F2F4F7] disabled:text-[#98A2B3] disabled:shadow-none !rounded-[10px] !h-[42px]',
-    secondary: 'border border-[#D0D5DD] bg-white text-[#344054] hover:bg-[#F9FAFB] active:bg-[#F2F4F7] disabled:border-[#F2F4F7] disabled:text-[#98A2B3]',
-    danger: 'bg-[#F04438] text-white hover:bg-[#D92D20] active:bg-[#B42318] disabled:bg-[#F2F4F7] disabled:text-[#98A2B3]',
-    success: 'bg-[#17B26A] text-white hover:bg-[#079455] active:bg-[#067647] disabled:bg-[#F2F4F7] disabled:text-[#98A2B3]',
-    ghost: 'text-[#667085] hover:bg-[#EFF4FF] hover:text-[#1A56DB]'
+    primary: 'bg-[#05303B] text-white hover:bg-[#0A4352] active:bg-[#031F27] disabled:bg-[#F2F4F7] disabled:text-[#98A2B3] disabled:shadow-none !rounded-[8px] !h-[42px]',
+    secondary: 'border border-[#CBD5DB] bg-white text-[#05303B] hover:bg-[#F4F7F8] active:bg-[#E3E8EC] disabled:border-[#F2F4F7] disabled:text-[#98A2B3]',
+    danger: 'bg-[#DC2626] text-white hover:bg-[#B91C1C] active:bg-[#991B1B] disabled:bg-[#F2F4F7] disabled:text-[#98A2B3]',
+    success: 'bg-[#16A34A] text-white hover:bg-[#15803D] active:bg-[#166534] disabled:bg-[#F2F4F7] disabled:text-[#98A2B3]',
+    ghost: 'text-[#5B6B75] hover:bg-[#E6F6F4] hover:text-[#0B7A70]'
   }
 
   const sizes = {

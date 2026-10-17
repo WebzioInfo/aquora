@@ -94,7 +94,7 @@ export const AssetRow: React.FC<AssetRowProps> = ({
           type="checkbox"
           checked={isSelected}
           onChange={() => {}}
-          className="w-4 h-4 rounded border-slate-300 text-[#1A56DB] focus:ring-[#1A56DB]/20 focus:ring-offset-0 cursor-pointer"
+          className="w-4 h-4 rounded border-slate-300 text-[#0B7A70] focus:ring-[#12A89A]/20 focus:ring-offset-0 cursor-pointer"
         />
       </td>
 
@@ -151,7 +151,7 @@ export const AssetRow: React.FC<AssetRowProps> = ({
                       e.stopPropagation()
                       onAssign()
                     }}
-                    className="text-[#1A56DB] hover:text-[#1746B3] hover:underline font-semibold cursor-pointer"
+                    className="text-[#0B7A70] hover:text-[#05303B] hover:underline font-semibold cursor-pointer"
                   >
                     Assign
                   </button>

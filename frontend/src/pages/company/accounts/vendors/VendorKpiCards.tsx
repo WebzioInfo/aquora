@@ -123,7 +123,7 @@ export const VendorKpiCards: React.FC<VendorKpiCardsProps> = ({
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Payable</span>
             <span className="text-sm font-bold text-slate-900 font-mono">{formatINR(stats.totalPayable)}</span>
           </div>
-          <div className="p-1 rounded-md bg-blue-50 text-[#1A56DB]">
+          <div className="p-1 rounded-md bg-blue-50 text-[#0B7A70]">
             <CreditCard className="w-3.5 h-3.5" />
           </div>
         </div>
@@ -172,7 +172,7 @@ export const VendorKpiCards: React.FC<VendorKpiCardsProps> = ({
         value={formatINR(stats.totalPayable)}
         icon={CreditCard}
         iconBgColor="bg-blue-50"
-        iconTextColor="text-[#1A56DB]"
+        iconTextColor="text-[#0B7A70]"
         isShortScreen={isShortScreen}
         subLabel={
           stats.vendorsWithBalance > 0 ? (

@@ -95,7 +95,7 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
         <button
           type="button"
           onClick={() => setIsExpanded(true)}
-          className="text-[11px] text-[#1A56DB] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+          className="text-[11px] text-[#0B7A70] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
         >
           Show breakdown
           <ChevronDown className="w-3 h-3" />
@@ -120,7 +120,7 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
             <button
               type="button"
               onClick={() => onSelectCategory('')}
-              className="text-[11px] text-[#1A56DB] hover:underline font-semibold cursor-pointer"
+              className="text-[11px] text-[#0B7A70] hover:underline font-semibold cursor-pointer"
             >
               Show All
             </button>

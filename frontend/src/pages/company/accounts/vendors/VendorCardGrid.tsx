@@ -44,7 +44,7 @@ export const VendorCardGrid: React.FC<VendorCardGridProps> = ({
             key={vendor.id}
             onClick={() => onCardClick(vendor)}
             className={`bg-white border rounded-xl p-3.5 flex flex-col justify-between transition-all cursor-pointer hover:shadow-xs hover:border-slate-300 relative ${
-              isSelected ? 'border-[#1A56DB] bg-blue-50/20 ring-1 ring-[#1A56DB]' : 'border-[#E5E9F2]'
+              isSelected ? 'border-[#12A89A] bg-blue-50/20 ring-1 ring-[#12A89A]' : 'border-[#E5E9F2]'
             }`}
           >
             <div>
@@ -56,7 +56,7 @@ export const VendorCardGrid: React.FC<VendorCardGridProps> = ({
                     checked={isSelected}
                     onChange={() => {}}
                     onClick={e => onToggleSelect(vendor.id, e)}
-                    className="w-4 h-4 mt-0.5 rounded border-slate-300 text-[#1A56DB] focus:ring-0 cursor-pointer shrink-0"
+                    className="w-4 h-4 mt-0.5 rounded border-slate-300 text-[#0B7A70] focus:ring-0 cursor-pointer shrink-0"
                   />
 
                   <div

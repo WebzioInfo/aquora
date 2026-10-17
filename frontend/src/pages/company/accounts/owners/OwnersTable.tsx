@@ -115,7 +115,7 @@ export const OwnersTable: React.FC<OwnersTableProps> = ({
             ) : (
               <>
                 <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mb-3">
-                  <Users className="w-6 h-6 text-[#1A56DB]" />
+                  <Users className="w-6 h-6 text-[#0B7A70]" />
                 </div>
                 <h3 className="text-sm font-bold text-slate-800 mb-1">
                   Add your first owner
@@ -126,7 +126,7 @@ export const OwnersTable: React.FC<OwnersTableProps> = ({
                 <button
                   type="button"
                   onClick={onOpenCreate}
-                  className="px-3.5 py-1.5 bg-[#1A56DB] hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors inline-flex items-center gap-1.5 shadow-2xs"
+                  className="px-3.5 py-1.5 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white rounded-lg text-xs font-medium transition-colors inline-flex items-center gap-1.5 shadow-2xs"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Owner</span>

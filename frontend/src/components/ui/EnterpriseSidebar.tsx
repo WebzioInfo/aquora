@@ -59,10 +59,13 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
         }`}
     >
       {/* Logo Banner */}
-      <div className="h-16 flex items-center justify-between px-5 border-b border-[#E5E9F2]">
-        <Link to="/company" className="flex items-center gap-2 font-bold text-lg text-slate-900 select-none">
-          <img src={BRAND.logo} alt={BRAND.name} className="h-9 w-auto object-contain shrink-0" />
-          {!collapsed && <span className="tracking-tight font-extrabold uppercase text-[15px] text-slate-900">{BRAND.name}</span>}
+      <div className="h-16 flex items-center px-5 border-b border-[#E5E9F2]">
+        <Link to="/company" className="flex items-center select-none" title="Aquzio">
+          {collapsed ? (
+            <img src={BRAND.iconLight} alt={BRAND.name} className="h-7 w-7 object-contain shrink-0 mx-auto" />
+          ) : (
+            <img src={BRAND.logo} alt={BRAND.name} className="h-7 w-auto object-contain shrink-0" />
+          )}
         </Link>
       </div>
 
@@ -79,12 +82,12 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                   type="button"
                   onClick={() => toggleSubMenu(item.label)}
                   className={`flex items-center justify-between gap-3.5 px-3.5 py-2.5 rounded-[8px] transition-all relative cursor-pointer text-left ${isAnyChildActive
-                    ? 'bg-[#EFF4FF] text-[#1A56DB] font-semibold'
-                    : 'text-[#667085] hover:bg-slate-50 hover:text-slate-800'
+                    ? 'bg-[#E6F6F4] text-[#05303B] font-semibold'
+                    : 'text-[#5B6B75] hover:bg-[#F4F7F8] hover:text-[#05303B]'
                     }`}
                 >
                   <div className="flex items-center gap-3.5">
-                    <div className="shrink-0">{item.icon}</div>
+                    <div className={`shrink-0 ${isAnyChildActive ? 'text-[#0B7A70]' : ''}`}>{item.icon}</div>
                     {!collapsed && <span className="text-xs tracking-wide font-bold">{item.label}</span>}
                   </div>
                   {!collapsed && (
@@ -103,8 +106,8 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                           key={child.path}
                           to={child.path}
                           className={`flex items-center gap-2 px-3 py-1.5 rounded-[6px] text-xs transition-all relative ${isChildActive
-                            ? 'bg-[#1A56DB] text-white font-bold shadow-sm'
-                            : 'text-[#667085] hover:bg-slate-100 hover:text-slate-900'
+                            ? 'bg-[#05303B] text-white font-bold shadow-xs'
+                            : 'text-[#5B6B75] hover:bg-[#F4F7F8] hover:text-[#05303B]'
                             }`}
                         >
                           <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60"></span>
@@ -119,22 +122,26 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
           }
 
           const currentFullPath = location.pathname + location.search
-          const isActive = currentFullPath === item.path ||
-            (location.pathname === item.path && !location.search && !item.path?.includes('?')) ||
+          const isExactFullPathMatch = currentFullPath === item.path
+          const isExactBasePathMatch = location.pathname === item.path && !item.path?.includes('?')
+          const hasAnotherExactFullPathMatch = !isExactFullPathMatch && items.some((other: any) => other.path === currentFullPath)
+
+          const isActive = isExactFullPathMatch ||
+            (!hasAnotherExactFullPathMatch && isExactBasePathMatch) ||
             (!!item.path && item.path !== '/' && item.path !== '/company' && item.path !== '/company/dashboard' && item.path !== '/qc' && item.path !== '/qc/dashboard' && location.pathname.startsWith(item.path + '/'))
           return (
             <Link
               key={item.path}
               to={item.path || '#'}
               className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-[8px] transition-all relative ${isActive
-                ? 'bg-[#EFF4FF] text-[#1A56DB] font-semibold pl-4'
-                : 'text-[#667085] hover:bg-slate-50 hover:text-slate-800'
+                ? 'bg-[#E6F6F4] text-[#05303B] font-semibold pl-4'
+                : 'text-[#5B6B75] hover:bg-[#F4F7F8] hover:text-[#05303B]'
                 }`}
             >
               {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-[20px] bg-[#1A56DB] rounded-r-md" />
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-[20px] bg-[#12A89A] rounded-r-md" />
               )}
-              <div className="shrink-0 relative">
+              <div className={`shrink-0 relative ${isActive ? 'text-[#0B7A70]' : ''}`}>
                 {item.icon}
                 {collapsed && item.badge !== undefined && item.badge !== null && item.badge !== 0 && (
                   <span
@@ -170,7 +177,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
           className="flex items-center gap-3.5 w-full px-3.5 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
           title="My Profile"
         >
-          <div className="w-5 h-5 rounded-md bg-[#1A56DB] text-white flex items-center justify-center text-[10px] font-bold shrink-0 uppercase">
+          <div className="w-5 h-5 rounded-md bg-[#05303B] text-white flex items-center justify-center text-[10px] font-bold shrink-0 uppercase">
             {user?.firstName?.charAt(0) || user?.email?.charAt(0) || 'U'}
           </div>
           {!collapsed && (

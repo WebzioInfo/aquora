@@ -162,7 +162,7 @@ export const SpendBreakdownCards: React.FC<SpendBreakdownCardsProps> = ({
         <button
           type="button"
           onClick={() => setIsExpanded(true)}
-          className="text-[11px] text-[#1A56DB] hover:underline font-semibold flex items-center gap-1 cursor-pointer shrink-0"
+          className="text-[11px] text-[#0B7A70] hover:underline font-semibold flex items-center gap-1 cursor-pointer shrink-0"
         >
           Show breakdown
           <ChevronDown className="w-3 h-3" />
@@ -190,7 +190,7 @@ export const SpendBreakdownCards: React.FC<SpendBreakdownCardsProps> = ({
                 <button
                   type="button"
                   onClick={() => onSelectCategory('')}
-                  className="text-[11px] text-[#1A56DB] hover:underline font-semibold cursor-pointer"
+                  className="text-[11px] text-[#0B7A70] hover:underline font-semibold cursor-pointer"
                 >
                   Clear
                 </button>
@@ -281,7 +281,7 @@ export const SpendBreakdownCards: React.FC<SpendBreakdownCardsProps> = ({
               <button
                 type="button"
                 onClick={() => onSelectPaymentMethod('')}
-                className="text-[11px] text-[#1A56DB] hover:underline font-semibold cursor-pointer"
+                className="text-[11px] text-[#0B7A70] hover:underline font-semibold cursor-pointer"
               >
                 Clear
               </button>

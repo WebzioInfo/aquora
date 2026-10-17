@@ -156,7 +156,7 @@ export const QuickCreateAssetCategoryModal: React.FC<QuickCreateAssetCategoryMod
                 if (error) setError(null)
               }}
               disabled={isSubmitting}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] focus:ring-2 focus:ring-blue-100/50 bg-white"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] focus:ring-2 focus:ring-blue-100/50 bg-white"
             />
           </div>
 
@@ -170,7 +170,7 @@ export const QuickCreateAssetCategoryModal: React.FC<QuickCreateAssetCategoryMod
               value={description}
               onChange={e => setDescription(e.target.value)}
               disabled={isSubmitting}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] focus:ring-2 focus:ring-blue-100/50 bg-white"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] focus:ring-2 focus:ring-blue-100/50 bg-white"
             />
           </div>
 
@@ -191,7 +191,7 @@ export const QuickCreateAssetCategoryModal: React.FC<QuickCreateAssetCategoryMod
               onClick={() => setIsActive(!isActive)}
               disabled={isSubmitting}
               className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                isActive ? 'bg-[#1A56DB]' : 'bg-slate-300'
+                isActive ? 'bg-[#12A89A]' : 'bg-slate-300'
               }`}
             >
               <span

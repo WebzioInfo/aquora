@@ -193,12 +193,12 @@ export const AssetDateFilterPopover: React.FC<Props> = ({ value, onChange }) => 
         onClick={() => setIsOpen(!isOpen)}
         className={`px-3 py-2 text-xs border rounded-xl font-medium flex items-center justify-between gap-2 transition-all w-full sm:w-auto min-w-[150px] cursor-pointer ${
           isFiltered
-            ? 'border-blue-500 bg-blue-50/60 text-[#1A56DB] shadow-sm font-semibold'
+            ? 'border-blue-500 bg-blue-50/60 text-[#0B7A70] shadow-sm font-semibold'
             : 'border-slate-200 bg-slate-50/50 hover:bg-slate-100 text-slate-700'
         }`}
       >
         <div className="flex items-center gap-1.5 truncate">
-          <Calendar className={`w-3.5 h-3.5 shrink-0 ${isFiltered ? 'text-[#1A56DB]' : 'text-slate-400'}`} />
+          <Calendar className={`w-3.5 h-3.5 shrink-0 ${isFiltered ? 'text-[#0B7A70]' : 'text-slate-400'}`} />
           <span className="truncate">{isFiltered ? currentRange.label : 'Date: All Dates'}</span>
         </div>
         <ChevronDown className={`w-3.5 h-3.5 shrink-0 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -209,7 +209,7 @@ export const AssetDateFilterPopover: React.FC<Props> = ({ value, onChange }) => 
         <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200/80 p-4 z-50 text-slate-800 animate-in fade-in zoom-in-95 duration-100">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
             <div className="flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-[#1A56DB]" />
+              <Calendar className="w-4 h-4 text-[#0B7A70]" />
               <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
                 Filter by Purchase Date
               </span>
@@ -232,12 +232,12 @@ export const AssetDateFilterPopover: React.FC<Props> = ({ value, onChange }) => 
               onClick={() => handleSelectPreset('all')}
               className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
                 draftMode === 'all'
-                  ? 'bg-blue-50 text-[#1A56DB] font-bold'
+                  ? 'bg-blue-50 text-[#0B7A70] font-bold'
                   : 'hover:bg-slate-50 text-slate-700'
               }`}
             >
               <span>All Dates</span>
-              {draftMode === 'all' && <Check className="w-3.5 h-3.5 text-[#1A56DB]" />}
+              {draftMode === 'all' && <Check className="w-3.5 h-3.5 text-[#0B7A70]" />}
             </button>
 
             <button
@@ -245,12 +245,12 @@ export const AssetDateFilterPopover: React.FC<Props> = ({ value, onChange }) => 
               onClick={() => handleSelectPreset('this_month')}
               className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
                 draftMode === 'this_month'
-                  ? 'bg-blue-50 text-[#1A56DB] font-bold'
+                  ? 'bg-blue-50 text-[#0B7A70] font-bold'
                   : 'hover:bg-slate-50 text-slate-700'
               }`}
             >
               <span>This Month</span>
-              {draftMode === 'this_month' && <Check className="w-3.5 h-3.5 text-[#1A56DB]" />}
+              {draftMode === 'this_month' && <Check className="w-3.5 h-3.5 text-[#0B7A70]" />}
             </button>
 
             <button
@@ -258,12 +258,12 @@ export const AssetDateFilterPopover: React.FC<Props> = ({ value, onChange }) => 
               onClick={() => handleSelectPreset('last_month')}
               className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
                 draftMode === 'last_month'
-                  ? 'bg-blue-50 text-[#1A56DB] font-bold'
+                  ? 'bg-blue-50 text-[#0B7A70] font-bold'
                   : 'hover:bg-slate-50 text-slate-700'
               }`}
             >
               <span>Last Month</span>
-              {draftMode === 'last_month' && <Check className="w-3.5 h-3.5 text-[#1A56DB]" />}
+              {draftMode === 'last_month' && <Check className="w-3.5 h-3.5 text-[#0B7A70]" />}
             </button>
 
             <button
@@ -271,12 +271,12 @@ export const AssetDateFilterPopover: React.FC<Props> = ({ value, onChange }) => 
               onClick={() => setDraftMode('month')}
               className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
                 draftMode === 'month'
-                  ? 'bg-blue-50 text-[#1A56DB] font-bold'
+                  ? 'bg-blue-50 text-[#0B7A70] font-bold'
                   : 'hover:bg-slate-50 text-slate-700'
               }`}
             >
               <span>Specific Month</span>
-              {draftMode === 'month' && <Check className="w-3.5 h-3.5 text-[#1A56DB]" />}
+              {draftMode === 'month' && <Check className="w-3.5 h-3.5 text-[#0B7A70]" />}
             </button>
 
             <button
@@ -284,12 +284,12 @@ export const AssetDateFilterPopover: React.FC<Props> = ({ value, onChange }) => 
               onClick={() => setDraftMode('custom')}
               className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
                 draftMode === 'custom'
-                  ? 'bg-blue-50 text-[#1A56DB] font-bold'
+                  ? 'bg-blue-50 text-[#0B7A70] font-bold'
                   : 'hover:bg-slate-50 text-slate-700'
               }`}
             >
               <span>Custom Date Range</span>
-              {draftMode === 'custom' && <Check className="w-3.5 h-3.5 text-[#1A56DB]" />}
+              {draftMode === 'custom' && <Check className="w-3.5 h-3.5 text-[#0B7A70]" />}
             </button>
           </div>
 
@@ -304,7 +304,7 @@ export const AssetDateFilterPopover: React.FC<Props> = ({ value, onChange }) => 
                   <select
                     value={draftMonth}
                     onChange={(e) => setDraftMonth(Number(e.target.value))}
-                    className="w-full px-2.5 py-1.5 text-xs font-medium border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:border-[#1A56DB]"
+                    className="w-full px-2.5 py-1.5 text-xs font-medium border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:border-[#12A89A]"
                   >
                     {MONTH_NAMES.map((name, idx) => (
                       <option key={name} value={idx + 1}>
@@ -320,7 +320,7 @@ export const AssetDateFilterPopover: React.FC<Props> = ({ value, onChange }) => 
                   <select
                     value={draftYear}
                     onChange={(e) => setDraftYear(Number(e.target.value))}
-                    className="w-full px-2.5 py-1.5 text-xs font-medium border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:border-[#1A56DB]"
+                    className="w-full px-2.5 py-1.5 text-xs font-medium border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:border-[#12A89A]"
                   >
                     {YEAR_OPTIONS.map((y) => (
                       <option key={y} value={y}>
@@ -334,7 +334,7 @@ export const AssetDateFilterPopover: React.FC<Props> = ({ value, onChange }) => 
               <button
                 type="button"
                 onClick={handleApplyMonth}
-                className="w-full py-2 bg-[#1A56DB] hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full py-2 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <span>Apply Month</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -353,7 +353,7 @@ export const AssetDateFilterPopover: React.FC<Props> = ({ value, onChange }) => 
                     type="date"
                     value={draftFrom}
                     onChange={(e) => setDraftFrom(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs font-medium border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:border-[#1A56DB]"
+                    className="w-full px-2.5 py-1.5 text-xs font-medium border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:border-[#12A89A]"
                   />
                 </div>
                 <div>
@@ -364,7 +364,7 @@ export const AssetDateFilterPopover: React.FC<Props> = ({ value, onChange }) => 
                     type="date"
                     value={draftTo}
                     onChange={(e) => setDraftTo(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs font-medium border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:border-[#1A56DB]"
+                    className="w-full px-2.5 py-1.5 text-xs font-medium border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:border-[#12A89A]"
                   />
                 </div>
               </div>
@@ -373,7 +373,7 @@ export const AssetDateFilterPopover: React.FC<Props> = ({ value, onChange }) => 
                 type="button"
                 onClick={handleApplyCustom}
                 disabled={!draftFrom && !draftTo}
-                className="w-full py-2 bg-[#1A56DB] hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full py-2 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <span>Apply Date Range</span>
                 <ArrowRight className="w-3.5 h-3.5" />

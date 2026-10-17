@@ -497,7 +497,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsCreateEmployeeOpen(true)}
-                    className="text-xs text-[#1A56DB] hover:text-blue-700 hover:underline font-semibold flex items-center gap-1 transition-colors"
+                    className="text-xs text-[#0B7A70] hover:text-[#05303B] hover:underline font-semibold flex items-center gap-1 transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>New Employee</span>
@@ -513,7 +513,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
                   setIsAmountCustomized(false)
                   fetchEntitlement(newId, salaryMonth)
                 }}
-                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-none focus:border-[#1A56DB] disabled:bg-slate-100"
+                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-none focus:border-[#12A89A] disabled:bg-slate-100"
                 required
               >
                 {allEmployees.length === 0 ? (
@@ -542,7 +542,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
                   setIsAmountCustomized(false)
                   if (employeeId) fetchEntitlement(employeeId, newMonth)
                 }}
-                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-none focus:border-[#1A56DB] disabled:bg-slate-100"
+                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-none focus:border-[#12A89A] disabled:bg-slate-100"
                 required
               />
             </div>
@@ -602,7 +602,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
                     tabIndex={isFormLocked ? -1 : 0}
                     aria-disabled={isFormLocked}
                     onChange={e => setDaysWorked(Number(e.target.value))}
-                    className="w-24 h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-none focus:border-[#1A56DB] disabled:bg-slate-100"
+                    className="w-24 h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-none focus:border-[#12A89A] disabled:bg-slate-100"
                     required={!isFormLocked}
                   />
                   <span className="text-slate-500 font-medium">/ {safeWorkingDays} days</span>
@@ -627,7 +627,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
                         setAmount(settleDue.toFixed(2))
                         setIsAmountCustomized(false)
                       }}
-                      className="text-[11px] text-[#1A56DB] hover:underline font-semibold"
+                      className="text-[11px] text-[#0B7A70] hover:underline font-semibold"
                     >
                       Pay full balance
                     </button>
@@ -649,7 +649,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
                       setIsAmountCustomized(true)
                     }}
                     placeholder="0.00"
-                    className="w-full h-[36px] pl-7 pr-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-mono font-medium focus:outline-none focus:border-[#1A56DB] disabled:bg-slate-100"
+                    className="w-full h-[36px] pl-7 pr-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-mono font-medium focus:outline-none focus:border-[#12A89A] disabled:bg-slate-100"
                     required={!isFormLocked}
                   />
                 </div>
@@ -667,7 +667,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
                   tabIndex={isFormLocked ? -1 : 0}
                   aria-disabled={isFormLocked}
                   onChange={e => setPaymentDate(e.target.value)}
-                  className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB] disabled:bg-slate-100"
+                  className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#12A89A] disabled:bg-slate-100"
                   required={!isFormLocked}
                 />
               </div>
@@ -683,7 +683,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
                     onClick={() => setPaymentMethod('BankAccount')}
                     className={`flex-1 h-[34px] rounded-lg font-medium border text-xs transition-all ${
                       paymentMethod === 'BankAccount'
-                        ? 'bg-blue-50 border-[#1A56DB] text-[#1A56DB] font-semibold'
+                        ? 'bg-blue-50 border-[#12A89A] text-[#0B7A70] font-semibold'
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
@@ -696,7 +696,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
                     onClick={() => setPaymentMethod('CashBook')}
                     className={`flex-1 h-[34px] rounded-lg font-medium border text-xs transition-all ${
                       paymentMethod === 'CashBook'
-                        ? 'bg-blue-50 border-[#1A56DB] text-[#1A56DB] font-semibold'
+                        ? 'bg-blue-50 border-[#12A89A] text-[#0B7A70] font-semibold'
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
@@ -717,7 +717,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
                     tabIndex={isFormLocked ? -1 : 0}
                     aria-disabled={isFormLocked}
                     onChange={e => setBankAccountId(e.target.value)}
-                    className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB] disabled:bg-slate-100"
+                    className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#12A89A] disabled:bg-slate-100"
                     required={!isFormLocked}
                   >
                     {bankAccounts.map(b => (
@@ -733,7 +733,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
                     tabIndex={isFormLocked ? -1 : 0}
                     aria-disabled={isFormLocked}
                     onChange={e => setCashBookId(e.target.value)}
-                    className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB] disabled:bg-slate-100"
+                    className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#12A89A] disabled:bg-slate-100"
                     required={!isFormLocked}
                   >
                     {cashBooks.map(c => (
@@ -787,7 +787,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setShowAdjustments(true)}
-                        className="text-[11px] text-[#1A56DB] hover:underline font-medium"
+                        className="text-[11px] text-[#0B7A70] hover:underline font-medium"
                       >
                         + Add bonus or deduction
                       </button>
@@ -847,7 +847,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
                   <>
                     <div className="flex justify-between items-center text-xs pt-1">
                       <span className="text-slate-500">Paying Now:</span>
-                      <span className="font-mono font-semibold text-[#1A56DB]">{formatINR(payNowNum)}</span>
+                      <span className="font-mono font-semibold text-[#0B7A70]">{formatINR(payNowNum)}</span>
                     </div>
 
                     <div className="flex justify-between items-center text-xs pt-1 border-t border-dashed border-slate-200">
@@ -890,7 +890,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
                       type="checkbox"
                       checked={confirmFinalSettlement}
                       onChange={e => setConfirmFinalSettlement(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded border-slate-300 text-[#1A56DB] focus:ring-0"
+                      className="w-3.5 h-3.5 rounded border-slate-300 text-[#0B7A70] focus:ring-0"
                     />
                     <span className="text-[11px] text-slate-700">
                       Confirm final settlement (closes month)
@@ -912,7 +912,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
                   onClose()
                   onViewPayslip(currentRecordAsDirectory)
                 }}
-                className="text-xs text-[#1A56DB] hover:underline font-semibold"
+                className="text-xs text-[#0B7A70] hover:underline font-semibold"
               >
                 View payslip
               </button>
@@ -935,7 +935,7 @@ export const SalarySettlementModal: React.FC<SalarySettlementModalProps> = ({
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitting || isAttendanceInvalid || isPayExceeding}
-                className="h-[34px] px-4 bg-[#1A56DB] hover:bg-blue-700 text-white font-medium rounded-lg text-xs shadow-2xs transition-colors flex items-center gap-1.5 disabled:opacity-60"
+                className="h-[34px] px-4 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white font-medium rounded-lg text-xs shadow-2xs transition-colors flex items-center gap-1.5 disabled:opacity-60"
               >
                 {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 <span>Pay {formatINR(payNowNum)}</span>

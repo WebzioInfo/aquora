@@ -86,7 +86,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
           disabled={disabled}
           onClick={() => !disabled && setIsOpen(!isOpen)}
           className={`w-full h-10 px-3 bg-white border rounded-[10px] text-left text-sm flex items-center justify-between transition-colors
-            ${isOpen ? 'border-[#1A56DB] ring-2 ring-blue-50' : error ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-200 hover:border-gray-300'}
+            ${isOpen ? 'border-[#12A89A] ring-2 ring-[#12A89A]/20' : error ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-200 hover:border-gray-300'}
             ${disabled ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'text-gray-900 cursor-pointer'}
             ${buttonClassName || ''}
           `}
@@ -118,7 +118,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                   placeholder="Search..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full h-9 pl-9 pr-3 text-sm bg-gray-50 border border-gray-200 rounded-[8px] focus:outline-none focus:border-[#1A56DB] focus:bg-white transition-colors"
+                  className="w-full h-9 pl-9 pr-3 text-sm bg-gray-50 border border-gray-200 rounded-[8px] focus:outline-none focus:border-[#12A89A] focus:bg-white transition-colors"
                 />
               </div>
             </div>
@@ -139,7 +139,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                     className="w-full flex items-center justify-between px-3 py-2 text-sm text-left rounded-[6px] hover:bg-gray-50 transition-colors"
                   >
                     <span className="truncate pr-4">{item.name}</span>
-                    {value === item.id && <Check className="w-4 h-4 text-[#1A56DB]" />}
+                    {value === item.id && <Check className="w-4 h-4 text-[#0B7A70]" />}
                   </button>
                 ))
               )}

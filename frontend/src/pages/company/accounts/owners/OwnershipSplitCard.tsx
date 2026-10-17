@@ -57,7 +57,7 @@ export const OwnershipSplitCard: React.FC<OwnershipSplitCardProps> = ({
             <button
               type="button"
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className="text-[11px] font-semibold text-[#1A56DB] hover:text-blue-700 flex items-center gap-0.5 ml-1"
+              className="text-[11px] font-semibold text-[#0B7A70] hover:text-[#05303B] flex items-center gap-0.5 ml-1"
             >
               <span>{isCollapsed ? 'Show split' : 'Hide split'}</span>
               {isCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}

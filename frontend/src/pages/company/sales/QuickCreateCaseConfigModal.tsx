@@ -203,7 +203,7 @@ export const QuickCreateCaseConfigModal: React.FC<QuickCreateCaseConfigModalProp
                   if (error) setError(null)
                 }}
                 disabled={isSubmitting}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] focus:ring-2 focus:ring-blue-100/50 bg-white"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] focus:ring-2 focus:ring-[#12A89A]/20 bg-white"
                 required
               >
                 <option value="">Select Finished Product...</option>
@@ -232,7 +232,7 @@ export const QuickCreateCaseConfigModal: React.FC<QuickCreateCaseConfigModalProp
                 if (error) setError(null)
               }}
               disabled={isSubmitting}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] focus:ring-2 focus:ring-blue-100/50 bg-white"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] focus:ring-2 focus:ring-[#12A89A]/20 bg-white"
             />
           </div>
 
@@ -253,7 +253,7 @@ export const QuickCreateCaseConfigModal: React.FC<QuickCreateCaseConfigModalProp
                 if (error) setError(null)
               }}
               disabled={isSubmitting}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] focus:ring-2 focus:ring-blue-100/50 bg-white font-mono font-semibold"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] focus:ring-2 focus:ring-[#12A89A]/20 bg-white font-mono font-semibold"
             />
           </div>
 
@@ -268,7 +268,7 @@ export const QuickCreateCaseConfigModal: React.FC<QuickCreateCaseConfigModalProp
               value={description}
               onChange={e => setDescription(e.target.value)}
               disabled={isSubmitting}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] focus:ring-2 focus:ring-blue-100/50 bg-white"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] focus:ring-2 focus:ring-[#12A89A]/20 bg-white"
             />
           </div>
 
@@ -289,7 +289,7 @@ export const QuickCreateCaseConfigModal: React.FC<QuickCreateCaseConfigModalProp
               onClick={() => setIsActive(!isActive)}
               disabled={isSubmitting}
               className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                isActive ? 'bg-[#1A56DB]' : 'bg-slate-300'
+                isActive ? 'bg-[#12A89A]' : 'bg-slate-300'
               }`}
             >
               <span

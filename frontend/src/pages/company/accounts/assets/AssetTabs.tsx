@@ -103,7 +103,7 @@ export const AssetTabs: React.FC<AssetTabsProps> = ({
 
               {/* 2px Underline in blue accent color */}
               {isActive && (
-                <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#1A56DB] rounded-t" />
+                <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#12A89A] rounded-t" />
               )}
             </button>
           )

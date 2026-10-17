@@ -1,25 +1,84 @@
 @import "tailwindcss";
+@import "./styles/auth.css";
 
 @theme {
   --variant-dark: class;
-  --color-brand-primary: #1A56DB;
-  --color-brand-secondary: #1746B3;
-  --color-brand-success: #17B26A;
-  --color-brand-warning: #F79009;
-  --color-brand-danger: #F04438;
-  --color-brand-info: #2E90FA;
 
-  --color-primary: #101828;
-  --color-hydro-navy: #1A56DB;
-  --color-hydro-azure: #1746B3;
-  --color-on-background: #101828;
-  --color-background: #F7F9FC;
+  /* ── Core Brand Palette (Water, Clarity, Industrial Precision) ── */
+  --color-brand-ink: #05303B;
+  --color-brand-ink-hover: #0A4352;
+  --color-brand-ink-active: #031F27;
+  --color-brand-teal: #12A89A;
+  --color-brand-teal-strong: #0B7A70;
+  --color-brand-teal-tint: #E6F6F4;
+  --color-brand-teal-border: #B8E6E0;
+  --color-brand-mint: #86E8D6;
+
+  /* ── Semantic Application Tokens ── */
+  --color-primary: #05303B;
+  --color-primary-hover: #0A4352;
+  --color-primary-active: #031F27;
+  --color-accent: #12A89A;
+  --color-accent-strong: #0B7A70;
+  --color-accent-tint: #E6F6F4;
+  --color-accent-border: #B8E6E0;
+
+  /* ── Remap legacy blue & hydro tokens to Brand Palette ── */
+  --color-blue-50: #E6F6F4;
+  --color-blue-100: #CEF0EB;
+  --color-blue-200: #B8E6E0;
+  --color-blue-300: #7AD4C8;
+  --color-blue-400: #3ABDB0;
+  --color-blue-500: #12A89A;
+  --color-blue-600: #0B7A70;
+  --color-blue-700: #085E56;
+  --color-blue-800: #0A4352;
+  --color-blue-900: #05303B;
+  --color-blue-950: #031F27;
+
+  --color-brand-primary: #05303B;
+  --color-brand-secondary: #0A4352;
+  --color-hydro-navy: #05303B;
+  --color-hydro-azure: #12A89A;
+
+  /* ── Remap legacy sky and indigo tokens to Brand Palette ── */
+  --color-sky-50: #E6F6F4;
+  --color-sky-100: #CEF0EB;
+  --color-sky-200: #B8E6E0;
+  --color-sky-300: #7AD4C8;
+  --color-sky-400: #3ABDB0;
+  --color-sky-500: #12A89A;
+  --color-sky-600: #0B7A70;
+  --color-sky-700: #085E56;
+  --color-sky-800: #0A4352;
+  --color-sky-900: #05303B;
+
+  --color-indigo-50: #E6F6F4;
+  --color-indigo-100: #CEF0EB;
+  --color-indigo-200: #B8E6E0;
+  --color-indigo-300: #7AD4C8;
+  --color-indigo-400: #3ABDB0;
+  --color-indigo-500: #12A89A;
+  --color-indigo-600: #0B7A70;
+  --color-indigo-700: #05303B;
+  --color-indigo-800: #0A4352;
+  --color-indigo-900: #05303B;
+  --color-indigo-950: #031F27;
+
+  /* ── Distinct Semantic Status Colors ── */
+  --color-brand-success: #16A34A;
+  --color-brand-warning: #D97706;
+  --color-brand-danger: #DC2626;
+  --color-brand-info: #E6F6F4;
+
+  --color-on-background: #05303B;
+  --color-background: #F7FAFB;
   --color-surface: #FFFFFF;
-  --color-outline: #98A2B3;
-  --color-outline-variant: #E5E9F2;
-  --color-on-surface-variant: #667085;
-  --color-error: #F04438;
-  
+  --color-outline: #CBD5DB;
+  --color-outline-variant: #E3E8EC;
+  --color-on-surface-variant: #5B6B75;
+  --color-error: #DC2626;
+
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
 }
 
@@ -34,23 +93,65 @@
 }
 
 :root {
-  --bg-app: #F7F9FC;
+  /* Global CSS Variables for Tokens */
+  --color-primary: #05303B;
+  --color-primary-hover: #0A4352;
+  --color-primary-active: #031F27;
+  --color-accent: #12A89A;
+  --color-accent-strong: #0B7A70;
+  --color-accent-tint: #E6F6F4;
+  --color-accent-border: #B8E6E0;
+  --color-focus-ring: rgba(18, 168, 154, 0.25);
+
+  --bg-app: #F7FAFB;
   --bg-card: #FFFFFF;
   --bg-sidebar: #FFFFFF;
-  --text-main: #101828;
-  --text-muted: #667085;
-  --border-ui: #E5E9F2;
-  --accent-soft: #EFF4FF;
+  --text-main: #05303B;
+  --text-muted: #5B6B75;
+  --border-ui: #E3E8EC;
+  --accent-soft: #E6F6F4;
 }
 
 :root.dark {
-  --bg-app: #F7F9FC;
-  --bg-card: #FFFFFF;
-  --bg-sidebar: #FFFFFF;
-  --text-main: #101828;
-  --text-muted: #667085;
-  --border-ui: #E5E9F2;
-  --accent-soft: #EFF4FF;
+  --color-primary: #12A89A;
+  --color-primary-hover: #86E8D6;
+  --color-primary-active: #0B7A70;
+  --color-accent: #86E8D6;
+  --color-accent-strong: #86E8D6;
+  --color-accent-tint: #0A4352;
+  --color-accent-border: #12A89A;
+  --color-focus-ring: rgba(134, 232, 214, 0.35);
+
+  --bg-app: #031F27;
+  --bg-card: #05303B;
+  --bg-sidebar: #05303B;
+  --text-main: #FFFFFF;
+  --text-muted: #CBD5DB;
+  --border-ui: #0A4352;
+  --accent-soft: #0A4352;
+}
+
+::selection {
+  background-color: #B8E6E0;
+  color: #05303B;
+}
+
+:focus-visible {
+  outline: 2px solid #12A89A;
+  outline-offset: 1px;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: #12A89A !important;
+  box-shadow: 0 0 0 3px rgba(18, 168, 154, 0.25) !important;
+  outline: none !important;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: #12A89A;
 }
 
 body {

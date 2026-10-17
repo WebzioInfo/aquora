@@ -177,7 +177,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                         checked={isAllSelected}
                         onChange={onToggleSelectAll}
                         aria-label="Select all rows"
-                        className="w-4 h-4 rounded border-slate-300 text-[#1A56DB] focus:ring-[#1A56DB] cursor-pointer"
+                        className="w-4 h-4 rounded border-slate-300 text-[#0B7A70] focus:ring-[#12A89A] cursor-pointer"
                       />
                     </th>
                     {/* Asset (Name + Date) */}

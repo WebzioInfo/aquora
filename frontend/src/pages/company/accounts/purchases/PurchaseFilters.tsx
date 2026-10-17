@@ -108,7 +108,7 @@ export const PurchaseFilters: React.FC<PurchaseFiltersProps> = ({
               placeholder="Search purchase #, vendor, invoice..."
               value={filters.search}
               onChange={e => onChange({ search: e.target.value })}
-              className="w-full h-[32px] pl-8 pr-7 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] focus:bg-white text-slate-800 placeholder-slate-400 transition-colors"
+              className="w-full h-[32px] pl-8 pr-7 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] focus:bg-white text-slate-800 placeholder-slate-400 transition-colors"
             />
             {filters.search && (
               <button
@@ -174,9 +174,9 @@ export const PurchaseFilters: React.FC<PurchaseFiltersProps> = ({
             <select
               value={filters.vendorId}
               onChange={e => onChange({ vendorId: e.target.value })}
-              className={`h-[32px] pl-2.5 pr-7 text-xs border rounded-lg focus:outline-none focus:border-[#1A56DB] cursor-pointer appearance-none ${
+              className={`h-[32px] pl-2.5 pr-7 text-xs border rounded-lg focus:outline-none focus:border-[#12A89A] cursor-pointer appearance-none ${
                 filters.vendorId
-                  ? 'border-[#1A56DB] bg-blue-50 text-[#1A56DB] font-bold'
+                  ? 'border-[#12A89A] bg-blue-50 text-[#0B7A70] font-bold'
                   : 'border-slate-200 bg-slate-50 text-slate-700'
               }`}
             >
@@ -238,9 +238,9 @@ export const PurchaseFilters: React.FC<PurchaseFiltersProps> = ({
             <select
               value={filters.datePreset}
               onChange={e => handlePresetChange(e.target.value as any)}
-              className={`h-[32px] pl-2.5 pr-7 text-xs border rounded-lg focus:outline-none focus:border-[#1A56DB] cursor-pointer appearance-none ${
+              className={`h-[32px] pl-2.5 pr-7 text-xs border rounded-lg focus:outline-none focus:border-[#12A89A] cursor-pointer appearance-none ${
                 filters.datePreset !== 'all'
-                  ? 'border-[#1A56DB] bg-blue-50 text-[#1A56DB] font-bold'
+                  ? 'border-[#12A89A] bg-blue-50 text-[#0B7A70] font-bold'
                   : 'border-slate-200 bg-slate-50 text-slate-700'
               }`}
             >
@@ -260,14 +260,14 @@ export const PurchaseFilters: React.FC<PurchaseFiltersProps> = ({
                 type="date"
                 value={filters.startDate || ''}
                 onChange={e => onChange({ startDate: e.target.value })}
-                className="h-[32px] px-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] bg-slate-50"
+                className="h-[32px] px-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] bg-slate-50"
               />
               <span className="text-slate-400 text-xs">to</span>
               <input
                 type="date"
                 value={filters.endDate || ''}
                 onChange={e => onChange({ endDate: e.target.value })}
-                className="h-[32px] px-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] bg-slate-50"
+                className="h-[32px] px-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] bg-slate-50"
               />
             </div>
           )}
@@ -278,7 +278,7 @@ export const PurchaseFilters: React.FC<PurchaseFiltersProps> = ({
           <button
             type="button"
             onClick={onClear}
-            className="flex items-center gap-1 text-xs text-[#1A56DB] hover:text-[#1746B3] hover:underline font-semibold cursor-pointer shrink-0"
+            className="flex items-center gap-1 text-xs text-[#0B7A70] hover:text-[#05303B] hover:underline font-semibold cursor-pointer shrink-0"
           >
             <RotateCcw className="w-3 h-3" />
             Clear filters
@@ -295,7 +295,7 @@ export const PurchaseFilters: React.FC<PurchaseFiltersProps> = ({
             placeholder="Search purchases..."
             value={filters.search}
             onChange={e => onChange({ search: e.target.value })}
-            className="w-full h-[36px] pl-8 pr-7 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB]"
+            className="w-full h-[36px] pl-8 pr-7 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A]"
           />
           {filters.search && (
             <button
@@ -313,7 +313,7 @@ export const PurchaseFilters: React.FC<PurchaseFiltersProps> = ({
           onClick={() => setMobileFilterOpen(true)}
           className={`h-[36px] px-3 text-xs font-semibold rounded-lg border flex items-center gap-1.5 shrink-0 ${
             hasActiveFilters
-              ? 'bg-[#1A56DB] text-white border-[#1A56DB]'
+              ? 'bg-[#05303B] text-white border-[#12A89A]'
               : 'bg-white border-slate-200 text-slate-700'
           }`}
         >
@@ -354,7 +354,7 @@ export const PurchaseFilters: React.FC<PurchaseFiltersProps> = ({
                       onClick={() => handleStatusChange(s)}
                       className={`py-2 text-xs font-semibold rounded-lg border transition-colors ${
                         isSelected
-                          ? 'bg-[#1A56DB] text-white border-[#1A56DB]'
+                          ? 'bg-[#05303B] text-white border-[#12A89A]'
                           : 'bg-slate-50 border-slate-200 text-slate-700'
                       }`}
                     >
@@ -461,7 +461,7 @@ export const PurchaseFilters: React.FC<PurchaseFiltersProps> = ({
               <button
                 type="button"
                 onClick={() => setMobileFilterOpen(false)}
-                className={`${hasActiveFilters ? 'w-1/2' : 'w-full'} py-2.5 text-xs font-semibold text-white bg-[#1A56DB] rounded-lg`}
+                className={`${hasActiveFilters ? 'w-1/2' : 'w-full'} py-2.5 text-xs font-semibold text-white bg-[#12A89A] rounded-lg`}
               >
                 Apply Filters
               </button>

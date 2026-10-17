@@ -127,7 +127,7 @@ export const PayrollTable: React.FC<PayrollTableProps> = ({
                   <button
                     type="button"
                     onClick={onOpenCreateSettlement}
-                    className="px-3 py-1.5 bg-[#1A56DB] hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors inline-flex items-center gap-1.5 shadow-2xs"
+                    className="px-3 py-1.5 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white rounded-lg text-xs font-medium transition-colors inline-flex items-center gap-1.5 shadow-2xs"
                   >
                     <Calculator className="w-3.5 h-3.5" />
                     Salary settlement
@@ -165,7 +165,7 @@ export const PayrollTable: React.FC<PayrollTableProps> = ({
                     type="checkbox"
                     checked={isAllSelected}
                     onChange={onToggleSelectAll}
-                    className="w-4 h-4 rounded border-slate-300 text-[#1A56DB] focus:ring-0 cursor-pointer"
+                    className="w-4 h-4 rounded border-slate-300 text-[#0B7A70] focus:ring-0 cursor-pointer"
                   />
                 </th>
                 <th className="px-3 py-2.5 min-w-[180px]">Employee</th>
@@ -176,8 +176,8 @@ export const PayrollTable: React.FC<PayrollTableProps> = ({
                 >
                   <div className="flex items-center gap-1">
                     <span>Month</span>
-                    {monthSortOrder === 'desc' && <ArrowDown className="w-3 h-3 text-[#1A56DB]" />}
-                    {monthSortOrder === 'asc' && <ArrowUp className="w-3 h-3 text-[#1A56DB]" />}
+                    {monthSortOrder === 'desc' && <ArrowDown className="w-3 h-3 text-[#0B7A70]" />}
+                    {monthSortOrder === 'asc' && <ArrowUp className="w-3 h-3 text-[#0B7A70]" />}
                     {monthSortOrder === null && <ArrowUpDown className="w-3 h-3 text-slate-400 opacity-60" />}
                   </div>
                 </th>

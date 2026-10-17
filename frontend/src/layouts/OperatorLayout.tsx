@@ -298,8 +298,8 @@ export const OperatorLayout: React.FC = () => {
     <div 
       className="h-screen w-screen overflow-hidden flex flex-col bg-[#F3F4F6] text-[#111827] font-sans"
       style={{
-        '--line-primary': lineTheme?.primary || '#1A56DB',
-        '--line-secondary': lineTheme?.secondary || '#E8F0FE',
+        '--line-primary': lineTheme?.primary || '#12A89A',
+        '--line-secondary': lineTheme?.secondary || '#E6F6F4',
         '--line-bg': lineTheme?.primary || '#FFFFFF',
         '--line-text': lineTheme ? '#FFFFFF' : '#111827'
       } as React.CSSProperties}
@@ -316,10 +316,9 @@ export const OperatorLayout: React.FC = () => {
         <div className="flex items-center gap-3">
           {/* Logo & Title */}
           <div className="flex items-center gap-2.5">
-            <img src={BRAND.logo} alt={BRAND.name} className="h-9 w-auto object-contain shrink-0 bg-white/10 p-1 rounded-lg" />
+            <img src={BRAND.logo} alt={BRAND.name} className="h-7 w-auto object-contain shrink-0" />
             <div className="text-left">
-              <span className="font-extrabold text-xs leading-none tracking-tight block">Aquzio</span>
-              <span className="font-bold text-[8px] uppercase tracking-widest block mt-0.5" style={{ color: lineTheme ? 'rgba(255,255,255,0.7)' : '#6B7280' }}>
+              <span className="font-bold text-[8px] uppercase tracking-widest block" style={{ color: lineTheme ? 'rgba(255,255,255,0.7)' : '#6B7280' }}>
                 Production Terminal
               </span>
             </div>
@@ -421,7 +420,7 @@ export const OperatorLayout: React.FC = () => {
             <div 
               className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-[10px] shadow-sm transition-colors duration-300"
               style={{
-                backgroundColor: lineTheme ? '#FFFFFF' : '#1A56DB',
+                backgroundColor: lineTheme ? '#FFFFFF' : '#05303B',
                 color: lineTheme ? 'var(--line-primary)' : '#FFFFFF'
               }}
             >
@@ -521,7 +520,7 @@ export const OperatorLayout: React.FC = () => {
               </button>
               <button
                 onClick={handleSaveAndSwitch}
-                className="px-4 py-2 bg-[#1A56DB] hover:bg-[#1E40AF] text-white rounded-[6px] font-bold transition-colors text-xs uppercase cursor-pointer"
+                className="px-4 py-2 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white rounded-[6px] font-bold transition-colors text-xs uppercase cursor-pointer"
               >
                 Save & Switch
               </button>

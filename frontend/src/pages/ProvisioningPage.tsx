@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HubConnectionBuilder, HubConnection, HubConnectionState, LogLevel } from '@microsoft/signalr'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../store/useAuthStore'
 import { useNotificationStore } from '../store/useNotificationStore'
 import { authService } from '../services/auth'
+import { getFriendlyError } from '../utils/getFriendlyError'
 import { api, API_BASE_URL } from '../services/api'
-import BRAND from '../config/brand'
 import {
-  CheckCircle2, AlertCircle, HelpCircle, LogOut, Wifi, WifiOff,
+  Check, CheckCircle2, AlertCircle, HelpCircle, LogOut,
   Loader2, RefreshCw, Download, ArrowRight, Building2
 } from 'lucide-react'
 
@@ -35,7 +35,7 @@ export const ProvisioningPage: React.FC = () => {
   const { token, updateUser, clearAuth } = useAuthStore()
   const { showToast } = useNotificationStore()
 
-  // Authentic Initial State: Clean, truthful, no fake optimistic running steps
+  // Real initial state: truthful, honest, no fake progress
   const [statusState, setStatusState] = useState<ProvisioningStatusResponse>({
     status: 'Pending',
     progress: 0,
@@ -54,6 +54,10 @@ export const ProvisioningPage: React.FC = () => {
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const isMountedRef = useRef(true)
   const completionHandledRef = useRef(false)
+
+  useEffect(() => {
+    document.title = 'Setting up workspace · Aquzio'
+  }, [])
 
   // Redirect to dashboard cleanly after backend signals completion
   const handleFinalRedirect = useCallback(async () => {
@@ -114,7 +118,6 @@ export const ProvisioningPage: React.FC = () => {
       clearInterval(pollIntervalRef.current)
       pollIntervalRef.current = null
     }
-    // Background fallback polling every 3 seconds only while active
     pollIntervalRef.current = setInterval(() => {
       fetchTelemetryStatusRef.current()
     }, 3000)
@@ -143,31 +146,49 @@ export const ProvisioningPage: React.FC = () => {
       }
 
       setNoWorkspaceFound(false)
+
       setStatusState(prev => {
-        if (prev.status === 'Completed' && data.status !== 'Completed') return prev
+        let mergedSteps = (data.steps && data.steps.length > 0 ? data.steps : prev.steps) || []
+
+        if (data.status === 'Completed') {
+          mergedSteps = mergedSteps.map(s => ({ ...s, status: 'Completed' }))
+        } else if (data.currentStep && mergedSteps.length > 0) {
+          let foundCurrent = false
+          mergedSteps = mergedSteps.map(s => {
+            if (s.name === data.currentStep || s.key === data.currentStep) {
+              foundCurrent = true
+              return { ...s, status: data.status === 'Failed' ? 'Failed' : 'Running' }
+            }
+            if (!foundCurrent) {
+              return { ...s, status: 'Completed' }
+            }
+            return { ...s, status: 'Pending' }
+          })
+        }
+
         return {
-          tenantId: data.tenantId,
+          ...prev,
+          tenantId: data.tenantId ?? prev.tenantId,
           status: data.status,
-          progress: data.progress ?? 0,
-          currentStep: data.currentStep ?? '',
-          message: data.message || 'Provisioning workspace...',
-          failureReason: data.status === 'Failed' ? (data.failureReason || null) : null,
-          steps: Array.isArray(data.steps) ? data.steps : [],
-          estimatedRemainingSeconds: data.status === 'Failed' ? null : data.estimatedRemainingSeconds
+          progress: data.progress,
+          currentStep: data.currentStep || prev.currentStep,
+          message: data.message || prev.message,
+          failureReason: data.failureReason || (data.status === 'Failed' ? 'Provisioning pipeline encountered an error.' : null),
+          steps: mergedSteps,
+          estimatedRemainingSeconds: data.estimatedRemainingSeconds
         }
       })
-
-      if (data.status === 'Failed') {
-        stopPolling()
-        return
-      }
 
       if (data.status === 'Completed' || data.progress >= 100) {
         stopPolling()
         handleFinalRedirectRef.current()
+      } else if (data.status === 'Failed') {
+        stopPolling()
       }
-    } catch (err) {
-      console.warn('[PROVISIONING POLLING]: Telemetry fetch failed:', err)
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        setNoWorkspaceFound(true)
+      }
     }
   }, [stopPolling])
 
@@ -176,121 +197,118 @@ export const ProvisioningPage: React.FC = () => {
     fetchTelemetryStatusRef.current = fetchTelemetryStatus
   }, [fetchTelemetryStatus])
 
-  // SignalR Hub Connection Setup
+  // Real-Time SignalR Stream Connection with Reconnection
   useEffect(() => {
     isMountedRef.current = true
+    completionHandledRef.current = false
 
-    // Initial telemetry check
     fetchTelemetryStatusRef.current()
 
-    const hubUrl = `${API_BASE_URL}/hub/provisioning`
     const connection = new HubConnectionBuilder()
-      .withUrl(hubUrl, {
+      .withUrl(`${API_BASE_URL}/hubs/provisioning`, {
         accessTokenFactory: () => token || '',
+        withCredentials: true
       })
-      .withAutomaticReconnect([0, 2000, 5000, 10000, 15000])
-      .configureLogging(LogLevel.Warning)
+      .configureLogging(LogLevel.None)
+      .withAutomaticReconnect({
+        nextRetryDelayInMilliseconds: (retryContext) => {
+          if (retryContext.previousRetryCount >= 5) return null
+          return Math.min(1000 * Math.pow(2, retryContext.previousRetryCount), 10000)
+        }
+      })
       .build()
 
     connectionRef.current = connection
 
-    const updateSignalRState = (payload: any) => {
-      if (!isMountedRef.current) return
+    connection.on('ReceiveProvisioningStatus', (payload: ProvisioningStatusResponse) => {
+      if (!isMountedRef.current || completionHandledRef.current) return
+      setConnectionMode('SignalR')
 
-      const newStatus = payload.status || (payload.progress >= 100 ? 'Completed' : 'Provisioning')
       setStatusState(prev => {
-        if (prev.status === 'Completed' && newStatus !== 'Completed') return prev
-        const nextProgress = payload.progress !== undefined && payload.progress !== null ? Math.max(prev.progress, payload.progress) : prev.progress
-        const nextMessage = payload.message || prev.message
+        let mergedSteps = (payload.steps && payload.steps.length > 0 ? payload.steps : prev.steps) || []
+
+        if (payload.status === 'Completed') {
+          mergedSteps = mergedSteps.map(s => ({ ...s, status: 'Completed' }))
+        } else if (payload.currentStep && mergedSteps.length > 0) {
+          let foundCurrent = false
+          mergedSteps = mergedSteps.map(s => {
+            if (s.name === payload.currentStep || s.key === payload.currentStep) {
+              foundCurrent = true
+              return { ...s, status: payload.status === 'Failed' ? 'Failed' : 'Running' }
+            }
+            if (!foundCurrent) {
+              return { ...s, status: 'Completed' }
+            }
+            return { ...s, status: 'Pending' }
+          })
+        }
+
         return {
           ...prev,
-          status: newStatus,
-          progress: nextProgress,
-          currentStep: payload.stage || prev.currentStep,
-          message: nextMessage,
-          failureReason: newStatus === 'Failed' ? (payload.failureReason || prev.failureReason) : null
+          tenantId: payload.tenantId ?? prev.tenantId,
+          status: payload.status,
+          progress: payload.progress,
+          currentStep: payload.currentStep || prev.currentStep,
+          message: payload.message || prev.message,
+          failureReason: payload.failureReason || (payload.status === 'Failed' ? 'Provisioning pipeline encountered an error.' : null),
+          steps: mergedSteps,
+          estimatedRemainingSeconds: payload.estimatedRemainingSeconds
         }
       })
 
-      if (newStatus === 'Failed') {
-        stopPolling()
-        return
-      }
-
-      if (newStatus === 'Completed' || payload.progress >= 100) {
+      if (payload.status === 'Completed' || payload.progress >= 100) {
         stopPolling()
         handleFinalRedirectRef.current()
-      } else {
-        // Fetch full updated step list from telemetry endpoint
-        fetchTelemetryStatusRef.current()
+      } else if (payload.status === 'Failed') {
+        stopPolling()
       }
-    }
-
-    connection.on('ProvisionProgressUpdated', updateSignalRState)
-    connection.on('ProvisionStepCompleted', updateSignalRState)
-    connection.on('ProvisionFinished', updateSignalRState)
-    connection.on('ProvisionFailed', (payload) => {
-      stopPolling()
-      if (!isMountedRef.current) return
-      setStatusState(prev => ({
-        ...prev,
-        status: 'Failed',
-        failureReason: payload.failureReason || payload.message || 'Provisioning pipeline failed.'
-      }))
     })
 
     connection.onreconnecting((error) => {
-      console.warn('[SIGNALR RECONNECTING]:', error)
-      if (isMountedRef.current) {
-        setConnectionMode('Reconnecting')
-        setReconnectAttempt(prev => prev + 1)
-      }
+      if (!isMountedRef.current) return
+      setConnectionMode('Reconnecting')
+      setReconnectAttempt(prev => prev + 1)
+      startPolling()
     })
 
     connection.onreconnected(() => {
-      if (isMountedRef.current) {
-        setConnectionMode('SignalR')
-        setReconnectAttempt(1)
-        fetchTelemetryStatusRef.current()
-      }
+      if (!isMountedRef.current) return
+      setConnectionMode('SignalR')
+      setReconnectAttempt(1)
+      stopPolling()
+      fetchTelemetryStatusRef.current()
     })
 
     connection.onclose(() => {
-      if (isMountedRef.current) {
-        setConnectionMode('Polling')
+      if (!isMountedRef.current) return
+      setConnectionMode('Polling')
+      if (!completionHandledRef.current) {
+        startPolling()
       }
     })
 
-    // Start connection safely if disconnected
-    if (connection.state === HubConnectionState.Disconnected) {
-      connection.start()
-        .then(() => {
-          if (isMountedRef.current) {
-            setConnectionMode('SignalR')
-            fetchTelemetryStatusRef.current()
-          }
-        })
-        .catch((err) => {
-          console.warn('[SIGNALR CONNECT FAILED]: Falling back to HTTP polling:', err)
-          if (isMountedRef.current) {
-            setConnectionMode('Polling')
-            fetchTelemetryStatusRef.current()
-          }
-        })
-    }
-
-    // Start single authoritative polling timer
-    startPolling()
+    connection
+      .start()
+      .then(() => {
+        if (isMountedRef.current) {
+          setConnectionMode('SignalR')
+        }
+      })
+      .catch(() => {
+        if (isMountedRef.current) {
+          setConnectionMode('Polling')
+          startPolling()
+        }
+      })
 
     return () => {
       isMountedRef.current = false
-      stopPolling()
-      if (connectionRef.current) {
-        const conn = connectionRef.current
-        connectionRef.current = null
-        if (conn.state === HubConnectionState.Connected) {
-          conn.stop().catch(() => {})
-        }
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+      if (connection.state === HubConnectionState.Connected) {
+        connection.stop().catch(() => {})
       }
     }
   }, [token, startPolling, stopPolling])
@@ -302,15 +320,17 @@ export const ProvisioningPage: React.FC = () => {
     try {
       const response = await api.post('/api/v1/onboarding/retry')
       if (response.data?.success) {
-        showToast('Restarted workspace provisioning pipeline.', 'info')
+        showToast('Restarted workspace setup', 'info')
         setStatusState(prev => ({ ...prev, status: 'Provisioning', failureReason: null }))
         startPolling()
         fetchTelemetryStatus()
       } else {
-        showToast('Retry request failed.', 'error')
+        const friendly = getFriendlyError(response.data, 'provisioning')
+        showToast(friendly.message, 'error')
       }
     } catch (err: any) {
-      showToast(err.response?.data?.message || 'Retry request failed.', 'error')
+      const friendly = getFriendlyError(err, 'provisioning')
+      showToast(friendly.message, 'error')
     } finally {
       setIsRetrying(false)
     }
@@ -322,22 +342,22 @@ export const ProvisioningPage: React.FC = () => {
     navigate('/login')
   }
 
-  // Download Diagnostic Log
+  // Diagnostic Log Download
   const handleDownloadLog = () => {
-    const logContent = `AQUZIO ERP PROVISIONING DIAGNOSTIC LOG
-Timestamp: ${new Date().toISOString()}
+    const logContent = `AQUZIO WORKSPACE SETUP DIAGNOSTIC
+Generated: ${new Date().toISOString()}
 Status: ${statusState.status}
 Progress: ${statusState.progress}%
 Current Step: ${statusState.currentStep}
-Failure Reason: ${statusState.failureReason || 'N/A'}
-Pipeline Steps:
-${(statusState.steps || []).map(s => `- [${s.status}] ${s.name} (${s.key})`).join('\n')}`
+Error: ${statusState.failureReason || 'None'}
+Pipeline Stages:
+${(statusState.steps || []).map(s => `- [${s.status}] ${s.name}`).join('\n')}`
 
     const blob = new Blob([logContent], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `aquora_provisioning_log_${Date.now()}.txt`
+    link.download = `aquzio_setup_diagnostic_${Date.now()}.txt`
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -349,225 +369,228 @@ ${(statusState.steps || []).map(s => `- [${s.status}] ${s.name} (${s.key})`).joi
   const completedCount = steps.filter(s => s.status === 'Completed').length
   const calculatedProgress = isComplete ? 100 : (steps.length > 0 ? Math.round((completedCount / steps.length) * 100) : statusState.progress)
 
+  // Friendly failure message translation
+  const friendlyFailure = isFailed
+    ? getFriendlyError({ message: statusState.failureReason || 'Setup error' }, 'provisioning')
+    : null
+
   return (
-    <div className="w-full flex justify-center items-center font-sans">
-
-      {/* FRESH WHITE SURFACE CARD */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-[480px] bg-white border border-[#E5E7EB] rounded-2xl shadow-xs p-8 sm:p-9 space-y-5 relative z-10"
-      >
-
-        {/* Header */}
-        <div className="flex flex-col items-center text-center space-y-1.5 select-none">
-          <img src={BRAND.logo} alt={BRAND.name} className="h-14 w-auto object-contain mb-1" />
-          <div>
-            <h2 className="text-xl font-extrabold text-[#111827] tracking-tight">
-              {isPendingNoWorkspace
-                ? 'No Workspace Found'
-                : isFailed
-                  ? 'Setup Failed'
-                  : isComplete
-                    ? 'Workspace Ready'
-                    : 'Creating Workspace'}
-            </h2>
-            <p className="text-xs font-medium text-[#6B7280]">
-              {isPendingNoWorkspace
-                ? 'You have not initialized a company workspace yet.'
-                : isFailed
-                  ? 'An error occurred during workspace provisioning'
-                  : isComplete
-                    ? 'All manufacturing modules initialized'
-                    : statusState.message}
-            </p>
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className="auth-card-wide"
+      aria-live="polite"
+    >
+      {/* Circle mark header and title */}
+      <div className="flex flex-col items-center text-center select-none mb-6">
+        {isComplete ? (
+          <div className="w-12 h-12 rounded-full bg-[#12A89A]/10 border border-[#12A89A]/30 flex items-center justify-center text-[#12A89A] mb-3">
+            <Check className="w-6 h-6 stroke-[2.5]" />
           </div>
-        </div>
-
-        {/* Pending / No Workspace Callout */}
-        {isPendingNoWorkspace ? (
-          <div className="space-y-4 pt-2">
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 leading-relaxed text-left flex items-start gap-3">
-              <Building2 className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold text-blue-950 mb-1">Company Setup Required</p>
-                <p className="text-blue-800">
-                  Please complete the initial company onboarding form to specify your company details and manufacturing stations.
-                </p>
-              </div>
-            </div>
-
-            <motion.button
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              onClick={() => navigate('/onboarding', { replace: true })}
-              className="w-full h-12 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <span>Go to Company Onboarding</span>
-              <ArrowRight className="w-4 h-4" />
-            </motion.button>
+        ) : isFailed ? (
+          <div className="w-12 h-12 rounded-full bg-red-50 border border-red-200 flex items-center justify-center text-red-600 mb-3">
+            <AlertCircle className="w-6 h-6" />
           </div>
         ) : (
-          <>
-            {/* Real-time Connection Badge */}
-            <div className="flex items-center justify-between p-2.5 bg-[#FAFBFC] border border-[#E5E7EB] rounded-xl text-xs select-none">
-              <span className="text-[#6B7280] font-medium flex items-center gap-1.5">
-                {isFailed ? (
-                  <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
-                ) : connectionMode === 'SignalR' ? (
-                  <Wifi className="w-3.5 h-3.5 text-emerald-600" />
-                ) : connectionMode === 'Reconnecting' ? (
-                  <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin" />
-                ) : (
-                  <WifiOff className="w-3.5 h-3.5 text-blue-600" />
-                )}
-                <span>
-                  {isFailed
-                    ? `Pipeline Halted (${statusState.currentStep || 'Failed'})`
-                    : connectionMode === 'SignalR'
-                      ? 'Real-Time Pipeline (SignalR)'
-                      : connectionMode === 'Reconnecting'
-                        ? `Reconnecting... Attempt ${reconnectAttempt} of 5`
-                        : 'HTTP Telemetry Stream (Active)'}
-                </span>
-              </span>
-              <span className={`font-bold font-mono ${isFailed ? 'text-rose-600' : 'text-[#111827]'}`}>
-                {isFailed ? `FAILED (${calculatedProgress}%)` : `${calculatedProgress}%`}
-              </span>
-            </div>
-
-            {/* Dynamic Progress Bar */}
-            {!isFailed && (
-              <div className="space-y-1.5 select-none">
-                <div className="w-full bg-[#E5E7EB] rounded-full h-2 overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${calculatedProgress}%` }}
-                    transition={{ duration: 0.4 }}
-                    className={`h-full rounded-full ${isComplete ? 'bg-emerald-600' : 'bg-[#2563EB]'}`}
-                  />
-                </div>
-                <div className="flex justify-between items-center text-[11px] text-[#6B7280]">
-                  <span>{completedCount} of {steps.length || 9} steps finished</span>
-                  {!isComplete && !isFailed && statusState.estimatedRemainingSeconds != null && (
-                    <span>~{statusState.estimatedRemainingSeconds}s remaining</span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Pipeline Step-by-Step Checklist */}
-            {steps.length > 0 && (
-              <div className="space-y-2 pt-1">
-                <span className="text-xs font-bold text-[#111827] block select-none">
-                  Provisioning Pipeline Steps
-                </span>
-
-                <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
-                  {steps.map((st, idx) => {
-                    const isStepDone = st.status === 'Completed'
-                    const isStepRunning = st.status === 'Running'
-                    const isStepFailed = st.status === 'Failed'
-
-                    return (
-                      <div
-                        key={st.key || idx}
-                        className={`p-2.5 rounded-xl border text-xs flex items-center justify-between transition-colors ${isStepDone ? 'bg-emerald-50/40 border-emerald-200/60' :
-                          isStepRunning ? 'bg-blue-50/50 border-blue-200' :
-                            isStepFailed ? 'bg-rose-50 border-rose-200' :
-                              'bg-[#FAFBFC] border-[#E5E7EB]'
-                          }`}
-                      >
-                        <div className="flex items-center gap-2.5 truncate">
-                          {isStepDone && <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
-                          {isStepRunning && <Loader2 className="w-4 h-4 text-[#2563EB] animate-spin shrink-0" />}
-                          {isStepFailed && <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />}
-                          {!isStepDone && !isStepRunning && !isStepFailed && (
-                            <div className="w-4 h-4 rounded-full border border-slate-300 shrink-0" />
-                          )}
-                          <span className={`truncate font-medium ${isStepDone ? 'text-emerald-950 font-semibold' :
-                            isStepRunning ? 'text-[#2563EB] font-bold' :
-                              isStepFailed ? 'text-rose-950 font-bold' :
-                                'text-[#6B7280]'
-                            }`}>
-                            {st.name}
-                          </span>
-                        </div>
-
-                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${isStepDone ? 'bg-emerald-100 text-emerald-800' :
-                          isStepRunning ? 'bg-blue-100 text-blue-800' :
-                            isStepFailed ? 'bg-rose-100 text-rose-800' :
-                              'bg-slate-100 text-slate-500'
-                          }`}>
-                          {st.status}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Failed Diagnostics Box */}
-            {isFailed && (
-              <div className="space-y-3 pt-2">
-                {statusState.failureReason && (
-                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 font-mono leading-relaxed max-h-24 overflow-y-auto">
-                    <strong className="block font-bold mb-0.5">Failure Reason:</strong>
-                    {statusState.failureReason}
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-2">
-                  <motion.button
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                    onClick={handleRetry}
-                    disabled={isRetrying}
-                    className="w-full h-12 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    <RefreshCw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />
-                    <span>Retry Workspace Provisioning</span>
-                  </motion.button>
-
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleDownloadLog}
-                      className="flex-1 h-10 bg-[#F8FAFC] hover:bg-[#F1F5F9] border border-[#E5E7EB] text-[#111827] font-semibold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <Download className="w-3.5 h-3.5 text-[#2563EB]" />
-                      <span>Download Logs</span>
-                    </button>
-
-                    <a
-                      href="mailto:webzio.info@gmail.com?subject=Workspace Provisioning Issue"
-                      className="flex-1 h-10 bg-[#F8FAFC] hover:bg-[#F1F5F9] border border-[#E5E7EB] text-[#111827] font-semibold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <HelpCircle className="w-3.5 h-3.5 text-[#6B7280]" />
-                      <span>Contact Support</span>
-                    </a>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
+          <img
+            src="/brand/aquzio-icon-light.png"
+            alt="Aquzio"
+            className="w-11 h-11 object-contain mb-3"
+          />
         )}
 
-        {/* Sign Out Option */}
-        <div className="pt-2 border-t border-[#E5E7EB] text-center select-none">
+        <h1 className="text-[22px] font-semibold text-[#05303B] tracking-tight leading-tight">
+          {isPendingNoWorkspace
+            ? 'Company setup required'
+            : isFailed
+            ? 'Workspace setup could not complete'
+            : isComplete
+            ? 'Your workspace is ready'
+            : 'Setting up your workspace'}
+        </h1>
+        <p className="text-[14px] text-[#5B6B75] mt-1 leading-normal max-w-md">
+          {isPendingNoWorkspace
+            ? 'Please complete the initial company onboarding form to configure your workspace.'
+            : isFailed
+            ? (friendlyFailure?.message || 'Something went wrong while initializing your plant modules.')
+            : isComplete
+            ? 'All manufacturing modules, databases, and operational ledgers are initialized.'
+            : 'Initializing production lines, quality benchmarks, and inventory ledgers.'}
+        </p>
+      </div>
+
+      {/* Case 1: No Workspace Created Yet */}
+      {isPendingNoWorkspace ? (
+        <div className="space-y-4 select-none">
+          <div className="p-4 bg-slate-50 border border-[#E3E8EC] rounded-xl flex items-start gap-3 text-xs text-[#5B6B75]">
+            <Building2 className="w-4 h-4 text-[#05303B] shrink-0 mt-0.5" />
+            <div>
+              <span className="font-semibold text-[#05303B] block mb-0.5">Start with company details</span>
+              <span>Enter your company name, employee count, and station profile to generate your workspace.</span>
+            </div>
+          </div>
+
           <button
-            onClick={handleLogout}
-            className="text-xs font-semibold text-[#6B7280] hover:text-[#2563EB] transition-colors flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
+            type="button"
+            onClick={() => navigate('/onboarding', { replace: true })}
+            className="auth-button-primary"
           >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Sign Out</span>
+            <span>Go to Company Onboarding</span>
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
+      ) : (
+        <div className="space-y-5">
+          {/* Flat 4px Progress Bar (brand teal on #E3E8EC) */}
+          {!isFailed && (
+            <div className="space-y-1.5 select-none">
+              <div className="w-full bg-[#E3E8EC] rounded-full h-1 overflow-hidden">
+                <div
+                  className="bg-[#12A89A] h-full transition-all duration-300"
+                  style={{ width: `${calculatedProgress}%` }}
+                />
+              </div>
+              <div className="flex justify-between items-center text-[12px] text-[#5B6B75]">
+                <span>{completedCount} of {steps.length || 8} stages finished</span>
+                <span className="font-mono font-medium text-[#05303B]">{calculatedProgress}%</span>
+              </div>
+            </div>
+          )}
 
-      </motion.div>
+          {/* Real, honest progress list of stages */}
+          {steps.length > 0 && (
+            <div className="space-y-2 select-none" role="list" aria-label="Workspace setup stages">
+              <span className="auth-label">Setup Stages</span>
+              <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                {steps.map((st, idx) => {
+                  const isDone = st.status === 'Completed'
+                  const isRunning = st.status === 'Running'
+                  const hasFailed = st.status === 'Failed'
 
-    </div>
+                  return (
+                    <div
+                      key={st.key || idx}
+                      role="listitem"
+                      className={`px-3.5 py-2.5 rounded-lg border text-xs flex items-center justify-between transition-colors ${
+                        isDone
+                          ? 'bg-slate-50/60 border-[#E3E8EC]'
+                          : isRunning
+                          ? 'bg-[#12A89A]/5 border-[#12A89A]/30'
+                          : hasFailed
+                          ? 'bg-red-50/60 border-red-200'
+                          : 'bg-white border-[#E3E8EC]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 truncate">
+                        {isDone ? (
+                          <div className="w-4 h-4 rounded-full bg-[#12A89A] text-white flex items-center justify-center shrink-0">
+                            <Check className="w-2.5 h-2.5 stroke-[3]" />
+                          </div>
+                        ) : isRunning ? (
+                          <Loader2 className="w-4 h-4 text-[#12A89A] animate-spin shrink-0" />
+                        ) : hasFailed ? (
+                          <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                        ) : (
+                          <div className="w-4 h-4 rounded-full border border-[#CBD5DB] shrink-0" />
+                        )}
+
+                        <span
+                          className={`truncate text-[13px] ${
+                            isDone
+                              ? 'text-[#05303B] font-medium'
+                              : isRunning
+                              ? 'text-[#05303B] font-semibold'
+                              : hasFailed
+                              ? 'text-red-900 font-semibold'
+                              : 'text-[#5B6B75]'
+                          }`}
+                        >
+                          {st.name}
+                        </span>
+                      </div>
+
+                      <span
+                        className={`text-[11px] font-medium ${
+                          isDone
+                            ? 'text-[#0B7A70]'
+                            : isRunning
+                            ? 'text-[#05303B] font-semibold'
+                            : hasFailed
+                            ? 'text-red-700'
+                            : 'text-[#94A3AD]'
+                        }`}
+                      >
+                        {isDone ? 'Completed' : isRunning ? 'In progress' : hasFailed ? 'Failed' : 'Pending'}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Success State Action */}
+          {isComplete && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleFinalRedirect}
+                className="auth-button-primary"
+              >
+                <span>Go to dashboard</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Failure State Action & Diagnostics */}
+          {isFailed && (
+            <div className="space-y-3 pt-2">
+              <button
+                type="button"
+                onClick={handleRetry}
+                disabled={isRetrying}
+                className="auth-button-primary"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />
+                <span>{isRetrying ? 'Retrying setup...' : 'Try again'}</span>
+              </button>
+
+              <div className="flex items-center justify-between pt-1 text-xs">
+                <button
+                  type="button"
+                  onClick={handleDownloadLog}
+                  className="auth-button-text"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download diagnostic log</span>
+                </button>
+
+                <a
+                  href="mailto:support@aquzio.com?subject=Workspace Setup Issue"
+                  className="auth-link text-xs"
+                >
+                  Contact support
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Footer Sign Out */}
+      <div className="pt-4 border-t border-[#E8EDF0] mt-6 text-center select-none">
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="auth-button-text mx-auto"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          <span>Sign out</span>
+        </button>
+      </div>
+    </motion.div>
   )
 }
 

@@ -69,11 +69,11 @@ export const getCategoryMeta = (category?: string): AssetCategoryMeta => {
   if (cat.includes('computer') || cat.includes('laptop') || cat.includes('it equipment') || cat.includes('electronics')) {
     return {
       icon: Laptop,
-      hex: '#1A56DB',
+      hex: '#12A89A',
       bg: 'bg-blue-100',
       text: 'text-blue-800',
       border: 'border-blue-200',
-      lightBg: '#EFF6FF'
+      lightBg: '#E6F6F4'
     }
   }
 

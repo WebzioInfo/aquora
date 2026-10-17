@@ -300,7 +300,7 @@ export const VendorDetailDrawer: React.FC<VendorDetailDrawerProps> = ({
                   <span className="font-semibold text-slate-700">Recent Purchases ({details?.purchases?.length || 0})</span>
                   <Link
                     to={`/company/accounts/purchases?vendorId=${vendor.id}`}
-                    className="text-[#1A56DB] hover:underline font-semibold flex items-center gap-1"
+                    className="text-[#0B7A70] hover:underline font-semibold flex items-center gap-1"
                   >
                     <span>View all purchases</span>
                     <ExternalLink className="w-3 h-3" />
@@ -482,7 +482,7 @@ export const VendorDetailDrawer: React.FC<VendorDetailDrawerProps> = ({
                       <button
                         type="button"
                         onClick={() => onOpenEdit(vendor)}
-                        className="text-[#1A56DB] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                        className="text-[#0B7A70] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
                       >
                         <Edit2 className="w-3 h-3" />
                         <span>Edit</span>

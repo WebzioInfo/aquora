@@ -62,10 +62,10 @@ export const PurchaseBulkBar: React.FC<PurchaseBulkBarProps> = ({
   const canPaySelected = canWrite && allHaveBalance && vendorIds.size === 1 && count > 0
 
   return (
-    <div className="p-2.5 sm:px-4 border-b border-blue-200 bg-[#EFF6FF] flex items-center justify-between gap-3 flex-wrap">
+    <div className="p-2.5 sm:px-4 border-b border-blue-200 bg-[#E6F6F4] flex items-center justify-between gap-3 flex-wrap">
       {/* Left: Summary */}
       <div className="flex items-center gap-2.5 min-w-0">
-        <span className="inline-flex items-center justify-center bg-[#1A56DB] text-white text-xs font-bold px-2 py-0.5 rounded-full shrink-0">
+        <span className="inline-flex items-center justify-center bg-[#05303B] text-white text-xs font-bold px-2 py-0.5 rounded-full shrink-0">
           {count}
         </span>
         <div className="text-xs text-slate-800 font-semibold truncate">

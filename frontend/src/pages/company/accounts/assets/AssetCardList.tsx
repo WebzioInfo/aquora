@@ -42,7 +42,7 @@ export const AssetCardList: React.FC<AssetCardListProps> = ({
             key={asset.id}
             onClick={() => onRowClick(asset)}
             className={`p-3.5 bg-white rounded-xl border border-[#E5E9F2] shadow-2xs hover:border-slate-300 transition-all cursor-pointer relative ${
-              isSelected ? 'ring-1.5 ring-[#1A56DB] bg-blue-50/20' : ''
+              isSelected ? 'ring-1.5 ring-[#12A89A] bg-blue-50/20' : ''
             } ${isDisposed ? 'opacity-70' : ''}`}
           >
             {/* Top row: Checkbox, Icon, Name + Date, ⋮ */}
@@ -59,7 +59,7 @@ export const AssetCardList: React.FC<AssetCardListProps> = ({
                     type="checkbox"
                     checked={isSelected}
                     onChange={() => {}}
-                    className="w-4 h-4 rounded border-slate-300 text-[#1A56DB] focus:ring-[#1A56DB]/20 focus:ring-offset-0 cursor-pointer"
+                    className="w-4 h-4 rounded border-slate-300 text-[#0B7A70] focus:ring-[#12A89A]/20 focus:ring-offset-0 cursor-pointer"
                   />
                 </div>
                 <div

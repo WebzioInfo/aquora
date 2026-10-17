@@ -78,7 +78,7 @@ export const VendorRow: React.FC<VendorRowProps> = ({
           checked={isSelected}
           onChange={() => {}}
           onClick={e => onToggleSelect(vendor.id, e)}
-          className="w-4 h-4 rounded border-slate-300 text-[#1A56DB] focus:ring-0 focus:outline-none cursor-pointer"
+          className="w-4 h-4 rounded border-slate-300 text-[#0B7A70] focus:ring-0 focus:outline-none cursor-pointer"
         />
       </td>
 
@@ -250,9 +250,9 @@ export const VendorRow: React.FC<VendorRowProps> = ({
                     setMenuOpen(false)
                     onOpenPayment(vendor)
                   }}
-                  className="w-full px-3 py-1.5 flex items-center gap-2 text-[#1A56DB] hover:bg-blue-50 cursor-pointer font-medium"
+                  className="w-full px-3 py-1.5 flex items-center gap-2 text-[#0B7A70] hover:bg-blue-50 cursor-pointer font-medium"
                 >
-                  <CreditCard className="w-3.5 h-3.5 text-[#1A56DB]" />
+                  <CreditCard className="w-3.5 h-3.5 text-[#0B7A70]" />
                   <span>Record payment</span>
                 </button>
               )}

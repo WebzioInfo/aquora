@@ -117,7 +117,7 @@ export const AssetRowActions: React.FC<AssetRowActionsProps> = ({
         onClick={onView}
         title="View Details"
         aria-label="View Details"
-        className="p-1.5 text-slate-500 hover:text-[#1A56DB] hover:bg-blue-50/80 active:bg-blue-100 rounded-lg transition-colors border border-transparent hover:border-blue-200/60 cursor-pointer"
+        className="p-1.5 text-slate-500 hover:text-[#0B7A70] hover:bg-blue-50/80 active:bg-blue-100 rounded-lg transition-colors border border-transparent hover:border-blue-200/60 cursor-pointer"
       >
         <Eye className="w-3.5 h-3.5" />
       </button>
@@ -176,9 +176,9 @@ export const AssetRowActions: React.FC<AssetRowActionsProps> = ({
                 type="button"
                 role="menuitem"
                 onClick={() => handleAction(onView)}
-                className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-slate-50 hover:text-[#1A56DB] text-left transition-colors cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-slate-50 hover:text-[#0B7A70] text-left transition-colors cursor-pointer"
               >
-                <Eye className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#1A56DB]" />
+                <Eye className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#0B7A70]" />
                 <span>View Details</span>
               </button>
 

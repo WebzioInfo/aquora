@@ -97,7 +97,7 @@ export const PurchaseCardMobile: React.FC<PurchaseCardMobileProps> = ({
             type="checkbox"
             checked={isSelected}
             onChange={onToggleSelect}
-            className="w-4 h-4 mt-0.5 rounded border-slate-300 text-[#1A56DB] focus:ring-0 cursor-pointer shrink-0"
+            className="w-4 h-4 mt-0.5 rounded border-slate-300 text-[#0B7A70] focus:ring-0 cursor-pointer shrink-0"
           />
           <div className="min-w-0">
             <span className="font-bold text-slate-900 text-xs block truncate leading-snug">

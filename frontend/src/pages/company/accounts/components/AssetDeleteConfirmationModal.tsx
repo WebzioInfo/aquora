@@ -116,7 +116,7 @@ export const AssetDeleteConfirmationModal: React.FC<AssetDeleteConfirmationModal
         <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
           <span className="font-extrabold text-slate-900 text-sm block">{asset.assetName}</span>
           <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500 font-medium">
-            <span className="font-mono text-[#1A56DB]">{asset.assetTag || asset.assetCode}</span>
+            <span className="font-mono text-[#0B7A70]">{asset.assetTag || asset.assetCode}</span>
             <span>·</span>
             <span>{asset.assetCategory}</span>
             <span>·</span>
@@ -131,7 +131,7 @@ export const AssetDeleteConfirmationModal: React.FC<AssetDeleteConfirmationModal
         {/* LOADING STATE */}
         {checkingHistory ? (
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center gap-3 text-slate-600">
-            <Loader2 className="w-5 h-5 text-[#1A56DB] animate-spin shrink-0" />
+            <Loader2 className="w-5 h-5 text-[#0B7A70] animate-spin shrink-0" />
             <span className="text-xs font-medium">Checking dependencies and financial audit trail...</span>
           </div>
         ) : deleteBlocked ? (

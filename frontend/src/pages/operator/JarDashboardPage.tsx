@@ -772,7 +772,7 @@ export const JarDashboardPage: React.FC = () => {
           border-radius: 8px;
         }
         .custom-sidebar-scroll::-webkit-scrollbar-thumb:hover {
-          background: #2563EB;
+          background: #12A89A;
         }
       `}</style>
       <PageContainer className="p-4 bg-white text-slate-800">
@@ -1440,7 +1440,7 @@ export const JarDashboardPage: React.FC = () => {
                     (returnedEmptyCount - contaminatedCount - damagedCount - reservedEmptyCount) >= 0 &&
                     (!takeFromReservedEnabled || (takeFromReserved >= 0 && takeFromReserved <= (distribContext?.reservedEmptyJars || 0)))
                   )
-                    ? 'bg-[#2563EB] hover:bg-blue-700 text-white'
+                    ? 'bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white'
                     : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
                     }`}
                 >

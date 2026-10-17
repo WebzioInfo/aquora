@@ -24,7 +24,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
     <div className="p-3 border-b border-[#E5E9F2] bg-blue-50/70 flex items-center justify-between gap-3 animate-in fade-in duration-150">
       {/* Left: Selected count and amount */}
       <div className="flex items-center gap-2">
-        <span className="inline-flex items-center justify-center bg-[#1A56DB] text-white text-xs font-bold px-2 py-0.5 rounded-full">
+        <span className="inline-flex items-center justify-center bg-[#05303B] text-white text-xs font-bold px-2 py-0.5 rounded-full">
           {selectedCount}
         </span>
         <span className="text-xs font-bold text-slate-800">

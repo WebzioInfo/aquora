@@ -273,7 +273,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
               <button
                 type="button"
                 onClick={handlePayFullBalance}
-                className="text-[11px] text-[#1A56DB] hover:underline font-semibold cursor-pointer"
+                className="text-[11px] text-[#0B7A70] hover:underline font-semibold cursor-pointer"
               >
                 Pay full balance ({formatINR(totalBalance)})
               </button>
@@ -288,7 +288,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full h-[38px] pl-8 pr-3 text-sm font-mono font-bold text-slate-900 border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] bg-white"
+                className="w-full h-[38px] pl-8 pr-3 text-sm font-mono font-bold text-slate-900 border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] bg-white"
                 required
               />
             </div>
@@ -311,7 +311,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                 type="date"
                 value={paymentDate}
                 onChange={e => setPaymentDate(e.target.value)}
-                className="w-full h-[36px] px-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] bg-white text-slate-800"
+                className="w-full h-[36px] px-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] bg-white text-slate-800"
                 required
               />
             </div>
@@ -326,7 +326,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                   onClick={() => setPaymentMethod('BankAccount')}
                   className={`h-[36px] text-xs font-semibold rounded-lg border flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                     paymentMethod === 'BankAccount'
-                      ? 'bg-blue-50 border-[#1A56DB] text-[#1A56DB]'
+                      ? 'bg-blue-50 border-[#12A89A] text-[#0B7A70]'
                       : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
@@ -359,7 +359,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                 value={bankAccountId}
                 onChange={e => setBankAccountId(e.target.value)}
                 disabled={loadingAccounts}
-                className="w-full h-[36px] px-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] bg-white text-slate-800"
+                className="w-full h-[36px] px-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] bg-white text-slate-800"
               >
                 <option value="">-- Choose Bank Account --</option>
                 {bankAccounts.map(b => (
@@ -373,7 +373,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                 value={cashBookId}
                 onChange={e => setCashBookId(e.target.value)}
                 disabled={loadingAccounts}
-                className="w-full h-[36px] px-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] bg-white text-slate-800"
+                className="w-full h-[36px] px-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] bg-white text-slate-800"
               >
                 <option value="">-- Choose Cash Book --</option>
                 {cashBooks.map(c => (
@@ -405,7 +405,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
               placeholder="e.g. UTR-98827138"
               value={referenceNo}
               onChange={e => setReferenceNo(e.target.value)}
-              className="w-full h-[36px] px-2.5 font-mono border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] bg-white text-slate-800"
+              className="w-full h-[36px] px-2.5 font-mono border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] bg-white text-slate-800"
             />
           </div>
 
@@ -419,7 +419,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
               placeholder="Optional remarks"
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              className="w-full h-[36px] px-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] bg-white text-slate-800"
+              className="w-full h-[36px] px-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] bg-white text-slate-800"
             />
           </div>
 
@@ -436,7 +436,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
             <button
               type="submit"
               disabled={submitting || numAmount <= 0}
-              className="h-[36px] px-4 text-xs font-semibold text-white bg-[#1A56DB] hover:bg-[#1746B3] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="h-[36px] px-4 text-xs font-semibold text-white bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               {submitting ? (
                 <>

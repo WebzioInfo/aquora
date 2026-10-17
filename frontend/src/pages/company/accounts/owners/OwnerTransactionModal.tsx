@@ -188,7 +188,7 @@ export const OwnerTransactionModal: React.FC<OwnerTransactionModalProps> = ({
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between shrink-0 bg-slate-50/60">
           <div>
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <ArrowLeftRight className="w-4 h-4 text-[#1A56DB]" />
+              <ArrowLeftRight className="w-4 h-4 text-[#0B7A70]" />
               <span>Owner transaction</span>
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -222,7 +222,7 @@ export const OwnerTransactionModal: React.FC<OwnerTransactionModalProps> = ({
             <select
               value={selectedOwnerId}
               onChange={e => setSelectedOwnerId(e.target.value)}
-              className="w-full h-[38px] px-3 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#1A56DB] transition-colors"
+              className="w-full h-[38px] px-3 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#12A89A] transition-colors"
             >
               {owners.map(o => (
                 <option key={o.id} value={o.id}>
@@ -265,7 +265,7 @@ export const OwnerTransactionModal: React.FC<OwnerTransactionModalProps> = ({
                 onClick={() => setTransactionType('Investment')}
                 className={`h-[40px] px-3 rounded-lg text-xs font-bold transition-all border flex items-center justify-center gap-2 ${
                   transactionType === 'Investment'
-                    ? 'bg-blue-50 text-[#1A56DB] border-[#1A56DB] shadow-xs'
+                    ? 'bg-blue-50 text-[#0B7A70] border-[#12A89A] shadow-xs'
                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                 }`}
               >
@@ -277,7 +277,7 @@ export const OwnerTransactionModal: React.FC<OwnerTransactionModalProps> = ({
                 onClick={() => setTransactionType('Withdrawal')}
                 className={`h-[40px] px-3 rounded-lg text-xs font-bold transition-all border flex items-center justify-center gap-2 ${
                   transactionType === 'Withdrawal'
-                    ? 'bg-blue-50 text-[#1A56DB] border-[#1A56DB] shadow-xs'
+                    ? 'bg-blue-50 text-[#0B7A70] border-[#12A89A] shadow-xs'
                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                 }`}
               >
@@ -305,7 +305,7 @@ export const OwnerTransactionModal: React.FC<OwnerTransactionModalProps> = ({
                   placeholder="0.00"
                   value={amountStr}
                   onChange={e => setAmountStr(e.target.value)}
-                  className="w-full h-[38px] pl-7 pr-3 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-[#1A56DB] transition-colors"
+                  className="w-full h-[38px] pl-7 pr-3 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-[#12A89A] transition-colors"
                 />
               </div>
             </div>
@@ -319,7 +319,7 @@ export const OwnerTransactionModal: React.FC<OwnerTransactionModalProps> = ({
                 required
                 value={transactionDate}
                 onChange={e => setTransactionDate(e.target.value)}
-                className="w-full h-[38px] px-3 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#1A56DB] transition-colors"
+                className="w-full h-[38px] px-3 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#12A89A] transition-colors"
               />
             </div>
           </div>
@@ -349,7 +349,7 @@ export const OwnerTransactionModal: React.FC<OwnerTransactionModalProps> = ({
                   onClick={() => setPaymentMethod('BankAccount')}
                   className={`px-2 py-0.5 rounded-md font-medium flex items-center gap-1 transition-colors ${
                     paymentMethod === 'BankAccount'
-                      ? 'bg-white text-[#1A56DB] shadow-2xs font-semibold'
+                      ? 'bg-white text-[#0B7A70] shadow-2xs font-semibold'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -361,7 +361,7 @@ export const OwnerTransactionModal: React.FC<OwnerTransactionModalProps> = ({
                   onClick={() => setPaymentMethod('CashBook')}
                   className={`px-2 py-0.5 rounded-md font-medium flex items-center gap-1 transition-colors ${
                     paymentMethod === 'CashBook'
-                      ? 'bg-white text-[#1A56DB] shadow-2xs font-semibold'
+                      ? 'bg-white text-[#0B7A70] shadow-2xs font-semibold'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -375,7 +375,7 @@ export const OwnerTransactionModal: React.FC<OwnerTransactionModalProps> = ({
               <select
                 value={bankAccountId}
                 onChange={e => setBankAccountId(e.target.value)}
-                className="w-full h-[38px] px-3 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#1A56DB]"
+                className="w-full h-[38px] px-3 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#12A89A]"
               >
                 {bankAccounts.map(b => (
                   <option key={b.id} value={b.id}>
@@ -387,7 +387,7 @@ export const OwnerTransactionModal: React.FC<OwnerTransactionModalProps> = ({
               <select
                 value={cashBookId}
                 onChange={e => setCashBookId(e.target.value)}
-                className="w-full h-[38px] px-3 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#1A56DB]"
+                className="w-full h-[38px] px-3 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#12A89A]"
               >
                 {cashBooks.map(c => (
                   <option key={c.id} value={c.id}>
@@ -417,7 +417,7 @@ export const OwnerTransactionModal: React.FC<OwnerTransactionModalProps> = ({
               value={notes}
               onChange={e => setNotes(e.target.value)}
               placeholder="e.g. Q3 Equity infusion, Dividend distribution..."
-              className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#1A56DB]"
+              className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#12A89A]"
             />
           </div>
 
@@ -459,7 +459,7 @@ export const OwnerTransactionModal: React.FC<OwnerTransactionModalProps> = ({
               <div className="flex items-center gap-1.5 font-mono">
                 <span className="text-slate-500">{formatINR(totalCompanyCapital)}</span>
                 <ArrowRight className="w-3 h-3 text-slate-400" />
-                <span className="font-bold text-[#1A56DB]">
+                <span className="font-bold text-[#0B7A70]">
                   {formatINR(totalCapitalAfter)}
                 </span>
               </div>
@@ -482,7 +482,7 @@ export const OwnerTransactionModal: React.FC<OwnerTransactionModalProps> = ({
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting || amountNum <= 0}
-            className="h-[34px] px-4 bg-[#1A56DB] hover:bg-blue-700 text-white font-medium rounded-lg text-xs shadow-2xs transition-colors flex items-center gap-1.5 disabled:opacity-50"
+            className="h-[34px] px-4 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white font-medium rounded-lg text-xs shadow-2xs transition-colors flex items-center gap-1.5 disabled:opacity-50"
           >
             {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             <span>

@@ -662,7 +662,7 @@ export const VendorsPage: React.FC = () => {
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
               placeholder="e.g. Biofix Organics India Pvt Ltd"
-              className="w-full h-[36px] px-3 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB]"
+              className="w-full h-[36px] px-3 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#12A89A]"
             />
           </div>
 
@@ -674,7 +674,7 @@ export const VendorsPage: React.FC = () => {
                 value={formData.phone}
                 onChange={e => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="+91 98765 43210"
-                className="w-full h-[36px] px-3 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB]"
+                className="w-full h-[36px] px-3 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#12A89A]"
               />
             </div>
             <div>
@@ -684,7 +684,7 @@ export const VendorsPage: React.FC = () => {
                 value={formData.email}
                 onChange={e => setFormData({ ...formData, email: e.target.value })}
                 placeholder="procurement@vendor.com"
-                className="w-full h-[36px] px-3 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB]"
+                className="w-full h-[36px] px-3 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#12A89A]"
               />
             </div>
           </div>
@@ -697,7 +697,7 @@ export const VendorsPage: React.FC = () => {
                 value={formData.gst}
                 onChange={e => setFormData({ ...formData, gst: e.target.value.toUpperCase() })}
                 placeholder="27ABCDE1234F1Z5"
-                className="w-full h-[36px] px-3 border border-slate-300 rounded-lg text-slate-900 uppercase font-mono focus:outline-none focus:border-[#1A56DB]"
+                className="w-full h-[36px] px-3 border border-slate-300 rounded-lg text-slate-900 uppercase font-mono focus:outline-none focus:border-[#12A89A]"
               />
             </div>
 
@@ -734,7 +734,7 @@ export const VendorsPage: React.FC = () => {
               value={formData.address}
               onChange={e => setFormData({ ...formData, address: e.target.value })}
               placeholder="Full physical or billing address"
-              className="w-full p-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB]"
+              className="w-full p-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#12A89A]"
             />
           </div>
 
@@ -745,7 +745,7 @@ export const VendorsPage: React.FC = () => {
               value={formData.notes}
               onChange={e => setFormData({ ...formData, notes: e.target.value })}
               placeholder="Terms, bank account notes, etc."
-              className="w-full h-[36px] px-3 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB]"
+              className="w-full h-[36px] px-3 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#12A89A]"
             />
           </div>
 

@@ -177,12 +177,12 @@ export const OwnerFormModal: React.FC<OwnerFormModalProps> = ({
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               {isEditing ? (
                 <>
-                  <Edit2 className="w-4 h-4 text-[#1A56DB]" />
+                  <Edit2 className="w-4 h-4 text-[#0B7A70]" />
                   <span>Edit Owner</span>
                 </>
               ) : (
                 <>
-                  <UserPlus className="w-4 h-4 text-[#1A56DB]" />
+                  <UserPlus className="w-4 h-4 text-[#0B7A70]" />
                   <span>Add New Owner</span>
                 </>
               )}
@@ -223,7 +223,7 @@ export const OwnerFormModal: React.FC<OwnerFormModalProps> = ({
               placeholder="e.g. Sanoof Sinan"
               value={name}
               onChange={e => setName(e.target.value)}
-              className="w-full h-[38px] px-3 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#1A56DB] transition-colors"
+              className="w-full h-[38px] px-3 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#12A89A] transition-colors"
             />
           </div>
 
@@ -239,7 +239,7 @@ export const OwnerFormModal: React.FC<OwnerFormModalProps> = ({
                 placeholder="+91 98765 43210"
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
-                className="w-full h-[38px] px-3 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#1A56DB] transition-colors"
+                className="w-full h-[38px] px-3 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#12A89A] transition-colors"
               />
             </div>
 
@@ -252,7 +252,7 @@ export const OwnerFormModal: React.FC<OwnerFormModalProps> = ({
                 placeholder="owner@company.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full h-[38px] px-3 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#1A56DB] transition-colors"
+                className="w-full h-[38px] px-3 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#12A89A] transition-colors"
               />
             </div>
           </div>
@@ -276,7 +276,7 @@ export const OwnerFormModal: React.FC<OwnerFormModalProps> = ({
                 placeholder="0.00"
                 value={ownershipPercentage}
                 onChange={e => setOwnershipPercentage(e.target.value)}
-                className="w-full h-[38px] px-3 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-[#1A56DB] transition-colors"
+                className="w-full h-[38px] px-3 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-[#12A89A] transition-colors"
               />
             </div>
 
@@ -296,7 +296,7 @@ export const OwnerFormModal: React.FC<OwnerFormModalProps> = ({
                     placeholder="0.00"
                     value={initialInvestment}
                     onChange={e => setInitialInvestment(e.target.value)}
-                    className="w-full h-[38px] pl-7 pr-3 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-[#1A56DB] transition-colors"
+                    className="w-full h-[38px] pl-7 pr-3 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-[#12A89A] transition-colors"
                   />
                 </div>
               </div>
@@ -328,11 +328,11 @@ export const OwnerFormModal: React.FC<OwnerFormModalProps> = ({
                     onClick={() => setInvestmentReceivedIn('BankAccount')}
                     className={`h-[38px] px-3 text-xs font-semibold rounded-lg border flex items-center justify-center gap-2 transition-all cursor-pointer ${
                       investmentReceivedIn === 'BankAccount'
-                        ? 'bg-blue-50/90 border-[#1A56DB] text-[#1A56DB] shadow-2xs font-bold ring-1 ring-blue-500/30'
+                        ? 'bg-blue-50/90 border-[#12A89A] text-[#0B7A70] shadow-2xs font-bold ring-1 ring-blue-500/30'
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    <Landmark className="w-4 h-4 text-[#1A56DB]" />
+                    <Landmark className="w-4 h-4 text-[#0B7A70]" />
                     <span>Bank Account</span>
                   </button>
                 </div>
@@ -367,7 +367,7 @@ export const OwnerFormModal: React.FC<OwnerFormModalProps> = ({
                 <div className="p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl space-y-2 animate-in fade-in duration-150">
                   <div className="flex items-center justify-between text-[11px]">
                     <label className="font-bold text-blue-950 flex items-center gap-1.5">
-                      <Landmark className="w-3.5 h-3.5 text-[#1A56DB]" />
+                      <Landmark className="w-3.5 h-3.5 text-[#0B7A70]" />
                       Select Bank Account <span className="text-rose-500">*</span>
                     </label>
                     <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
@@ -378,7 +378,7 @@ export const OwnerFormModal: React.FC<OwnerFormModalProps> = ({
                   <select
                     value={bankAccountId}
                     onChange={e => setBankAccountId(e.target.value)}
-                    className="w-full h-[38px] px-2.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#1A56DB]"
+                    className="w-full h-[38px] px-2.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#12A89A]"
                     required={initInvNum > 0}
                   >
                     <option value="">-- Choose Existing Bank Account --</option>
@@ -424,7 +424,7 @@ export const OwnerFormModal: React.FC<OwnerFormModalProps> = ({
               placeholder="Roles, equity agreements, or special clauses..."
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#1A56DB]"
+              className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#12A89A]"
             />
           </div>
         </form>
@@ -444,7 +444,7 @@ export const OwnerFormModal: React.FC<OwnerFormModalProps> = ({
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="h-[34px] px-4 bg-[#1A56DB] hover:bg-blue-700 text-white font-medium rounded-lg text-xs shadow-2xs transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+            className="h-[34px] px-4 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white font-medium rounded-lg text-xs shadow-2xs transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
           >
             {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             <span>{isEditing ? 'Update Owner' : 'Save Owner'}</span>

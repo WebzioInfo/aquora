@@ -124,7 +124,7 @@ export const ExpenseKpiCards: React.FC<ExpenseKpiCardsProps> = ({
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Spend</span>
             <span className="text-sm font-bold text-slate-900 font-mono">{formatCurrency(totalAmount)}</span>
           </div>
-          <div className="p-1 rounded-md bg-blue-50 text-[#1A56DB]">
+          <div className="p-1 rounded-md bg-blue-50 text-[#0B7A70]">
             <TrendingUp className="w-3.5 h-3.5" />
           </div>
         </div>
@@ -173,7 +173,7 @@ export const ExpenseKpiCards: React.FC<ExpenseKpiCardsProps> = ({
         value={formatCurrency(totalAmount)}
         icon={TrendingUp}
         iconBgColor="bg-blue-50"
-        iconTextColor="text-[#1A56DB]"
+        iconTextColor="text-[#0B7A70]"
         isShortScreen={isShortScreen}
         subLabel={
           <>

@@ -44,7 +44,7 @@ export const VendorFilters: React.FC<VendorFiltersProps> = ({
             placeholder="Search vendor name, code, phone, GST, email..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full h-[32px] pl-8 pr-7 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB] text-slate-900 placeholder:text-slate-400"
+            className="w-full h-[32px] pl-8 pr-7 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A] text-slate-900 placeholder:text-slate-400"
           />
           {search && (
             <button
@@ -69,7 +69,7 @@ export const VendorFilters: React.FC<VendorFiltersProps> = ({
                 onClick={() => onStatusChipChange(chip.id)}
                 className={`h-[28px] px-2.5 rounded-full text-xs font-medium transition-colors cursor-pointer shrink-0 ${
                   isSelected
-                    ? 'bg-[#1A56DB] text-white shadow-xs'
+                    ? 'bg-[#05303B] text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
@@ -84,7 +84,7 @@ export const VendorFilters: React.FC<VendorFiltersProps> = ({
           <button
             type="button"
             onClick={onClearFilters}
-            className="text-xs text-[#1A56DB] hover:underline font-semibold flex items-center gap-1 cursor-pointer shrink-0 ml-1"
+            className="text-xs text-[#0B7A70] hover:underline font-semibold flex items-center gap-1 cursor-pointer shrink-0 ml-1"
           >
             Clear filters
           </button>

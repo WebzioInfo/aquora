@@ -156,7 +156,7 @@ export const PurchaseKpiCards: React.FC<PurchaseKpiCardsProps> = ({
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Value</span>
             <span className="text-sm font-bold text-slate-900 font-mono">{formatINR(stats.totalGross)}</span>
           </div>
-          <div className="p-1 rounded-md bg-blue-50 text-[#1A56DB]">
+          <div className="p-1 rounded-md bg-blue-50 text-[#0B7A70]">
             <ShoppingBag className="w-3.5 h-3.5" />
           </div>
         </div>
@@ -209,7 +209,7 @@ export const PurchaseKpiCards: React.FC<PurchaseKpiCardsProps> = ({
         value={formatINR(stats.totalGross)}
         icon={ShoppingBag}
         iconBgColor="bg-blue-50"
-        iconTextColor="text-[#1A56DB]"
+        iconTextColor="text-[#0B7A70]"
         isShortScreen={isShortScreen}
         subLabel={
           <span className="text-slate-500 truncate">

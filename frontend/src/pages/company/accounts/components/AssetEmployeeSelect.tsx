@@ -80,7 +80,7 @@ export const AssetEmployeeSelect: React.FC<AssetEmployeeSelectProps> = ({
           <button
             type="button"
             onClick={handleClearSelection}
-            className="text-[11px] font-semibold text-[#1A56DB] hover:underline cursor-pointer"
+            className="text-[11px] font-semibold text-[#0B7A70] hover:underline cursor-pointer"
           >
             Change Assignee
           </button>
@@ -133,10 +133,10 @@ export const AssetEmployeeSelect: React.FC<AssetEmployeeSelectProps> = ({
                 setSearch(e.target.value)
                 setIsSearching(true)
               }}
-              className="w-full pl-9 pr-8 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-2 focus:ring-blue-100 transition-all font-medium text-slate-800"
+              className="w-full pl-9 pr-8 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-[#12A89A] focus:ring-2 focus:ring-blue-100 transition-all font-medium text-slate-800"
             />
             {isFetching ? (
-              <Loader2 className="w-3.5 h-3.5 absolute right-3 top-3 text-[#1A56DB] animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 absolute right-3 top-3 text-[#0B7A70] animate-spin" />
             ) : search ? (
               <button
                 type="button"
@@ -156,7 +156,7 @@ export const AssetEmployeeSelect: React.FC<AssetEmployeeSelectProps> = ({
             >
               {isFetching && data.length === 0 ? (
                 <div className="p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#1A56DB]" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0B7A70]" />
                   <span>Searching employees...</span>
                 </div>
               ) : isError ? (
@@ -165,7 +165,7 @@ export const AssetEmployeeSelect: React.FC<AssetEmployeeSelectProps> = ({
                   <button
                     type="button"
                     onClick={() => refetch()}
-                    className="text-[11px] font-bold text-[#1A56DB] underline"
+                    className="text-[11px] font-bold text-[#0B7A70] underline"
                   >
                     Retry
                   </button>
@@ -199,7 +199,7 @@ export const AssetEmployeeSelect: React.FC<AssetEmployeeSelectProps> = ({
                           </span>
                         </div>
                       </div>
-                      {isCurrent && <Check className="w-4 h-4 text-[#1A56DB]" />}
+                      {isCurrent && <Check className="w-4 h-4 text-[#0B7A70]" />}
                     </button>
                   )
                 })

@@ -369,6 +369,26 @@ namespace Aquora.Persistence.Context
                 .HasFilter(@"""UserId"" IS NOT NULL AND ""IsDeleted"" = false")
                 .IsUnique();
 
+            modelBuilder.Entity<ProductionEntry>(entity =>
+            {
+                entity.Property(e => e.WaterWastageLitres)
+                    .HasPrecision(18, 2)
+                    .HasDefaultValue(0m);
+
+                entity.HasOne(e => e.Product)
+                    .WithMany()
+                    .HasForeignKey(e => e.ProductId)
+                    .IsRequired(false);
+            });
+
+            modelBuilder.Entity<ProductionSession>(entity =>
+            {
+                entity.HasOne(s => s.Product)
+                    .WithMany()
+                    .HasForeignKey(s => s.ProductId)
+                    .IsRequired(false);
+            });
+
             // BackupHistory Configuration (Make tracking fields safely nullable for backward compatibility)
             modelBuilder.Entity<Aquora.Domain.Entities.Administration.BackupHistory>()
                 .Property(b => b.Format).IsRequired(false);

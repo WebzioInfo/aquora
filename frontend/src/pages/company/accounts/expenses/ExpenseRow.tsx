@@ -104,7 +104,7 @@ export const ExpenseRow: React.FC<ExpenseRowProps> = ({
           checked={isSelected}
           onChange={e => onToggleSelect(e as any, expense.id)}
           aria-label={`Select expense ${expense.expenseNumber || expense.description}`}
-          className="w-4 h-4 rounded border-slate-300 text-[#1A56DB] focus:ring-[#1A56DB] focus:ring-offset-0 cursor-pointer"
+          className="w-4 h-4 rounded border-slate-300 text-[#0B7A70] focus:ring-[#12A89A] focus:ring-offset-0 cursor-pointer"
         />
       </td>
 

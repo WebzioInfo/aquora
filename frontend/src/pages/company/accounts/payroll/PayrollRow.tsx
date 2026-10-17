@@ -119,7 +119,7 @@ export const PayrollRow: React.FC<PayrollRowProps> = ({
           type="checkbox"
           checked={isSelected}
           onChange={() => {}}
-          className="w-4 h-4 rounded border-slate-300 text-[#1A56DB] focus:ring-0 cursor-pointer"
+          className="w-4 h-4 rounded border-slate-300 text-[#0B7A70] focus:ring-0 cursor-pointer"
         />
       </td>
 
@@ -259,7 +259,7 @@ export const PayrollRow: React.FC<PayrollRowProps> = ({
             onClick={onOpenSettle}
             disabled={settleDisabled}
             title={settleTooltip}
-            className="h-[28px] px-2.5 bg-white border border-[#1A56DB] text-[#1A56DB] hover:bg-blue-50 font-medium rounded-lg text-xs transition-colors shadow-2xs inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-[28px] px-2.5 bg-white border border-[#12A89A] text-[#0B7A70] hover:bg-blue-50 font-medium rounded-lg text-xs transition-colors shadow-2xs inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Settle
           </button>
@@ -322,7 +322,7 @@ export const PayrollRow: React.FC<PayrollRowProps> = ({
                 }}
                 className="w-full px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-50 flex items-center gap-2 text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Calculator className="w-3.5 h-3.5 text-[#1A56DB]" />
+                <Calculator className="w-3.5 h-3.5 text-[#0B7A70]" />
                 <span>Settle salary</span>
               </button>
             )}

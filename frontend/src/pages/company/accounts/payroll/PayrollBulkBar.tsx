@@ -40,7 +40,7 @@ export const PayrollBulkBar: React.FC<PayrollBulkBarProps> = ({
           <button
             type="button"
             onClick={onSettleSelected}
-            className="h-[30px] px-2.5 bg-[#1A56DB] text-white hover:bg-blue-700 font-medium rounded-lg flex items-center gap-1.5 shadow-2xs transition-colors"
+            className="h-[30px] px-2.5 bg-[#05303B] text-white hover:bg-blue-700 font-medium rounded-lg flex items-center gap-1.5 shadow-2xs transition-colors"
           >
             <Calculator className="w-3.5 h-3.5" />
             <span>Settle selected</span>

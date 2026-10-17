@@ -1,5 +1,5 @@
 export interface LineTheme {
-  primary: string      // Base color hex (e.g. #1A56DB)
+  primary: string      // Base color hex (e.g. #12A89A)
   secondary: string    // Lighter background accent hex
   badgeBg: string      // Solid badge background color
   borderColor: string  // Primary border color
@@ -10,14 +10,14 @@ export interface LineTheme {
 }
 
 export const LINE_PALETTE: Omit<LineTheme, 'dotEmoji'>[] = [
-  { // Blue
-    primary: '#1A56DB',
-    secondary: '#E8F0FE',
-    badgeBg: '#1A56DB',
-    borderColor: '#1A56DB',
-    iconColor: '#1A56DB',
-    textColor: '#1E40AF',
-    glow: 'rgba(26, 86, 219, 0.15)'
+  { // Teal (brand primary line)
+    primary: '#12A89A',
+    secondary: '#E6F6F4',
+    badgeBg: '#12A89A',
+    borderColor: '#12A89A',
+    iconColor: '#12A89A',
+    textColor: '#0B7A70',
+    glow: 'rgba(18, 168, 154, 0.15)'
   },
   { // Green
     primary: '#16A34A',

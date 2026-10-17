@@ -794,35 +794,533 @@ namespace Aquora.API.Controllers
             {
                 var batch = await _tenantContext.ProductionBatches
                     .Include(b => b.ProductionLine)
-                    .Where(b => b.Id == id && !b.IsDeleted)
-                    .Select(b => new
-                    {
-                        b.Id,
-                        b.BatchNumber,
-                        b.Product,
-                        b.Shift,
-                        ProductionLineId = b.ProductionLineId,
-                        ProductionLineName = b.ProductionLine != null ? b.ProductionLine.Name : "Line 1",
-                        ProductionLineCode = b.ProductionLine != null ? b.ProductionLine.Code : "L001",
-                        b.OperatorId,
-                        b.OperatorName,
-                        b.StartedAt,
-                        b.CompletedAt,
-                        b.TargetQuantity,
-                        b.ProducedQuantity,
-                        b.Status,
-                        b.CreatedAt
-                    })
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefaultAsync(b => b.Id == id && !b.IsDeleted);
 
                 if (batch == null)
                     return Failure<object>("Batch not found.", "NotFound", System.Net.HttpStatusCode.NotFound);
 
-                return Success<object>(batch, "Batch loaded successfully.");
+                // Find linked session if any
+                var session = await _tenantContext.ProductionSessions
+                    .FirstOrDefaultAsync(s => (s.Id == id || (s.BatchNumber == batch.BatchNumber && s.ProductionLineId == batch.ProductionLineId)) && !s.IsDeleted);
+
+                var sessionIds = await _tenantContext.ProductionSessions
+                    .Where(s => (s.Id == id || (s.BatchNumber == batch.BatchNumber && s.ProductionLineId == batch.ProductionLineId)) && !s.IsDeleted)
+                    .Select(s => s.Id)
+                    .ToListAsync();
+                if (!sessionIds.Contains(id)) sessionIds.Add(id);
+
+                var entryCount = await _tenantContext.ProductionEntries
+                    .CountAsync(e => !e.IsDeleted && (e.ProductionSessionId == id || (e.ProductionSessionId.HasValue && sessionIds.Contains(e.ProductionSessionId.Value))));
+
+                var result = new
+                {
+                    batch.Id,
+                    batch.BatchNumber,
+                    batch.Product,
+                    batch.Shift,
+                    ProductionLineId = batch.ProductionLineId,
+                    ProductionLineName = batch.ProductionLine != null ? batch.ProductionLine.Name : "Line 1",
+                    ProductionLineCode = batch.ProductionLine != null ? batch.ProductionLine.Code : "L001",
+                    batch.OperatorId,
+                    batch.OperatorName,
+                    batch.StartedAt,
+                    batch.CompletedAt,
+                    batch.TargetQuantity,
+                    batch.ProducedQuantity,
+                    batch.Status,
+                    batch.CreatedAt,
+                    SessionId = session?.Id ?? batch.Id,
+                    EntryCount = entryCount
+                };
+
+                return Success<object>(result, "Batch loaded successfully.");
             }
             catch (Exception ex)
             {
                 return Failure<object>(ex.Message, "Failed to load batch.");
+            }
+        }
+
+        // GET api/v1/production/batches/{id:guid}/entries
+        [HttpGet("batches/{id:guid}/entries")]
+        public async Task<ActionResult<ApiResponse<List<object>>>> GetBatchEntries(Guid id)
+        {
+            try
+            {
+                var batch = await _tenantContext.ProductionBatches
+                    .FirstOrDefaultAsync(b => b.Id == id && !b.IsDeleted);
+
+                if (batch == null)
+                    return Failure<List<object>>("Batch not found.", "NotFound", System.Net.HttpStatusCode.NotFound);
+
+                // Find matching sessions
+                var sessionIds = await _tenantContext.ProductionSessions
+                    .Where(s => (s.Id == id || (s.BatchNumber == batch.BatchNumber && s.ProductionLineId == batch.ProductionLineId)) && !s.IsDeleted)
+                    .Select(s => s.Id)
+                    .ToListAsync();
+
+                if (!sessionIds.Contains(id))
+                {
+                    sessionIds.Add(id);
+                }
+
+                var entries = await _tenantContext.ProductionEntries
+                    .Include(e => e.Product)
+                    .Include(e => e.PreformMaterial)
+                    .Include(e => e.CapMaterial)
+                    .Include(e => e.LabelMaterial)
+                    .Include(e => e.ShrinkMaterial)
+                    .Include(e => e.GlueMaterial)
+                    .Where(e => !e.IsDeleted && (e.ProductionSessionId == id || (e.ProductionSessionId.HasValue && sessionIds.Contains(e.ProductionSessionId.Value))))
+                    .OrderByDescending(e => e.CreatedAt)
+                    .ToListAsync();
+
+                // Build fallback name lookups including soft-deleted entities for historical accuracy
+                var productNames = await _tenantContext.Products
+                    .IgnoreQueryFilters()
+                    .ToDictionaryAsync(p => p.Id, p => p.Name);
+
+                var rawMaterialMap = await _tenantContext.RawMaterials
+                    .IgnoreQueryFilters()
+                    .ToDictionaryAsync(m => m.Id, m => (Name: m.Name, Unit: m.Unit));
+
+                var result = entries.Select(e =>
+                {
+                    string skuName = e.Product?.Name
+                        ?? (productNames.TryGetValue(e.ProductId, out var pn) ? pn : null)
+                        ?? batch.Product
+                        ?? "Product";
+
+                    var preformInfo = e.PreformMaterialId.HasValue && rawMaterialMap.TryGetValue(e.PreformMaterialId.Value, out var pInfo) ? pInfo : default;
+                    var capInfo = e.CapMaterialId.HasValue && rawMaterialMap.TryGetValue(e.CapMaterialId.Value, out var cInfo) ? cInfo : default;
+                    var labelInfo = e.LabelMaterialId.HasValue && rawMaterialMap.TryGetValue(e.LabelMaterialId.Value, out var lInfo) ? lInfo : default;
+                    var shrinkInfo = e.ShrinkMaterialId.HasValue && rawMaterialMap.TryGetValue(e.ShrinkMaterialId.Value, out var sInfo) ? sInfo : default;
+                    var glueInfo = e.GlueMaterialId.HasValue && rawMaterialMap.TryGetValue(e.GlueMaterialId.Value, out var gInfo) ? gInfo : default;
+
+                    var materials = new List<object>();
+                    if (!string.IsNullOrEmpty(e.MaterialConsumptionsJson))
+                    {
+                        try
+                        {
+                            materials = System.Text.Json.JsonSerializer.Deserialize<List<object>>(e.MaterialConsumptionsJson) ?? new List<object>();
+                        }
+                        catch { }
+                    }
+
+                    if (materials.Count == 0)
+                    {
+                        if (e.PreformMaterialId.HasValue || e.PreformUsage > 0 || e.PreformWastage > 0)
+                        {
+                            materials.Add(new
+                            {
+                                rawMaterialId = e.PreformMaterialId,
+                                rawMaterialName = e.PreformMaterial?.Name ?? preformInfo.Name ?? "Preform",
+                                category = "PREFORM",
+                                unit = e.PreformMaterial?.Unit ?? preformInfo.Unit ?? "Bags",
+                                usageQuantity = e.PreformUsage,
+                                wastageQuantity = e.PreformWastage,
+                                totalQuantity = e.PreformUsage + e.PreformWastage
+                            });
+                        }
+                        if (e.CapMaterialId.HasValue || e.CapUsage > 0 || e.CapWastage > 0)
+                        {
+                            materials.Add(new
+                            {
+                                rawMaterialId = e.CapMaterialId,
+                                rawMaterialName = e.CapMaterial?.Name ?? capInfo.Name ?? "Cap",
+                                category = "CAP",
+                                unit = e.CapMaterial?.Unit ?? capInfo.Unit ?? "Boxes",
+                                usageQuantity = e.CapUsage,
+                                wastageQuantity = e.CapWastage,
+                                totalQuantity = e.CapUsage + e.CapWastage
+                            });
+                        }
+                        if (e.LabelMaterialId.HasValue || e.LabelUsage > 0 || e.LabelWastage > 0)
+                        {
+                            materials.Add(new
+                            {
+                                rawMaterialId = e.LabelMaterialId,
+                                rawMaterialName = e.LabelMaterial?.Name ?? labelInfo.Name ?? "Label",
+                                category = "LABEL",
+                                unit = e.LabelMaterial?.Unit ?? labelInfo.Unit ?? "KG",
+                                usageQuantity = e.LabelUsage,
+                                wastageQuantity = e.LabelWastage,
+                                totalQuantity = e.LabelUsage + e.LabelWastage
+                            });
+                        }
+                        if (e.ShrinkMaterialId.HasValue || e.ShrinkUsage > 0 || e.ShrinkWastage > 0)
+                        {
+                            materials.Add(new
+                            {
+                                rawMaterialId = e.ShrinkMaterialId,
+                                rawMaterialName = e.ShrinkMaterial?.Name ?? shrinkInfo.Name ?? "Shrink Film",
+                                category = "SHRINK",
+                                unit = e.ShrinkMaterial?.Unit ?? shrinkInfo.Unit ?? "KG",
+                                usageQuantity = e.ShrinkUsage,
+                                wastageQuantity = e.ShrinkWastage,
+                                totalQuantity = e.ShrinkUsage + e.ShrinkWastage
+                            });
+                        }
+                        if (e.GlueMaterialId.HasValue || (e.GlueUsage.HasValue && e.GlueUsage > 0))
+                        {
+                            materials.Add(new
+                            {
+                                rawMaterialId = e.GlueMaterialId,
+                                rawMaterialName = e.GlueMaterial?.Name ?? glueInfo.Name ?? "Glue",
+                                category = "GLUE",
+                                unit = e.GlueMaterial?.Unit ?? glueInfo.Unit ?? "KG",
+                                usageQuantity = e.GlueUsage.GetValueOrDefault(),
+                                wastageQuantity = 0m,
+                                totalQuantity = e.GlueUsage.GetValueOrDefault()
+                            });
+                        }
+                    }
+
+                    return new
+                    {
+                        e.Id,
+                        e.OperatorName,
+                        e.Shift,
+                        SkuName = skuName,
+                        CaseConfigurationName = "N/A",
+                        e.CasesProduced,
+                        Materials = materials,
+                        PreformName = e.PreformMaterial?.Name ?? preformInfo.Name ?? "Preform",
+                        e.PreformUsage,
+                        e.PreformWastage,
+                        PreformUnit = e.PreformMaterial?.Unit ?? preformInfo.Unit ?? "PCS",
+                        CapName = e.CapMaterial?.Name ?? capInfo.Name ?? "Cap",
+                        e.CapUsage,
+                        e.CapWastage,
+                        CapUnit = e.CapMaterial?.Unit ?? capInfo.Unit ?? "BOX",
+                        LabelName = e.LabelMaterial?.Name ?? labelInfo.Name ?? "Label",
+                        e.LabelUsage,
+                        e.LabelWastage,
+                        LabelUnit = e.LabelMaterial?.Unit ?? labelInfo.Unit ?? "PCS",
+                        ShrinkName = e.ShrinkMaterial?.Name ?? shrinkInfo.Name ?? "Shrink Film",
+                        e.ShrinkUsage,
+                        e.ShrinkWastage,
+                        ShrinkUnit = e.ShrinkMaterial?.Unit ?? shrinkInfo.Unit ?? "KG",
+                        GlueName = e.GlueMaterial?.Name ?? glueInfo.Name ?? "Glue",
+                        e.GlueUsage,
+                        GlueUnit = e.GlueMaterial?.Unit ?? glueInfo.Unit ?? "KG",
+                        e.InkUsed,
+                        e.MakeupUsed,
+                        WaterWastageLitres = e.WaterWastageLitres,
+                        e.CreatedAt
+                    };
+                }).Cast<object>().ToList();
+
+                return Success<List<object>>(result, "Batch entries loaded successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<List<object>>(ex.Message, "Failed to load batch entries.");
+            }
+        }
+
+        // 2b-2. PUT api/v1/production/batches/{id:guid}
+        [HttpPut("batches/{id:guid}")]
+        public async Task<ActionResult<ApiResponse<object>>> UpdateBatch(Guid id, [FromBody] UpdateProductionBatchRequest request)
+        {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
+            try
+            {
+                var tenantId = GetTenantId();
+                var batch = await _tenantContext.ProductionBatches
+                    .Include(b => b.ProductionLine)
+                    .FirstOrDefaultAsync(b => b.Id == id && !b.IsDeleted);
+
+                if (batch == null)
+                {
+                    return Failure<object>("Production batch not found.", "Not found", System.Net.HttpStatusCode.NotFound);
+                }
+
+                // Batch number uniqueness check if modified
+                if (!string.IsNullOrWhiteSpace(request.BatchNumber))
+                {
+                    var cleanBatchNumber = request.BatchNumber.Trim();
+                    var isDuplicate = await _tenantContext.ProductionBatches
+                        .AnyAsync(b => b.Id != id && b.BatchNumber.ToLower() == cleanBatchNumber.ToLower() && !b.IsDeleted);
+
+                    if (isDuplicate)
+                    {
+                        return Failure<object>($"A production batch with batch number '{cleanBatchNumber}' already exists.", "Conflict", System.Net.HttpStatusCode.Conflict);
+                    }
+                    batch.BatchNumber = cleanBatchNumber;
+                }
+
+                // Product catalog check if modified
+                if (!string.IsNullOrWhiteSpace(request.Product))
+                {
+                    var cleanProduct = request.Product.Trim();
+                    var productExists = await _tenantContext.Products
+                        .AnyAsync(p => p.Name.ToLower() == cleanProduct.ToLower() && !p.IsDeleted);
+
+                    if (!productExists)
+                    {
+                        return Failure<object>($"Product '{cleanProduct}' could not be found in active product catalog.", "Validation failed", System.Net.HttpStatusCode.BadRequest);
+                    }
+                    batch.Product = cleanProduct;
+                }
+
+                // Production Line check if modified
+                if (request.ProductionLineId.HasValue && request.ProductionLineId.Value != Guid.Empty && request.ProductionLineId.Value != batch.ProductionLineId)
+                {
+                    var lineExists = await _tenantContext.ProductionLines
+                        .AnyAsync(l => l.Id == request.ProductionLineId.Value && !l.IsDeleted);
+
+                    if (!lineExists)
+                    {
+                        return Failure<object>("Selected production line does not exist.", "Validation failed", System.Net.HttpStatusCode.BadRequest);
+                    }
+
+                    var isActive = batch.Status == "Active" || batch.Status == "Running" || batch.Status == "Bottling Active" || batch.Status == "In Progress";
+                    if (isActive)
+                    {
+                        var targetLineBusy = await _tenantContext.ProductionBatches
+                            .AnyAsync(b => b.ProductionLineId == request.ProductionLineId.Value && b.Id != id && !b.IsDeleted &&
+                                          (b.Status == "Active" || b.Status == "Running" || b.Status == "Bottling Active" || b.Status == "In Progress"));
+
+                        if (targetLineBusy)
+                        {
+                            return Failure<object>("There is already an active batch running on the selected production line.", "Validation failed", System.Net.HttpStatusCode.BadRequest);
+                        }
+                    }
+
+                    batch.ProductionLineId = request.ProductionLineId.Value;
+                }
+
+                // Shift
+                if (!string.IsNullOrWhiteSpace(request.Shift))
+                {
+                    batch.Shift = request.Shift.Trim();
+                }
+
+                // Operator
+                if (!string.IsNullOrWhiteSpace(request.OperatorName))
+                {
+                    batch.OperatorName = request.OperatorName.Trim();
+                }
+                if (request.OperatorId.HasValue && request.OperatorId.Value != Guid.Empty)
+                {
+                    batch.OperatorId = request.OperatorId.Value;
+                }
+
+                // Target quantity
+                if (request.TargetQuantity.HasValue)
+                {
+                    if (request.TargetQuantity.Value <= 0)
+                    {
+                        return Failure<object>("Target quantity must be greater than zero.", "Validation failed", System.Net.HttpStatusCode.BadRequest);
+                    }
+                    batch.TargetQuantity = request.TargetQuantity.Value;
+                }
+
+                // Status transitions
+                if (!string.IsNullOrWhiteSpace(request.Status))
+                {
+                    var cleanStatus = request.Status.Trim();
+                    var validStatuses = new[] { "Active", "Running", "Paused", "Completed", "Stopped", "Cancelled" };
+                    if (!validStatuses.Any(s => s.Equals(cleanStatus, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        return Failure<object>($"Invalid status '{cleanStatus}'. Allowed: Active, Paused, Completed, Stopped, Cancelled.", "Validation failed", System.Net.HttpStatusCode.BadRequest);
+                    }
+
+                    if (cleanStatus.Equals("Completed", StringComparison.OrdinalIgnoreCase) || cleanStatus.Equals("Stopped", StringComparison.OrdinalIgnoreCase))
+                    {
+                        batch.Status = cleanStatus.Equals("Stopped", StringComparison.OrdinalIgnoreCase) ? "Stopped" : "Completed";
+                        batch.CompletedAt ??= DateTime.UtcNow;
+                    }
+                    else if (cleanStatus.Equals("Paused", StringComparison.OrdinalIgnoreCase))
+                    {
+                        batch.Status = "Paused";
+                    }
+                    else if (cleanStatus.Equals("Active", StringComparison.OrdinalIgnoreCase) || cleanStatus.Equals("Running", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Check target line isn't busy with another active batch
+                        var targetLineBusy = await _tenantContext.ProductionBatches
+                            .AnyAsync(b => b.ProductionLineId == batch.ProductionLineId && b.Id != id && !b.IsDeleted &&
+                                          (b.Status == "Active" || b.Status == "Running" || b.Status == "Bottling Active" || b.Status == "In Progress"));
+
+                        if (targetLineBusy)
+                        {
+                            return Failure<object>("Cannot set batch to Active because another active batch is running on this line.", "Validation failed", System.Net.HttpStatusCode.BadRequest);
+                        }
+
+                        batch.Status = "Active";
+                        batch.CompletedAt = null;
+                    }
+                    else if (cleanStatus.Equals("Cancelled", StringComparison.OrdinalIgnoreCase))
+                    {
+                        batch.Status = "Cancelled";
+                    }
+                }
+
+                batch.UpdatedAt = DateTime.UtcNow;
+                batch.UpdatedBy = GetCurrentUserId();
+
+                // Synchronize corresponding ProductionSession if exists
+                var sessions = await _tenantContext.ProductionSessions
+                    .Where(s => (s.Id == id || (s.BatchNumber == batch.BatchNumber && s.ProductionLineId == batch.ProductionLineId)) && !s.IsDeleted)
+                    .ToListAsync();
+
+                foreach (var s in sessions)
+                {
+                    s.BatchNumber = batch.BatchNumber;
+                    s.ProductionLineId = batch.ProductionLineId;
+                    s.Shift = batch.Shift;
+                    s.UpdatedAt = DateTime.UtcNow;
+                    s.UpdatedBy = GetCurrentUserId();
+                }
+
+                await _tenantContext.SaveChangesAsync();
+                await NotifyDashboardAsync("batch-status-changed");
+
+                // Reload fresh line details
+                var updatedLine = await _tenantContext.ProductionLines.FirstOrDefaultAsync(l => l.Id == batch.ProductionLineId && !l.IsDeleted);
+
+                var result = new
+                {
+                    batch.Id,
+                    batch.BatchNumber,
+                    batch.Product,
+                    batch.Shift,
+                    ProductionLineId = batch.ProductionLineId,
+                    ProductionLineName = updatedLine != null ? updatedLine.Name : "Line 1",
+                    ProductionLineCode = updatedLine != null ? updatedLine.Code : "L001",
+                    batch.OperatorId,
+                    batch.OperatorName,
+                    batch.StartedAt,
+                    batch.CompletedAt,
+                    batch.TargetQuantity,
+                    batch.ProducedQuantity,
+                    batch.Status,
+                    batch.CreatedAt,
+                    batch.UpdatedAt
+                };
+
+                return Success<object>(result, "Production batch updated successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<object>(ex.Message, "Failed to update production batch.", System.Net.HttpStatusCode.InternalServerError);
+            }
+        }
+
+        // 2b-3. DELETE api/v1/production/batches/{id:guid}
+        [HttpDelete("batches/{id:guid}")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteBatch(Guid id)
+        {
+            if (IsOwnerUser())
+            {
+                return Failure<object>("OWNER role is read-only for production operations.", "Forbidden", System.Net.HttpStatusCode.Forbidden);
+            }
+
+            try
+            {
+                var tenantId = GetTenantId();
+                var batch = await _tenantContext.ProductionBatches
+                    .FirstOrDefaultAsync(b => b.Id == id && !b.IsDeleted);
+
+                if (batch == null)
+                {
+                    return Failure<object>("Production batch not found.", "Not found", System.Net.HttpStatusCode.NotFound);
+                }
+
+                // Lifecycle & Data Integrity Rule 1: Produced output
+                if (batch.ProducedQuantity > 0)
+                {
+                    return Failure<object>(
+                        $"Cannot delete batch '{batch.BatchNumber}' because {batch.ProducedQuantity} cases have already been manufactured. According to production integrity rules, batches with recorded output cannot be deleted. You can mark it as Stopped or Completed instead.",
+                        "Validation failed",
+                        System.Net.HttpStatusCode.BadRequest);
+                }
+
+                // Lifecycle & Data Integrity Rule 2: Process Station logs
+                var hasStationData = await _tenantContext.ProductionStationData
+                    .AnyAsync(s => s.ProductionBatchId == id && !s.IsDeleted);
+
+                if (hasStationData)
+                {
+                    return Failure<object>(
+                        $"Cannot delete batch '{batch.BatchNumber}' because station process parameters have already been recorded for this run.",
+                        "Validation failed",
+                        System.Net.HttpStatusCode.BadRequest);
+                }
+
+                // Lifecycle & Data Integrity Rule 3: Material consumption or entry logs
+                var hasEntries = await _tenantContext.ProductionSessions
+                    .Where(s => (s.Id == id || (s.BatchNumber == batch.BatchNumber && s.ProductionLineId == batch.ProductionLineId)) && !s.IsDeleted)
+                    .SelectMany(s => s.ProductionEntries)
+                    .AnyAsync(e => !e.IsDeleted);
+
+                if (hasEntries)
+                {
+                    return Failure<object>(
+                        $"Cannot delete batch '{batch.BatchNumber}' because material usage and entry logs exist for this run.",
+                        "Validation failed",
+                        System.Net.HttpStatusCode.BadRequest);
+                }
+
+                // Lifecycle & Data Integrity Rule 4: QC Water Test Reports
+                var hasWaterTests = await _tenantContext.WaterTestReports
+                    .AnyAsync(w => w.BatchNumber == batch.BatchNumber && !w.IsDeleted);
+
+                if (hasWaterTests)
+                {
+                    return Failure<object>(
+                        $"Cannot delete batch '{batch.BatchNumber}' because Quality Control Water Test reports are linked to this batch number.",
+                        "Validation failed",
+                        System.Net.HttpStatusCode.BadRequest);
+                }
+
+                // Lifecycle & Data Integrity Rule 5: Dispatch / Operations Loading
+                var hasLoading = await _tenantContext.OperationsLoadings
+                    .AnyAsync(l => l.BatchNumber == batch.BatchNumber && !l.IsDeleted);
+
+                if (hasLoading)
+                {
+                    return Failure<object>(
+                        $"Cannot delete batch '{batch.BatchNumber}' because dispatch loadings are linked to this batch.",
+                        "Validation failed",
+                        System.Net.HttpStatusCode.BadRequest);
+                }
+
+                // Soft-delete batch
+                var now = DateTime.UtcNow;
+                var userId = GetCurrentUserId();
+
+                batch.IsDeleted = true;
+                batch.DeletedAt = now;
+                batch.DeletedBy = userId;
+                batch.UpdatedAt = now;
+                batch.UpdatedBy = userId;
+
+                // Soft-delete linked empty sessions (if any)
+                var emptySessions = await _tenantContext.ProductionSessions
+                    .Where(s => (s.Id == id || (s.BatchNumber == batch.BatchNumber && s.ProductionLineId == batch.ProductionLineId)) && !s.IsDeleted)
+                    .ToListAsync();
+
+                foreach (var s in emptySessions)
+                {
+                    s.IsDeleted = true;
+                    s.DeletedAt = now;
+                    s.DeletedBy = userId;
+                }
+
+                await _tenantContext.SaveChangesAsync();
+                await NotifyDashboardAsync("batch-status-changed");
+
+                return Success<object?>(null, $"Production batch '{batch.BatchNumber}' deleted successfully.");
+            }
+            catch (Exception ex)
+            {
+                return Failure<object>(ex.Message, "Failed to delete production batch.", System.Net.HttpStatusCode.InternalServerError);
             }
         }
 
@@ -1914,6 +2412,18 @@ namespace Aquora.API.Controllers
         public string Product { get; set; } = string.Empty;
         public string Shift { get; set; } = string.Empty;
         public int TargetQuantity { get; set; }
+    }
+
+    public class UpdateProductionBatchRequest
+    {
+        public string? BatchNumber { get; set; }
+        public string? Product { get; set; }
+        public string? Shift { get; set; }
+        public Guid? ProductionLineId { get; set; }
+        public Guid? OperatorId { get; set; }
+        public string? OperatorName { get; set; }
+        public int? TargetQuantity { get; set; }
+        public string? Status { get; set; }
     }
 
     public class SubmitStationDataRequest

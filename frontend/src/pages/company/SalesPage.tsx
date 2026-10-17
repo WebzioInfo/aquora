@@ -75,8 +75,8 @@ const OwnerSalesTrendChart: React.FC<{ data: DailySalesTrend[]; height?: number 
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
           <defs>
             <linearGradient id="sales-trend-gradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#1A56DB" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#1A56DB" stopOpacity="0.01" />
+              <stop offset="0%" stopColor="#12A89A" stopOpacity="0.10" />
+              <stop offset="100%" stopColor="#12A89A" stopOpacity="0.10" />
             </linearGradient>
           </defs>
 
@@ -85,8 +85,8 @@ const OwnerSalesTrendChart: React.FC<{ data: DailySalesTrend[]; height?: number 
             const val = Math.round(ratio * maxVal)
             return (
               <g key={i}>
-                <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#F1F5F9" strokeWidth="1" strokeDasharray="3 3" />
-                <text x={padding - 6} y={y + 3} textAnchor="end" fontSize="9" fill="#94A3B8" fontWeight="600">
+                <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#E8EDF0" strokeWidth="1" strokeDasharray="3 3" />
+                <text x={padding - 6} y={y + 3} textAnchor="end" fontSize="9" fill="#5B6B75" fontWeight="600">
                   ₹{val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val}
                 </text>
               </g>
@@ -94,13 +94,13 @@ const OwnerSalesTrendChart: React.FC<{ data: DailySalesTrend[]; height?: number 
           })}
 
           <path d={areaD} fill="url(#sales-trend-gradient)" />
-          <path d={pathD} fill="none" stroke="#1A56DB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={pathD} fill="none" stroke="#12A89A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
 
           {points.map((pt, i) => {
             const isHovered = hoveredIdx === i
             return (
               <g key={i} className="cursor-pointer" onMouseEnter={() => setHoveredIdx(i)} onMouseLeave={() => setHoveredIdx(null)}>
-                <circle cx={pt.x} cy={pt.y} r={isHovered ? 6 : 3.5} fill="#FFFFFF" stroke="#1A56DB" strokeWidth={isHovered ? 3 : 2} className="transition-all duration-150" />
+                <circle cx={pt.x} cy={pt.y} r={isHovered ? 5 : 3.5} fill="#FFFFFF" stroke="#12A89A" strokeWidth={isHovered ? 2.5 : 2} className="transition-all duration-150" />
               </g>
             )
           })}
@@ -108,15 +108,15 @@ const OwnerSalesTrendChart: React.FC<{ data: DailySalesTrend[]; height?: number 
 
         {hoveredIdx !== null && points[hoveredIdx] && (
           <div
-            className="absolute z-30 bg-slate-900 text-white rounded-lg p-2 text-xs shadow-xl pointer-events-none -translate-x-1/2 -translate-y-full mb-2 whitespace-nowrap animate-in fade-in duration-150"
+            className="absolute z-30 bg-white text-slate-800 border border-slate-200 rounded-lg p-2.5 text-xs shadow-md pointer-events-none -translate-x-1/2 -translate-y-full mb-2 whitespace-nowrap animate-in fade-in duration-150"
             style={{
               left: `${(points[hoveredIdx].x / width) * 100}%`,
               top: `${(points[hoveredIdx].y / height) * 100}%`
             }}
           >
-            <div className="font-bold text-[11px] text-slate-300">{points[hoveredIdx].item.formattedDate}</div>
-            <div className="text-emerald-400 font-extrabold text-xs">₹{points[hoveredIdx].item.totalSales.toLocaleString('en-IN')}</div>
-            <div className="text-[10px] text-slate-400">{points[hoveredIdx].item.transactionCount} Orders • {points[hoveredIdx].item.totalCases} Cases</div>
+            <div className="font-bold text-[11px] text-slate-500">{points[hoveredIdx].item.formattedDate}</div>
+            <div className="text-[#0B7A70] font-extrabold text-xs">₹{points[hoveredIdx].item.totalSales.toLocaleString('en-IN')}</div>
+            <div className="text-[10px] text-slate-500">{points[hoveredIdx].item.transactionCount} Orders • {points[hoveredIdx].item.totalCases} Cases</div>
           </div>
         )}
       </div>
@@ -2652,7 +2652,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                         <PremiumLabel label="Company Bank Account *" />
                         <select value={formBankAccountId} onChange={(e) => setFormBankAccountId(e.target.value)} className="w-full h-[40px] border border-slate-200 rounded-lg text-sm bg-white font-medium">
                           <option value="">Select Account...</option>
-                          {banks.map(b => (
+                          {banks.map((b: any) => (
                             <option key={b.id} value={b.id}>{b.bankName} — {b.accountNumber}</option>
                           ))}
                         </select>
@@ -2826,7 +2826,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                           <PremiumLabel label="Bank Account *" />
                           <select value={formBankAccountId} onChange={(e) => setFormBankAccountId(e.target.value)} className="w-full h-[40px] border border-slate-200 rounded-lg text-sm bg-white font-medium">
                             <option value="">Select Bank Account...</option>
-                            {banks.map(b => (
+                            {banks.map((b: any) => (
                               <option key={b.id} value={b.id}>{b.bankName} — {b.accountNumber}</option>
                             ))}
                           </select>

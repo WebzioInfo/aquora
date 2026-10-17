@@ -12,22 +12,56 @@ class Program
         await conn.OpenAsync();
 
         string sql = @"
-            SELECT ""Id"", ""TransactionType"", ""TransactionDate"", ""CreatedAt"", ""Credit"", ""Debit"", ""Description""
-            FROM ""aquora_tenant_sinan_company"".""BankLedgerEntries""
-            ORDER BY ""TransactionDate"" DESC, ""CreatedAt"" DESC;";
+            SELECT table_schema, ""Category"", ""Name"", ""Unit"", ""BaseUnit""
+            FROM information_schema.tables t
+            CROSS JOIN LATERAL (
+                SELECT ""Category"", ""Name"", ""Unit"", ""BaseUnit""
+                FROM information_schema.columns
+                WHERE table_name = 'RawMaterials'
+                LIMIT 0
+            ) c
+            WHERE table_name = 'RawMaterials' AND table_schema LIKE 'aquora_tenant_%';";
 
-        await using var cmd = new NpgsqlCommand(sql, conn);
-        await using var reader = await cmd.ExecuteReaderAsync();
+        // Query directly using union over tenant schemas
+        string listSchemasSql = @"
+            SELECT schema_name 
+            FROM information_schema.schemata 
+            WHERE schema_name LIKE 'aquora_tenant_%';";
 
-        Console.WriteLine("================================================================================");
-        Console.WriteLine("BankLedgerEntries in aquora_tenant_sinan_company:");
-        Console.WriteLine("================================================================================");
-
-        while (await reader.ReadAsync())
+        await using var schemaCmd = new NpgsqlCommand(listSchemasSql, conn);
+        await using var schemaReader = await schemaCmd.ExecuteReaderAsync();
+        var schemas = new System.Collections.Generic.List<string>();
+        while (await schemaReader.ReadAsync())
         {
-            var txDate = reader.GetDateTime(2);
-            var createdAt = reader.GetDateTime(3);
-            Console.WriteLine($"Txn: {reader["TransactionType"]} | TxDate: {txDate:O} (Kind: {txDate.Kind}) | CreatedAt: {createdAt:O} (Kind: {createdAt.Kind}) | Cr: {reader["Credit"]} | Dr: {reader["Debit"]} | Desc: {reader["Description"]}");
+            schemas.Add(schemaReader.GetString(0));
+        }
+        await schemaReader.CloseAsync();
+
+        Console.WriteLine("================================================================================");
+        Console.WriteLine("Found tenant schemas: " + string.Join(", ", schemas));
+        Console.WriteLine("================================================================================");
+
+        foreach (var s in schemas)
+        {
+            try
+            {
+                var q = $@"SELECT DISTINCT ""Category"", ""Unit"", ""BaseUnit"", COUNT(*) as cnt 
+                           FROM ""{s}"".""RawMaterials"" 
+                           WHERE ""IsDeleted"" = false 
+                           GROUP BY ""Category"", ""Unit"", ""BaseUnit"";";
+                await using var cmd = new NpgsqlCommand(q, conn);
+                await using var r = await cmd.ExecuteReaderAsync();
+                Console.WriteLine($"Schema: {s}");
+                while (await r.ReadAsync())
+                {
+                    Console.WriteLine($"  Category: '{r["Category"]}', Unit: '{r["Unit"]}', BaseUnit: '{r["BaseUnit"]}', Count: {r["cnt"]}");
+                }
+                await r.CloseAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Schema {s} error: {ex.Message}");
+            }
         }
     }
 }

@@ -104,7 +104,8 @@ namespace Aquora.Application.Services
             string? notes,
             Guid tenantId,
             Guid companyId,
-            string createdBy)
+            string createdBy,
+            bool allowNegativeStock = false)
         {
             var material = await context.RawMaterials.FirstOrDefaultAsync(rm => rm.Id == rawMaterialId && !rm.IsDeleted);
             if (material == null)
@@ -114,7 +115,7 @@ namespace Aquora.Application.Services
 
             decimal previousBalance = material.CurrentStock;
             decimal newStock = previousBalance + quantity;
-            if (newStock < 0)
+            if (newStock < 0 && !allowNegativeStock && referenceType != "ProductionEntry")
             {
                 throw new InvalidOperationException($"Insufficient stock for raw material '{material.Name}'. Current stock: {previousBalance}, requested change: {quantity}.");
             }

@@ -145,23 +145,23 @@ const DashboardLineChart: React.FC<{ data: ProdPointItem[]; height?: number; emp
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-[190px] overflow-visible">
           <defs>
             <linearGradient id="line-gradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.01" />
+              <stop offset="0%" stopColor="#12A89A" stopOpacity="0.10" />
+              <stop offset="100%" stopColor="#12A89A" stopOpacity="0.01" />
             </linearGradient>
           </defs>
           {[0.25, 0.5, 0.75].map(ratio => {
             const y = height - padding - ratio * (height - padding * 2)
             return (
-              <line key={ratio} x1={padding} y1={y} x2={width - padding} y2={y} stroke="#f1f5f9" strokeWidth="1" strokeDasharray="4 4" />
+              <line key={ratio} x1={padding} y1={y} x2={width - padding} y2={y} stroke="#E8EDF0" strokeWidth="1" strokeDasharray="4 4" />
             )
           })}
           <path d={`${pathD} L ${points[points.length - 1].x} ${height - padding} L ${points[0].x} ${height - padding} Z`} fill="url(#line-gradient)" />
-          <path d={pathD} fill="none" stroke="#2563EB" strokeWidth="3" className="drop-shadow-md animate-draw-line" />
+          <path d={pathD} fill="none" stroke="#12A89A" strokeWidth="2" className="animate-draw-line" />
           {points.map((p, i) => (
             <g key={i}>
-              <circle cx={p.x} cy={p.y} r={hoveredIdx === i ? 6 : 4} fill="#ffffff" stroke={hoveredIdx === i ? "#1D4ED8" : "#3B82F6"} strokeWidth={hoveredIdx === i ? 3 : 2} className="transition-all duration-200 cursor-pointer drop-shadow-sm" onMouseEnter={() => setHoveredIdx(i)} onMouseLeave={() => setHoveredIdx(null)} />
+              <circle cx={p.x} cy={p.y} r={hoveredIdx === i ? 6 : 4} fill="#ffffff" stroke={hoveredIdx === i ? "#0B7A70" : "#12A89A"} strokeWidth={hoveredIdx === i ? 2.5 : 2} className="transition-all duration-200 cursor-pointer" onMouseEnter={() => setHoveredIdx(i)} onMouseLeave={() => setHoveredIdx(null)} />
               {shouldShowLabel(i) && (
-                <text x={p.x} y={height - 10} textAnchor="middle" fontSize="10" fill={hoveredIdx === i ? "#2563EB" : "#94a3b8"} fontWeight={hoveredIdx === i ? "700" : "600"} className="transition-colors duration-200 pointer-events-none">
+                <text x={p.x} y={height - 10} textAnchor="middle" fontSize="10" fill={hoveredIdx === i ? "#0B7A70" : "#64748B"} fontWeight={hoveredIdx === i ? "700" : "600"} className="transition-colors duration-200 pointer-events-none">
                   {p.item.label}
                 </text>
               )}
@@ -592,7 +592,7 @@ const DashboardHorizontalBarChart: React.FC<{ data: { label: string; value: numb
             <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-500"
-                style={{ width: `${Math.max(4, pct)}%`, backgroundColor: item.color || '#2563EB' }}
+                style={{ width: `${Math.max(4, pct)}%`, backgroundColor: item.color || '#12A89A' }}
               />
             </div>
           </div>
@@ -873,6 +873,7 @@ export const CompanyDashboardPage: React.FC = () => {
         connection.stop()
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.tenantStatus, showToast])
 
   // Centralized Real-time SignalR Dashboard Subscription
@@ -1891,7 +1892,7 @@ export const CompanyDashboardPage: React.FC = () => {
   })
 
   // Fetch all production batches for complete batch register
-  const { data: allBatches = [], isLoading: batchesLoading } = useQuery<any[]>({
+  const { data: allBatches = [], isLoading: batchesLoading, isError: batchesError } = useQuery<any[]>({
     queryKey: ['allBatchesList'],
     queryFn: async () => {
       const res = await api.get('/api/v1/production/batches')
@@ -2768,43 +2769,6 @@ export const CompanyDashboardPage: React.FC = () => {
       return matchesSearch && matchesLine && matchesStatus && matchesDate
     })
 
-    // Derived operational stats for the top summary cards
-    const totalActiveBatchesCount = activeBatches.length
-    const runningLinesCount = activeBatches.filter((b: any) => b.status === 'Active' || b.status === 'Running' || b.status === 'Bottling Active' || b.status === 'In Progress').length
-    const pausedBatchesCount = allBatches.filter((b: any) => b.status === 'Paused').length
-    const todayStr = new Date().toISOString().slice(0, 10)
-    const todayCasesCount = allBatches
-      .filter((b: any) => {
-        const d = b.completedAt || b.startedAt || b.createdAt
-        return d && new Date(d).toISOString().slice(0, 10) === todayStr
-      })
-      .reduce((acc: number, curr: any) => acc + (curr.producedQuantity || 0), 0)
-    const runningOperatorsCount = new Set(activeBatches.map((b: any) => b.operatorName).filter(Boolean)).size
-    const currentShiftVal = activeBatches[0]?.shift || allBatches[0]?.shift || 'Morning'
-
-    const getStatusBadge = (status: string, completedAt?: string | null) => {
-      const s = (status || (completedAt ? 'COMPLETED' : '')).toUpperCase()
-      switch (s) {
-        case 'ACTIVE':
-        case 'RUNNING':
-        case 'BOTTLING ACTIVE':
-        case 'IN PROGRESS':
-          return { label: 'RUNNING', cls: 'bg-green-50 border-green-200 text-green-700' }
-        case 'PAUSED':
-          return { label: 'PAUSED', cls: 'bg-amber-50 border-amber-200 text-amber-700' }
-        case 'COMPLETED':
-          return { label: 'COMPLETED', cls: 'bg-blue-50 border-blue-200 text-blue-700' }
-        case 'CANCELLED':
-          return { label: 'CANCELLED', cls: 'bg-rose-50 border-rose-200 text-rose-700' }
-        case 'STOPPED':
-          return { label: 'STOPPED', cls: 'bg-rose-50 border-rose-200 text-rose-700' }
-        case 'CLOSED':
-          return { label: 'CLOSED', cls: 'bg-slate-100 border-slate-300 text-slate-700' }
-        default:
-          return { label: s || 'UNKNOWN', cls: 'bg-slate-50 border-slate-200 text-slate-600' }
-      }
-    }
-
     const searchParams = new URLSearchParams(location.search)
     const productionTab = searchParams.get('tab') || 'batches'
 
@@ -2815,10 +2779,14 @@ export const CompanyDashboardPage: React.FC = () => {
             allBatches={allBatches}
             activeBatches={activeBatches}
             batchesLoading={batchesLoading}
+            isError={batchesError}
             productionLines={productionLines}
+            catalogProducts={allCatalogProducts}
             onRefresh={() => {
               queryClient.invalidateQueries({ queryKey: ['allBatchesList'] })
               queryClient.invalidateQueries({ queryKey: ['activeBatchesList'] })
+              queryClient.invalidateQueries({ queryKey: ['productionDashboard'] })
+              queryClient.invalidateQueries({ queryKey: ['cockpitReporting'] })
             }}
             isOwnerRole={isOwnerRole}
             onCreateBatchClick={() => {
@@ -2876,7 +2844,7 @@ export const CompanyDashboardPage: React.FC = () => {
                         value={startBatchLineId}
                         onChange={e => setStartBatchLineId(e.target.value)}
                         required
-                        className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                        className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 transition-all cursor-pointer"
                       >
                         <option value="" disabled>Select Production Line</option>
                         {productionLines.map((line: any) => (
@@ -2894,7 +2862,7 @@ export const CompanyDashboardPage: React.FC = () => {
                         value={startBatchNumber}
                         onChange={e => setStartBatchNumber(e.target.value)}
                         required
-                        className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                        className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 transition-all"
                       />
                     </div>
 
@@ -2905,7 +2873,7 @@ export const CompanyDashboardPage: React.FC = () => {
                         value={startBatchProduct}
                         onChange={e => setStartBatchProduct(e.target.value)}
                         required
-                        className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                        className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 transition-all cursor-pointer"
                       >
                         <option value="" disabled>Select Product</option>
                         {allCatalogProducts.map((prod: any) => (
@@ -2920,7 +2888,7 @@ export const CompanyDashboardPage: React.FC = () => {
                         value={startBatchShift}
                         onChange={e => setStartBatchShift(e.target.value)}
                         required
-                        className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                        className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 transition-all cursor-pointer"
                       >
                         <option value="" disabled>Select Shift</option>
                         {productionShifts.filter((s: any) => s.isActive).map((shift: any) => (
@@ -2938,7 +2906,7 @@ export const CompanyDashboardPage: React.FC = () => {
                       value={startBatchTargetQty}
                       onChange={e => setStartBatchTargetQty(e.target.value)}
                       required
-                      className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                      className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 transition-all"
                     />
                   </div>
 
@@ -2955,7 +2923,7 @@ export const CompanyDashboardPage: React.FC = () => {
                     <button
                       type="submit"
                       disabled={startBatchMutation.isPending}
-                      className="px-6 h-10 bg-[#1A56DB] text-white font-semibold text-sm rounded-[10px] hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px] shadow-sm cursor-pointer"
+                      className="px-6 h-10 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white font-semibold text-sm rounded-[10px] transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px] shadow-sm cursor-pointer"
                     >
                       {startBatchMutation.isPending ? (
                         <span className="flex items-center gap-2">
@@ -3163,7 +3131,7 @@ export const CompanyDashboardPage: React.FC = () => {
                       value={startBatchLineId}
                       onChange={e => setStartBatchLineId(e.target.value)}
                       required
-                      className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                      className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 transition-all cursor-pointer"
                     >
                       <option value="" disabled>Select Production Line</option>
                       {productionLines.map((line: any) => (
@@ -3181,7 +3149,7 @@ export const CompanyDashboardPage: React.FC = () => {
                       value={startBatchNumber}
                       onChange={e => setStartBatchNumber(e.target.value)}
                       required
-                      className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                      className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 transition-all"
                     />
                   </div>
 
@@ -3192,7 +3160,7 @@ export const CompanyDashboardPage: React.FC = () => {
                       value={startBatchProduct}
                       onChange={e => setStartBatchProduct(e.target.value)}
                       required
-                      className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                      className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 transition-all cursor-pointer"
                     >
                       <option value="" disabled>Select Product</option>
                       {allCatalogProducts.map((prod: any) => (
@@ -3207,7 +3175,7 @@ export const CompanyDashboardPage: React.FC = () => {
                       value={startBatchShift}
                       onChange={e => setStartBatchShift(e.target.value)}
                       required
-                      className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all cursor-pointer"
+                      className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 transition-all cursor-pointer"
                     >
                       <option value="" disabled>Select Shift</option>
                       {productionShifts.filter((s: any) => s.isActive).map((shift: any) => (
@@ -3225,7 +3193,7 @@ export const CompanyDashboardPage: React.FC = () => {
                     value={startBatchTargetQty}
                     onChange={e => setStartBatchTargetQty(e.target.value)}
                     required
-                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 transition-all"
+                    className="w-full h-11 px-3 border border-gray-200 rounded-[10px] text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 transition-all"
                   />
                 </div>
 
@@ -3242,7 +3210,7 @@ export const CompanyDashboardPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={startBatchMutation.isPending}
-                    className="px-6 h-10 bg-[#1A56DB] text-white font-semibold text-sm rounded-[10px] hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px] shadow-sm cursor-pointer"
+                    className="px-6 h-10 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white font-semibold text-sm rounded-[10px] transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px] shadow-sm cursor-pointer"
                   >
                     {startBatchMutation.isPending ? (
                       <span className="flex items-center gap-2">
@@ -3286,7 +3254,7 @@ export const CompanyDashboardPage: React.FC = () => {
         title: 'Employee',
         render: (row: any) => (
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-sm bg-[#EFF4FF] text-[#1A56DB] font-extrabold flex items-center justify-center uppercase text-xs">
+            <div className="w-8 h-8 rounded-sm bg-[#E6F6F4] text-[#0B7A70] border border-[#B8E6E0] font-extrabold flex items-center justify-center uppercase text-xs">
               {row.fullName.charAt(0)}
             </div>
             <span className="font-semibold text-[#111827]">{row.fullName}</span>
@@ -3304,7 +3272,7 @@ export const CompanyDashboardPage: React.FC = () => {
         render: (row: any) => {
           let badgeClass = "bg-slate-100 text-[#374151]"
           const code = row.roleCode.toUpperCase()
-          if (code === 'COMPANYADMIN' || code === 'ACCOUNTANT') badgeClass = "bg-[#EFF4FF] text-[#1D4ED8]"
+          if (code === 'COMPANYADMIN' || code === 'ACCOUNTANT') badgeClass = "bg-[#E6F6F4] text-[#0B7A70] border border-[#B8E6E0]"
           else if (code === 'OWNER') badgeClass = "bg-[#FEF3C7] text-[#92400E]"
           else if (code === 'OPERATOR') badgeClass = "bg-[#FEF3C7] text-[#B45309]"
           else if (code === 'SUPERVISOR') badgeClass = "bg-[#F3E8FF] text-[#6B21A8]"
@@ -3358,7 +3326,7 @@ export const CompanyDashboardPage: React.FC = () => {
         render: (row: any) => (
           <div className="flex gap-1 justify-end">
             <button onClick={() => setSelectedEmployeeForView(row)} className="p-2 text-[#6B7280] hover:bg-[#F3F4F6] rounded-full cursor-pointer transition-colors" title="View details"><Eye className="w-3.5 h-3.5" /></button>
-            <button onClick={() => openEditModal(row)} className="p-2 text-[#2563EB] hover:bg-[#F3F4F6] rounded-full cursor-pointer transition-colors" title="Edit Profile"><Edit2 className="w-3.5 h-3.5" /></button>
+            <button onClick={() => openEditModal(row)} className="p-2 text-[#0B7A70] hover:bg-[#F4F7F8] rounded-full cursor-pointer transition-colors" title="Edit Profile"><Edit2 className="w-3.5 h-3.5" /></button>
             <button onClick={() => openResetModal(row)} className="p-2 text-[#D97706] hover:bg-[#F3F4F6] rounded-full cursor-pointer transition-colors" title="Reset Password/PIN"><Key className="w-3.5 h-3.5" /></button>
             <button onClick={() => triggerDelete(row.id, row.fullName)} className="p-2 text-[#EF4444] hover:bg-[#F3F4F6] rounded-full cursor-pointer transition-colors" title="Delete User"><Trash2 className="w-3.5 h-3.5" /></button>
           </div>
@@ -3499,7 +3467,7 @@ export const CompanyDashboardPage: React.FC = () => {
               <div className="flex items-start justify-between pb-5 border-b border-[#E5E7EB]">
                 <div className="flex items-center gap-4">
                   {/* Circular Avatar */}
-                  <div className="w-[56px] h-[56px] rounded-full bg-[#DBEAFE] text-[#2563EB] flex items-center justify-center font-bold text-[22px] uppercase shrink-0">
+                  <div className="w-[56px] h-[56px] rounded-full bg-[#E6F6F4] text-[#05303B] border border-[#B8E6E0] flex items-center justify-center font-bold text-[22px] uppercase shrink-0">
                     {selectedEmployeeForView.fullName.charAt(0)}
                   </div>
                   <div className="flex flex-col text-left">
@@ -3529,7 +3497,7 @@ export const CompanyDashboardPage: React.FC = () => {
                   {(() => {
                     let badgeClass = "bg-slate-100 text-[#374151]"
                     const code = selectedEmployeeForView.roleCode.toUpperCase()
-                    if (code === 'COMPANYADMIN' || code === 'ACCOUNTANT') badgeClass = "bg-[#EFF4FF] text-[#1A56DB]"
+                    if (code === 'COMPANYADMIN' || code === 'ACCOUNTANT') badgeClass = "bg-[#E6F6F4] text-[#0B7A70] border border-[#B8E6E0]"
                     else if (code === 'OWNER') badgeClass = "bg-[#FEF3C7] text-[#92400E]"
                     else if (code === 'OPERATOR') badgeClass = "bg-[#FEF3C7] text-[#92400E]"
                     else if (code === 'SUPERVISOR') badgeClass = "bg-[#F3E8FF] text-[#6B21A8]"
@@ -3599,7 +3567,7 @@ export const CompanyDashboardPage: React.FC = () => {
                         navigator.clipboard.writeText(selectedEmployeeForView.id);
                         showToast('Record ID copied to clipboard.', 'success');
                       }}
-                      className="px-3 py-1 text-xs font-semibold text-[#2563EB] hover:bg-[#EFF4FF] rounded-[8px] cursor-pointer transition-colors shrink-0"
+                      className="px-3 py-1 text-xs font-semibold text-[#0B7A70] hover:bg-[#E6F6F4] rounded-[8px] cursor-pointer transition-colors shrink-0"
                       title="Copy to clipboard"
                     >
                       Copy
@@ -3639,7 +3607,7 @@ export const CompanyDashboardPage: React.FC = () => {
                               setPinVerifyValue('');
                               setIsPinVerifyModalOpen(true);
                             }}
-                            className="px-3.5 py-1.5 text-xs font-semibold bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-[8px] cursor-pointer transition-colors"
+                            className="px-3.5 py-1.5 text-xs font-semibold bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white rounded-[8px] cursor-pointer transition-colors"
                           >
                             Change Password
                           </button>
@@ -3654,7 +3622,7 @@ export const CompanyDashboardPage: React.FC = () => {
               <div className="flex justify-end pt-4 border-t border-[#E5E7EB] mt-2">
                 <button
                   onClick={() => setSelectedEmployeeForView(null)}
-                  className="px-6 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-medium text-sm rounded-[10px] h-[42px] cursor-pointer transition-all active:scale-[0.98]"
+                  className="px-6 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white font-medium text-sm rounded-[10px] h-[42px] cursor-pointer transition-all active:scale-[0.98]"
                 >
                   Close
                 </button>
@@ -3747,7 +3715,7 @@ export const CompanyDashboardPage: React.FC = () => {
                 type="button"
                 onClick={handleGenerateStrongPassword}
                 disabled={isGeneratingPassword}
-                className="px-3 py-1.5 text-xs font-semibold text-[#2563EB] hover:bg-[#EFF4FF] disabled:opacity-50 rounded-[8px] cursor-pointer transition-colors"
+                className="px-3 py-1.5 text-xs font-semibold text-[#0B7A70] hover:bg-[#E6F6F4] disabled:opacity-50 rounded-[8px] cursor-pointer transition-colors"
               >
                 {isGeneratingPassword ? 'Generating...' : 'Generate Password'}
               </button>
@@ -4306,7 +4274,7 @@ export const CompanyDashboardPage: React.FC = () => {
               <div className="relative">
                 <button
                   onClick={() => setIsQuickActionsOpen(!isQuickActionsOpen)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-xl transition-colors shadow-sm cursor-pointer"
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] rounded-xl transition-colors shadow-sm cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Quick Actions
@@ -4370,7 +4338,7 @@ export const CompanyDashboardPage: React.FC = () => {
                   key={btn.id}
                   onClick={() => setDashboardDateFilter(btn.id as any)}
                   className={`px-3.5 py-1.5 text-[12px] font-semibold rounded-lg transition-all cursor-pointer ${dashboardDateFilter === btn.id
-                    ? 'bg-[#2563EB] text-white shadow-sm'
+                    ? 'bg-[#05303B] text-white shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100'
                     }`}
                 >
@@ -4452,7 +4420,7 @@ export const CompanyDashboardPage: React.FC = () => {
                   <h2 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Production Trend</h2>
                   <p className="text-[12px] text-slate-500 font-medium mt-0.5">Cases produced over selected timeline</p>
                 </div>
-                <span className="text-[11px] font-bold text-[#2563EB] bg-blue-50 px-2.5 py-1 rounded-md">
+                <span className="text-[11px] font-bold text-[#0B7A70] bg-[#E6F6F4] border border-[#B8E6E0] px-2.5 py-1 rounded-md">
                   {dashboardDateFilter === 'today' ? 'Hourly Output' : 'Daily Output'}
                 </span>
               </div>
@@ -4487,12 +4455,12 @@ export const CompanyDashboardPage: React.FC = () => {
           <section className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-[#2563EB]" />
+                <Activity className="w-4 h-4 text-[#12A89A]" />
                 <h2 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Running Production Lines</h2>
               </div>
               <button
                 onClick={() => navigate('/company/production')}
-                className="text-[11px] font-semibold text-[#2563EB] hover:text-[#1D4ED8] transition-colors cursor-pointer"
+                className="text-[11px] font-semibold text-[#0B7A70] hover:text-[#05303B] transition-colors cursor-pointer"
               >
                 View All →
               </button>
@@ -4556,7 +4524,7 @@ export const CompanyDashboardPage: React.FC = () => {
                               <span className={`font-bold tabular-nums ${pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-[#374151]'}`}>{pct}%</span>
                             </div>
                             <div className="w-full bg-gray-100 rounded-full h-2">
-                              <div className={`h-2 rounded-full transition-all duration-500 ${isRunning ? 'bg-[#2563EB]' : 'bg-amber-400'}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                              <div className={`h-2 rounded-full transition-all duration-500 ${isRunning ? 'bg-[#12A89A]' : 'bg-amber-400'}`} style={{ width: `${Math.min(100, pct)}%` }} />
                             </div>
                           </div>
                         </>
@@ -4575,7 +4543,7 @@ export const CompanyDashboardPage: React.FC = () => {
           {/* Recent Activity */}
           <section className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
             <div className="flex items-center gap-2 mb-4">
-              <Clock className="w-4 h-4 text-[#2563EB]" />
+              <Clock className="w-4 h-4 text-[#12A89A]" />
               <h2 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Recent Activity</h2>
             </div>
 
@@ -4584,7 +4552,7 @@ export const CompanyDashboardPage: React.FC = () => {
                 {activities.map((item: any, i: number) => (
                   <div key={i} className="flex items-baseline gap-3 text-[13px]">
                     <span className="text-[11px] font-mono text-[#9CA3AF] tabular-nums w-12 flex-shrink-0">{item.time}</span>
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#2563EB] mt-1.5 flex-shrink-0" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#12A89A] mt-1.5 flex-shrink-0" />
                     <span className="text-[#374151]">{item.text}</span>
                   </div>
                 ))}

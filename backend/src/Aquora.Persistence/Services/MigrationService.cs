@@ -342,6 +342,7 @@ namespace Aquora.Persistence.Services
                                     cmd.CommandText = $@"
                                          ALTER TABLE ""{tenant.SchemaName}"".""CashBooks"" ADD COLUMN IF NOT EXISTS ""OwnerId"" uuid NULL;
                                          CREATE INDEX IF NOT EXISTS ""IX_CashBooks_TenantId_OwnerId"" ON ""{tenant.SchemaName}"".""CashBooks"" (""TenantId"", ""OwnerId"");
+                                         ALTER TABLE ""{tenant.SchemaName}"".""ProductionEntries"" ADD COLUMN IF NOT EXISTS ""WaterWastageLitres"" numeric(18,2) NOT NULL DEFAULT 0;
                                          ALTER TABLE ""{tenant.SchemaName}"".""BankLedgerEntries"" ADD COLUMN IF NOT EXISTS ""EventType"" text NULL DEFAULT 'CREATED';
                                          ALTER TABLE ""{tenant.SchemaName}"".""BankLedgerEntries"" ADD COLUMN IF NOT EXISTS ""EventLabel"" text NULL;
                                          ALTER TABLE ""{tenant.SchemaName}"".""BankLedgerEntries"" ADD COLUMN IF NOT EXISTS ""AuditNotes"" text NULL;

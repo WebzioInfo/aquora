@@ -1,14 +1,15 @@
 import axios from 'axios'
+import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '../store/useAuthStore'
-import { mapErrorToUserFriendly } from '../utils/errorMapper'
+import { getFriendlyError } from '../utils/getFriendlyError'
+import type { ErrorContext } from '../utils/getFriendlyError'
 import { envConfig } from '../config/env'
 
 export const API_BASE_URL = envConfig.apiUrl
 
-
-export const api = axios.create({
+export const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 20000, // 20-second hard timeout to prevent frozen UI states
+  timeout: 20000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -35,27 +36,37 @@ export const getDeduplicated = async <T = any>(url: string, config?: any): Promi
   return promise
 }
 
-// Request Interceptor: Attach Token & Tenant ID
+// Request Interceptor: Attach Bearer Token & Tenant Headers
 api.interceptors.request.use(
-  (config) => {
-    const { token, user } = useAuthStore.getState()
-    
+  (config: InternalAxiosRequestConfig) => {
+    const token = useAuthStore.getState().token
+    const tenantId = useAuthStore.getState().user?.tenantId
+    const storedTenantCode = localStorage.getItem('tenantCode')
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-    
-    if (user?.tenantId) {
-      config.headers['X-Tenant-Id'] = user.tenantId
+
+    if (tenantId) {
+      config.headers['X-Tenant-Id'] = tenantId
     }
-    
+
+    if (storedTenantCode) {
+      config.headers['X-Tenant-Code'] = storedTenantCode
+    }
+
     return config
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    return Promise.reject(error)
+  }
 )
 
-// Response Interceptor: Seamless Token Rotation on 401
 let isRefreshing = false
-let failedQueue: any[] = []
+let failedQueue: Array<{
+  resolve: (value?: any) => void
+  reject: (reason?: any) => void
+}> = []
 
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((prom) => {
@@ -68,12 +79,31 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = []
 }
 
+function detectContextFromUrl(url: string = ''): ErrorContext {
+  const lower = url.toLowerCase()
+  if (lower.includes('/auth/login')) return 'login'
+  if (lower.includes('/auth/register')) return 'register'
+  if (lower.includes('/auth/forgot-password') || lower.includes('password-reset') || lower.includes('/otp')) return 'forgot-password'
+  if (lower.includes('/payroll')) return 'payroll'
+  if (lower.includes('/production') || lower.includes('/batch')) return 'production'
+  if (lower.includes('/inventory') || lower.includes('/raw-material')) return 'inventory'
+  if (lower.includes('/expense')) return 'expenses'
+  if (lower.includes('/purchase')) return 'purchases'
+  if (lower.includes('/sales') || lower.includes('/customer')) return 'sales'
+  if (lower.includes('/backup')) return 'backup'
+  return 'generic'
+}
+
+// Response Interceptor: Token Refresh & Central Friendly Error Normalization
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
-    
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const url = originalRequest?.url || error.config?.url || ''
+    const isLoginEndpoint = url.includes('/api/v1/auth/login')
+
+    // Handle 401
+    if (error.response?.status === 401 && !originalRequest?._retry && !isLoginEndpoint) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })
@@ -92,6 +122,15 @@ api.interceptors.response.use(
 
       if (!refreshToken || !token) {
         clearAuth()
+        const friendly = getFriendlyError(error, detectContextFromUrl(url))
+        error.message = friendly.message
+        error.title = friendly.title
+        if (error.response) {
+          if (!error.response.data) error.response.data = {}
+          error.response.data.message = friendly.message
+          error.response.data.title = friendly.title
+          error.response.data.success = false
+        }
         return Promise.reject(error)
       }
 
@@ -113,29 +152,24 @@ api.interceptors.response.use(
             lastName, 
             tenantId, 
             roles, 
-            permissions,
-            isTenantInitialized,
-            tenantStatus,
-            emailVerified,
-            assignedProductionLineId,
-            companyName
+            permissions, 
+            assignedProductionLineId, 
+            companyName 
           } = data.data
-          
+
           setAuth(newToken, newRefreshToken, {
-            ...currentUser,
-            userId,
-            email,
-            firstName,
-            lastName,
-            tenantId,
-            roles,
-            permissions,
-            isTenantInitialized: isTenantInitialized ?? currentUser?.isTenantInitialized,
-            tenantStatus: tenantStatus ?? currentUser?.tenantStatus,
-            emailVerified: emailVerified ?? currentUser?.emailVerified,
-            assignedProductionLineId: assignedProductionLineId ?? currentUser?.assignedProductionLineId,
-            companyName: companyName ?? currentUser?.companyName,
-            tenantName: companyName ?? currentUser?.companyName
+            userId: userId || currentUser?.userId || '',
+            email: email || currentUser?.email || '',
+            firstName: firstName || currentUser?.firstName || '',
+            lastName: lastName || currentUser?.lastName || '',
+            tenantId: tenantId ?? currentUser?.tenantId ?? null,
+            roles: roles || currentUser?.roles || [],
+            permissions: permissions || currentUser?.permissions || [],
+            isTenantInitialized: currentUser?.isTenantInitialized ?? true,
+            tenantStatus: currentUser?.tenantStatus || 'ACTIVE',
+            emailVerified: currentUser?.emailVerified ?? true,
+            assignedProductionLineId: assignedProductionLineId ?? currentUser?.assignedProductionLineId ?? null,
+            companyName: companyName || currentUser?.companyName
           })
 
           processQueue(null, newToken)
@@ -145,7 +179,6 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null)
         clearAuth()
-        // Force redirect to login page if window is available
         if (typeof window !== 'undefined') {
           window.location.href = '/login'
         }
@@ -155,10 +188,11 @@ api.interceptors.response.use(
       }
     }
 
-    // Map any raw error, status code, or DB exception into clean user-friendly feedback
-    const userFriendly = mapErrorToUserFriendly(error)
-    const errorMessage = userFriendly.message
-    const errorCode = userFriendly.code
+    // Central Error Normalization (Single Source of Truth)
+    const context = detectContextFromUrl(url)
+    const friendly = getFriendlyError(error, context)
+    const errorMessage = friendly.message
+    const errorCode = friendly.statusCode?.toString() || 'ERROR'
     let errorDetails: string[] = [errorMessage]
 
     if (error.response) {
@@ -173,11 +207,12 @@ api.interceptors.response.use(
       error.response.data.message = errorMessage
       error.response.data.errors = errorDetails
       error.response.data.code = errorCode
-      error.response.data.title = userFriendly.title
+      error.response.data.title = friendly.title
+      error.response.data.fieldErrors = friendly.fieldErrors
     } else if (error.request) {
       error.response = {
         status: 0,
-        statusText: "Network Error",
+        statusText: "Connection Error",
         headers: {},
         config: originalRequest || error.config,
         data: {
@@ -185,7 +220,8 @@ api.interceptors.response.use(
           message: errorMessage,
           errors: errorDetails,
           code: errorCode,
-          title: userFriendly.title
+          title: friendly.title,
+          fieldErrors: friendly.fieldErrors
         }
       }
     } else {
@@ -199,18 +235,22 @@ api.interceptors.response.use(
           message: errorMessage,
           errors: errorDetails,
           code: errorCode,
-          title: userFriendly.title
+          title: friendly.title,
+          fieldErrors: friendly.fieldErrors
         }
       }
     }
 
-    // Mutate the error object to contain the safe user-friendly message & title
+    // Guarantee that error.message is never a raw technical string
     error.message = errorMessage
     error.details = errorDetails
     error.code = errorCode
-    error.title = userFriendly.title
-    error.userFriendly = userFriendly
+    error.title = friendly.title
+    error.fieldErrors = friendly.fieldErrors
+    error.friendly = friendly
 
     return Promise.reject(error)
   }
 )
+
+export default api

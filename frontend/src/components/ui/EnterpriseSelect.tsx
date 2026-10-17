@@ -23,7 +23,7 @@ export const EnterpriseSelect = React.forwardRef<HTMLSelectElement, EnterpriseSe
         )}
         <select
           ref={ref}
-          className={`w-full h-[40px] border px-3 py-2 text-sm transition-all focus:outline-none focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB] focus:shadow-[0_0_0_2px_rgba(26,86,219,0.15)] rounded-[8px] cursor-pointer bg-white text-slate-900 border-[#D0D5DD] ${
+          className={`w-full h-[40px] border px-3 py-2 text-sm transition-all focus:outline-none focus:border-[#12A89A] focus:ring-1 focus:ring-[#12A89A] focus:shadow-[0_0_0_2px_rgba(18,168,154,0.15)] rounded-[8px] cursor-pointer bg-white text-slate-900 border-[#D0D5DD] ${
             error ? 'border-red-500 ring-1 ring-red-500' : ''
           } ${className}`}
           {...props}

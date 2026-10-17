@@ -121,7 +121,7 @@ export const AssetFilters: React.FC<AssetFiltersProps> = ({
             value={filters.search}
             onChange={e => onChange({ search: e.target.value })}
             placeholder="Search name, tag, serial, model..."
-            className="w-full h-[34px] pl-8 pr-7 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#1A56DB] transition-colors"
+            className="w-full h-[34px] pl-8 pr-7 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#12A89A] transition-colors"
           />
           {filters.search && (
             <button
@@ -166,7 +166,7 @@ export const AssetFilters: React.FC<AssetFiltersProps> = ({
           <select
             value={filters.category}
             onChange={e => onChange({ category: e.target.value })}
-            className={`h-[34px] pl-7 pr-7 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB] cursor-pointer appearance-none ${
+            className={`h-[34px] pl-7 pr-7 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A] cursor-pointer appearance-none ${
               filters.category && filters.category !== 'ALL'
                 ? 'font-bold text-slate-900 border-slate-300'
                 : 'text-slate-600 font-medium'
@@ -187,7 +187,7 @@ export const AssetFilters: React.FC<AssetFiltersProps> = ({
           <select
             value={filters.condition}
             onChange={e => onChange({ condition: e.target.value })}
-            className={`h-[34px] px-3 pr-7 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB] cursor-pointer appearance-none ${
+            className={`h-[34px] px-3 pr-7 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A] cursor-pointer appearance-none ${
               filters.condition && filters.condition !== 'ALL'
                 ? 'font-bold text-slate-900 border-slate-300'
                 : 'text-slate-600 font-medium'
@@ -209,7 +209,7 @@ export const AssetFilters: React.FC<AssetFiltersProps> = ({
             type="button"
             onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
             className={`h-[34px] px-3 flex items-center gap-1.5 border border-slate-200 rounded-lg bg-white text-xs font-medium hover:border-slate-300 transition-colors ${
-              filters.datePreset !== 'all' ? 'text-[#1A56DB] font-bold border-blue-200 bg-blue-50/40' : 'text-slate-700'
+              filters.datePreset !== 'all' ? 'text-[#0B7A70] font-bold border-blue-200 bg-blue-50/40' : 'text-slate-700'
             }`}
           >
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
@@ -263,7 +263,7 @@ export const AssetFilters: React.FC<AssetFiltersProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsDatePickerOpen(false)}
-                    className="w-full mt-1 py-1 bg-[#1A56DB] text-white rounded text-xs font-semibold"
+                    className="w-full mt-1 py-1 bg-[#05303B] text-white rounded text-xs font-semibold"
                   >
                     Apply Range
                   </button>

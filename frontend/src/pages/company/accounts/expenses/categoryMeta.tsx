@@ -169,11 +169,11 @@ export const KNOWN_PALETTE: Record<string, PaletteEntry> = {
     icon: ShoppingBag
   },
   machine: {
-    dot: '#3B82F6',
-    bg: '#DBEAFE',
-    text: '#1E40AF',
-    darkBg: 'rgba(59, 130, 246, 0.2)',
-    darkText: '#93C5FD',
+    dot: '#12A89A',
+    bg: '#E6F6F4',
+    text: '#0B7A70',
+    darkBg: 'rgba(18, 168, 154, 0.2)',
+    darkText: '#86E8D6',
     icon: Wrench
   },
   officeasset: {

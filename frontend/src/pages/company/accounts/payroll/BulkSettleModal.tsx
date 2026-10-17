@@ -201,7 +201,7 @@ export const BulkSettleModal: React.FC<BulkSettleModalProps> = ({
               </div>
               <div className="w-full h-1.5 bg-blue-200 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-[#1A56DB] transition-all duration-200"
+                  className="h-full bg-[#12A89A] transition-all duration-200"
                   style={{ width: `${Math.round((progress.current / progress.total) * 100)}%` }}
                 />
               </div>
@@ -219,7 +219,7 @@ export const BulkSettleModal: React.FC<BulkSettleModalProps> = ({
                   disabled={isProcessing}
                   className={`flex-1 h-[32px] rounded-lg text-xs font-medium border ${
                     paymentMethod === 'BankAccount'
-                      ? 'bg-blue-50 border-[#1A56DB] text-[#1A56DB] font-semibold'
+                      ? 'bg-blue-50 border-[#12A89A] text-[#0B7A70] font-semibold'
                       : 'bg-white border-slate-200 text-slate-600'
                   }`}
                 >
@@ -231,7 +231,7 @@ export const BulkSettleModal: React.FC<BulkSettleModalProps> = ({
                   disabled={isProcessing}
                   className={`flex-1 h-[32px] rounded-lg text-xs font-medium border ${
                     paymentMethod === 'CashBook'
-                      ? 'bg-blue-50 border-[#1A56DB] text-[#1A56DB] font-semibold'
+                      ? 'bg-blue-50 border-[#12A89A] text-[#0B7A70] font-semibold'
                       : 'bg-white border-slate-200 text-slate-600'
                   }`}
                 >
@@ -249,7 +249,7 @@ export const BulkSettleModal: React.FC<BulkSettleModalProps> = ({
                   value={bankAccountId}
                   onChange={e => setBankAccountId(e.target.value)}
                   disabled={isProcessing}
-                  className="w-full h-[32px] px-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB]"
+                  className="w-full h-[32px] px-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#12A89A]"
                 >
                   {bankAccounts.map(b => (
                     <option key={b.id} value={b.id}>
@@ -262,7 +262,7 @@ export const BulkSettleModal: React.FC<BulkSettleModalProps> = ({
                   value={cashBookId}
                   onChange={e => setCashBookId(e.target.value)}
                   disabled={isProcessing}
-                  className="w-full h-[32px] px-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB]"
+                  className="w-full h-[32px] px-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#12A89A]"
                 >
                   {cashBooks.map(c => (
                     <option key={c.id} value={c.id}>
@@ -280,7 +280,7 @@ export const BulkSettleModal: React.FC<BulkSettleModalProps> = ({
                 value={paymentDate}
                 onChange={e => setPaymentDate(e.target.value)}
                 disabled={isProcessing}
-                className="w-full h-[32px] px-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB]"
+                className="w-full h-[32px] px-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#12A89A]"
               />
             </div>
           </div>
@@ -325,7 +325,7 @@ export const BulkSettleModal: React.FC<BulkSettleModalProps> = ({
                         value={currentVal}
                         disabled={isProcessing}
                         onChange={e => handleAmountChange(r.id, e.target.value, bal)}
-                        className="w-full h-[30px] pl-6 pr-2 bg-white border border-slate-300 rounded-lg text-right font-mono font-medium focus:outline-none focus:border-[#1A56DB]"
+                        className="w-full h-[30px] pl-6 pr-2 bg-white border border-slate-300 rounded-lg text-right font-mono font-medium focus:outline-none focus:border-[#12A89A]"
                       />
                     </div>
                   </div>
@@ -355,7 +355,7 @@ export const BulkSettleModal: React.FC<BulkSettleModalProps> = ({
               type="button"
               onClick={handleProcessBulk}
               disabled={isProcessing || totalAmountToPay <= 0}
-              className="h-[34px] px-4 bg-[#1A56DB] hover:bg-blue-700 text-white font-medium rounded-lg text-xs shadow-2xs transition-colors flex items-center gap-1.5 disabled:opacity-60"
+              className="h-[34px] px-4 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white font-medium rounded-lg text-xs shadow-2xs transition-colors flex items-center gap-1.5 disabled:opacity-60"
             >
               {isProcessing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               <span>Pay {formatINR(totalAmountToPay)}</span>

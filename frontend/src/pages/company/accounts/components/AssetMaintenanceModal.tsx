@@ -99,7 +99,7 @@ export const AssetMaintenanceModal: React.FC<AssetMaintenanceModalProps> = ({
             <select
               value={maintenanceForm.maintenanceType}
               onChange={(e) => setMaintenanceForm({ ...maintenanceForm, maintenanceType: e.target.value })}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-medium focus:outline-none focus:border-[#1A56DB]"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-medium focus:outline-none focus:border-[#12A89A]"
             >
               <option value="Preventive">Preventive Maintenance (Routine)</option>
               <option value="Corrective">Corrective Maintenance (Fault Fix)</option>
@@ -118,7 +118,7 @@ export const AssetMaintenanceModal: React.FC<AssetMaintenanceModalProps> = ({
               placeholder="e.g. Aquatech Internal Team / OEM Care"
               value={maintenanceForm.serviceProvider}
               onChange={(e) => setMaintenanceForm({ ...maintenanceForm, serviceProvider: e.target.value })}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
             />
           </div>
         </div>
@@ -134,7 +134,7 @@ export const AssetMaintenanceModal: React.FC<AssetMaintenanceModalProps> = ({
             placeholder="e.g. Replaced RO membrane filter elements, lubricated bearings, and recalibrated pressure valves"
             value={maintenanceForm.description}
             onChange={(e) => setMaintenanceForm({ ...maintenanceForm, description: e.target.value })}
-            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
           />
         </div>
 
@@ -144,7 +144,7 @@ export const AssetMaintenanceModal: React.FC<AssetMaintenanceModalProps> = ({
             <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">
               Expenditure Breakdown
             </span>
-            <span className="text-xs font-mono font-bold text-[#1A56DB]">
+            <span className="text-xs font-mono font-bold text-[#0B7A70]">
               Total Service Cost: {formatCurrency(totalCost)}
             </span>
           </div>
@@ -161,7 +161,7 @@ export const AssetMaintenanceModal: React.FC<AssetMaintenanceModalProps> = ({
                 onChange={(e) =>
                   setMaintenanceForm({ ...maintenanceForm, partsCost: parseFloat(e.target.value) || 0 })
                 }
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#1A56DB]"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#12A89A]"
               />
             </div>
 
@@ -176,7 +176,7 @@ export const AssetMaintenanceModal: React.FC<AssetMaintenanceModalProps> = ({
                 onChange={(e) =>
                   setMaintenanceForm({ ...maintenanceForm, labourCost: parseFloat(e.target.value) || 0 })
                 }
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#1A56DB]"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#12A89A]"
               />
             </div>
 
@@ -191,7 +191,7 @@ export const AssetMaintenanceModal: React.FC<AssetMaintenanceModalProps> = ({
                 onChange={(e) =>
                   setMaintenanceForm({ ...maintenanceForm, otherCost: parseFloat(e.target.value) || 0 })
                 }
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#1A56DB]"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#12A89A]"
               />
             </div>
           </div>
@@ -206,7 +206,7 @@ export const AssetMaintenanceModal: React.FC<AssetMaintenanceModalProps> = ({
               placeholder="e.g. Rajesh Kumar"
               value={maintenanceForm.technicianName || ''}
               onChange={(e) => setMaintenanceForm({ ...maintenanceForm, technicianName: e.target.value })}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
             />
           </div>
 
@@ -221,7 +221,7 @@ export const AssetMaintenanceModal: React.FC<AssetMaintenanceModalProps> = ({
                 required
                 value={maintenanceForm.maintenanceDate?.slice(0, 10) ?? new Date().toISOString().slice(0, 10)}
                 onChange={(e) => setMaintenanceForm({ ...maintenanceForm, maintenanceDate: e.target.value })}
-                className="w-full pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+                className="w-full pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
               />
             </div>
           </div>
@@ -234,7 +234,7 @@ export const AssetMaintenanceModal: React.FC<AssetMaintenanceModalProps> = ({
                 type="date"
                 value={maintenanceForm.nextMaintenanceDate?.slice(0, 10) || ''}
                 onChange={(e) => setMaintenanceForm({ ...maintenanceForm, nextMaintenanceDate: e.target.value })}
-                className="w-full pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+                className="w-full pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
               />
             </div>
           </div>
@@ -250,7 +250,7 @@ export const AssetMaintenanceModal: React.FC<AssetMaintenanceModalProps> = ({
             placeholder="Operational notes, oil grade used, pressure check readings, or recommended follow-up..."
             value={maintenanceForm.notes || ''}
             onChange={(e) => setMaintenanceForm({ ...maintenanceForm, notes: e.target.value })}
-            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
           />
         </div>
       </form>

@@ -5,6 +5,8 @@ import { api } from '../../services/api'
 import { productionShiftsService, type ProductionShift, calculateShiftDuration } from '../../services/productionShifts'
 import { caseConfigurationsService, type CaseConfiguration } from '../../services/caseConfigurations'
 import { productsService } from '../../services/products'
+import { brandService, type BrandDto } from '../../services/brands'
+import { getFriendlyError } from '../../utils/getFriendlyError'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import { isOwnerUser } from '../../utils/permissions'
@@ -15,7 +17,7 @@ import EnterpriseButton from '../../components/ui/EnterpriseButton'
 import EnterpriseLoading from '../../components/ui/EnterpriseLoading'
 import EnterpriseNumberInput from '../../components/ui/EnterpriseNumberInput'
 import { EnterpriseTimePicker } from '../../components/ui/EnterpriseTimePicker'
-import { Sliders, Workflow, Clock, Plus, Edit2, Trash2, Power, Search, Package } from 'lucide-react'
+import { Sliders, Workflow, Clock, Plus, Edit2, Trash2, Power, Search, Package, Tag, RotateCw, AlertCircle } from 'lucide-react'
 
 export const ProductionSetupPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -31,13 +33,25 @@ export const ProductionSetupPage: React.FC = () => {
     }
   }, [user, navigate])
 
-  // Tab State: 'lines' | 'shifts' | 'cases'
+  // Tab State: 'lines' | 'shifts' | 'cases' | 'brands'
   const tabParam = searchParams.get('tab')
-  const activeTab = (tabParam === 'shifts' ? 'shifts' : tabParam === 'cases' ? 'cases' : 'lines') as 'lines' | 'shifts' | 'cases'
+  const activeTab = (
+    tabParam === 'shifts' ? 'shifts' :
+    tabParam === 'cases' ? 'cases' :
+    tabParam === 'brands' ? 'brands' : 'lines'
+  ) as 'lines' | 'shifts' | 'cases' | 'brands'
 
-  const setActiveTab = (tab: 'lines' | 'shifts' | 'cases') => {
+  const setActiveTab = (tab: 'lines' | 'shifts' | 'cases' | 'brands') => {
     setSearchParams({ tab })
   }
+
+  useEffect(() => {
+    if (activeTab === 'brands') {
+      document.title = 'Brands · Production Setup · Aquzio'
+    } else {
+      document.title = 'Production Setup · Aquzio'
+    }
+  }, [activeTab])
 
   // User Role Check
   const userRoles = (user?.roles || []).map((r: string) => r.toLowerCase().replace(/[\s_]/g, ''))
@@ -460,20 +474,183 @@ export const ProductionSetupPage: React.FC = () => {
     (c.productSku || '').toLowerCase().includes(caseConfigSearch.toLowerCase())
   )
 
+  // ─── TAB 4: BRANDS DATA & MUTATIONS ──────────────────────────────────────
+  const [brandsSearch, setBrandsSearch] = useState('')
+  const [brandsPage, setBrandsPage] = useState(1)
+  const [isAddBrandModalOpen, setIsAddBrandModalOpen] = useState(false)
+  const [isEditBrandModalOpen, setIsEditBrandModalOpen] = useState(false)
+  const [selectedBrand, setSelectedBrand] = useState<BrandDto | null>(null)
+
+  const [brandFormName, setBrandFormName] = useState('')
+  const [brandFormCode, setBrandFormCode] = useState('')
+  const [brandFormDescription, setBrandFormDescription] = useState('')
+  const [brandFormIsActive, setBrandFormIsActive] = useState(true)
+  const [brandFormErrors, setBrandFormErrors] = useState<Record<string, string>>({})
+
+  // Queries
+  const {
+    data: paginatedBrandsData,
+    isLoading: brandsLoading,
+    isError: brandsIsError,
+    error: brandsError,
+    refetch: refetchBrands
+  } = useQuery({
+    queryKey: ['brandsPaginated', brandsPage, brandsSearch],
+    queryFn: async () => (await brandService.getBrands(brandsPage, 10, brandsSearch)).data,
+    enabled: activeTab === 'brands'
+  })
+
+  // Fast count query for tab badge
+  const { data: allBrandsCountData } = useQuery({
+    queryKey: ['allBrandsCount'],
+    queryFn: async () => (await brandService.getBrands(1, 1)).data?.totalCount ?? 0,
+    staleTime: 30000
+  })
+
+  const totalBrandsCount = paginatedBrandsData?.totalCount ?? allBrandsCountData ?? 0
+
+  // Mutations
+  const createBrandMutation = useMutation({
+    mutationFn: brandService.createBrand,
+    onSuccess: (res) => {
+      if (res.success) {
+        showToast('Brand created successfully.', 'success')
+        queryClient.invalidateQueries({ queryKey: ['brandsPaginated'] })
+        queryClient.invalidateQueries({ queryKey: ['brandsDropdown'] })
+        queryClient.invalidateQueries({ queryKey: ['allBrandsCount'] })
+        queryClient.invalidateQueries({ queryKey: ['brands'] })
+        setIsAddBrandModalOpen(false)
+        resetBrandForm()
+      } else {
+        showToast(res.message || 'Failed to create brand.', 'error')
+      }
+    },
+    onError: (err: any) => {
+      showToast(getFriendlyError(err).message, 'error')
+    }
+  })
+
+  const updateBrandMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => brandService.updateBrand(id, data),
+    onSuccess: (res) => {
+      if (res.success) {
+        showToast('Brand updated successfully.', 'success')
+        queryClient.invalidateQueries({ queryKey: ['brandsPaginated'] })
+        queryClient.invalidateQueries({ queryKey: ['brandsDropdown'] })
+        queryClient.invalidateQueries({ queryKey: ['brands'] })
+        setIsEditBrandModalOpen(false)
+        setSelectedBrand(null)
+        resetBrandForm()
+      } else {
+        showToast(res.message || 'Failed to update brand.', 'error')
+      }
+    },
+    onError: (err: any) => {
+      showToast(getFriendlyError(err).message, 'error')
+    }
+  })
+
+  const deleteBrandMutation = useMutation({
+    mutationFn: brandService.deleteBrand,
+    onSuccess: (res) => {
+      if (res.success) {
+        showToast('Brand deleted successfully.', 'success')
+        queryClient.invalidateQueries({ queryKey: ['brandsPaginated'] })
+        queryClient.invalidateQueries({ queryKey: ['brandsDropdown'] })
+        queryClient.invalidateQueries({ queryKey: ['allBrandsCount'] })
+        queryClient.invalidateQueries({ queryKey: ['brands'] })
+      } else {
+        showToast(res.message || 'Failed to delete brand.', 'error')
+      }
+    },
+    onError: (err: any) => {
+      showToast(getFriendlyError(err).message, 'error')
+    }
+  })
+
+  const resetBrandForm = () => {
+    setBrandFormName('')
+    setBrandFormCode('')
+    setBrandFormDescription('')
+    setBrandFormIsActive(true)
+    setBrandFormErrors({})
+    setSelectedBrand(null)
+  }
+
+  const handleOpenAddBrand = () => {
+    resetBrandForm()
+    setIsAddBrandModalOpen(true)
+  }
+
+  const handleOpenEditBrand = (brand: BrandDto) => {
+    setSelectedBrand(brand)
+    setBrandFormName(brand.name)
+    setBrandFormCode(brand.code || '')
+    setBrandFormDescription(brand.description || '')
+    setBrandFormIsActive(brand.isActive)
+    setBrandFormErrors({})
+    setIsEditBrandModalOpen(true)
+  }
+
+  const handleDeleteBrand = (brand: BrandDto) => {
+    if (window.confirm(`Are you sure you want to delete brand "${brand.name}"?`)) {
+      deleteBrandMutation.mutate(brand.id)
+    }
+  }
+
+  const handleSaveBrand = (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmedName = brandFormName.trim()
+    if (!trimmedName) {
+      setBrandFormErrors({ name: 'Brand Name is required.' })
+      return
+    }
+
+    if (selectedBrand) {
+      updateBrandMutation.mutate({
+        id: selectedBrand.id,
+        data: {
+          name: trimmedName,
+          code: brandFormCode.trim() || undefined,
+          description: brandFormDescription.trim() || undefined,
+          isActive: brandFormIsActive
+        }
+      })
+    } else {
+      createBrandMutation.mutate({
+        name: trimmedName,
+        code: brandFormCode.trim() || undefined,
+        description: brandFormDescription.trim() || undefined,
+        isActive: brandFormIsActive
+      })
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────────────────────
   return (
     <PageContainer>
       {/* ══ PAGE HEADER ═════════════════════════════════════════════════════════ */}
       <PageHeader
-        title="Production Setup"
-        description="Manage production lines, operating shifts, and line status schedules."
+        title={activeTab === 'brands' ? 'Brands' : 'Production Setup'}
+        badge={
+          activeTab === 'brands' ? (
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#E6F6F4] text-[#0B7A70] border border-[#B8E6E0]">
+              {totalBrandsCount} {totalBrandsCount === 1 ? 'brand' : 'brands'}
+            </span>
+          ) : undefined
+        }
+        description={
+          activeTab === 'brands'
+            ? 'Manage product brand registrations and codes.'
+            : 'Manage production lines, operating shifts, and line status schedules.'
+        }
         actions={
           canManage && (
             activeTab === 'lines' ? (
               <button
                 type="button"
                 onClick={handleOpenAddLine}
-                className="h-9 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow-sm shrink-0"
+                className="h-9 px-4 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow-sm shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Production Line</span>
@@ -482,19 +659,28 @@ export const ProductionSetupPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleOpenAddShift}
-                className="h-9 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow-sm shrink-0"
+                className="h-9 px-4 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow-sm shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Production Shift</span>
               </button>
-            ) : (
+            ) : activeTab === 'cases' ? (
               <button
                 type="button"
                 onClick={handleOpenAddCaseConfig}
-                className="h-9 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow-sm shrink-0"
+                className="h-9 px-4 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow-sm shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Case Configuration</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleOpenAddBrand}
+                className="h-9 px-4 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow-sm shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Brand</span>
               </button>
             )
           )
@@ -504,65 +690,120 @@ export const ProductionSetupPage: React.FC = () => {
       {/* ══ TAB SWITCHER & SEARCH BAR ════════════════════════════════════════ */}
       <div className="bg-white border border-[#E5E7EB] rounded-xl p-2.5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
         {/* Tabs */}
-        <div className="flex items-center bg-slate-100 p-1 rounded-md w-full sm:w-auto">
+        <div className="flex items-center bg-slate-100 p-1 rounded-md w-full sm:w-auto overflow-x-auto scrollbar-none" role="tablist">
           <button
-              onClick={() => setActiveTab('lines')}
-              className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
-                activeTab === 'lines'
-                  ? 'bg-white text-blue-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Workflow className="w-3.5 h-3.5" />
-              <span>Production Lines</span>
-              <span className="ml-1 text-[10px] bg-slate-200 px-1.5 py-0.2 rounded-full text-slate-700 font-extrabold">
-                {productionLines.length}
-              </span>
-            </button>
+            onClick={() => setActiveTab('lines')}
+            role="tab"
+            aria-selected={activeTab === 'lines'}
+            className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'lines'
+                ? 'bg-white text-[#05303B] shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Workflow className="w-3.5 h-3.5" />
+            <span>Production Lines</span>
+            <span className="ml-1 text-[10px] bg-slate-200 px-1.5 py-0.2 rounded-full text-slate-700 font-extrabold">
+              {productionLines.length}
+            </span>
+          </button>
 
-            <button
-              onClick={() => setActiveTab('shifts')}
-              className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
-                activeTab === 'shifts'
-                  ? 'bg-white text-blue-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5" />
-              <span>Production Shifts</span>
-              <span className="ml-1 text-[10px] bg-slate-200 px-1.5 py-0.2 rounded-full text-slate-700 font-extrabold">
-                {shifts.length}
-              </span>
-            </button>
+          <button
+            onClick={() => setActiveTab('shifts')}
+            role="tab"
+            aria-selected={activeTab === 'shifts'}
+            className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'shifts'
+                ? 'bg-white text-[#05303B] shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            <span>Production Shifts</span>
+            <span className="ml-1 text-[10px] bg-slate-200 px-1.5 py-0.2 rounded-full text-slate-700 font-extrabold">
+              {shifts.length}
+            </span>
+          </button>
 
-            <button
-              onClick={() => setActiveTab('cases')}
-              className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
-                activeTab === 'cases'
-                  ? 'bg-white text-blue-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Package className="w-3.5 h-3.5" />
-              <span>Case Configuration</span>
-              <span className="ml-1 text-[10px] bg-slate-200 px-1.5 py-0.2 rounded-full text-slate-700 font-extrabold">
-                {caseConfigs.length}
-              </span>
-            </button>
-          </div>
+          <button
+            onClick={() => setActiveTab('cases')}
+            role="tab"
+            aria-selected={activeTab === 'cases'}
+            className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'cases'
+                ? 'bg-white text-[#05303B] shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Package className="w-3.5 h-3.5" />
+            <span>Case Configuration</span>
+            <span className="ml-1 text-[10px] bg-slate-200 px-1.5 py-0.2 rounded-full text-slate-700 font-extrabold">
+              {caseConfigs.length}
+            </span>
+          </button>
 
-          {/* Search Filter Input */}
+          <button
+            onClick={() => setActiveTab('brands')}
+            role="tab"
+            aria-selected={activeTab === 'brands'}
+            className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'brands'
+                ? 'bg-white text-[#05303B] shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Tag className="w-3.5 h-3.5" />
+            <span>Brands</span>
+            <span className="ml-1 text-[10px] bg-slate-200 px-1.5 py-0.2 rounded-full text-slate-700 font-extrabold">
+              {totalBrandsCount}
+            </span>
+          </button>
+        </div>
+
+        {/* Search Filter & Actions */}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="relative w-full sm:w-64">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder={activeTab === 'lines' ? "Search lines..." : activeTab === 'shifts' ? "Search shifts..." : "Search product / SKU..."}
-              value={activeTab === 'lines' ? lineSearch : activeTab === 'shifts' ? shiftSearch : caseConfigSearch}
-              onChange={(e) => activeTab === 'lines' ? setLineSearch(e.target.value) : activeTab === 'shifts' ? setShiftSearch(e.target.value) : setCaseConfigSearch(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-md pl-8 pr-3 py-1.5 text-xs font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder={
+                activeTab === 'lines' ? "Search lines..." :
+                activeTab === 'shifts' ? "Search shifts..." :
+                activeTab === 'cases' ? "Search product / SKU..." :
+                "Search brands..."
+              }
+              value={
+                activeTab === 'lines' ? lineSearch :
+                activeTab === 'shifts' ? shiftSearch :
+                activeTab === 'cases' ? caseConfigSearch :
+                brandsSearch
+              }
+              onChange={(e) => {
+                const v = e.target.value
+                if (activeTab === 'lines') setLineSearch(v)
+                else if (activeTab === 'shifts') setShiftSearch(v)
+                else if (activeTab === 'cases') setCaseConfigSearch(v)
+                else {
+                  setBrandsSearch(v)
+                  setBrandsPage(1)
+                }
+              }}
+              className="w-full bg-slate-50 border border-slate-200 rounded-md pl-8 pr-3 py-1.5 text-xs font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#12A89A]"
             />
           </div>
+          {activeTab === 'brands' && (
+            <button
+              type="button"
+              onClick={() => refetchBrands()}
+              title="Refresh brands list"
+              className="h-[30px] px-2.5 text-xs font-semibold text-slate-600 hover:text-[#05303B] hover:bg-slate-100 rounded-md border border-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+            >
+              <RotateCw className={`w-3.5 h-3.5 ${brandsLoading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+          )}
         </div>
+      </div>
 
         {/* ══ TAB CONTENT AREA (SINGLE VIEW SCROLL-OPTIMIZED) ═══════════════════ */}
         <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex flex-col max-h-[calc(100vh-230px)]">
@@ -939,6 +1180,143 @@ export const ProductionSetupPage: React.FC = () => {
             )
           )}
 
+          {/* ────────────── TAB 4: BRANDS ────────────── */}
+          {activeTab === 'brands' && (
+            brandsLoading ? (
+              <div className="p-8">
+                <EnterpriseLoading label="Loading brands..." />
+              </div>
+            ) : brandsIsError ? (
+              <div className="p-12 text-center flex flex-col items-center justify-center">
+                <AlertCircle className="w-10 h-10 text-red-400 mb-2" />
+                <p className="text-sm font-bold text-slate-800">Failed to load brands</p>
+                <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                  {getFriendlyError(brandsError).message}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => refetchBrands()}
+                  className="mt-4 flex items-center gap-1.5 px-3 py-1.5 bg-[#05303B] hover:bg-[#0A4352] text-white text-xs font-bold rounded-lg cursor-pointer transition-all"
+                >
+                  <RotateCw className="w-3.5 h-3.5" /> Retry
+                </button>
+              </div>
+            ) : !paginatedBrandsData?.items || paginatedBrandsData.items.length === 0 ? (
+              <div className="p-12 text-center flex flex-col items-center justify-center">
+                <Tag className="w-10 h-10 text-slate-300 mb-2" />
+                <p className="text-sm font-bold text-slate-700">No brands yet.</p>
+                <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                  {brandsSearch ? "No brands match your search filter." : "No brands yet. Add your first brand to start creating products."}
+                </p>
+                {canManage && !brandsSearch && (
+                  <button
+                    type="button"
+                    onClick={handleOpenAddBrand}
+                    className="mt-4 flex items-center gap-1.5 px-3 py-1.5 bg-[#05303B] hover:bg-[#0A4352] text-white text-xs font-bold rounded-lg cursor-pointer transition-all"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Brand
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col flex-1 min-h-0">
+                <div className="overflow-x-auto overflow-y-auto flex-1">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10 select-none">
+                      <tr>
+                        <th className="py-2.5 px-4 font-bold text-slate-700 uppercase tracking-wider text-[10px]">Brand Name</th>
+                        <th className="py-2.5 px-4 font-bold text-slate-700 uppercase tracking-wider text-[10px]">Code</th>
+                        <th className="py-2.5 px-4 font-bold text-slate-700 uppercase tracking-wider text-[10px]">Description</th>
+                        <th className="py-2.5 px-4 font-bold text-slate-700 uppercase tracking-wider text-[10px]">Status</th>
+                        <th className="py-2.5 px-4 font-bold text-slate-700 uppercase tracking-wider text-[10px]">Created</th>
+                        {canManage && (
+                          <th className="py-2.5 px-4 font-bold text-slate-700 uppercase tracking-wider text-[10px] text-right">Actions</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedBrandsData.items.map((brand: BrandDto) => (
+                        <tr key={brand.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-2.5 px-4 font-bold text-slate-900">{brand.name}</td>
+                          <td className="py-2.5 px-4">
+                            <span className="font-mono text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                              {brand.code || '—'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-4 text-slate-500 max-w-[240px] truncate">
+                            {brand.description || '—'}
+                          </td>
+                          <td className="py-2.5 px-4">
+                            <span
+                              className={`inline-flex items-center gap-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                                brand.isActive
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                  : 'bg-slate-100 text-slate-600 border border-slate-200'
+                              }`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${brand.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                              {brand.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-4 text-slate-500 font-medium text-[11px]">
+                            {brand.createdAt ? new Date(brand.createdAt).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : '—'}
+                          </td>
+                          {canManage && (
+                            <td className="py-2.5 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditBrand(brand)}
+                                  title="Edit Brand"
+                                  className="p-1 rounded text-slate-500 hover:text-[#0B7A70] hover:bg-[#E6F6F4] transition-colors cursor-pointer"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteBrand(brand)}
+                                  title="Delete Brand"
+                                  className="p-1 rounded text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {paginatedBrandsData.totalPages > 1 && (
+                  <div className="px-4 py-2 border-t border-slate-100 flex items-center justify-between select-none bg-slate-50/50">
+                    <span className="text-[11px] text-slate-500 font-semibold">
+                      Page {brandsPage} of {paginatedBrandsData.totalPages} ({paginatedBrandsData.totalCount} total)
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={!paginatedBrandsData.hasPreviousPage}
+                        onClick={() => setBrandsPage(p => p - 1)}
+                        className="h-[26px] px-3 text-[11px] font-bold text-slate-600 border border-slate-200 rounded hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                      >
+                        Prev
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!paginatedBrandsData.hasNextPage}
+                        onClick={() => setBrandsPage(p => p + 1)}
+                        className="h-[26px] px-3 text-[11px] font-bold text-slate-600 border border-slate-200 rounded hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          )}
+
         </div>
 
       {/* ══ MODALS: ADD / EDIT PRODUCTION LINE ══════════════════════════════════ */}
@@ -1182,6 +1560,77 @@ export const ProductionSetupPage: React.FC = () => {
             </EnterpriseButton>
           </div>
         </div>
+      </EnterpriseModal>
+
+      {/* ══ MODAL: ADD / EDIT BRAND ══════════════════════════════════════════ */}
+      <EnterpriseModal
+        isOpen={isAddBrandModalOpen || isEditBrandModalOpen}
+        onClose={() => {
+          setIsAddBrandModalOpen(false)
+          setIsEditBrandModalOpen(false)
+          resetBrandForm()
+        }}
+        title={isEditBrandModalOpen ? "Edit Brand" : "Add New Brand"}
+        maxWidth="sm"
+      >
+        <form onSubmit={handleSaveBrand} className="flex flex-col gap-4">
+          <EnterpriseInput
+            label="Brand Name *"
+            placeholder="E.g., Aquzio"
+            value={brandFormName}
+            onChange={e => {
+              setBrandFormName(e.target.value)
+              if (brandFormErrors.name) setBrandFormErrors(p => ({ ...p, name: '' }))
+            }}
+            error={brandFormErrors.name}
+            required
+          />
+          <EnterpriseInput
+            label="Brand Code (Optional)"
+            placeholder="E.g., AQR"
+            value={brandFormCode}
+            onChange={e => setBrandFormCode(e.target.value)}
+          />
+          <EnterpriseInput
+            label="Description (Optional)"
+            placeholder="Brand details or region..."
+            value={brandFormDescription}
+            onChange={e => setBrandFormDescription(e.target.value)}
+          />
+          <div className="flex items-center gap-2 pt-1 select-none">
+            <input
+              type="checkbox"
+              id="brandActiveCheck"
+              checked={brandFormIsActive}
+              onChange={e => setBrandFormIsActive(e.target.checked)}
+              className="w-4 h-4 text-[#0B7A70] rounded border-slate-300 focus:ring-[#12A89A] cursor-pointer"
+            />
+            <label htmlFor="brandActiveCheck" className="text-xs font-bold text-slate-700 cursor-pointer">
+              Active Brand
+            </label>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => {
+                setIsAddBrandModalOpen(false)
+                setIsEditBrandModalOpen(false)
+                resetBrandForm()
+              }}
+              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <EnterpriseButton
+              type="submit"
+              variant="primary"
+              loading={createBrandMutation.isPending || updateBrandMutation.isPending}
+            >
+              {isEditBrandModalOpen ? 'Save Changes' : 'Create Brand'}
+            </EnterpriseButton>
+          </div>
+        </form>
       </EnterpriseModal>
 
     </PageContainer>

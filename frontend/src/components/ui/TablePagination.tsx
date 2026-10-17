@@ -74,7 +74,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
     <div
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      className="p-2.5 sm:px-4 bg-[#F8FAFC] border-t border-[#E5E9F2] text-xs text-slate-600 shrink-0 select-none outline-none focus:ring-1 focus:ring-[#1A56DB]/30 transition-all flex flex-col gap-2.5"
+      className="p-2.5 sm:px-4 bg-[#F8FAFC] border-t border-[#E5E9F2] text-xs text-slate-600 shrink-0 select-none outline-none focus:ring-1 focus:ring-[#12A89A]/30 transition-all flex flex-col gap-2.5"
     >
       {/* Upper line / Narrow screen stacked line: Totals (if provided and narrow) */}
       <div className="flex flex-col lg:flex-row items-center justify-between gap-2.5 w-full">
@@ -92,7 +92,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
               aria-label="Rows per page"
-              className="h-[26px] px-1.5 text-[11px] font-semibold bg-white border border-slate-200 rounded-md text-slate-700 focus:outline-none focus:border-[#1A56DB] cursor-pointer"
+              className="h-[26px] px-1.5 text-[11px] font-semibold bg-white border border-slate-200 rounded-md text-slate-700 focus:outline-none focus:border-[#12A89A] cursor-pointer"
             >
               {pageSizeOptions.map((opt) => (
                 <option key={opt} value={opt}>
@@ -111,7 +111,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
             disabled={pageNumber <= 1}
             onClick={() => onPageChange(1)}
             aria-label="First page"
-            className="w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-35 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#1A56DB] cursor-pointer transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-35 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#12A89A] cursor-pointer transition-colors"
           >
             <ChevronsLeft className="w-3.5 h-3.5" />
           </button>
@@ -122,7 +122,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
             disabled={pageNumber <= 1}
             onClick={() => onPageChange(pageNumber - 1)}
             aria-label="Previous page"
-            className="w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-35 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#1A56DB] cursor-pointer transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-35 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#12A89A] cursor-pointer transition-colors"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
@@ -148,9 +148,9 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
                   onClick={() => onPageChange(p)}
                   aria-label={`Page ${p}`}
                   aria-current={isActive ? 'page' : undefined}
-                  className={`min-w-[28px] h-7 px-1.5 text-xs font-semibold rounded-md border transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1A56DB] ${
+                  className={`min-w-[28px] h-7 px-1.5 text-xs font-semibold rounded-md border transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#12A89A] ${
                     isActive
-                      ? 'bg-[#1A56DB] text-white border-[#1A56DB] shadow-xs'
+                      ? 'bg-[#05303B] text-white border-[#05303B] shadow-xs'
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
@@ -171,7 +171,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
             disabled={pageNumber >= totalPages}
             onClick={() => onPageChange(pageNumber + 1)}
             aria-label="Next page"
-            className="w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-35 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#1A56DB] cursor-pointer transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-35 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#12A89A] cursor-pointer transition-colors"
           >
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
@@ -182,7 +182,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
             disabled={pageNumber >= totalPages}
             onClick={() => onPageChange(totalPages)}
             aria-label="Last page"
-            className="w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-35 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#1A56DB] cursor-pointer transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-35 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#12A89A] cursor-pointer transition-colors"
           >
             <ChevronsRight className="w-3.5 h-3.5" />
           </button>

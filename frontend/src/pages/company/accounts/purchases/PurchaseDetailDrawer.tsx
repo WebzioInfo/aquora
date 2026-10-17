@@ -388,7 +388,7 @@ export const PurchaseDetailDrawer: React.FC<PurchaseDetailDrawerProps> = ({
 
                 <div className="pt-2 border-t border-slate-200 flex justify-between font-bold text-sm">
                   <span className="text-slate-900">Grand Total</span>
-                  <span className="font-mono text-[#1A56DB]">{formatINR(gross)}</span>
+                  <span className="font-mono text-[#0B7A70]">{formatINR(gross)}</span>
                 </div>
 
                 <div className="flex justify-between text-slate-600 pt-1">
@@ -455,7 +455,7 @@ export const PurchaseDetailDrawer: React.FC<PurchaseDetailDrawerProps> = ({
                                 e.stopPropagation()
                                 setEditingPayment(pmt)
                               }}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#1A56DB] hover:bg-blue-50 transition-colors cursor-pointer"
+                              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B7A70] hover:bg-blue-50 transition-colors cursor-pointer"
                               title="Edit payment"
                               aria-label="Edit payment"
                             >
@@ -491,7 +491,7 @@ export const PurchaseDetailDrawer: React.FC<PurchaseDetailDrawerProps> = ({
                 <button
                   type="button"
                   onClick={() => onRecordPayment(p)}
-                  className="flex-1 h-[36px] px-3 text-xs font-semibold text-white bg-[#1A56DB] hover:bg-[#1746B3] rounded-lg shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className="flex-1 h-[36px] px-3 text-xs font-semibold text-white bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] rounded-lg shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <CreditCard className="w-3.5 h-3.5" />
                   Record Payment

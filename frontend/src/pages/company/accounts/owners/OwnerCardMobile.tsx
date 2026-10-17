@@ -173,7 +173,7 @@ export const OwnerCardMobile: React.FC<OwnerCardMobileProps> = ({
             e.stopPropagation()
             onOpenTransact(owner)
           }}
-          className="h-[32px] px-3 bg-[#1A56DB] hover:bg-blue-700 text-white font-medium rounded-lg text-xs inline-flex items-center gap-1.5 transition-colors shadow-2xs"
+          className="h-[32px] px-3 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white font-medium rounded-lg text-xs inline-flex items-center gap-1.5 transition-colors shadow-2xs"
         >
           <ArrowLeftRight className="w-3.5 h-3.5" />
           <span>Transact</span>

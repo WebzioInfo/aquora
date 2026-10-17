@@ -218,7 +218,7 @@ export const PurchasesPage: React.FC = () => {
       const items = response.items || []
       // Client-side filter for paymentMethod if backend doesn't support query param directly
       const filteredByMethod = filters.paymentMethod
-        ? items.filter(p => (p.paymentMethod || '').toLowerCase() === filters.paymentMethod.toLowerCase())
+        ? items.filter((p: any) => (p.paymentMethod || '').toLowerCase() === filters.paymentMethod.toLowerCase())
         : items
 
       setPurchases(filteredByMethod)

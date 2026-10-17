@@ -158,6 +158,11 @@ namespace Aquora.API.Controllers
                 return Failure<object>("Invalid production entry data.", "Validation failed");
             }
 
+            if (request.WaterWastageLitres < 0)
+            {
+                return Failure<object>("Water wastage cannot be negative.", "Validation failed");
+            }
+
             // Client/EF database transaction
             var dbContext = _tenantContext as DbContext;
             if (dbContext == null)
@@ -187,367 +192,437 @@ namespace Aquora.API.Controllers
                     var labelingEnabled = !configs.Any(c => c.StationName == "Labeling" && !c.IsEnabled);
                     var packingEnabled = !configs.Any(c => c.StationName == "Packing" && !c.IsEnabled);
 
+                    var targetBatchId = request.BatchId ?? request.BatchSessionId;
+                    ProductionBatch? targetBatch = null;
+                    if (targetBatchId.HasValue && targetBatchId.Value != Guid.Empty)
+                    {
+                        targetBatch = await _tenantContext.ProductionBatches
+                            .FirstOrDefaultAsync(b => b.Id == targetBatchId.Value && !b.IsDeleted);
+
+                        if (targetBatch != null && (request.ProductionLineId == Guid.Empty || request.ProductionLineId == default))
+                        {
+                            request.ProductionLineId = targetBatch.ProductionLineId;
+                        }
+                    }
+
                     // 1. Fetch related line
                     var line = await _tenantContext.ProductionLines.FirstOrDefaultAsync(l => l.Id == request.ProductionLineId && !l.IsDeleted);
+                    if (line == null && targetBatch != null)
+                    {
+                        line = await _tenantContext.ProductionLines.FirstOrDefaultAsync(l => l.Id == targetBatch.ProductionLineId && !l.IsDeleted);
+                        if (line != null) request.ProductionLineId = line.Id;
+                    }
+
                     if (line == null)
                     {
                         return Failure<object>("Selected production line not found.", "Validation failed");
                     }
 
-                // 1b. Fetch active production session
-                var activeSession = await _tenantContext.ProductionSessions
-                    .FirstOrDefaultAsync(s => s.ProductionLineId == request.ProductionLineId && s.Status == "Running" && !s.IsDeleted);
-                if (activeSession == null)
-                {
-                    return Failure<object>("No active production batch found. Please start a batch first.", "Validation failed");
-                }
+                    // 1b. Fetch active production session
+                    var activeSession = await _tenantContext.ProductionSessions
+                        .FirstOrDefaultAsync(s => 
+                            (targetBatchId.HasValue && (s.Id == targetBatchId.Value || (targetBatch != null && s.BatchNumber == targetBatch.BatchNumber && s.ProductionLineId == targetBatch.ProductionLineId)) && !s.IsDeleted) ||
+                            (s.ProductionLineId == request.ProductionLineId && s.Status == "Running" && !s.IsDeleted));
 
-                if (string.IsNullOrWhiteSpace(activeSession.Shift))
-                {
-                    return Failure<object>("Active batch is missing shift information.", "Validation failed");
-                }
+                    if (activeSession == null && targetBatch != null)
+                    {
+                        var matchingSku = await _tenantContext.Products.FirstOrDefaultAsync(p => p.Name == targetBatch.Product && !p.IsDeleted)
+                            ?? await _tenantContext.Products.FirstOrDefaultAsync(p => !p.IsDeleted);
 
-                // 2. Load SKU & Case Config from session
-                var sku = await _tenantContext.Products.FirstOrDefaultAsync(s => s.Id == activeSession.ProductId && !s.IsDeleted);
-                if (sku == null)
-                {
-                    return Failure<object>("Batch configuration is incomplete. Selected Product not found.", "Validation failed");
-                }
-
-                // 3. Validate and load raw materials
-                RawMaterial? preform = null;
-                if (blowingEnabled)
-                {
-                    if (!request.PreformMaterialId.HasValue || request.PreformMaterialId == Guid.Empty)
-                    {
-                        return Failure<object>("Selected Preform material is required.", "Validation failed");
-                    }
-                    preform = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.PreformMaterialId.Value && !m.IsDeleted);
-                    if (preform == null)
-                    {
-                        return Failure<object>("Selected Preform material not found.", "Validation failed");
-                    }
-                }
-                else
-                {
-                    if ((request.PreformMaterialId.HasValue && request.PreformMaterialId != Guid.Empty) || request.PreformUsage > 0 || request.PreformWastage > 0)
-                    {
-                        return Failure<object>("Blowing station is disabled. Preforms input is not allowed.", "Validation failed");
-                    }
-                }
-
-                RawMaterial? cap = null;
-                if (fillingEnabled)
-                {
-                    if (request.CapMaterialId.HasValue && request.CapMaterialId != Guid.Empty)
-                    {
-                        cap = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.CapMaterialId.Value && !m.IsDeleted);
-                        if (cap == null)
+                        activeSession = new ProductionSession
                         {
-                            return Failure<object>("Selected Cap material not found.", "Validation failed");
+                            Id = targetBatch.Id,
+                            TenantId = tenantId,
+                            CompanyId = line.CompanyId,
+                            BatchNumber = targetBatch.BatchNumber,
+                            ProductionLineId = targetBatch.ProductionLineId,
+                            OperatorId = targetBatch.OperatorId,
+                            OperatorName = !string.IsNullOrWhiteSpace(request.OperatorName) ? request.OperatorName : targetBatch.OperatorName,
+                            Shift = !string.IsNullOrWhiteSpace(request.Shift) ? request.Shift : targetBatch.Shift,
+                            ProductId = matchingSku?.Id ?? Guid.Empty,
+                            StartedAt = targetBatch.StartedAt,
+                            Status = targetBatch.Status == "Active" ? "Running" : targetBatch.Status,
+                            Remarks = "Session linked to batch",
+                            TotalCasesProduced = targetBatch.ProducedQuantity,
+                            CreatedBy = userIdStr,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        _tenantContext.ProductionSessions.Add(activeSession);
+                    }
+
+                    if (activeSession == null)
+                    {
+                        return Failure<object>("No active production batch found. Please start a batch first.", "Validation failed");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(activeSession.Shift))
+                    {
+                        activeSession.Shift = request.Shift ?? targetBatch?.Shift ?? "Morning";
+                    }
+
+                    // 2. Load SKU & Case Config from session
+                    var sku = await _tenantContext.Products.FirstOrDefaultAsync(s => s.Id == activeSession.ProductId && !s.IsDeleted);
+                    if (sku == null && targetBatch != null)
+                    {
+                        sku = await _tenantContext.Products.FirstOrDefaultAsync(s => s.Name == targetBatch.Product && !s.IsDeleted)
+                            ?? await _tenantContext.Products.FirstOrDefaultAsync(s => !s.IsDeleted);
+                    }
+                    if (sku == null)
+                    {
+                        return Failure<object>("Batch configuration is incomplete. Selected Product not found.", "Validation failed");
+                    }
+
+                    var entryId = Guid.NewGuid();
+                    var movementIds = new List<Guid>();
+                    var persistedMaterialLines = new List<object>();
+
+                    RawMaterial? preform = null;
+                    RawMaterial? cap = null;
+                    RawMaterial? label = null;
+                    RawMaterial? shrink = null;
+                    RawMaterial? glue = null;
+                    Dictionary<Guid, RawMaterial> rawMaterials = new();
+
+                    if (request.Materials != null && request.Materials.Count > 0)
+                    {
+                        // Dynamic Material Selection Path
+                        var duplicateIds = request.Materials
+                            .GroupBy(m => m.RawMaterialId)
+                            .Where(g => g.Count() > 1)
+                            .Select(g => g.Key)
+                            .ToList();
+                        if (duplicateIds.Count > 0)
+                        {
+                            return Failure<object>("The same raw material cannot be selected multiple times in a single production entry.", "Validation failed");
+                        }
+
+                        if (request.Materials.Any(m => m.UsageQuantity < 0 || m.WastageQuantity < 0))
+                        {
+                            return Failure<object>("Usage and wastage quantities cannot be negative.", "Validation failed");
+                        }
+
+                        var matIds = request.Materials.Select(m => m.RawMaterialId).Distinct().ToList();
+                        rawMaterials = await _tenantContext.RawMaterials
+                            .Where(m => matIds.Contains(m.Id) && !m.IsDeleted)
+                            .ToDictionaryAsync(m => m.Id);
+
+                        foreach (var matInput in request.Materials)
+                        {
+                            if (!rawMaterials.TryGetValue(matInput.RawMaterialId, out var rm))
+                            {
+                                return Failure<object>($"Selected raw material '{matInput.RawMaterialId}' not found.", "Validation failed");
+                            }
+
+                            // Unit-aware precision check
+                            var unitUpper = (rm.Unit ?? "").Trim().ToUpperInvariant();
+                            bool isWholeUsageUnit = unitUpper == "PCS" || unitUpper == "BOX" || unitUpper == "BAG" || unitUpper == "BOXES" || unitUpper == "BAGS";
+                            if (isWholeUsageUnit && matInput.UsageQuantity % 1 != 0)
+                            {
+                                return Failure<object>($"Material '{rm.Name}' is measured in '{rm.Unit}' and requires a whole-number usage quantity.", "Validation failed");
+                            }
+                            // Wastage is always measured in whole number pieces (PCS)
+                            if (matInput.WastageQuantity % 1 != 0)
+                            {
+                                return Failure<object>($"Wastage quantity for '{rm.Name}' must be a whole number (PCS).", "Validation failed");
+                            }
+                        }
+
+                        // Apply stock deductions: Inventory deduction = Usage quantity only
+                        foreach (var matInput in request.Materials)
+                        {
+                            var rm = rawMaterials[matInput.RawMaterialId];
+                            var cat = (rm.Category ?? "").ToUpperInvariant();
+                            var nameUpper = (rm.Name ?? "").ToUpperInvariant();
+
+                            // Station enablement check
+                            bool isPreform = cat.Contains("PREFORM") || nameUpper.Contains("PREFORM");
+                            bool isCap = cat.Contains("CAP") || nameUpper.Contains("CAP");
+                            bool isLabel = cat.Contains("LABEL") || cat.Contains("BOPP") || nameUpper.Contains("LABEL") || nameUpper.Contains("BOPP");
+                            bool isShrink = cat.Contains("SHRINK") || cat.Contains("FILM") || nameUpper.Contains("SHRINK") || nameUpper.Contains("FILM");
+                            bool isGlue = cat.Contains("GLUE") || nameUpper.Contains("GLUE");
+
+                            if (isPreform && !blowingEnabled)
+                            {
+                                return Failure<object>($"Material '{rm.Name}' belongs to Blowing station, which is currently disabled for this production line.", "Validation failed");
+                            }
+                            if (isCap && !fillingEnabled)
+                            {
+                                return Failure<object>($"Material '{rm.Name}' belongs to Filling station, which is currently disabled for this production line.", "Validation failed");
+                            }
+                            if (isLabel && !labelingEnabled)
+                            {
+                                return Failure<object>($"Material '{rm.Name}' belongs to Labelling station, which is currently disabled for this production line.", "Validation failed");
+                            }
+                            if ((isShrink || isGlue) && !packingEnabled)
+                            {
+                                return Failure<object>($"Material '{rm.Name}' belongs to Packing station, which is currently disabled for this production line.", "Validation failed");
+                            }
+                            if (!isPreform && !isCap && !isLabel && !isShrink && !isGlue)
+                            {
+                                return Failure<object>($"Material '{rm.Name}' (Category: '{rm.Category}') does not match any active production station category.", "Validation failed");
+                            }
+
+                            var conversionFactor = rm.ConversionFactor > 0 ? rm.ConversionFactor : 1.0m;
+                            var totalDeduction = matInput.UsageQuantity * conversionFactor;
+
+                            Guid? movId = null;
+                            decimal balanceAfter = rm.CurrentStock;
+
+                            if (totalDeduction > 0)
+                            {
+                                var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                                    _tenantContext,
+                                    rm.Id,
+                                    -totalDeduction,
+                                    "ProductionEntry",
+                                    entryId,
+                                    $"Production usage: {matInput.UsageQuantity} {rm.Unit} (Wastage recorded: {matInput.WastageQuantity} PCS) | Batch: {activeSession.BatchNumber}",
+                                    tenantId,
+                                    line.CompanyId,
+                                    userIdStr,
+                                    allowNegativeStock: true);
+
+                                movementIds.Add(mov.Id);
+                                movId = mov.Id;
+                                balanceAfter = mov.BalanceAfter;
+                            }
+
+                            persistedMaterialLines.Add(new
+                            {
+                                rawMaterialId = rm.Id,
+                                rawMaterialName = rm.Name,
+                                materialName = rm.Name,
+                                category = rm.Category,
+                                unit = rm.Unit,
+                                usageQuantity = matInput.UsageQuantity,
+                                wastageQuantity = matInput.WastageQuantity,
+                                totalQuantity = matInput.UsageQuantity,
+                                totalDeduction = totalDeduction,
+                                inventoryMovementId = movId,
+                                balanceAfter = balanceAfter
+                            });
+                        }
+
+                        // Optional Ink & Makeup for dynamic requests
+                        if (packingEnabled && request.InkUsed)
+                        {
+                            var inkId = await GetDefaultInkMaterialIdAsync(line.CompanyId);
+                            if (inkId.HasValue)
+                            {
+                                var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                                    _tenantContext, inkId.Value, -1.0m, "ProductionEntry", entryId, "Ink used", tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
+                                movementIds.Add(mov.Id);
+                            }
+                        }
+                        if (packingEnabled && request.MakeupUsed)
+                        {
+                            var makeupId = await GetDefaultMakeupMaterialIdAsync(line.CompanyId);
+                            if (makeupId.HasValue)
+                            {
+                                var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                                    _tenantContext, makeupId.Value, -1.0m, "ProductionEntry", entryId, "Makeup used", tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
+                                movementIds.Add(mov.Id);
+                            }
                         }
                     }
-                    else if (request.CapUsage > 0 || request.CapWastage > 0)
+                    else
                     {
-                        return Failure<object>("Cap material must be selected when usage or wastage is greater than 0.", "Validation failed");
-                    }
-                }
-                else
-                {
-                    if ((request.CapMaterialId.HasValue && request.CapMaterialId != Guid.Empty) || request.CapUsage > 0 || request.CapWastage > 0)
-                    {
-                        return Failure<object>("Filling station is disabled. Caps input is not allowed.", "Validation failed");
-                    }
-                }
+                        // Backward compatibility fallback for legacy requests with fixed material properties
+                        if (blowingEnabled && (!request.PreformMaterialId.HasValue || request.PreformMaterialId == Guid.Empty))
+                        {
+                            var defPreform = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Category == "PREFORM" && m.IsActive && !m.IsDeleted);
+                            if (defPreform != null) request.PreformMaterialId = defPreform.Id;
+                        }
+                        if (fillingEnabled && (!request.CapMaterialId.HasValue || request.CapMaterialId == Guid.Empty))
+                        {
+                            var defCap = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Category == "CAP" && m.IsActive && !m.IsDeleted);
+                            if (defCap != null) request.CapMaterialId = defCap.Id;
+                        }
+                        if (labelingEnabled && (!request.LabelMaterialId.HasValue || request.LabelMaterialId == Guid.Empty))
+                        {
+                            var defLabel = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Category == "LABEL" && m.IsActive && !m.IsDeleted);
+                            if (defLabel != null) request.LabelMaterialId = defLabel.Id;
+                        }
+                        if (packingEnabled && (!request.ShrinkMaterialId.HasValue || request.ShrinkMaterialId == Guid.Empty))
+                        {
+                            var defShrink = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Category == "SHRINK" && m.IsActive && !m.IsDeleted);
+                            if (defShrink != null) request.ShrinkMaterialId = defShrink.Id;
+                        }
 
-                RawMaterial? label = null;
-                if (labelingEnabled)
-                {
-                    if (!request.LabelMaterialId.HasValue || request.LabelMaterialId == Guid.Empty)
-                    {
-                        return Failure<object>("Selected Label material is required.", "Validation failed");
-                    }
-                    label = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.LabelMaterialId.Value && !m.IsDeleted);
-                    if (label == null)
-                    {
-                        return Failure<object>("Selected Label material not found.", "Validation failed");
-                    }
-                }
-                else
-                {
-                    if ((request.LabelMaterialId.HasValue && request.LabelMaterialId != Guid.Empty) || request.LabelUsage > 0 || request.LabelWastage > 0)
-                    {
-                        return Failure<object>("Labelling station is disabled. Labels input is not allowed.", "Validation failed");
-                    }
-                }
+                        if (blowingEnabled && request.PreformMaterialId.HasValue && request.PreformMaterialId != Guid.Empty)
+                        {
+                            preform = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.PreformMaterialId.Value && !m.IsDeleted);
+                        }
+                        if (fillingEnabled && request.CapMaterialId.HasValue && request.CapMaterialId != Guid.Empty)
+                        {
+                            cap = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.CapMaterialId.Value && !m.IsDeleted);
+                        }
+                        if (labelingEnabled && request.LabelMaterialId.HasValue && request.LabelMaterialId != Guid.Empty)
+                        {
+                            label = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.LabelMaterialId.Value && !m.IsDeleted);
+                        }
+                        if (packingEnabled && request.ShrinkMaterialId.HasValue && request.ShrinkMaterialId != Guid.Empty)
+                        {
+                            shrink = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.ShrinkMaterialId.Value && !m.IsDeleted);
+                        }
+                        if (packingEnabled && request.GlueMaterialId.HasValue && request.GlueMaterialId != Guid.Empty)
+                        {
+                            glue = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.GlueMaterialId.Value && !m.IsDeleted);
+                        }
 
-                RawMaterial? shrink = null;
-                if (packingEnabled)
-                {
-                    if (!request.ShrinkMaterialId.HasValue || request.ShrinkMaterialId == Guid.Empty)
-                    {
-                        return Failure<object>("Selected Shrink Film material is required.", "Validation failed");
+                        // Deduct stock (Usage only; wastage recorded separately)
+                        if (preform != null && request.PreformUsage > 0)
+                        {
+                            var deduction = request.PreformUsage * (preform.ConversionFactor > 0 ? preform.ConversionFactor : 1.0m);
+                            var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                                _tenantContext, preform.Id, -deduction, "ProductionEntry", entryId,
+                                $"Production usage: {request.PreformUsage} {preform.Unit} (Wastage: {request.PreformWastage} PCS) | Batch: {activeSession.BatchNumber}",
+                                tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
+                            movementIds.Add(mov.Id);
+                            persistedMaterialLines.Add(new { rawMaterialId = preform.Id, rawMaterialName = preform.Name, materialName = preform.Name, category = preform.Category, unit = preform.Unit, usageQuantity = request.PreformUsage, wastageQuantity = request.PreformWastage, totalQuantity = request.PreformUsage, totalDeduction = deduction, inventoryMovementId = mov.Id, balanceAfter = mov.BalanceAfter });
+                        }
+
+                        if (cap != null && request.CapUsage > 0)
+                        {
+                            var deduction = request.CapUsage * (cap.ConversionFactor > 0 ? cap.ConversionFactor : 1.0m);
+                            var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                                _tenantContext, cap.Id, -deduction, "ProductionEntry", entryId,
+                                $"Production usage: {request.CapUsage} {cap.Unit} (Wastage: {request.CapWastage} PCS) | Batch: {activeSession.BatchNumber}",
+                                tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
+                            movementIds.Add(mov.Id);
+                            persistedMaterialLines.Add(new { rawMaterialId = cap.Id, rawMaterialName = cap.Name, materialName = cap.Name, category = cap.Category, unit = cap.Unit, usageQuantity = request.CapUsage, wastageQuantity = request.CapWastage, totalQuantity = request.CapUsage, totalDeduction = deduction, inventoryMovementId = mov.Id, balanceAfter = mov.BalanceAfter });
+                        }
+
+                        if (label != null && request.LabelUsage > 0)
+                        {
+                            var deduction = request.LabelUsage * (label.ConversionFactor > 0 ? label.ConversionFactor : 1.0m);
+                            var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                                _tenantContext, label.Id, -deduction, "ProductionEntry", entryId,
+                                $"Production usage: {request.LabelUsage} {label.Unit} (Wastage: {request.LabelWastage} PCS) | Batch: {activeSession.BatchNumber}",
+                                tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
+                            movementIds.Add(mov.Id);
+                            persistedMaterialLines.Add(new { rawMaterialId = label.Id, rawMaterialName = label.Name, materialName = label.Name, category = label.Category, unit = label.Unit, usageQuantity = request.LabelUsage, wastageQuantity = request.LabelWastage, totalQuantity = request.LabelUsage, totalDeduction = deduction, inventoryMovementId = mov.Id, balanceAfter = mov.BalanceAfter });
+                        }
+
+                        if (shrink != null && request.ShrinkUsage > 0)
+                        {
+                            var deduction = request.ShrinkUsage * (shrink.ConversionFactor > 0 ? shrink.ConversionFactor : 1.0m);
+                            var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                                _tenantContext, shrink.Id, -deduction, "ProductionEntry", entryId,
+                                $"Production usage: {request.ShrinkUsage} {shrink.Unit} (Wastage: {request.ShrinkWastage} PCS) | Batch: {activeSession.BatchNumber}",
+                                tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
+                            movementIds.Add(mov.Id);
+                            persistedMaterialLines.Add(new { rawMaterialId = shrink.Id, rawMaterialName = shrink.Name, materialName = shrink.Name, category = shrink.Category, unit = shrink.Unit, usageQuantity = request.ShrinkUsage, wastageQuantity = request.ShrinkWastage, totalQuantity = request.ShrinkUsage, totalDeduction = deduction, inventoryMovementId = mov.Id, balanceAfter = mov.BalanceAfter });
+                        }
+
+                        if (glue != null && request.GlueUsage.GetValueOrDefault() > 0)
+                        {
+                            var gVal = request.GlueUsage.GetValueOrDefault();
+                            var deduction = gVal * (glue.ConversionFactor > 0 ? glue.ConversionFactor : 1.0m);
+                            var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                                _tenantContext, glue.Id, -deduction, "ProductionEntry", entryId,
+                                $"Usage: {gVal} {glue.Unit} | Batch: {activeSession.BatchNumber}",
+                                tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
+                            movementIds.Add(mov.Id);
+                            persistedMaterialLines.Add(new { rawMaterialId = glue.Id, rawMaterialName = glue.Name, materialName = glue.Name, category = glue.Category, unit = glue.Unit, usageQuantity = gVal, wastageQuantity = 0m, totalQuantity = gVal, totalDeduction = deduction, inventoryMovementId = mov.Id, balanceAfter = mov.BalanceAfter });
+                        }
+
+                        if (packingEnabled && request.InkUsed)
+                        {
+                            var inkId = await GetDefaultInkMaterialIdAsync(line.CompanyId);
+                            if (inkId.HasValue)
+                            {
+                                var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                                    _tenantContext, inkId.Value, -1.0m, "ProductionEntry", entryId, "Ink used", tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
+                                movementIds.Add(mov.Id);
+                            }
+                        }
+
+                        if (packingEnabled && request.MakeupUsed)
+                        {
+                            var makeupId = await GetDefaultMakeupMaterialIdAsync(line.CompanyId);
+                            if (makeupId.HasValue)
+                            {
+                                var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                                    _tenantContext, makeupId.Value, -1.0m, "ProductionEntry", entryId, "Makeup used", tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
+                                movementIds.Add(mov.Id);
+                            }
+                        }
                     }
-                    shrink = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.ShrinkMaterialId.Value && !m.IsDeleted);
-                    if (shrink == null)
-                    {
-                        return Failure<object>("Selected Shrink Film material not found.", "Validation failed");
-                    }
-                }
-                else
-                {
-                    if ((request.ShrinkMaterialId.HasValue && request.ShrinkMaterialId != Guid.Empty) || request.ShrinkUsage > 0 || request.ShrinkWastage > 0 || (request.GlueMaterialId.HasValue && request.GlueMaterialId != Guid.Empty) || request.InkUsed || request.MakeupUsed)
-                    {
-                        return Failure<object>("Packing station is disabled. Shrink Film, Glue, Ink, and Makeup input is not allowed.", "Validation failed");
-                    }
-                }
 
-                RawMaterial? glue = null;
-                if (packingEnabled && request.GlueMaterialId.HasValue && request.GlueMaterialId != Guid.Empty)
-                {
-                    glue = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.GlueMaterialId.Value && !m.IsDeleted);
-                    if (glue == null)
-                    {
-                        return Failure<object>("Selected Glue material not found.", "Validation failed");
-                    }
-                }
-
-                RawMaterial? ink = null;
-                if (packingEnabled && request.InkUsed)
-                {
-                    var inkId = await GetDefaultInkMaterialIdAsync(line.CompanyId);
-                    if (!inkId.HasValue)
-                    {
-                        return Failure<object>("No active Ink material is configured in Inventory Settings.", "Validation failed");
-                    }
-                    ink = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == inkId.Value && !m.IsDeleted);
-                    if (ink == null)
-                    {
-                        return Failure<object>("Configured default Ink material not found.", "Validation failed");
-                    }
-                }
-
-                RawMaterial? makeup = null;
-                if (packingEnabled && request.MakeupUsed)
-                {
-                    var makeupId = await GetDefaultMakeupMaterialIdAsync(line.CompanyId);
-                    if (!makeupId.HasValue)
-                    {
-                        return Failure<object>("No active Makeup material is configured in Inventory Settings.", "Validation failed");
-                    }
-                    makeup = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == makeupId.Value && !m.IsDeleted);
-                    if (makeup == null)
-                    {
-                        return Failure<object>("Configured default Makeup material not found.", "Validation failed");
-                    }
-                }
-
-                // 4. Stock validation checks & conversions (Stock deduction = Usage ONLY, Wastage is for reporting count only)
-                decimal preformDeduction = 0;
-                if (blowingEnabled && preform != null)
-                {
-                    preformDeduction = request.PreformUsage * preform.ConversionFactor;
-                    if (preformDeduction < 0) return Failure<object>("Preform usage cannot be negative.", "Validation failed");
-                }
-
-                decimal capDeduction = 0;
-                if (fillingEnabled && cap != null)
-                {
-                    capDeduction = request.CapUsage * cap.ConversionFactor;
-                    if (capDeduction < 0) return Failure<object>("Cap usage cannot be negative.", "Validation failed");
-                }
-
-                decimal labelDeduction = 0;
-                if (labelingEnabled && label != null)
-                {
-                    labelDeduction = request.LabelUsage * label.ConversionFactor;
-                    if (labelDeduction < 0) return Failure<object>("Label usage cannot be negative.", "Validation failed");
-                }
-
-                decimal shrinkDeduction = 0;
-                if (packingEnabled && shrink != null)
-                {
-                    shrinkDeduction = request.ShrinkUsage * shrink.ConversionFactor;
-                    if (shrinkDeduction < 0) return Failure<object>("Shrink Film usage cannot be negative.", "Validation failed");
-                }
-
-                decimal glueDeduction = 0;
-                if (packingEnabled && glue != null && request.GlueUsage.HasValue)
-                {
-                    glueDeduction = request.GlueUsage.Value * glue.ConversionFactor;
-                    if (glueDeduction < 0) return Failure<object>("Glue usage cannot be negative.", "Validation failed");
-                }
-
-                // 5. Apply stock deductions & build audit movements
-                var movementIds = new List<Guid>();
-                var entryId = Guid.NewGuid();
-
-                // a. Preforms
-                if (blowingEnabled && preform != null)
-                {
-                    var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                    // 5b. Update Finished Product Stock & log movement
+                    var finishedProductMov = await _inventoryMovementService.RecordProductMovementAsync(
                         _tenantContext,
-                        preform.Id,
-                        -preformDeduction,
-                        "ProductionEntry",
+                        sku.Id,
+                        request.CasesProduced,
+                        "ProductionCompleted",
                         entryId,
-                        null,
+                        $"Produced in Manufacturing - Batch: {activeSession.BatchNumber}",
                         tenantId,
                         line.CompanyId,
                         userIdStr);
-                    movementIds.Add(mov.Id);
-                }
+                    movementIds.Add(finishedProductMov.Id);
 
-                // a2. Caps
-                if (fillingEnabled && cap != null && capDeduction > 0)
-                {
-                    var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
-                        _tenantContext,
-                        cap.Id,
-                        -capDeduction,
-                        "ProductionEntry",
-                        entryId,
-                        null,
-                        tenantId,
-                        line.CompanyId,
-                        userIdStr);
-                    movementIds.Add(mov.Id);
-                }
+                    // Map legacy fields from materials if present for backwards compatibility
+                    var preformLines = (request.Materials ?? new List<ProductionEntryMaterialInputDto>())
+                        .Where(m => rawMaterials.TryGetValue(m.RawMaterialId, out var rm) && (((rm.Category ?? "").ToUpperInvariant().Contains("PREFORM")) || ((rm.Name ?? "").ToUpperInvariant().Contains("PREFORM"))))
+                        .ToList();
+                    var capLines = (request.Materials ?? new List<ProductionEntryMaterialInputDto>())
+                        .Where(m => rawMaterials.TryGetValue(m.RawMaterialId, out var rm) && (((rm.Category ?? "").ToUpperInvariant().Contains("CAP")) || ((rm.Name ?? "").ToUpperInvariant().Contains("CAP"))))
+                        .ToList();
+                    var labelLines = (request.Materials ?? new List<ProductionEntryMaterialInputDto>())
+                        .Where(m => rawMaterials.TryGetValue(m.RawMaterialId, out var rm) && (((rm.Category ?? "").ToUpperInvariant().Contains("LABEL")) || ((rm.Category ?? "").ToUpperInvariant().Contains("BOPP")) || ((rm.Name ?? "").ToUpperInvariant().Contains("LABEL")) || ((rm.Name ?? "").ToUpperInvariant().Contains("BOPP"))))
+                        .ToList();
+                    var shrinkLines = (request.Materials ?? new List<ProductionEntryMaterialInputDto>())
+                        .Where(m => rawMaterials.TryGetValue(m.RawMaterialId, out var rm) && (((rm.Category ?? "").ToUpperInvariant().Contains("SHRINK")) || ((rm.Category ?? "").ToUpperInvariant().Contains("FILM")) || ((rm.Name ?? "").ToUpperInvariant().Contains("SHRINK")) || ((rm.Name ?? "").ToUpperInvariant().Contains("FILM"))))
+                        .ToList();
+                    var glueLines = (request.Materials ?? new List<ProductionEntryMaterialInputDto>())
+                        .Where(m => rawMaterials.TryGetValue(m.RawMaterialId, out var rm) && (((rm.Category ?? "").ToUpperInvariant().Contains("GLUE")) || ((rm.Name ?? "").ToUpperInvariant().Contains("GLUE"))))
+                        .ToList();
 
-                // b. Labels
-                if (labelingEnabled && label != null)
-                {
-                    var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
-                        _tenantContext,
-                        label.Id,
-                        -labelDeduction,
-                        "ProductionEntry",
-                        entryId,
-                        null,
-                        tenantId,
-                        line.CompanyId,
-                        userIdStr);
-                    movementIds.Add(mov.Id);
-                }
-
-                // c. Shrink
-                if (packingEnabled && shrink != null)
-                {
-                    var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
-                        _tenantContext,
-                        shrink.Id,
-                        -shrinkDeduction,
-                        "ProductionEntry",
-                        entryId,
-                        null,
-                        tenantId,
-                        line.CompanyId,
-                        userIdStr);
-                    movementIds.Add(mov.Id);
-                }
-
-                // d. Glue
-                if (packingEnabled && glue != null && glueDeduction > 0)
-                {
-                    var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
-                        _tenantContext,
-                        glue.Id,
-                        -glueDeduction,
-                        "ProductionEntry",
-                        entryId,
-                        null,
-                        tenantId,
-                        line.CompanyId,
-                        userIdStr);
-                    movementIds.Add(mov.Id);
-                }
-
-                // e. Ink
-                if (packingEnabled && request.InkUsed && ink != null)
-                {
-                    var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
-                        _tenantContext,
-                        ink.Id,
-                        -1.0m,
-                        "ProductionEntry",
-                        entryId,
-                        null,
-                        tenantId,
-                        line.CompanyId,
-                        userIdStr);
-                    movementIds.Add(mov.Id);
-                }
-
-                // f. Makeup
-                if (packingEnabled && request.MakeupUsed && makeup != null)
-                {
-                    var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
-                        _tenantContext,
-                        makeup.Id,
-                        -1.0m,
-                        "ProductionEntry",
-                        entryId,
-                        null,
-                        tenantId,
-                        line.CompanyId,
-                        userIdStr);
-                    movementIds.Add(mov.Id);
-                }
-
-                // 5b. Update Finished Product Stock & log movement
-                var finishedProductMov = await _inventoryMovementService.RecordProductMovementAsync(
-                    _tenantContext,
-                    sku.Id,
-                    request.CasesProduced,
-                    "ProductionCompleted",
-                    entryId,
-                    "Produced in Manufacturing",
-                    tenantId,
-                    line.CompanyId,
-                    userIdStr);
-                movementIds.Add(finishedProductMov.Id);
-
-                // Create the production entry
-                var entry = new ProductionEntry
-                {
-                    Id = entryId,
-                    OperatorId = activeSession.OperatorId,
-                    OperatorName = activeSession.OperatorName,
-                    ProductionLineId = line.Id,
-                    Shift = activeSession.Shift,
-                    Date = DateTime.UtcNow.Date,
-                    Time = DateTime.UtcNow.ToString("O"), // Store as ISO-8601 UTC
-                    ProductId = sku.Id,
-                    CasesProduced = request.CasesProduced,
-                    PreformMaterialId = blowingEnabled ? preform?.Id : null,
-                    PreformUsage = blowingEnabled ? request.PreformUsage : 0,
-                    PreformWastage = blowingEnabled ? request.PreformWastage : 0,
-                    CapMaterialId = (fillingEnabled && cap != null) ? cap.Id : null,
-                    CapUsage = fillingEnabled ? request.CapUsage : 0,
-                    CapWastage = fillingEnabled ? request.CapWastage : 0,
-                    LabelMaterialId = labelingEnabled ? label?.Id : null,
-                    LabelUsage = labelingEnabled ? request.LabelUsage : 0,
-                    LabelWastage = labelingEnabled ? request.LabelWastage : 0,
-                    ShrinkMaterialId = packingEnabled ? shrink?.Id : null,
-                    ShrinkUsage = packingEnabled ? request.ShrinkUsage : 0,
-                    ShrinkWastage = packingEnabled ? request.ShrinkWastage : 0,
-                    GlueMaterialId = (packingEnabled && glue != null) ? glue.Id : null,
-                    GlueUsage = packingEnabled ? request.GlueUsage : null,
-                    InkUsed = packingEnabled ? request.InkUsed : false,
-                    MakeupUsed = packingEnabled ? request.MakeupUsed : false,
-                    InventoryMovementIds = string.Join(",", movementIds.Select(id => id.ToString())),
-                    ProductionSessionId = activeSession.Id,
-                    TenantId = tenantId,
-                    CompanyId = line.CompanyId,
-                    CreatedAt = DateTime.UtcNow,
-                    CreatedBy = userIdStr
-                };
+                    // Create the production entry
+                    var entry = new ProductionEntry
+                    {
+                        Id = entryId,
+                        OperatorId = activeSession.OperatorId,
+                        OperatorName = activeSession.OperatorName,
+                        ProductionLineId = line.Id,
+                        Shift = activeSession.Shift,
+                        Date = DateTime.UtcNow.Date,
+                        Time = DateTime.UtcNow.ToString("O"), // Store as ISO-8601 UTC
+                        ProductId = sku.Id,
+                        CasesProduced = request.CasesProduced,
+                        PreformMaterialId = preformLines.FirstOrDefault()?.RawMaterialId ?? (blowingEnabled ? preform?.Id : null),
+                        PreformUsage = preformLines.Count > 0 ? preformLines.Sum(x => x.UsageQuantity) : (blowingEnabled ? request.PreformUsage : 0),
+                        PreformWastage = preformLines.Count > 0 ? preformLines.Sum(x => x.WastageQuantity) : (blowingEnabled ? request.PreformWastage : 0),
+                        CapMaterialId = capLines.FirstOrDefault()?.RawMaterialId ?? ((fillingEnabled && cap != null) ? cap.Id : null),
+                        CapUsage = capLines.Count > 0 ? capLines.Sum(x => x.UsageQuantity) : (fillingEnabled ? request.CapUsage : 0),
+                        CapWastage = capLines.Count > 0 ? capLines.Sum(x => x.WastageQuantity) : (fillingEnabled ? request.CapWastage : 0),
+                        LabelMaterialId = labelLines.FirstOrDefault()?.RawMaterialId ?? (labelingEnabled ? label?.Id : null),
+                        LabelUsage = labelLines.Count > 0 ? labelLines.Sum(x => x.UsageQuantity) : (labelingEnabled ? request.LabelUsage : 0),
+                        LabelWastage = labelLines.Count > 0 ? labelLines.Sum(x => x.WastageQuantity) : (labelingEnabled ? request.LabelWastage : 0),
+                        ShrinkMaterialId = shrinkLines.FirstOrDefault()?.RawMaterialId ?? (packingEnabled ? shrink?.Id : null),
+                        ShrinkUsage = shrinkLines.Count > 0 ? shrinkLines.Sum(x => x.UsageQuantity) : (packingEnabled ? request.ShrinkUsage : 0),
+                        ShrinkWastage = shrinkLines.Count > 0 ? shrinkLines.Sum(x => x.WastageQuantity) : (packingEnabled ? request.ShrinkWastage : 0),
+                        GlueMaterialId = glueLines.FirstOrDefault()?.RawMaterialId ?? ((packingEnabled && glue != null) ? glue.Id : null),
+                        GlueUsage = glueLines.Count > 0 ? glueLines.Sum(x => x.UsageQuantity) : (packingEnabled ? request.GlueUsage : null),
+                        InkUsed = packingEnabled ? request.InkUsed : false,
+                        MakeupUsed = packingEnabled ? request.MakeupUsed : false,
+                        WaterWastageLitres = 0,
+                        MaterialConsumptionsJson = System.Text.Json.JsonSerializer.Serialize(persistedMaterialLines),
+                        InventoryMovementIds = string.Join(",", movementIds.Select(id => id.ToString())),
+                        ProductionSessionId = activeSession.Id,
+                        TenantId = tenantId,
+                        CompanyId = line.CompanyId,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = userIdStr
+                    };
 
                 _tenantContext.ProductionEntries.Add(entry);
 
                 // Update ProducedQuantity on the corresponding ProductionBatch
                 var batch = await _tenantContext.ProductionBatches
-                    .FirstOrDefaultAsync(b => b.Id == activeSession.Id && !b.IsDeleted);
+                    .FirstOrDefaultAsync(b => (b.Id == activeSession.Id || (b.BatchNumber == activeSession.BatchNumber && b.ProductionLineId == activeSession.ProductionLineId)) && !b.IsDeleted);
                 if (batch != null)
                 {
                     batch.ProducedQuantity = activeSession.ProductionEntries.Where(e => !e.IsDeleted).Sum(e => e.CasesProduced) + request.CasesProduced;
@@ -1053,6 +1128,60 @@ namespace Aquora.API.Controllers
                         .Include(s => s.ProductionEntries)
                             .ThenInclude(e => e.GlueMaterial)
                         .FirstOrDefaultAsync(s => s.Id == sessionId && !s.IsDeleted);
+
+                    if (session == null)
+                    {
+                        var fallbackBatch = await _tenantContext.ProductionBatches
+                            .Include(b => b.ProductionLine)
+                            .FirstOrDefaultAsync(b => b.Id == sessionId && !b.IsDeleted);
+
+                        if (fallbackBatch != null)
+                        {
+                            session = await _tenantContext.ProductionSessions
+                                .Include(s => s.Product)
+                                .Include(s => s.ProductionEntries)
+                                    .ThenInclude(e => e.PreformMaterial)
+                                .Include(s => s.ProductionEntries)
+                                    .ThenInclude(e => e.CapMaterial)
+                                .Include(s => s.ProductionEntries)
+                                    .ThenInclude(e => e.LabelMaterial)
+                                .Include(s => s.ProductionEntries)
+                                    .ThenInclude(e => e.ShrinkMaterial)
+                                .Include(s => s.ProductionEntries)
+                                    .ThenInclude(e => e.GlueMaterial)
+                                .FirstOrDefaultAsync(s => s.BatchNumber == fallbackBatch.BatchNumber && s.ProductionLineId == fallbackBatch.ProductionLineId && !s.IsDeleted);
+
+                            if (session == null)
+                            {
+                                return Success<object>(new
+                                {
+                                    batchNumber = fallbackBatch.BatchNumber,
+                                    skuName = fallbackBatch.Product,
+                                    operatorName = fallbackBatch.OperatorName,
+                                    shift = fallbackBatch.Shift,
+                                    startedAt = fallbackBatch.StartedAt,
+                                    endedAt = fallbackBatch.CompletedAt,
+                                    casesProduced = fallbackBatch.ProducedQuantity,
+                                    targetQuantity = fallbackBatch.TargetQuantity,
+                                    status = fallbackBatch.Status,
+                                    preformUsed = 0,
+                                    preformWaste = 0,
+                                    capUsed = 0,
+                                    capWaste = 0,
+                                    labelUsed = 0,
+                                    labelWaste = 0,
+                                    shrinkUsed = 0,
+                                    shrinkWaste = 0,
+                                    glueUsed = 0,
+                                    glueWaste = 0,
+                                    inkUsed = false,
+                                    makeupUsed = false,
+                                    waterWastageLitres = 0,
+                                    inventorySummary = new List<object>()
+                                }, "Batch summary resolved from batch record.");
+                            }
+                        }
+                    }
                 }
                 catch (Exception ex) when (ex.Message.Contains("42703") || ex.Message.Contains("CapMaterialId"))
                 {
@@ -1268,6 +1397,7 @@ namespace Aquora.API.Controllers
                     GlueUsed = activeEntries.Sum(e => e.GlueUsage ?? 0),
                     InkUsed = inkUsedCount,
                     MakeupUsed = makeupUsedCount,
+                    WaterWastageLitres = activeEntries.Sum(e => e.WaterWastageLitres),
                     InventorySummary = materialConsumption
                 };
 
@@ -1466,12 +1596,24 @@ namespace Aquora.API.Controllers
         }
     }
 
+    public class ProductionEntryMaterialInputDto
+    {
+        public Guid RawMaterialId { get; set; }
+        public decimal UsageQuantity { get; set; }
+        public decimal WastageQuantity { get; set; }
+    }
+
     public class CreateProductionEntryRequest
     {
+        public Guid? BatchId { get; set; }
+        public Guid? BatchSessionId { get; set; }
         public Guid ProductionLineId { get; set; }
         public string? Shift { get; set; }
         public Guid? SkuProductId { get; set; }
         public int CasesProduced { get; set; }
+        public string? OperatorName { get; set; }
+
+        public List<ProductionEntryMaterialInputDto>? Materials { get; set; }
 
         public Guid? PreformMaterialId { get; set; }
         public decimal PreformUsage { get; set; }
@@ -1497,5 +1639,7 @@ namespace Aquora.API.Controllers
 
         public Guid? MakeupMaterialId { get; set; }
         public bool MakeupUsed { get; set; }
+
+        public decimal WaterWastageLitres { get; set; } = 0;
     }
 }

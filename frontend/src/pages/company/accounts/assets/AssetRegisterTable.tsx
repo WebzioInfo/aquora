@@ -122,7 +122,7 @@ export const AssetRegisterTable: React.FC<AssetRegisterTableProps> = ({
                       checked={isAllSelected}
                       onChange={onToggleSelectAll}
                       aria-label="Select all assets"
-                      className="w-4 h-4 rounded border-slate-300 text-[#1A56DB] focus:ring-[#1A56DB] cursor-pointer"
+                      className="w-4 h-4 rounded border-slate-300 text-[#0B7A70] focus:ring-[#12A89A] cursor-pointer"
                     />
                   </th>
                   <th className="py-2.5 px-3.5 min-w-[220px] whitespace-nowrap bg-slate-50">

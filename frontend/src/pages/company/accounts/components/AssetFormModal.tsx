@@ -149,7 +149,7 @@ export const AssetFormModal: React.FC<Props> = ({
         {/* SECTION 1: BASIC INFORMATION */}
         <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/80 space-y-3.5">
           <div className="flex items-center justify-between">
-            <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] text-[#1A56DB]">
+            <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] text-[#0B7A70]">
               Basic Identification
             </h4>
             <span className="text-[10px] text-slate-400 font-medium">Fields with * are required</span>
@@ -166,7 +166,7 @@ export const AssetFormModal: React.FC<Props> = ({
                 placeholder="e.g. RO High-Pressure Pump Unit"
                 value={createForm.assetName}
                 onChange={(e) => setCreateForm({ ...createForm, assetName: e.target.value })}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB] transition-all"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A] transition-all"
               />
             </div>
 
@@ -178,7 +178,7 @@ export const AssetFormModal: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => setIsQuickCreateOpen(true)}
-                  className="text-xs font-semibold text-[#1A56DB] hover:text-blue-700 active:text-blue-800 transition-colors inline-flex items-center gap-1 cursor-pointer focus:outline-none focus-visible:underline"
+                  className="text-xs font-semibold text-[#0B7A70] hover:text-[#05303B] active:text-blue-800 transition-colors inline-flex items-center gap-1 cursor-pointer focus:outline-none focus-visible:underline"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>New Category</span>
@@ -189,7 +189,7 @@ export const AssetFormModal: React.FC<Props> = ({
                   value={selectedCategoryValue}
                   onChange={(e) => setCreateForm(prev => ({ ...prev, assetCategory: e.target.value }))}
                   disabled={isLoadingCategories && dbCategories.length === 0}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-medium text-slate-800 focus:outline-none focus:border-[#1A56DB] transition-all disabled:bg-slate-50 disabled:text-slate-400"
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-medium text-slate-800 focus:outline-none focus:border-[#12A89A] transition-all disabled:bg-slate-50 disabled:text-slate-400"
                 >
                   {categoryOptions.map((cat) => (
                     <option key={cat.code} value={cat.code}>
@@ -214,7 +214,7 @@ export const AssetFormModal: React.FC<Props> = ({
                 placeholder="Auto-generated if blank (e.g. MCH-001)"
                 value={createForm.assetTag || ''}
                 onChange={(e) => setCreateForm({ ...createForm, assetTag: e.target.value })}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#1A56DB] transition-all"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#12A89A] transition-all"
               />
             </div>
 
@@ -227,7 +227,7 @@ export const AssetFormModal: React.FC<Props> = ({
                 placeholder="e.g. SN-9842104"
                 value={createForm.serialNumber || ''}
                 onChange={(e) => setCreateForm({ ...createForm, serialNumber: e.target.value })}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#1A56DB] transition-all"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#12A89A] transition-all"
               />
             </div>
 
@@ -238,7 +238,7 @@ export const AssetFormModal: React.FC<Props> = ({
                 placeholder="e.g. HydroFlow-5000"
                 value={createForm.modelNumber || ''}
                 onChange={(e) => setCreateForm({ ...createForm, modelNumber: e.target.value })}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB] transition-all"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A] transition-all"
               />
             </div>
 
@@ -249,7 +249,7 @@ export const AssetFormModal: React.FC<Props> = ({
                 placeholder="e.g. Grundfos / Kirloskar"
                 value={createForm.manufacturer || ''}
                 onChange={(e) => setCreateForm({ ...createForm, manufacturer: e.target.value })}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB] transition-all"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A] transition-all"
               />
             </div>
           </div>
@@ -257,14 +257,14 @@ export const AssetFormModal: React.FC<Props> = ({
 
         {/* SECTION 2: FINANCIAL & CAPITALIZATION */}
         <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/80 space-y-3.5">
-          <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] text-[#1A56DB]">
+          <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] text-[#0B7A70]">
             Financial & Capitalization
           </h4>
 
           {editing ? (
             <div className="space-y-3.5">
               <div className="p-3 bg-blue-50/70 border border-blue-200/70 rounded-lg text-blue-900 text-xs flex items-start gap-2">
-                <Info className="w-4 h-4 text-[#1A56DB] shrink-0 mt-0.5" />
+                <Info className="w-4 h-4 text-[#0B7A70] shrink-0 mt-0.5" />
                 <div>
                   <strong className="font-bold">Historical Accounting Integrity:</strong> Original acquisition cost,
                   tax capitalization, and initial depreciation rules are immutable audit records and cannot be overwritten
@@ -294,7 +294,7 @@ export const AssetFormModal: React.FC<Props> = ({
                     className={`w-full px-3 py-2 text-xs border rounded-lg transition-all ${
                       isDateLocked
                         ? 'bg-slate-100/90 text-slate-500 border-slate-200 cursor-not-allowed'
-                        : 'bg-white text-slate-800 border-slate-200 focus:outline-none focus:border-[#1A56DB]'
+                        : 'bg-white text-slate-800 border-slate-200 focus:outline-none focus:border-[#12A89A]'
                     }`}
                   />
                   {isDateLocked && (
@@ -327,7 +327,7 @@ export const AssetFormModal: React.FC<Props> = ({
                     required
                     value={createForm.purchaseDate?.slice(0, 10) || ''}
                     onChange={(e) => setCreateForm({ ...createForm, purchaseDate: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
                   />
                 </div>
 
@@ -345,7 +345,7 @@ export const AssetFormModal: React.FC<Props> = ({
                     onChange={(e) =>
                       setCreateForm({ ...createForm, purchasePrice: parseFloat(e.target.value) || 0 })
                     }
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#1A56DB]"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#12A89A]"
                   />
                 </div>
 
@@ -360,7 +360,7 @@ export const AssetFormModal: React.FC<Props> = ({
                     onChange={(e) =>
                       setCreateForm({ ...createForm, taxAmount: parseFloat(e.target.value) || 0 })
                     }
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#1A56DB]"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#12A89A]"
                   />
                 </div>
 
@@ -375,7 +375,7 @@ export const AssetFormModal: React.FC<Props> = ({
                     onChange={(e) =>
                       setCreateForm({ ...createForm, freightCost: parseFloat(e.target.value) || 0 })
                     }
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#1A56DB]"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#12A89A]"
                   />
                 </div>
 
@@ -390,7 +390,7 @@ export const AssetFormModal: React.FC<Props> = ({
                     onChange={(e) =>
                       setCreateForm({ ...createForm, installationCost: parseFloat(e.target.value) || 0 })
                     }
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#1A56DB]"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#12A89A]"
                   />
                 </div>
 
@@ -414,7 +414,7 @@ export const AssetFormModal: React.FC<Props> = ({
                     onChange={(e) =>
                       setCreateForm({ ...createForm, usefulLifeYears: parseFloat(e.target.value) || 1 })
                     }
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#1A56DB]"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#12A89A]"
                   />
                 </div>
 
@@ -429,7 +429,7 @@ export const AssetFormModal: React.FC<Props> = ({
                     onChange={(e) =>
                       setCreateForm({ ...createForm, residualValue: parseFloat(e.target.value) || 0 })
                     }
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#1A56DB]"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#12A89A]"
                   />
                 </div>
 
@@ -440,7 +440,7 @@ export const AssetFormModal: React.FC<Props> = ({
                     placeholder="e.g. Aquatech Engineering Ltd"
                     value={createForm.supplierName || ''}
                     onChange={(e) => setCreateForm({ ...createForm, supplierName: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
                   />
                 </div>
 
@@ -451,7 +451,7 @@ export const AssetFormModal: React.FC<Props> = ({
                     placeholder="e.g. INV-2026-081"
                     value={createForm.purchaseInvoiceNumber || ''}
                     onChange={(e) => setCreateForm({ ...createForm, purchaseInvoiceNumber: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#1A56DB]"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#12A89A]"
                   />
                 </div>
               </div>
@@ -461,7 +461,7 @@ export const AssetFormModal: React.FC<Props> = ({
 
         {/* SECTION 3: LOCATION & ASSIGNMENT */}
         <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/80 space-y-3.5">
-          <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] text-[#1A56DB]">
+          <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] text-[#0B7A70]">
             Location & Physical Condition
           </h4>
 
@@ -473,7 +473,7 @@ export const AssetFormModal: React.FC<Props> = ({
                 placeholder="e.g. Main Plant / Warehouse A"
                 value={createForm.location || ''}
                 onChange={(e) => setCreateForm({ ...createForm, location: e.target.value })}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
               />
             </div>
 
@@ -485,7 +485,7 @@ export const AssetFormModal: React.FC<Props> = ({
                 placeholder="e.g. Production / Quality Control"
                 value={createForm.department || ''}
                 onChange={(e) => setCreateForm({ ...createForm, department: e.target.value })}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white disabled:bg-slate-100 disabled:text-slate-500 focus:outline-none focus:border-[#1A56DB]"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white disabled:bg-slate-100 disabled:text-slate-500 focus:outline-none focus:border-[#12A89A]"
               />
             </div>
 
@@ -494,7 +494,7 @@ export const AssetFormModal: React.FC<Props> = ({
               <select
                 value={createForm.condition || 'Good'}
                 onChange={(e) => setCreateForm({ ...createForm, condition: e.target.value })}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-medium focus:outline-none focus:border-[#1A56DB]"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-medium focus:outline-none focus:border-[#12A89A]"
               >
                 <option value="Excellent">Excellent (Like New)</option>
                 <option value="Good">Good (Operational)</option>
@@ -509,7 +509,7 @@ export const AssetFormModal: React.FC<Props> = ({
 
         {/* SECTION 4: WARRANTY */}
         <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/80 space-y-3.5">
-          <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] text-[#1A56DB]">
+          <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] text-[#0B7A70]">
             Warranty & Service Terms
           </h4>
 
@@ -521,7 +521,7 @@ export const AssetFormModal: React.FC<Props> = ({
                 placeholder="e.g. OEM / Service Corp"
                 value={createForm.warrantyProvider || ''}
                 onChange={(e) => setCreateForm({ ...createForm, warrantyProvider: e.target.value })}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
               />
             </div>
 
@@ -532,7 +532,7 @@ export const AssetFormModal: React.FC<Props> = ({
                 placeholder="e.g. WAR-2026-90"
                 value={createForm.warrantyNumber || ''}
                 onChange={(e) => setCreateForm({ ...createForm, warrantyNumber: e.target.value })}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#1A56DB]"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#12A89A]"
               />
             </div>
 
@@ -544,7 +544,7 @@ export const AssetFormModal: React.FC<Props> = ({
                 onChange={(e) =>
                   setCreateForm({ ...createForm, warrantyStartDate: e.target.value || undefined })
                 }
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
               />
             </div>
 
@@ -556,7 +556,7 @@ export const AssetFormModal: React.FC<Props> = ({
                 onChange={(e) =>
                   setCreateForm({ ...createForm, warrantyEndDate: e.target.value || undefined })
                 }
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
               />
             </div>
           </div>
@@ -568,14 +568,14 @@ export const AssetFormModal: React.FC<Props> = ({
               placeholder="e.g. 24-month comprehensive coverage including motors & electrical components"
               value={createForm.warrantyNotes || ''}
               onChange={(e) => setCreateForm({ ...createForm, warrantyNotes: e.target.value })}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
             />
           </div>
         </div>
 
         {/* SECTION 5: ADDITIONAL INFORMATION & NOTES */}
         <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/80 space-y-3.5">
-          <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] text-[#1A56DB]">
+          <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px] text-[#0B7A70]">
             Additional Information
           </h4>
 
@@ -587,7 +587,7 @@ export const AssetFormModal: React.FC<Props> = ({
                 placeholder="e.g. Core Machinery / IT Infrastructure"
                 value={createForm.assetType || ''}
                 onChange={(e) => setCreateForm({ ...createForm, assetType: e.target.value })}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
               />
             </div>
 
@@ -598,7 +598,7 @@ export const AssetFormModal: React.FC<Props> = ({
                 placeholder="Optional internal asset remarks"
                 value={createForm.notes || ''}
                 onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
               />
             </div>
           </div>
@@ -610,7 +610,7 @@ export const AssetFormModal: React.FC<Props> = ({
               placeholder="Detailed description of specifications, accessories included, or operating instructions..."
               value={createForm.description || ''}
               onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
             />
           </div>
         </div>

@@ -25,6 +25,7 @@ import {
   Compass,
   Zap,
   Sliders,
+  Tag,
   ExternalLink,
   ChevronRight,
   CornerDownLeft
@@ -68,6 +69,7 @@ const renderIcon = (iconName?: string) => {
     case 'Compass': return <Compass className="w-4 h-4 text-blue-600" />
     case 'Zap': return <Zap className="w-4 h-4 text-amber-500" />
     case 'Sliders': return <Sliders className="w-4 h-4 text-slate-500" />
+    case 'Tag': return <Tag className="w-4 h-4 text-[#0B7A70]" />
     default: return <Search className="w-4 h-4 text-slate-400" />
   }
 }

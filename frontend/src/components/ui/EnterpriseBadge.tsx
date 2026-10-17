@@ -13,11 +13,11 @@ export const EnterpriseBadge: React.FC<EnterpriseBadgeProps> = ({
   const baseStyle = 'px-3 py-0.5 rounded-full text-xs font-semibold select-none shrink-0'
   
   const variants = {
-    primary: 'bg-[#EFF4FF] text-[#1A56DB]',
+    primary: 'bg-[#E6F6F4] text-[#0B7A70] border border-[#B8E6E0]',
     success: 'bg-[#DCFCE7] text-[#166534]',
     danger: 'bg-[#FEE2E2] text-[#991B1B]',
     warning: 'bg-[#FFFAEB] text-[#F79009]',
-    info: 'bg-[#EFF8FF] text-[#2E90FA]',
+    info: 'bg-[#E6F6F4] text-[#0B7A70] border border-[#B8E6E0]',
     gray: 'bg-[#F9FAFB] text-[#667085]'
   }
 

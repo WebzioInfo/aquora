@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { getFriendlyError, isHumanReadableMessage } from '../utils/getFriendlyError'
+import type { ErrorContext } from '../utils/getFriendlyError'
 
 export interface Toast {
   id: string
@@ -21,58 +23,66 @@ interface NotificationState {
     actionLabel?: string,
     onAction?: () => void
   ) => void
-  showError: (error: any, fallbackMessage?: string) => void
+  showError: (error: any, context?: ErrorContext, fallbackMessage?: string) => void
   removeToast: (id: string) => void
   clearAll: () => void
 }
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
   toasts: [],
-  showToast: (message, type = 'info', duration, title, actionLabel, onAction) => {
-    if (!message) return
+  showToast: (rawMessage, type = 'info', duration, title, actionLabel, onAction) => {
+    if (!rawMessage) return
+
+    let safeMessage = rawMessage
+    let safeTitle = title
+
+    // Defense-in-depth: If an error toast receives a raw axios/technical message, normalize it
+    if (type === 'error' && !isHumanReadableMessage(rawMessage)) {
+      const friendly = getFriendlyError(rawMessage)
+      safeMessage = friendly.message
+      if (!safeTitle) safeTitle = friendly.title
+    }
 
     const now = Date.now()
     const currentToasts = get().toasts
 
     // Deduplicate identical toasts dispatched within 2.5 seconds
     const isDuplicate = currentToasts.some(
-      (t) => t.message === message && t.type === type && now - t.createdAt < 2500
+      (t) => t.message === safeMessage && t.type === type && now - t.createdAt < 2500
     )
     if (isDuplicate) return
 
     const id = Math.random().toString(36).substring(2, 9)
 
-    // Standardized durations per prompt guidelines
+    // Standardized durations
     let defaultDuration = 4500
     if (type === 'success') defaultDuration = 3500
-    else if (type === 'warning') defaultDuration = 6000
-    else if (type === 'error') defaultDuration = 7000
+    else if (type === 'warning') defaultDuration = 5500
+    else if (type === 'error') defaultDuration = 6500
 
     const actualDuration = duration ?? defaultDuration
 
-    // Infer title if not explicitly provided
-    let defaultTitle = title
-    if (!defaultTitle) {
+    if (!safeTitle) {
       switch (type) {
         case 'success':
-          defaultTitle = 'Success'
+          safeTitle = 'Success'
           break
         case 'error':
-          defaultTitle = 'Request Failed'
+          safeTitle = 'Action could not be completed'
           break
         case 'warning':
-          defaultTitle = 'Warning'
+          safeTitle = 'Attention'
           break
         default:
-          defaultTitle = 'Information'
+          safeTitle = 'Notice'
           break
       }
     }
 
     const newToast: Toast = {
       id,
-      title: defaultTitle,
-      message,
+      title: safeTitle,
+      message: safeMessage,
       type,
       duration: actualDuration,
       actionLabel,
@@ -91,11 +101,10 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     }
   },
 
-  showError: (error, fallbackMessage) => {
-    const userFriendly = error?.userFriendly || (error?.title && error?.message ? error : null)
-    const title = error?.title || userFriendly?.title || error?.response?.data?.title || undefined
-    const msg = userFriendly?.message || error?.response?.data?.message || error?.message || fallbackMessage || 'An unexpected error occurred.'
-    get().showToast(msg, 'error', undefined, title)
+  showError: (error, context = 'generic', fallbackMessage) => {
+    const friendly = getFriendlyError(error, context)
+    const msg = friendly.message || fallbackMessage || 'Something went wrong. Please try again.'
+    get().showToast(msg, 'error', undefined, friendly.title)
   },
 
   removeToast: (id) =>

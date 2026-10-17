@@ -453,7 +453,7 @@ export const OperatorDashboardPage: React.FC = () => {
   const watermarkBg = useMemo(() => {
     if (!selectedLine?.name) return 'none'
     const escapedName = selectedLine.name.toUpperCase()
-    const color = lineTheme?.primary || '#1A56DB'
+    const color = lineTheme?.primary || '#12A89A'
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="260" height="180">
       <text 
         x="130" 
@@ -1192,14 +1192,14 @@ export const OperatorDashboardPage: React.FC = () => {
       <div className="flex-1 flex items-center justify-center min-h-0 select-none p-4 bg-[#F3F4F6]">
         <div className="w-full max-w-[480px] flex flex-col gap-6">
           <div className="text-center">
-            <div className="w-12 h-12 rounded-lg bg-[#E8F0FE] flex items-center justify-center mx-auto mb-3 shadow-[0_2px_8px_rgba(26,86,219,0.1)]">
-              <Cpu className="w-6 h-6 text-[#1A56DB]" />
+            <div className="w-12 h-12 rounded-lg bg-[#E6F6F4] flex items-center justify-center mx-auto mb-3 shadow-[0_2px_8px_rgba(26,86,219,0.1)]">
+              <Cpu className="w-6 h-6 text-[#12A89A]" />
             </div>
             <h1 className="text-xl font-bold text-[#111827] tracking-tight">Select Production Allocation</h1>
             <p className="text-xs text-[#6B7280] mt-1">Configure your working line and shift to access the terminal.</p>
           </div>
 
-          <div style={{ borderTop: localLine ? `4px solid ${getLineTheme(localLine.name, localLine.lineId).primary}` : '4px solid #1A56DB', borderRadius: '12px' }} className="transition-all duration-200">
+          <div style={{ borderTop: localLine ? `4px solid ${getLineTheme(localLine.name, localLine.lineId).primary}` : '4px solid #12A89A', borderRadius: '12px' }} className="transition-all duration-200">
             <EnterpriseCard title="Workstation Setup">
               <div className="flex flex-col gap-5 mt-1">
                 <div>
@@ -1260,9 +1260,9 @@ export const OperatorDashboardPage: React.FC = () => {
                           onClick={() => setLocalShift(s)}
                           className={`py-2 px-3 border text-center text-xs font-semibold rounded-[6px] transition-all duration-200 cursor-pointer`}
                           style={{
-                            borderColor: isSelected ? (lTheme?.primary || '#1A56DB') : '#E5E7EB',
-                            backgroundColor: isSelected ? (lTheme?.secondary || '#E8F0FE') : '#FFFFFF',
-                            color: isSelected ? (lTheme?.primary || '#1A56DB') : '#6B7280'
+                            borderColor: isSelected ? (lTheme?.primary || '#12A89A') : '#E5E7EB',
+                            backgroundColor: isSelected ? (lTheme?.secondary || '#E6F6F4') : '#FFFFFF',
+                            color: isSelected ? (lTheme?.primary || '#12A89A') : '#6B7280'
                           }}
                         >
                           {s}
@@ -1349,7 +1349,7 @@ export const OperatorDashboardPage: React.FC = () => {
                     disabled={!localLine || !localShift || !localProduct}
                     className="w-full h-10 text-xs font-bold justify-center rounded-[8px] transition-all duration-200 text-white cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
                     style={{
-                      backgroundColor: localLine ? getLineTheme(localLine.name, localLine.lineId).primary : '#1A56DB',
+                      backgroundColor: localLine ? getLineTheme(localLine.name, localLine.lineId).primary : '#12A89A',
                       boxShadow: localLine ? `0 2px 4px ${getLineTheme(localLine.name, localLine.lineId).glow}` : 'none'
                     }}
                   >
@@ -1396,7 +1396,7 @@ export const OperatorDashboardPage: React.FC = () => {
                 <span>Total Entries logged:</span>
                 <span className="text-slate-900 font-bold">{closedSummaryData.entriesCount}</span>
               </div>
-              <div className="flex justify-between text-base border-t border-slate-200 pt-2 text-[#1A56DB]">
+              <div className="flex justify-between text-base border-t border-slate-200 pt-2 text-[#12A89A]">
                 <span>Total Cases Produced:</span>
                 <span className="font-extrabold">{closedSummaryData.totalCasesProduced}</span>
               </div>
@@ -1443,7 +1443,7 @@ export const OperatorDashboardPage: React.FC = () => {
           {sessionLoading ? (
             <div className="h-[280px] bg-white border border-[#E5E7EB] rounded-[12px] flex items-center justify-center animate-pulse">
               <div className="text-xs text-slate-400 font-bold flex items-center gap-2">
-                <RefreshCw className="w-4 h-4 animate-spin text-[#1A56DB]" /> Resolving Active Session Context...
+                <RefreshCw className="w-4 h-4 animate-spin text-[#12A89A]" /> Resolving Active Session Context...
               </div>
             </div>
           ) : (!activeSession || !activeSession.canEnterProductionPage) ? (
@@ -1451,7 +1451,7 @@ export const OperatorDashboardPage: React.FC = () => {
             // --- SCENARIO A: NO BATCH ACTIVE ---
             <div
               className="bg-white border border-[#E5E7EB] rounded-[12px] p-8 text-center shadow-[0_4px_12px_rgba(0,0,0,0.02)] space-y-6 transition-all duration-200"
-              style={{ borderTop: `3px solid ${lineTheme?.primary || '#1A56DB'}` }}
+              style={{ borderTop: `3px solid ${lineTheme?.primary || '#12A89A'}` }}
             >
               <div className="w-16 h-16 rounded-full bg-[#FFFBEB] border border-amber-200 flex items-center justify-center mx-auto text-amber-500">
                 <AlertTriangle className="w-7 h-7 stroke-[2.5]" />
@@ -1468,7 +1468,7 @@ export const OperatorDashboardPage: React.FC = () => {
                   onClick={() => resetTerminal()}
                   className="px-6 h-[44px] hover:brightness-110 transition-all duration-200 rounded-[8px] text-white text-xs font-bold uppercase tracking-wider shadow-md flex items-center gap-2 cursor-pointer"
                   style={{
-                    backgroundColor: lineTheme?.primary || '#1A56DB',
+                    backgroundColor: lineTheme?.primary || '#12A89A',
                     boxShadow: lineTheme ? `0 2px 4px ${lineTheme.glow}` : 'none'
                   }}
                 >
@@ -1553,7 +1553,7 @@ export const OperatorDashboardPage: React.FC = () => {
                   onClick={() => setCurrentView('entry')}
                   className="px-5 h-[38px] hover:brightness-110 text-white transition-all duration-200 rounded-[6px] text-xs font-bold uppercase tracking-wider shadow-md flex items-center gap-1.5 cursor-pointer"
                   style={{
-                    backgroundColor: lineTheme?.primary || '#1A56DB',
+                    backgroundColor: lineTheme?.primary || '#12A89A',
                     boxShadow: lineTheme ? `0 2px 4px ${lineTheme.glow}` : 'none'
                   }}
                 >
@@ -1577,7 +1577,7 @@ export const OperatorDashboardPage: React.FC = () => {
                 <div className="flex items-center gap-2.5">
                   <div
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200"
-                    style={{ backgroundColor: lineTheme?.secondary || '#E8F0FE', color: lineTheme?.primary || '#1A56DB' }}
+                    style={{ backgroundColor: lineTheme?.secondary || '#E6F6F4', color: lineTheme?.primary || '#12A89A' }}
                   >
                     <Cpu className="w-4 h-4" />
                   </div>
@@ -1684,7 +1684,7 @@ export const OperatorDashboardPage: React.FC = () => {
                       className="w-full h-10 border border-[#D0D5DD] px-3 py-1.5 pr-10 text-xs bg-white rounded-[8px] focus:outline-none focus-line-theme text-slate-800 font-semibold"
                     />
                     <div className="absolute right-3 top-2.5 flex items-center gap-1.5 text-slate-400">
-                      {isProductLoading && <Loader2 className="w-4 h-4 animate-spin" style={{ color: lineTheme?.primary || '#1A56DB' }} />}
+                      {isProductLoading && <Loader2 className="w-4 h-4 animate-spin" style={{ color: lineTheme?.primary || '#12A89A' }} />}
                       {modalSelectedSku ? (
                         <Check className="w-4.5 h-4.5 text-green-600 stroke-[2.5]" />
                       ) : (
@@ -1732,8 +1732,8 @@ export const OperatorDashboardPage: React.FC = () => {
                                 className="w-full text-left px-4 py-2 border-b border-[#F4F6F9] last:border-0 transition-all duration-150 flex flex-col justify-center cursor-pointer"
                                 style={{
                                   height: itemHeight,
-                                  color: isHighlighted ? (lineTheme?.primary || '#1A56DB') : '#334155',
-                                  backgroundColor: isHighlighted ? `${lineTheme?.secondary || '#E8F0FE'}c0` : isSelected ? `${lineTheme?.secondary || '#E8F0FE'}50` : '#ffffff'
+                                  color: isHighlighted ? (lineTheme?.primary || '#12A89A') : '#334155',
+                                  backgroundColor: isHighlighted ? `${lineTheme?.secondary || '#E6F6F4'}c0` : isSelected ? `${lineTheme?.secondary || '#E6F6F4'}50` : '#ffffff'
                                 }}
                               >
                                 <div className="flex justify-between items-center w-full">
@@ -1781,7 +1781,7 @@ export const OperatorDashboardPage: React.FC = () => {
                     <span>Production Start Time *</span>
                     <span
                       className="text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 select-none transition-all duration-200"
-                      style={{ color: lineTheme?.primary || '#1A56DB', backgroundColor: lineTheme?.secondary || '#E8F0FE' }}
+                      style={{ color: lineTheme?.primary || '#12A89A', backgroundColor: lineTheme?.secondary || '#E6F6F4' }}
                     >
                       <Clock className="w-3 h-3" /> {Intl.DateTimeFormat().resolvedOptions().timeZone}
                     </span>
@@ -1857,7 +1857,7 @@ export const OperatorDashboardPage: React.FC = () => {
                     disabled={startSessionMutation.isPending}
                     className="px-5 h-10 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold rounded-[8px] text-xs cursor-pointer shadow-md flex items-center gap-2 uppercase tracking-wider transition-all duration-200"
                     style={{
-                      backgroundColor: lineTheme?.primary || '#1A56DB',
+                      backgroundColor: lineTheme?.primary || '#12A89A',
                       boxShadow: lineTheme ? `0 2px 4px ${lineTheme.glow}` : 'none'
                     }}
                   >
@@ -1933,7 +1933,7 @@ export const OperatorDashboardPage: React.FC = () => {
   return (
     <div
       className="flex-1 w-full h-full flex flex-col min-h-0 select-none transition-all duration-200"
-      style={{ '--line-color': lineTheme?.primary || '#1A56DB' } as React.CSSProperties}
+      style={{ '--line-color': lineTheme?.primary || '#12A89A' } as React.CSSProperties}
     >
       <style>{`
         .focus-line-theme:focus {
@@ -1960,7 +1960,7 @@ export const OperatorDashboardPage: React.FC = () => {
         {/* LEFT PANEL: INPUT FORM (75%) */}
         <div
           className="lg:col-span-3 flex flex-col min-h-0 bg-white border border-[#E5E7EB] rounded-[8px] p-3.5 relative shadow-sm transition-all duration-200"
-          style={{ borderTop: `3px solid ${lineTheme?.primary || '#1A56DB'}` }}
+          style={{ borderTop: `3px solid ${lineTheme?.primary || '#12A89A'}` }}
         >
           {/* Repeating Background Watermark Layer */}
           {selectedLine?.name && (
@@ -1987,7 +1987,7 @@ export const OperatorDashboardPage: React.FC = () => {
 
             {/* Colored Form Heading Indicator */}
             <div className="flex items-center gap-1.5 pb-1.5 border-b border-[#E5E7EB] select-none">
-              <span className="w-2 h-2 rounded-full inline-block animate-pulse" style={{ backgroundColor: lineTheme?.primary || '#1A56DB' }}></span>
+              <span className="w-2 h-2 rounded-full inline-block animate-pulse" style={{ backgroundColor: lineTheme?.primary || '#12A89A' }}></span>
               <h2 className="text-[10px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1">
                 Production Entry
                 {lineTheme && (
@@ -2030,7 +2030,7 @@ export const OperatorDashboardPage: React.FC = () => {
 
             {/* Industrial Raw Materials Table */}
             <div className="flex-1 flex flex-col justify-start min-h-0">
-              <h3 className="text-[10px] font-bold uppercase tracking-wider mb-1.5 select-none" style={{ color: lineTheme?.primary || '#1A56DB' }}>Raw Material Consumption</h3>
+              <h3 className="text-[10px] font-bold uppercase tracking-wider mb-1.5 select-none" style={{ color: lineTheme?.primary || '#12A89A' }}>Raw Material Consumption</h3>
 
               <div className="border border-[#E5E7EB] rounded-[6px] overflow-hidden flex flex-col min-h-0 bg-transparent relative z-10">
                 <div className="overflow-x-auto min-h-0">
@@ -2364,7 +2364,7 @@ export const OperatorDashboardPage: React.FC = () => {
                   disabled={isSaving || submitEntryMutation.isPending}
                   className="w-full md:w-auto h-8 px-5 rounded-[6px] text-xs font-bold text-white hover:brightness-110 transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
-                    backgroundColor: lineTheme?.primary || '#1A56DB'
+                    backgroundColor: lineTheme?.primary || '#12A89A'
                   }}
                 >
                   {isSaving || submitEntryMutation.isPending ? (
@@ -2388,11 +2388,11 @@ export const OperatorDashboardPage: React.FC = () => {
         {/* RIGHT PANEL: LOGS LEDGER (25%) */}
         <div
           className="flex flex-col min-h-0 bg-white border border-[#E5E7EB] rounded-[8px] p-3 shadow-sm transition-all duration-200"
-          style={{ borderTop: `3px solid ${lineTheme?.primary || '#1A56DB'}` }}
+          style={{ borderTop: `3px solid ${lineTheme?.primary || '#12A89A'}` }}
         >
           <div className="flex justify-between items-center pb-1.5 mb-1.5 border-b border-[#E5E7EB] select-none">
             <div className="flex items-center gap-1 text-left">
-              <span className="w-1.5 h-1.5 rounded-full inline-block animate-pulse" style={{ backgroundColor: lineTheme?.primary || '#1A56DB' }}></span>
+              <span className="w-1.5 h-1.5 rounded-full inline-block animate-pulse" style={{ backgroundColor: lineTheme?.primary || '#12A89A' }}></span>
               <div>
                 <h2 className="text-[11px] font-bold text-slate-800 tracking-tight block">Batch Log History</h2>
                 <span className="text-[8px] text-[#6B7280] font-bold uppercase mt-0.5 block">Recorded Logs</span>
@@ -2405,7 +2405,7 @@ export const OperatorDashboardPage: React.FC = () => {
                 refetchActiveSession()
               }}
               className="text-[10px] font-bold flex items-center gap-0.5 cursor-pointer transition-all duration-200 hover:brightness-110"
-              style={{ color: lineTheme?.primary || '#1A56DB' }}
+              style={{ color: lineTheme?.primary || '#12A89A' }}
             >
               <span>Dashboard</span>
               <Play className="w-2.5 h-2.5 fill-current rotate-180" />
@@ -2430,7 +2430,7 @@ export const OperatorDashboardPage: React.FC = () => {
                       <div className="flex justify-between items-center">
                         <span
                           className="font-bold px-1.5 py-0.5 rounded-[4px] text-[8px] font-mono transition-all duration-200"
-                          style={{ color: lineTheme?.primary || '#1A56DB', backgroundColor: lineTheme?.secondary || '#EFF4FF' }}
+                          style={{ color: lineTheme?.primary || '#12A89A', backgroundColor: lineTheme?.secondary || '#E6F6F4' }}
                         >
                           {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
@@ -2534,14 +2534,14 @@ export const OperatorDashboardPage: React.FC = () => {
             <div className="flex-1 overflow-y-auto py-3 space-y-5 text-xs text-slate-700 min-h-0">
 
               {summaryLoading ? (
-                <div className="py-20 text-center font-bold text-[#1A56DB] flex items-center justify-center gap-2">
+                <div className="py-20 text-center font-bold text-[#12A89A] flex items-center justify-center gap-2">
                   <RefreshCw className="w-4 h-4 animate-spin" /> Compiling Batch Summaries...
                 </div>
               ) : sessionSummary ? (
                 <>
                   {/* SECTION 1: BATCH DETAILS */}
                   <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 select-none">
-                    <span className="text-[10px] font-bold text-[#1A56DB] uppercase tracking-wider block border-b border-slate-200 pb-1">
+                    <span className="text-[10px] font-bold text-[#12A89A] uppercase tracking-wider block border-b border-slate-200 pb-1">
                       Section 1: Batch Information
                     </span>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-y-2 gap-x-4 font-semibold text-[11px]">
@@ -2557,14 +2557,14 @@ export const OperatorDashboardPage: React.FC = () => {
                   </div>
 
                   {/* SECTION 2: PRODUCTION TOTALS */}
-                  <div className="bg-[#EFF6FF] border border-blue-100 rounded-lg p-3 space-y-2 select-none">
-                    <span className="text-[10px] font-bold text-[#1A56DB] uppercase tracking-wider block border-b border-blue-200 pb-1">
+                  <div className="bg-[#E6F6F4] border border-blue-100 rounded-lg p-3 space-y-2 select-none">
+                    <span className="text-[10px] font-bold text-[#12A89A] uppercase tracking-wider block border-b border-blue-200 pb-1">
                       Section 2: Production Summary
                     </span>
                     <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 text-center">
                       <div className="bg-white p-2 rounded border border-blue-50">
                         <span className="text-[#6B7280] text-[8px] uppercase block font-bold mb-0.5">Cases Produced</span>
-                        <span className="text-base font-extrabold text-[#1A56DB]">{sessionSummary.casesProduced}</span>
+                        <span className="text-base font-extrabold text-[#12A89A]">{sessionSummary.casesProduced}</span>
                       </div>
                       <div className="bg-white p-2 rounded border border-blue-50">
                         <span className="text-[#6B7280] text-[8px] uppercase block font-bold mb-0.5">Logs Count</span>
@@ -2603,7 +2603,7 @@ export const OperatorDashboardPage: React.FC = () => {
 
                   {/* SECTION 3: INVENTORY STOCKS METRICS */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold text-[#1A56DB] uppercase tracking-wider block mb-1 select-none">
+                    <span className="text-[10px] font-bold text-[#12A89A] uppercase tracking-wider block mb-1 select-none">
                       Section 3: Inventory Summary
                     </span>
                     <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
@@ -2699,7 +2699,7 @@ export const OperatorDashboardPage: React.FC = () => {
                         type="checkbox"
                         checked={confirmCloseChecked}
                         onChange={(e) => setConfirmCloseChecked(e.target.checked)}
-                        className="mt-0.5 rounded border-slate-300 text-[#1A56DB] focus:ring-[#1A56DB] cursor-pointer"
+                        className="mt-0.5 rounded border-slate-300 text-[#12A89A] focus:ring-[#12A89A] cursor-pointer"
                       />
                       <div className="text-xs font-bold text-slate-800 leading-tight">
                         I confirm that all production data has been entered, material usage counts are verified, and this batch is ready to be locked and completed.

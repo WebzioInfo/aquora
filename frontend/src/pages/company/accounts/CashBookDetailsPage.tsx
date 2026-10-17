@@ -527,7 +527,7 @@ const CashBookDetailsPage: React.FC = () => {
     return (
       <div className="flex h-[calc(100vh-64px)] items-center justify-center bg-slate-50/50">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-full border-3 border-slate-200 border-t-[#1A56DB] animate-spin"></div>
+          <div className="w-10 h-10 rounded-full border-3 border-slate-200 border-t-[#12A89A] animate-spin"></div>
           <p className="text-xs font-medium text-slate-500 animate-pulse">Loading cash book details...</p>
         </div>
       </div>
@@ -668,7 +668,7 @@ const CashBookDetailsPage: React.FC = () => {
                 placeholder="Search ref or description..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#1A56DB]/20 focus:border-[#1A56DB] w-full sm:w-56 transition-all shadow-2xs"
+                className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#12A89A]/20 focus:border-[#12A89A] w-full sm:w-56 transition-all shadow-2xs"
               />
             </form>
             <EnterpriseButton variant="secondary" onClick={() => { }} className="gap-1.5 py-1.5 text-xs shrink-0">
@@ -1144,7 +1144,7 @@ const CashBookDetailsPage: React.FC = () => {
           <div className="space-y-4 text-xs text-left">
             {loadingHistory ? (
               <div className="flex justify-center py-8">
-                <div className="w-8 h-8 rounded-full border-3 border-slate-200 border-t-[#1A56DB] animate-spin"></div>
+                <div className="w-8 h-8 rounded-full border-3 border-slate-200 border-t-[#12A89A] animate-spin"></div>
               </div>
             ) : historyItems.length === 0 ? (
               <p className="text-center py-6 text-slate-500">No audit history found for this transaction.</p>

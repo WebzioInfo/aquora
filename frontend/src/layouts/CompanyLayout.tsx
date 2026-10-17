@@ -10,7 +10,7 @@ import { setCompanyPrefs } from '../utils/dateFormatter'
 import {
   LayoutDashboard, Factory, Package, TrendingUp, Users, Truck,
   Settings, ChevronRight, Play, Plus, X, Layers, Workflow, CalendarClock, Sliders,
-  Droplet, Droplets, Boxes, Tag, ShoppingCart, PieChart, IdCard, Beaker, Database, AlertTriangle, BarChart3
+  Droplet, Droplets, Boxes, ShoppingCart, PieChart, IdCard, Beaker, Database, AlertTriangle, BarChart3
 } from 'lucide-react'
 import EnterpriseSidebar from '../components/ui/EnterpriseSidebar'
 import EnterpriseTopbar from '../components/ui/EnterpriseTopbar'
@@ -192,7 +192,6 @@ export const CompanyLayout: React.FC = () => {
     { label: '20L Operations', path: '/company/operations', icon: <Droplet className="w-5 h-5" /> },
     { label: 'Products Inventory', path: '/company/inventory', icon: <Package className="w-5 h-5" /> },
     { label: 'Raw Materials', path: '/company/inventory?tab=raw_materials', icon: <Boxes className="w-5 h-5" /> },
-    { label: 'Brands', path: '/company/inventory?tab=brands', icon: <Tag className="w-5 h-5" /> },
     { label: 'Sales', path: '/company/sales', icon: <ShoppingCart className="w-5 h-5" /> },
     {
       label: 'Accounts',
@@ -228,6 +227,8 @@ export const CompanyLayout: React.FC = () => {
 
   const getBreadcrumbs = () => {
     const paths = location.pathname.split('/').filter(x => x)
+    const isBrandsTab = location.pathname === '/company/production-setup' && new URLSearchParams(location.search).get('tab') === 'brands'
+
     return (
       <div className="flex items-center select-none text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">
         <Link to="/company" className="hover:text-[#111827] transition-colors">
@@ -236,12 +237,14 @@ export const CompanyLayout: React.FC = () => {
         {paths.map((path, idx) => {
           const isLast = idx === paths.length - 1
           const url = `/${paths.slice(0, idx + 1).join('/')}`
-          const formattedName = path.charAt(0).toUpperCase() + path.slice(1)
+          const formattedName = path === 'production-setup'
+            ? 'Production Setup'
+            : path.charAt(0).toUpperCase() + path.slice(1)
 
           return (
             <span key={url} className="flex items-center">
               <ChevronRight className="w-3.5 h-3.5 text-[#6B7280] mx-1 shrink-0" />
-              {isLast ? (
+              {isLast && !isBrandsTab ? (
                 <span className="text-[#111827] font-bold">{formattedName}</span>
               ) : (
                 <Link to={url} className="text-[#6B7280] hover:text-[#111827] transition-colors">
@@ -251,6 +254,12 @@ export const CompanyLayout: React.FC = () => {
             </span>
           )
         })}
+        {isBrandsTab && (
+          <span className="flex items-center">
+            <ChevronRight className="w-3.5 h-3.5 text-[#6B7280] mx-1 shrink-0" />
+            <span className="text-[#111827] font-bold">Brands</span>
+          </span>
+        )}
       </div>
     )
   }
@@ -288,6 +297,7 @@ export const CompanyLayout: React.FC = () => {
         <EnterpriseTopbar
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+          breadcrumbs={getBreadcrumbs()}
           notificationsOpen={notificationsOpen}
           onToggleNotifications={() => setNotificationsOpen(!notificationsOpen)}
           profileMenuOpen={profileMenuOpen}

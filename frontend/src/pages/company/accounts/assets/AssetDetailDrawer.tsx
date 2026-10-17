@@ -536,7 +536,7 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
                 <div className="relative pl-4 border-l-2 border-slate-200 space-y-4">
                   {timelineHistory.map((item) => (
                     <div key={item.id} className="relative">
-                      <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-[#1A56DB] border-2 border-white ring-1 ring-slate-200" />
+                      <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-[#12A89A] border-2 border-white ring-1 ring-slate-200" />
                       <div className="text-xs font-semibold text-slate-900">{item.action}</div>
                       <div className="text-[10px] text-slate-400">
                         {formatDisplayDate(item.date)} by {item.performedBy}
@@ -586,7 +586,7 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
                 <button
                   type="button"
                   onClick={() => onEdit(asset)}
-                  className="h-[32px] px-3 text-xs font-semibold text-white bg-[#1A56DB] hover:bg-[#1746B3] rounded-lg transition-colors cursor-pointer"
+                  className="h-[32px] px-3 text-xs font-semibold text-white bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] rounded-lg transition-colors cursor-pointer"
                 >
                   Edit
                 </button>

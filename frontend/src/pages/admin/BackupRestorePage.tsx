@@ -8,6 +8,7 @@ import {
 import { format } from 'date-fns';
 import PageContainer from '../../components/ui/layout/PageContainer';
 import PageHeader from '../../components/ui/layout/PageHeader';
+import toast from '../../utils/toast';
 import { ActionDropdown } from '../../components/ui/ActionDropdown';
 import {
   backupsApi,
@@ -147,7 +148,7 @@ export const BackupRestorePage: React.FC = () => {
       const data = await backupsApi.inspectBackupTable(backupId, tableName);
       setPreviewData(data);
     } catch (err: any) {
-      alert(err.message || 'Failed to preview table data');
+      toast.error(err, 'backup');
     }
   };
 
@@ -161,7 +162,7 @@ export const BackupRestorePage: React.FC = () => {
       setRestorePreviewData(data);
       setConfirmationText('');
     } catch (err: any) {
-      setError(err.message || 'Failed to preview restore. Note: Only AQB format can be restored via UI.');
+      setError('Failed to preview restore. Note: Only AQB format can be restored via UI.');
     } finally {
       setPreviewingRestoreBackupId(null);
     }
@@ -174,13 +175,13 @@ export const BackupRestorePage: React.FC = () => {
       setIsRestoring(true);
       setError(null);
       await backupsApi.restoreBackup(restorePreviewData.backupId, 'RESTORE');
-      alert('Restore completed successfully.');
+      toast.success('Restore completed successfully.');
       setRestorePreviewData(null);
       setConfirmationText('');
       await fetchDashboard();
     } catch (err: any) {
-      alert(`RESTORE FAILED: ${err.message}`);
-      setError(err.message || 'Failed to restore backup');
+      toast.error(err, 'backup');
+      setError('Failed to restore backup. Please verify backup integrity and try again.');
     } finally {
       setIsRestoring(false);
     }

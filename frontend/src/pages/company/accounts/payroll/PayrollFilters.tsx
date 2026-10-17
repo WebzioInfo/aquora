@@ -84,7 +84,7 @@ export const PayrollFilters: React.FC<PayrollFiltersProps> = ({
             <button
               type="button"
               onClick={() => setIsMonthPickerOpen(!isMonthPickerOpen)}
-              className="px-2.5 h-full flex items-center gap-1.5 font-medium hover:text-[#1A56DB] transition-colors"
+              className="px-2.5 h-full flex items-center gap-1.5 font-medium hover:text-[#0B7A70] transition-colors"
             >
               <Calendar className="w-3.5 h-3.5 text-slate-400" />
               <span>{formatMonthLabel(selectedMonth)}</span>
@@ -118,7 +118,7 @@ export const PayrollFilters: React.FC<PayrollFiltersProps> = ({
                   setIsMonthPickerOpen(false)
                 }}
                 className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  !selectedMonth ? 'bg-blue-50 text-[#1A56DB] font-semibold' : 'text-slate-700 hover:bg-slate-50'
+                  !selectedMonth ? 'bg-blue-50 text-[#0B7A70] font-semibold' : 'text-slate-700 hover:bg-slate-50'
                 }`}
               >
                 All Months
@@ -137,7 +137,7 @@ export const PayrollFilters: React.FC<PayrollFiltersProps> = ({
                       }}
                       className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center justify-between ${
                         selectedMonth === m
-                          ? 'bg-blue-50 text-[#1A56DB] font-semibold'
+                          ? 'bg-blue-50 text-[#0B7A70] font-semibold'
                           : 'text-slate-700 hover:bg-slate-50'
                       }`}
                     >
@@ -163,7 +163,7 @@ export const PayrollFilters: React.FC<PayrollFiltersProps> = ({
             placeholder="Search salary no, employee..."
             value={searchTerm}
             onChange={e => onSearchChange(e.target.value)}
-            className="w-full h-[34px] pl-8 pr-3 text-xs bg-slate-50/70 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#1A56DB] focus:bg-white transition-all"
+            className="w-full h-[34px] pl-8 pr-3 text-xs bg-slate-50/70 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#12A89A] focus:bg-white transition-all"
           />
           {searchTerm && (
             <button
@@ -207,7 +207,7 @@ export const PayrollFilters: React.FC<PayrollFiltersProps> = ({
         <select
           value={departmentFilter}
           onChange={e => onDepartmentChange(e.target.value)}
-          className="h-[34px] px-2.5 text-xs bg-slate-50/70 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-100/60 focus:outline-none focus:border-[#1A56DB] transition-all cursor-pointer"
+          className="h-[34px] px-2.5 text-xs bg-slate-50/70 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-100/60 focus:outline-none focus:border-[#12A89A] transition-all cursor-pointer"
         >
           <option value="">All Departments</option>
           {departments.map(dept => (
@@ -222,7 +222,7 @@ export const PayrollFilters: React.FC<PayrollFiltersProps> = ({
           <button
             type="button"
             onClick={onClearFilters}
-            className="text-xs text-[#1A56DB] hover:underline font-medium px-1 flex items-center gap-1"
+            className="text-xs text-[#0B7A70] hover:underline font-medium px-1 flex items-center gap-1"
           >
             Clear filters
           </button>

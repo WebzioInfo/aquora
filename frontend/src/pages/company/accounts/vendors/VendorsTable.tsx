@@ -100,14 +100,14 @@ export const VendorsTable: React.FC<VendorsTableProps> = ({
                 <button
                   type="button"
                   onClick={onClearFilters}
-                  className="inline-flex items-center text-xs font-semibold text-[#1A56DB] hover:underline cursor-pointer"
+                  className="inline-flex items-center text-xs font-semibold text-[#0B7A70] hover:underline cursor-pointer"
                 >
                   Clear all filters
                 </button>
               </div>
             ) : (
               <div className="space-y-3 max-w-sm">
-                <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mx-auto text-[#1A56DB]">
+                <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mx-auto text-[#0B7A70]">
                   <Building2 className="w-6 h-6" />
                 </div>
                 <div>
@@ -158,7 +158,7 @@ export const VendorsTable: React.FC<VendorsTableProps> = ({
                       if (el) el.indeterminate = isPartialSelected
                     }}
                     onChange={onToggleSelectAll}
-                    className="w-4 h-4 rounded border-slate-300 text-[#1A56DB] focus:ring-0 cursor-pointer"
+                    className="w-4 h-4 rounded border-slate-300 text-[#0B7A70] focus:ring-0 cursor-pointer"
                   />
                 </th>
                 <th className="px-3 py-2.5">Vendor</th>

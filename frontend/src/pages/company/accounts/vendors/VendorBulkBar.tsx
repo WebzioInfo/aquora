@@ -26,7 +26,7 @@ export const VendorBulkBar: React.FC<VendorBulkBarProps> = ({
       {/* Left: Summary */}
       <div className="flex items-center gap-2">
         <span className="font-semibold text-slate-800">
-          <span className="font-bold text-[#1A56DB]">{selectedCount}</span> selected
+          <span className="font-bold text-[#0B7A70]">{selectedCount}</span> selected
         </span>
         <span className="text-slate-300">|</span>
         <span className="text-slate-600">

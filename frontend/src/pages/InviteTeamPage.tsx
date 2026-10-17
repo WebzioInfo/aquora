@@ -1,19 +1,18 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { onboardingService } from '../services/onboarding'
 import { useNotificationStore } from '../store/useNotificationStore'
 import { useAuthStore } from '../store/useAuthStore'
-import BRAND from '../config/brand'
-import AuthWatermark from '../components/ui/AuthWatermark'
-import { Mail, UserCheck, Trash2, ArrowRight, Loader2, Plus } from 'lucide-react'
+import { getFriendlyError } from '../utils/getFriendlyError'
+import { Mail, Trash2, ArrowRight, Loader2, Plus, Users, AlertCircle } from 'lucide-react'
 
 const inviteSchema = z.object({
-  email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
-  role: z.string().min(1, 'Role is required'),
+  email: z.string().min(1, 'Enter an email address').email('Enter a valid work email'),
+  role: z.string().min(1, 'Select a role'),
 })
 
 type InviteFormInputs = z.infer<typeof inviteSchema>
@@ -29,13 +28,18 @@ export const InviteTeamPage: React.FC = () => {
   const { updateUser } = useAuthStore()
   const [invitees, setInvitees] = useState<Invitee[]>([])
   const [sending, setSending] = useState(false)
+  const [errorBanner, setErrorBanner] = useState<{ title: string; message: string } | null>(null)
+
+  useEffect(() => {
+    document.title = 'Invite team · Aquzio'
+  }, [])
 
   const roles = [
-    { label: 'Owner', value: 'Owner' },
-    { label: 'Admin', value: 'Admin' },
-    { label: 'Manager', value: 'Manager' },
     { label: 'Operator', value: 'Operator' },
+    { label: 'Manager', value: 'Manager' },
+    { label: 'Admin', value: 'Admin' },
     { label: 'Inventory', value: 'Inventory' },
+    { label: 'Owner', value: 'Owner' },
   ]
 
   const {
@@ -52,8 +56,12 @@ export const InviteTeamPage: React.FC = () => {
   })
 
   const onAddInvitee = (data: InviteFormInputs) => {
+    setErrorBanner(null)
     if (invitees.some((i) => i.email.toLowerCase() === data.email.toLowerCase())) {
-      showToast('Email has already been added to the list.', 'warning')
+      setErrorBanner({
+        title: 'Email already added',
+        message: 'This email is already in your invite list.'
+      })
       return
     }
     setInvitees([...invitees, { email: data.email, role: data.role }])
@@ -72,153 +80,203 @@ export const InviteTeamPage: React.FC = () => {
     }
 
     setSending(true)
+    setErrorBanner(null)
     try {
       for (const invitee of invitees) {
         await onboardingService.inviteMember(invitee)
       }
-      showToast(`Invited ${invitees.length} team member(s) successfully!`, 'success')
+      showToast(`Invited ${invitees.length} team member(s) successfully`, 'success')
       updateUser({ isTenantInitialized: true })
       navigate('/company/dashboard')
     } catch (error: any) {
-      showToast('Failed to invite one or more team members.', 'error')
+      const friendly = getFriendlyError(error, 'generic')
+      setErrorBanner({
+        title: friendly.title,
+        message: friendly.message
+      })
     } finally {
       setSending(false)
     }
   }
 
   return (
-    <div className="w-full flex justify-center items-center font-sans">
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className="auth-card-wide"
+    >
+      {/* Top circle mark, title, and subtitle */}
+      <div className="flex flex-col items-center text-center select-none mb-6">
+        <img
+          src="/brand/aquzio-icon-light.png"
+          alt="Aquzio"
+          className="w-11 h-11 object-contain mb-3"
+        />
+        <h1 className="text-[22px] font-semibold text-[#05303B] tracking-tight leading-tight">
+          Invite your team
+        </h1>
+        <p className="text-[14px] text-[#5B6B75] mt-1 leading-normal">
+          Add operators, plant managers, and administrators to your workspace.
+        </p>
+      </div>
 
-      {/* FRESH WHITE AUTHENTICATION SURFACE CARD */}
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl shadow-xs p-8 sm:p-9 space-y-5 relative z-10"
-      >
-        
-        {/* Header */}
-        <div className="flex flex-col items-center text-center space-y-1.5 select-none">
-          <img src={BRAND.logo} alt={BRAND.name} className="h-12 w-auto object-contain mb-1" />
-          <div>
-            <h2 className="text-xl font-extrabold text-[#111827] tracking-tight">
-              Invite Your Team
-            </h2>
-            <p className="text-xs font-medium text-[#6B7280]">
-              Add operators, managers, and admins to your workspace
-            </p>
-          </div>
-        </div>
+      {/* Friendly Error Banner */}
+      <AnimatePresence>
+        {errorBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.15 }}
+            className="auth-error-banner mb-5"
+            role="alert"
+          >
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <span className="font-semibold block text-[13px] text-red-900 leading-snug">
+                {errorBanner.title}
+              </span>
+              <span className="text-[13px] text-red-800 leading-snug mt-0.5 block">
+                {errorBanner.message}
+              </span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        {/* Form to add team member */}
-        <form onSubmit={handleSubmit(onAddInvitee)} className="space-y-3">
-          
-          <div className="space-y-1">
-            <label className="block text-xs font-semibold text-[#111827] select-none">
+      {/* Add Invitee Row */}
+      <form onSubmit={handleSubmit(onAddInvitee)} className="space-y-3" noValidate>
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+          <div className="sm:col-span-7">
+            <label htmlFor="invite-email" className="auth-label">
               Team Member Email
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#9CA3AF]">
-                <Mail className="w-4.5 h-4.5" />
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#5B6B75]">
+                <Mail className="w-4 h-4" />
               </div>
               <input
+                id="invite-email"
                 type="email"
                 placeholder="colleague@company.com"
+                aria-invalid={errors.email ? 'true' : 'false'}
+                aria-describedby={errors.email ? 'invite-email-error' : undefined}
                 {...register('email')}
-                className={`w-full pl-10 pr-3.5 h-[54px] bg-white border ${
-                  errors.email ? 'border-rose-400 focus:ring-rose-500/20' : 'border-[#E5E7EB] focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]'
-                } rounded-xl text-xs font-medium text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none transition-all`}
+                className={`auth-input pl-10 pr-3.5 ${errors.email ? 'auth-input-error' : ''}`}
               />
             </div>
-            {errors.email?.message && (
-              <p className="text-[11px] font-medium text-rose-600 pl-1">{errors.email.message}</p>
-            )}
           </div>
 
-          <div className="space-y-1">
-            <label className="block text-xs font-semibold text-[#111827] select-none">
-              Assign System Role
+          <div className="sm:col-span-3">
+            <label htmlFor="invite-role" className="auth-label">
+              Role
             </label>
             <select
+              id="invite-role"
               {...register('role')}
-              className="w-full px-3.5 h-[54px] bg-white border border-[#E5E7EB] rounded-xl text-xs font-medium text-[#111827] focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB] outline-none"
+              className="auth-input px-3"
             >
               {roles.map((r) => (
-                <option key={r.value} value={r.value}>{r.label}</option>
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
               ))}
             </select>
           </div>
 
-          <motion.button
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
-            type="submit"
-            className="w-full h-11 bg-[#F8FAFC] hover:bg-[#F1F5F9] border border-[#E5E7EB] text-[#111827] font-semibold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-          >
-            <Plus className="w-4 h-4 text-[#2563EB]" />
-            <span>Add Member to List</span>
-          </motion.button>
+          <div className="sm:col-span-2">
+            <button
+              type="submit"
+              className="auth-button-secondary w-full"
+              title="Add member"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="sm:hidden">Add</span>
+            </button>
+          </div>
+        </div>
 
-        </form>
-
-        {/* Invitee List */}
-        {invitees.length > 0 && (
-          <div className="space-y-2 pt-2 border-t border-[#E5E7EB]">
-            <span className="text-xs font-bold text-[#111827] block">
-              Pending Invites ({invitees.length})
-            </span>
-            <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
-              {invitees.map((inv, idx) => (
-                <div 
-                  key={idx} 
-                  className="p-2.5 bg-[#FAFBFC] border border-[#E5E7EB] rounded-xl flex items-center justify-between text-xs"
-                >
-                  <div className="truncate pr-2">
-                    <span className="font-semibold text-[#111827] block truncate">{inv.email}</span>
-                    <span className="text-[10px] text-[#6B7280] uppercase tracking-wider">{inv.role}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onRemoveInvitee(idx)}
-                    className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
+        {errors.email?.message && (
+          <div id="invite-email-error" className="flex items-center gap-1.5 text-xs text-red-600">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            <span>{errors.email.message}</span>
           </div>
         )}
+      </form>
 
-        {/* Finalize Action */}
-        <motion.button
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
+      {/* Invitee List */}
+      <div className="mt-5 space-y-2">
+        <span className="auth-label">Pending Invitations ({invitees.length})</span>
+        {invitees.length === 0 ? (
+          <div className="p-4 bg-slate-50 border border-[#E3E8EC] rounded-xl text-center text-xs text-[#5B6B75] select-none">
+            No team members added yet. You can invite members now or skip and add them later from Settings.
+          </div>
+        ) : (
+          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            {invitees.map((invitee, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between p-3 bg-white border border-[#E3E8EC] rounded-lg text-xs"
+              >
+                <div className="flex items-center gap-2.5 truncate">
+                  <div className="w-6 h-6 rounded-full bg-[#12A89A]/10 text-[#0B7A70] flex items-center justify-center font-bold shrink-0">
+                    {invitee.email.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="font-medium text-[#05303B] truncate">{invitee.email}</span>
+                  <span className="text-[11px] font-semibold text-[#5B6B75] px-2 py-0.5 rounded bg-slate-100">
+                    {invitee.role}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => onRemoveInvitee(idx)}
+                  className="text-[#94A3AD] hover:text-red-600 transition-colors p-1"
+                  aria-label="Remove invitee"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Action Footer Row */}
+      <div className="flex items-center justify-between border-t border-[#E8EDF0] pt-5 mt-6">
+        <button
+          type="button"
+          onClick={() => {
+            updateUser({ isTenantInitialized: true })
+            navigate('/company/dashboard')
+          }}
+          disabled={sending}
+          className="auth-button-text"
+        >
+          <span>Skip for now</span>
+        </button>
+
+        <button
           type="button"
           onClick={handleSendInvites}
           disabled={sending}
-          className="w-full h-[54px] bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+          className="auth-button-primary w-auto px-6 ml-auto"
         >
           {sending ? (
             <>
-              <Loader2 className="w-4.5 h-4.5 animate-spin" />
-              <span>Sending Invitations...</span>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Sending invites...</span>
             </>
           ) : (
             <>
-              <span>{invitees.length > 0 ? 'Send Invitations & Continue' : 'Skip Team Invites & Continue'}</span>
+              <span>{invitees.length > 0 ? 'Send Invites & Continue' : 'Continue to Dashboard'}</span>
               <ArrowRight className="w-4 h-4" />
             </>
           )}
-        </motion.button>
-
-        {/* Footer info */}
-        <div className="pt-2 border-t border-[#E5E7EB] text-center text-xs text-[#6B7280] select-none">
-          Proprietary Industrial Resource Planning Environment
-        </div>
-
-      </motion.div>
-
-    </div>
+        </button>
+      </div>
+    </motion.div>
   )
 }
 

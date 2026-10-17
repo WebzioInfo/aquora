@@ -18,7 +18,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   value,
   icon: Icon,
   iconBgColor = 'bg-blue-50',
-  iconTextColor = 'text-[#1A56DB]',
+  iconTextColor = 'text-[#0B7A70]',
   subLabel,
   isShortScreen = false,
   className = '',

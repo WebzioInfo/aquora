@@ -325,7 +325,7 @@ export const CreatePurchasePage: React.FC = () => {
           if (p.cashBookId) setCashBookId(p.cashBookId)
 
           if (p.items && p.items.length > 0) {
-            setItems(p.items.map(i => ({
+            setItems(p.items.map((i: any) => ({
               id: i.id,
               rawMaterialId: i.rawMaterialId || '',
               itemName: i.itemName,
@@ -728,7 +728,7 @@ export const CreatePurchasePage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowCategoryModal(true)}
-                    className="text-xs text-[#1A56DB] hover:underline font-medium flex items-center gap-1"
+                    className="text-xs text-[#0B7A70] hover:underline font-medium flex items-center gap-1"
                   >
                     <Plus className="w-3 h-3" /> Custom Category
                   </button>
@@ -736,7 +736,7 @@ export const CreatePurchasePage: React.FC = () => {
                 <select
                   value={purchaseCategory}
                   onChange={(e) => handleCategoryChange(e.target.value)}
-                  className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB] font-semibold text-slate-900"
+                  className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A] focus:ring-1 focus:ring-[#12A89A] font-semibold text-slate-900"
                 >
                   {categoriesList.map((c) => (
                     <option key={c.id || c.code} value={c.code}>
@@ -756,7 +756,7 @@ export const CreatePurchasePage: React.FC = () => {
                   required
                   value={purchaseDate}
                   onChange={(e) => setPurchaseDate(e.target.value)}
-                  className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB] text-slate-900 font-medium"
+                  className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A] focus:ring-1 focus:ring-[#12A89A] text-slate-900 font-medium"
                 />
               </div>
 
@@ -769,7 +769,7 @@ export const CreatePurchasePage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowVendorModal(true)}
-                    className="text-xs text-[#1A56DB] hover:underline font-medium flex items-center gap-1"
+                    className="text-xs text-[#0B7A70] hover:underline font-medium flex items-center gap-1"
                   >
                     <Plus className="w-3 h-3" /> New Vendor
                   </button>
@@ -778,7 +778,7 @@ export const CreatePurchasePage: React.FC = () => {
                   <select
                     value={vendorId}
                     onChange={(e) => handleVendorSelect(e.target.value)}
-                    className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB] font-medium text-slate-900"
+                    className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A] focus:ring-1 focus:ring-[#12A89A] font-medium text-slate-900"
                   >
                     <option value="">-- Select Vendor --</option>
                     {vendors.map((v) => (
@@ -794,7 +794,7 @@ export const CreatePurchasePage: React.FC = () => {
                     placeholder="Enter Vendor Name"
                     value={vendorName}
                     onChange={(e) => setVendorName(e.target.value)}
-                    className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                    className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                   />
                 )}
               </div>
@@ -809,7 +809,7 @@ export const CreatePurchasePage: React.FC = () => {
                   placeholder="e.g. INV-2026-9982"
                   value={invoiceNumber}
                   onChange={(e) => setInvoiceNumber(e.target.value)}
-                  className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB] font-mono"
+                  className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A] focus:ring-1 focus:ring-[#12A89A] font-mono"
                 />
               </div>
             </div>
@@ -829,7 +829,7 @@ export const CreatePurchasePage: React.FC = () => {
                       onClick={() => setTaxMode('GST')}
                       className={`py-1.5 text-xs font-semibold rounded-[6px] transition-all text-center ${
                         taxMode === 'GST'
-                          ? 'bg-[#1A56DB] text-white shadow-sm'
+                          ? 'bg-[#05303B] text-white shadow-sm'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                       }`}
                     >
@@ -861,7 +861,7 @@ export const CreatePurchasePage: React.FC = () => {
                       onClick={() => setIsInclusiveTax(false)}
                       className={`py-1.5 text-xs font-semibold rounded-[6px] transition-all text-center ${
                         !isInclusiveTax
-                          ? 'bg-[#1A56DB] text-white shadow-sm'
+                          ? 'bg-[#05303B] text-white shadow-sm'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                       }`}
                     >
@@ -872,7 +872,7 @@ export const CreatePurchasePage: React.FC = () => {
                       onClick={() => setIsInclusiveTax(true)}
                       className={`py-1.5 text-xs font-semibold rounded-[6px] transition-all text-center ${
                         isInclusiveTax
-                          ? 'bg-[#1A56DB] text-white shadow-sm'
+                          ? 'bg-[#05303B] text-white shadow-sm'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                       }`}
                     >
@@ -896,7 +896,7 @@ export const CreatePurchasePage: React.FC = () => {
                       onClick={() => setIsInterState(false)}
                       className={`py-1.5 text-xs font-semibold rounded-[6px] transition-all text-center ${
                         !isInterState
-                          ? 'bg-[#1A56DB] text-white shadow-sm'
+                          ? 'bg-[#05303B] text-white shadow-sm'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                       } ${taxMode === 'NonGST' ? 'opacity-40 cursor-not-allowed' : ''}`}
                     >
@@ -908,7 +908,7 @@ export const CreatePurchasePage: React.FC = () => {
                       onClick={() => setIsInterState(true)}
                       className={`py-1.5 text-xs font-semibold rounded-[6px] transition-all text-center ${
                         isInterState
-                          ? 'bg-[#1A56DB] text-white shadow-sm'
+                          ? 'bg-[#05303B] text-white shadow-sm'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                       } ${taxMode === 'NonGST' ? 'opacity-40 cursor-not-allowed' : ''}`}
                     >
@@ -941,16 +941,16 @@ export const CreatePurchasePage: React.FC = () => {
                             }}
                             className={`flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-xs font-semibold border transition-all ${
                               isSelected
-                                ? 'bg-blue-50 border-[#1A56DB] text-[#1A56DB] shadow-sm ring-1 ring-[#1A56DB]'
+                                ? 'bg-blue-50 border-[#12A89A] text-[#0B7A70] shadow-sm ring-1 ring-[#12A89A]'
                                 : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
                             }`}
                           >
                             <span
                               className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
-                                isSelected ? 'border-[#1A56DB]' : 'border-slate-300'
+                                isSelected ? 'border-[#12A89A]' : 'border-slate-300'
                               }`}
                             >
-                              {isSelected && <span className="w-2 h-2 rounded-full bg-[#1A56DB]" />}
+                              {isSelected && <span className="w-2 h-2 rounded-full bg-[#12A89A]" />}
                             </span>
                             <span>{rate}%</span>
                           </button>
@@ -963,16 +963,16 @@ export const CreatePurchasePage: React.FC = () => {
                         onClick={() => setIsCustomGstRate(true)}
                         className={`flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-xs font-semibold border transition-all ${
                           isCustomGstRate
-                            ? 'bg-blue-50 border-[#1A56DB] text-[#1A56DB] shadow-sm ring-1 ring-[#1A56DB]'
+                            ? 'bg-blue-50 border-[#12A89A] text-[#0B7A70] shadow-sm ring-1 ring-[#12A89A]'
                             : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
                         }`}
                       >
                         <span
                           className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
-                            isCustomGstRate ? 'border-[#1A56DB]' : 'border-slate-300'
+                            isCustomGstRate ? 'border-[#12A89A]' : 'border-slate-300'
                           }`}
                         >
-                          {isCustomGstRate && <span className="w-2 h-2 rounded-full bg-[#1A56DB]" />}
+                          {isCustomGstRate && <span className="w-2 h-2 rounded-full bg-[#12A89A]" />}
                         </span>
                         <span>Custom Rate</span>
                       </button>
@@ -988,7 +988,7 @@ export const CreatePurchasePage: React.FC = () => {
                             value={customGstRateInput}
                             onChange={handleCustomGstInputChange}
                             placeholder="0.00"
-                            className="w-20 h-[30px] px-2 text-xs font-mono font-bold bg-white border border-[#1A56DB] rounded-[6px] focus:outline-none text-right"
+                            className="w-20 h-[30px] px-2 text-xs font-mono font-bold bg-white border border-[#12A89A] rounded-[6px] focus:outline-none text-right"
                           />
                           <span className="text-xs font-bold text-slate-600">%</span>
                         </div>
@@ -1041,7 +1041,7 @@ export const CreatePurchasePage: React.FC = () => {
                               type="button"
                               onClick={handleResetGstToAuto}
                               title="Restore automatic calculation"
-                              className="text-[11px] text-[#1A56DB] hover:underline font-semibold flex items-center gap-0.5"
+                              className="text-[11px] text-[#0B7A70] hover:underline font-semibold flex items-center gap-0.5"
                             >
                               <RotateCcw className="w-3 h-3" /> Auto
                             </button>
@@ -1088,13 +1088,13 @@ export const CreatePurchasePage: React.FC = () => {
             <div className="space-y-4">
               {/* Guidance Info Banner */}
               <div className="p-3 bg-blue-50/70 rounded-[8px] border border-blue-200/80 text-xs text-slate-700 flex items-start gap-2.5">
-                <Info className="w-4 h-4 text-[#1A56DB] shrink-0 mt-0.5" />
+                <Info className="w-4 h-4 text-[#0B7A70] shrink-0 mt-0.5" />
                 <div>
                   {currentTreatment === 'Inventory' && (
-                    <p><strong>Raw Material Inventory:</strong> Saving this purchase will automatically increment stock quantities and register an <strong className="text-[#1A56DB]">InventoryMovement (Stock IN)</strong> audit. Ledger: Debit Raw Material Inventory | Credit Vendor.</p>
+                    <p><strong>Raw Material Inventory:</strong> Saving this purchase will automatically increment stock quantities and register an <strong className="text-[#0B7A70]">InventoryMovement (Stock IN)</strong> audit. Ledger: Debit Raw Material Inventory | Credit Vendor.</p>
                   )}
                   {currentTreatment === 'Asset' && (
-                    <p><strong>Fixed Capital Asset:</strong> Automatically creates a registered <strong className="text-[#1A56DB]">Fixed Asset record</strong> with initial acquisition value, location, and depreciation details.</p>
+                    <p><strong>Fixed Capital Asset:</strong> Automatically creates a registered <strong className="text-[#0B7A70]">Fixed Asset record</strong> with initial acquisition value, location, and depreciation details.</p>
                   )}
                   {currentTreatment === 'Expense' && (
                     <p><strong>Operating Expense:</strong> Posts directly to company expense ledgers with accurate input tax credits. Ledger: Debit Operating Expense | Credit Vendor / Bank.</p>
@@ -1128,7 +1128,7 @@ export const CreatePurchasePage: React.FC = () => {
                                 <select
                                   value={item.rawMaterialId || ''}
                                   onChange={(e) => updateItem(idx, 'rawMaterialId', e.target.value)}
-                                  className="w-full h-[36px] px-2.5 bg-white border border-[#D0D5DD] rounded-[6px] text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1A56DB]"
+                                  className="w-full h-[36px] px-2.5 bg-white border border-[#D0D5DD] rounded-[6px] text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#12A89A]"
                                 >
                                   <option value="">Custom Item...</option>
                                   {rawMaterials.map((rm) => (
@@ -1141,7 +1141,7 @@ export const CreatePurchasePage: React.FC = () => {
                                   placeholder="Material Name"
                                   value={item.itemName}
                                   onChange={(e) => updateItem(idx, 'itemName', e.target.value)}
-                                  className="w-full h-[36px] px-2.5 bg-white border border-[#D0D5DD] rounded-[6px] text-xs focus:outline-none focus:border-[#1A56DB]"
+                                  className="w-full h-[36px] px-2.5 bg-white border border-[#D0D5DD] rounded-[6px] text-xs focus:outline-none focus:border-[#12A89A]"
                                 />
                               )}
                             </td>
@@ -1151,7 +1151,7 @@ export const CreatePurchasePage: React.FC = () => {
                                 placeholder="Batch / Grade"
                                 value={item.description}
                                 onChange={(e) => updateItem(idx, 'description', e.target.value)}
-                                className="w-full h-[36px] px-2.5 bg-white border border-[#D0D5DD] rounded-[6px] text-xs focus:outline-none focus:border-[#1A56DB]"
+                                className="w-full h-[36px] px-2.5 bg-white border border-[#D0D5DD] rounded-[6px] text-xs focus:outline-none focus:border-[#12A89A]"
                               />
                             </td>
                             <td className="p-2.5">
@@ -1167,7 +1167,7 @@ export const CreatePurchasePage: React.FC = () => {
                                 type="text"
                                 value={item.unit}
                                 onChange={(e) => updateItem(idx, 'unit', e.target.value)}
-                                className="w-full h-[36px] px-2.5 bg-white border border-[#D0D5DD] rounded-[6px] text-xs font-medium focus:outline-none focus:border-[#1A56DB]"
+                                className="w-full h-[36px] px-2.5 bg-white border border-[#D0D5DD] rounded-[6px] text-xs font-medium focus:outline-none focus:border-[#12A89A]"
                               />
                             </td>
                             <td className="p-2.5">
@@ -1246,7 +1246,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="e.g. 24-BPM Automatic Bottling Monoblock Machine"
                       value={machineData.machineName}
                       onChange={(e) => setMachineData({ ...machineData, machineName: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB] font-semibold text-slate-900"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A] font-semibold text-slate-900"
                     />
                   </div>
                   <div>
@@ -1256,7 +1256,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="e.g. Tetra Pak / WaterTec"
                       value={machineData.brand}
                       onChange={(e) => setMachineData({ ...machineData, brand: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                   <div>
@@ -1266,7 +1266,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="e.g. WTP-RO-5000"
                       value={machineData.model}
                       onChange={(e) => setMachineData({ ...machineData, model: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                   <EnterpriseNumberInput
@@ -1286,7 +1286,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="SN-RO-998231-X"
                       value={machineData.serialNumber}
                       onChange={(e) => setMachineData({ ...machineData, serialNumber: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB] font-mono"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A] font-mono"
                     />
                   </div>
                   <div>
@@ -1296,7 +1296,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="e.g. Primary RO Hall / Filling Line A"
                       value={machineData.location}
                       onChange={(e) => setMachineData({ ...machineData, location: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                   <div>
@@ -1306,7 +1306,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="e.g. 2 Years Comprehensive"
                       value={machineData.warranty}
                       onChange={(e) => setMachineData({ ...machineData, warranty: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -1337,7 +1337,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="e.g. Dell Core i7 Billing Terminal"
                       value={assetData.assetName}
                       onChange={(e) => setAssetData({ ...assetData, assetName: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB] font-semibold text-slate-900"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A] font-semibold text-slate-900"
                     />
                   </div>
                   <div>
@@ -1345,7 +1345,7 @@ export const CreatePurchasePage: React.FC = () => {
                     <select
                       value={assetData.category}
                       onChange={(e) => setAssetData({ ...assetData, category: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     >
                       <option value="Computers & IT">Computers & IT Equipment</option>
                       <option value="Office Furniture">Office Furniture & Fixtures</option>
@@ -1362,7 +1362,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="e.g. Accounts & Dispatch"
                       value={assetData.department}
                       onChange={(e) => setAssetData({ ...assetData, department: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                   <EnterpriseNumberInput
@@ -1382,7 +1382,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="e.g. AST-IT-2026-0042"
                       value={assetData.serialNumber}
                       onChange={(e) => setAssetData({ ...assetData, serialNumber: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB] font-mono"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A] font-mono"
                     />
                   </div>
                   <div>
@@ -1392,7 +1392,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="e.g. Admin Block Room 2"
                       value={assetData.location}
                       onChange={(e) => setAssetData({ ...assetData, location: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                 </div>
@@ -1411,7 +1411,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="e.g. High Pressure RO Pump #2"
                       value={maintenanceData.targetAsset}
                       onChange={(e) => setMaintenanceData({ ...maintenanceData, targetAsset: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-medium focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-medium focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                   <div>
@@ -1419,7 +1419,7 @@ export const CreatePurchasePage: React.FC = () => {
                     <select
                       value={maintenanceData.maintenanceType}
                       onChange={(e) => setMaintenanceData({ ...maintenanceData, maintenanceType: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     >
                       <option value="Routine Servicing">Routine Servicing</option>
                       <option value="Breakdown Repair">Breakdown Repair</option>
@@ -1435,7 +1435,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="e.g. Technocare Services"
                       value={maintenanceData.serviceProvider}
                       onChange={(e) => setMaintenanceData({ ...maintenanceData, serviceProvider: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                   <EnterpriseNumberInput
@@ -1450,7 +1450,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="Detailed work carried out, replaced seals, chemicals used"
                       value={maintenanceData.description}
                       onChange={(e) => setMaintenanceData({ ...maintenanceData, description: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                 </div>
@@ -1464,7 +1464,7 @@ export const CreatePurchasePage: React.FC = () => {
                     <select
                       value={expenseData.expenseType}
                       onChange={(e) => setExpenseData({ ...expenseData, expenseType: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     >
                       <option value="Office Supplies">Stationery & Office Supplies</option>
                       <option value="Pantry & Refreshments">Pantry, Tea & Refreshments</option>
@@ -1487,7 +1487,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="Describe items purchased or purpose"
                       value={expenseData.description}
                       onChange={(e) => setExpenseData({ ...expenseData, description: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                 </div>
@@ -1506,7 +1506,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="e.g. BIS / FSSAI Water Testing & Compliance Audit"
                       value={serviceData.serviceName}
                       onChange={(e) => setServiceData({ ...serviceData, serviceName: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-medium focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-medium focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                   <div>
@@ -1516,7 +1516,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="e.g. 998311"
                       value={serviceData.sacCode}
                       onChange={(e) => setServiceData({ ...serviceData, sacCode: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-mono focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-mono focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                   <div>
@@ -1526,7 +1526,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="e.g. October 2026 Audit Cycle"
                       value={serviceData.servicePeriod}
                       onChange={(e) => setServiceData({ ...serviceData, servicePeriod: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                   <EnterpriseNumberInput
@@ -1541,7 +1541,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="Deliverables, audit certificate reference, etc."
                       value={serviceData.scopeNotes}
                       onChange={(e) => setServiceData({ ...serviceData, scopeNotes: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                 </div>
@@ -1560,7 +1560,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="e.g. TallyPrime Cloud / Microsoft 365 / WhatsApp API"
                       value={softwareData.softwareName}
                       onChange={(e) => setSoftwareData({ ...softwareData, softwareName: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-medium focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-medium focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                   <div>
@@ -1568,7 +1568,7 @@ export const CreatePurchasePage: React.FC = () => {
                     <select
                       value={softwareData.billingFrequency}
                       onChange={(e) => setSoftwareData({ ...softwareData, billingFrequency: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     >
                       <option value="Monthly">Monthly Recurring</option>
                       <option value="Quarterly">Quarterly</option>
@@ -1587,7 +1587,7 @@ export const CreatePurchasePage: React.FC = () => {
                       type="date"
                       value={softwareData.renewalDate}
                       onChange={(e) => setSoftwareData({ ...softwareData, renewalDate: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                 </div>
@@ -1601,7 +1601,7 @@ export const CreatePurchasePage: React.FC = () => {
                     <select
                       value={utilityData.utilityType}
                       onChange={(e) => setUtilityData({ ...utilityData, utilityType: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     >
                       <option value="Electricity">Plant Industrial Electricity (HT / LT)</option>
                       <option value="Municipal Water">Municipal Raw Water Tariff</option>
@@ -1617,7 +1617,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="e.g. MTR-99238410"
                       value={utilityData.consumerNumber}
                       onChange={(e) => setUtilityData({ ...utilityData, consumerNumber: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-mono focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-mono focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                   <div>
@@ -1627,7 +1627,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="e.g. September 2026"
                       value={utilityData.billingMonth}
                       onChange={(e) => setUtilityData({ ...utilityData, billingMonth: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                   <EnterpriseNumberInput
@@ -1651,7 +1651,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="e.g. MH-12-AB-1234"
                       value={vehicleData.vehicleNumber}
                       onChange={(e) => setVehicleData({ ...vehicleData, vehicleNumber: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-mono uppercase font-bold focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-mono uppercase font-bold focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                   <div>
@@ -1659,7 +1659,7 @@ export const CreatePurchasePage: React.FC = () => {
                     <select
                       value={vehicleData.fuelType}
                       onChange={(e) => setVehicleData({ ...vehicleData, fuelType: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     >
                       <option value="Diesel">Diesel</option>
                       <option value="Petrol">Petrol</option>
@@ -1701,7 +1701,7 @@ export const CreatePurchasePage: React.FC = () => {
                       placeholder="Specify procurement particulars"
                       value={otherData.description}
                       onChange={(e) => setOtherData({ ...otherData, description: e.target.value })}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     />
                   </div>
                   <EnterpriseNumberInput
@@ -1721,7 +1721,7 @@ export const CreatePurchasePage: React.FC = () => {
               placeholder="Enter purchase agreement terms, delivery tracking, warranty clauses, or audit remarks"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB] text-slate-800"
+              className="w-full px-3 py-2 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A] focus:ring-1 focus:ring-[#12A89A] text-slate-800"
             />
           </EnterpriseCard>
         </div>
@@ -1805,7 +1805,7 @@ export const CreatePurchasePage: React.FC = () => {
                 {/* Grand Total — Dominant Highlight */}
                 <div className="border-t-2 border-slate-300 pt-3 flex justify-between items-baseline">
                   <span className="text-sm font-bold text-slate-900">Grand Total:</span>
-                  <span className="font-mono text-xl font-extrabold text-[#1A56DB]">
+                  <span className="font-mono text-xl font-extrabold text-[#0B7A70]">
                     ₹{calculation.grandTotal.toFixed(2)}
                   </span>
                 </div>
@@ -1820,7 +1820,7 @@ export const CreatePurchasePage: React.FC = () => {
                   <select
                     value={paymentMethod}
                     onChange={(e) => handlePaymentMethodChange(e.target.value)}
-                    className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-semibold text-slate-900 focus:outline-none focus:border-[#1A56DB]"
+                    className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-semibold text-slate-900 focus:outline-none focus:border-[#12A89A]"
                   >
                     <option value="Credit">Credit / Unpaid (Vendor Payable Ledger)</option>
                     <option value="Cash">Cash (Immediate Cash Book)</option>
@@ -1837,7 +1837,7 @@ export const CreatePurchasePage: React.FC = () => {
                     <select
                       value={bankAccountId}
                       onChange={(e) => setBankAccountId(e.target.value)}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     >
                       <option value="">-- Select Bank Account --</option>
                       {bankAccounts.map((b) => (
@@ -1854,7 +1854,7 @@ export const CreatePurchasePage: React.FC = () => {
                     <select
                       value={cashBookId}
                       onChange={(e) => setCashBookId(e.target.value)}
-                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                      className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
                     >
                       <option value="">-- Select Cash Book --</option>
                       {cashBooks.map((c) => (
@@ -1880,7 +1880,7 @@ export const CreatePurchasePage: React.FC = () => {
                         placeholder="e.g. UTR-20261008001"
                         value={paymentReferenceNo}
                         onChange={(e) => setPaymentReferenceNo(e.target.value)}
-                        className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-mono focus:outline-none focus:border-[#1A56DB]"
+                        className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] font-mono focus:outline-none focus:border-[#12A89A]"
                       />
                     </div>
                   </>
@@ -1943,21 +1943,21 @@ export const CreatePurchasePage: React.FC = () => {
               placeholder="Vendor Name *"
               value={newVendorData.name}
               onChange={(e) => setNewVendorData({ ...newVendorData, name: e.target.value })}
-              className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+              className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
             />
             <input
               type="text"
               placeholder="GSTIN (e.g. 29AABCU9603R1ZM)"
               value={newVendorData.gst}
               onChange={(e) => setNewVendorData({ ...newVendorData, gst: e.target.value })}
-              className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] uppercase font-mono focus:outline-none focus:border-[#1A56DB]"
+              className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] uppercase font-mono focus:outline-none focus:border-[#12A89A]"
             />
             <input
               type="text"
               placeholder="Phone Number"
               value={newVendorData.phone}
               onChange={(e) => setNewVendorData({ ...newVendorData, phone: e.target.value })}
-              className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+              className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
             />
             <div className="flex justify-end gap-2 pt-2">
               <EnterpriseButton
@@ -1999,7 +1999,7 @@ export const CreatePurchasePage: React.FC = () => {
                 placeholder="e.g. Factory Sanitation, Testing Chemicals"
                 value={newCategoryData.name}
                 onChange={(e) => setNewCategoryData({ ...newCategoryData, name: e.target.value })}
-                className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
               />
             </div>
 
@@ -2010,7 +2010,7 @@ export const CreatePurchasePage: React.FC = () => {
               <select
                 value={newCategoryData.treatment}
                 onChange={(e) => setNewCategoryData({ ...newCategoryData, treatment: e.target.value })}
-                className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB] font-medium text-slate-800"
+                className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A] font-medium text-slate-800"
               >
                 <option value="Expense">Expense — Operating expense ledgers (P&L impact)</option>
                 <option value="Inventory">Inventory — Warehouse stock increase (Balance Sheet impact)</option>
@@ -2027,7 +2027,7 @@ export const CreatePurchasePage: React.FC = () => {
                 placeholder="Brief purpose of this procurement category"
                 value={newCategoryData.description || ''}
                 onChange={(e) => setNewCategoryData({ ...newCategoryData, description: e.target.value })}
-                className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#1A56DB]"
+                className="w-full h-[40px] px-3 text-xs bg-white border border-[#D0D5DD] rounded-[8px] focus:outline-none focus:border-[#12A89A]"
               />
             </div>
 

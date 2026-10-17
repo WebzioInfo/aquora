@@ -114,7 +114,7 @@ export const PurchaseRow: React.FC<PurchaseRowProps> = ({
           checked={isSelected}
           onChange={() => {}}
           onClick={onToggleSelect}
-          className="w-4 h-4 rounded border-slate-300 text-[#1A56DB] focus:ring-0 focus:ring-offset-0 cursor-pointer"
+          className="w-4 h-4 rounded border-slate-300 text-[#0B7A70] focus:ring-0 focus:ring-offset-0 cursor-pointer"
         />
       </td>
 

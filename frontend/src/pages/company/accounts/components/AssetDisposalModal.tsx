@@ -114,7 +114,7 @@ export const AssetDisposalModal: React.FC<AssetDisposalModalProps> = ({
                 max={new Date().toISOString().slice(0, 10)}
                 value={disposeForm.disposalDate?.slice(0, 10) ?? new Date().toISOString().slice(0, 10)}
                 onChange={(e) => setDisposeForm({ ...disposeForm, disposalDate: e.target.value })}
-                className="w-full pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+                className="w-full pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
               />
             </div>
           </div>
@@ -126,7 +126,7 @@ export const AssetDisposalModal: React.FC<AssetDisposalModalProps> = ({
             <select
               value={disposeForm.disposalMethod}
               onChange={(e) => setDisposeForm({ ...disposeForm, disposalMethod: e.target.value })}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-medium focus:outline-none focus:border-[#1A56DB]"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-medium focus:outline-none focus:border-[#12A89A]"
             >
               <option value="Scrapped">Scrapped / Salvaged</option>
               <option value="Sold">Sold to Buyer / Third Party</option>
@@ -148,7 +148,7 @@ export const AssetDisposalModal: React.FC<AssetDisposalModalProps> = ({
             placeholder="e.g. End of operational lifespan; high repair frequency and obsolete technology"
             value={disposeForm.reason}
             onChange={(e) => setDisposeForm({ ...disposeForm, reason: e.target.value })}
-            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
           />
         </div>
 
@@ -167,7 +167,7 @@ export const AssetDisposalModal: React.FC<AssetDisposalModalProps> = ({
               onChange={(e) =>
                 setDisposeForm({ ...disposeForm, saleValue: parseFloat(e.target.value) || 0 })
               }
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#1A56DB]"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#12A89A]"
             />
           </div>
 
@@ -184,7 +184,7 @@ export const AssetDisposalModal: React.FC<AssetDisposalModalProps> = ({
               onChange={(e) =>
                 setDisposeForm({ ...disposeForm, disposalCost: parseFloat(e.target.value) || 0 })
               }
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#1A56DB]"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white font-mono focus:outline-none focus:border-[#12A89A]"
             />
           </div>
         </div>
@@ -200,7 +200,7 @@ export const AssetDisposalModal: React.FC<AssetDisposalModalProps> = ({
               placeholder="e.g. Scrap Recycling Corp Ltd"
               value={disposeForm.buyerParty || ''}
               onChange={(e) => setDisposeForm({ ...disposeForm, buyerParty: e.target.value })}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
             />
           </div>
         )}
@@ -215,7 +215,7 @@ export const AssetDisposalModal: React.FC<AssetDisposalModalProps> = ({
             placeholder="Additional notes for asset ledger and audit team..."
             value={disposeForm.notes || ''}
             onChange={(e) => setDisposeForm({ ...disposeForm, notes: e.target.value })}
-            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
           />
         </div>
       </form>

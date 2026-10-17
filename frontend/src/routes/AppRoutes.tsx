@@ -2,6 +2,7 @@ import React from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/useAuthStore'
 import { authService } from '../services/auth'
+import { getFriendlyError } from '../utils/getFriendlyError'
 import { isOwnerUser } from '../utils/permissions'
 import AuthLayout from '../layouts/AuthLayout'
 import PlatformLayout from '../layouts/PlatformLayout'
@@ -31,6 +32,7 @@ const InviteTeamPage = React.lazy(() => import('../pages/InviteTeamPage'))
 const AccessDeniedPage = React.lazy(() => import('../pages/AccessDeniedPage'))
 const OperationsPage = React.lazy(() => import('../pages/company/OperationsPage'))
 const ProvisioningPage = React.lazy(() => import('../pages/ProvisioningPage'))
+const NotFoundPage = React.lazy(() => import('../pages/NotFoundPage'))
 
 // Simple Accounts V1 Pages
 const AccountsDashboardPage = React.lazy(() => import('../pages/company/accounts/AccountsDashboardPage'))
@@ -385,10 +387,9 @@ export const AppRoutes: React.FC = () => {
         if (isSubscribed) {
           if (err.response?.status === 401) {
             clearAuth()
-          } else if (err.code === 'ERR_NETWORK' || err.message?.includes('Network Error') || !err.response) {
-            setSyncError('Unable to connect to Aquzio server. Please check server status or network connection.')
           } else {
-            setSyncError(err.response?.data?.message || err.message || 'Unable to synchronize your session.')
+            const friendly = getFriendlyError(err, 'generic')
+            setSyncError(friendly.message)
           }
         }
       } finally {
@@ -409,42 +410,68 @@ export const AppRoutes: React.FC = () => {
 
   if (syncing) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50 text-slate-900 select-none">
-        <div className="flex flex-col items-center max-w-sm text-center px-6 py-8 bg-white rounded-2xl border border-slate-200/80 shadow-xl shadow-slate-200/50">
-          <div className="w-12 h-12 mb-4 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl">
-            A
-          </div>
+      <div className="relative min-h-screen h-screen w-full flex items-center justify-center font-sans text-slate-900 select-none px-4">
+        {/* Background Texture & Brand Ink Overlay */}
+        <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+          <img
+            src="/assets/images/aquzio-login-water-bottling-4k.png"
+            alt=""
+            aria-hidden="true"
+            className="w-full h-full object-cover"
+          />
+          <div
+            className="absolute inset-0"
+            style={{ backgroundColor: 'rgba(5, 48, 59, 0.83)' }}
+            aria-hidden="true"
+          />
+        </div>
+
+        {/* Centered Auth Card */}
+        <div className="relative z-10 auth-card text-center flex flex-col items-center">
+          <img
+            src="/brand/aquzio-icon-light.png"
+            alt="Aquzio"
+            className="w-11 h-11 object-contain mb-3"
+          />
           {syncError ? (
             <>
-              <h3 className="text-base font-semibold text-slate-900 mb-1">Session Synchronization Failed</h3>
-              <p className="text-xs text-slate-500 mb-6">{syncError}</p>
-              <div className="flex items-center gap-3 w-full">
+              <h1 className="text-[20px] font-semibold text-[#05303B] tracking-tight mb-1">
+                Session synchronization failed
+              </h1>
+              <p className="text-[13px] text-[#5B6B75] mb-5">{syncError}</p>
+              <div className="flex items-center gap-2.5 w-full">
                 <button
+                  type="button"
                   onClick={() => {
                     setSyncError(null)
                     setSyncing(true)
                     syncExecutedRef.current = false
                   }}
-                  className="flex-1 px-4 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm shadow-blue-500/20"
+                  className="auth-button-primary flex-1"
                 >
                   Retry
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     clearAuth()
                     setSyncing(false)
                   }}
-                  className="flex-1 px-4 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                  className="auth-button-secondary flex-1"
                 >
-                  Sign In
+                  Sign in
                 </button>
               </div>
             </>
           ) : (
             <>
-              <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
-              <h3 className="text-sm font-semibold text-slate-900">Preparing your workspace...</h3>
-              <p className="text-xs text-slate-400 mt-1">Securely synchronizing your session</p>
+              <div className="w-6 h-6 border-2 border-[#12A89A] border-t-transparent rounded-full animate-spin mb-3 mt-1" />
+              <h1 className="text-[18px] font-semibold text-[#05303B] tracking-tight">
+                Preparing your workspace...
+              </h1>
+              <p className="text-[13px] text-[#5B6B75] mt-1">
+                Synchronizing your account permissions and plant profile
+              </p>
             </>
           )}
         </div>
@@ -454,8 +481,31 @@ export const AppRoutes: React.FC = () => {
 
   return (
     <React.Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen bg-slate-50 text-slate-900 select-none">
-        <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      <div className="relative min-h-screen h-screen w-full flex items-center justify-center font-sans text-slate-900 select-none px-4">
+        <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+          <img
+            src="/assets/images/aquzio-login-water-bottling-4k.png"
+            alt=""
+            aria-hidden="true"
+            className="w-full h-full object-cover"
+          />
+          <div
+            className="absolute inset-0"
+            style={{ backgroundColor: 'rgba(5, 48, 59, 0.83)' }}
+            aria-hidden="true"
+          />
+        </div>
+        <div className="relative z-10 auth-card text-center flex flex-col items-center">
+          <img
+            src="/brand/aquzio-icon-light.png"
+            alt="Aquzio"
+            className="w-11 h-11 object-contain mb-3"
+          />
+          <div className="w-6 h-6 border-2 border-[#12A89A] border-t-transparent rounded-full animate-spin mb-3 mt-1" />
+          <p className="text-[13px] text-[#5B6B75]">
+            Loading workspace module...
+          </p>
+        </div>
       </div>
     }>
       <Routes>
@@ -520,10 +570,9 @@ export const AppRoutes: React.FC = () => {
               </OnboardingRoute>
             }
           />
+          <Route path="/access-denied" element={<AccessDeniedPage />} />
+          <Route path="/404" element={<NotFoundPage />} />
         </Route>
-
-        {/* Access Denied */}
-        <Route path="/access-denied" element={<AccessDeniedPage />} />
 
         {/* Operator/Worker Portals */}
         <Route
@@ -645,7 +694,9 @@ export const AppRoutes: React.FC = () => {
           <Route path="dashboard/owner" element={<OwnerDashboardPage />} />
           <Route path="production" element={<CompanyDashboardPage />} />
           <Route path="production-setup" element={<OwnerRestrictedRoute><ProductionSetupPage /></OwnerRestrictedRoute>} />
+          <Route path="brands" element={<Navigate to="/company/production-setup?tab=brands" replace />} />
           <Route path="production/batches/:batchId" element={<BatchDetailsPage />} />
+          <Route path="production/batches/:id" element={<BatchDetailsPage />} />
           <Route path="inventory" element={<OwnerRestrictedRoute restrictedTab="brands"><CompanyDashboardPage /></OwnerRestrictedRoute>} />
           <Route path="sales" element={<CompanyDashboardPage />} />
           {/* Simple Accounts V1 Routes */}

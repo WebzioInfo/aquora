@@ -25,7 +25,7 @@ export const OwnerFilters: React.FC<OwnerFiltersProps> = ({
           value={searchTerm}
           onChange={e => onSearchChange(e.target.value)}
           placeholder="Search by owner name or phone..."
-          className="w-full h-[34px] pl-8 pr-8 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#1A56DB] focus:bg-white transition-colors"
+          className="w-full h-[34px] pl-8 pr-8 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#12A89A] focus:bg-white transition-colors"
         />
         {searchTerm.trim() && (
           <button

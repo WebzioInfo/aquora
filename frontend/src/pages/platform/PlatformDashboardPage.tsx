@@ -118,9 +118,9 @@ export const PlatformDashboardPage: React.FC = () => {
 
   const getNodeIcon = (type: string) => {
     switch (type.toLowerCase()) {
-      case 'company': return <Building2 className="w-4 h-4 text-[#1A56DB]" />
+      case 'company': return <Building2 className="w-4 h-4 text-[#0B7A70]" />
       case 'productionline': return <Network className="w-4 h-4 text-[#F79009]" />
-      case 'station': return <MonitorPlay className="w-4 h-4 text-[#2E90FA]" />
+      case 'station': return <MonitorPlay className="w-4 h-4 text-[#12A89A]" />
       case 'machine': return <Cpu className="w-4 h-4 text-[#667085]" />
       default: return <Settings className="w-4 h-4 text-slate-400" />
     }
@@ -172,15 +172,15 @@ export const PlatformDashboardPage: React.FC = () => {
         {nodes.map(node => (
           <div key={node.id} className="flex flex-col">
             <div 
-              className={`flex items-center justify-between p-2 rounded-[8px] text-xs font-semibold select-none cursor-pointer transition-all hover:bg-[#EFF4FF] ${
-                selectedNode?.id === node.id ? 'bg-[#EFF4FF] text-[#1A56DB]' : 'text-[#101828]'
+              className={`flex items-center justify-between p-2 rounded-[8px] text-xs font-semibold select-none cursor-pointer transition-all hover:bg-[#F4F7F8] ${
+                selectedNode?.id === node.id ? 'bg-[#E6F6F4] text-[#0B7A70]' : 'text-[#101828]'
               }`}
               onClick={() => setSelectedNode(node)}
             >
               <div className="flex items-center gap-2">
                 {getNodeIcon(node.type)}
                 <span>{node.name}</span>
-                <span className="text-[10px] text-[#667085] bg-[#EFF4FF] px-1.5 py-0.5 rounded-[4px] uppercase font-bold tracking-wider">{node.code}</span>
+                <span className="text-[10px] text-[#667085] bg-[#E6F6F4] px-1.5 py-0.5 rounded-[4px] uppercase font-bold tracking-wider">{node.code}</span>
               </div>
               <div className="flex items-center gap-1">
                 {node.type.toLowerCase() !== 'machine' && (
@@ -222,7 +222,7 @@ export const PlatformDashboardPage: React.FC = () => {
             <span className="text-xs font-semibold text-[#667085] uppercase tracking-wider block">Tenant ID</span>
             <h3 className="text-sm font-bold text-[#101828] mt-1 truncate max-w-[160px]" title={user?.tenantId || undefined}>{user?.tenantId}</h3>
           </div>
-          <div className="p-3 bg-[#EFF4FF] rounded-[8px] text-[#1A56DB]">
+          <div className="p-3 bg-[#E6F6F4] rounded-[8px] text-[#0B7A70]">
             <Building2 className="w-5 h-5" />
           </div>
         </div>
@@ -242,7 +242,7 @@ export const PlatformDashboardPage: React.FC = () => {
             <span className="text-xs font-semibold text-[#667085] uppercase tracking-wider block">Active Modules</span>
             <h3 className="text-sm font-bold text-[#101828] mt-1">Foundation Node</h3>
           </div>
-          <div className="p-3 bg-[#EFF8FF] rounded-[8px] text-[#2E90FA]">
+          <div className="p-3 bg-[#E6F6F4] rounded-[8px] text-[#12A89A]">
             <Layers className="w-5 h-5" />
           </div>
         </div>
@@ -288,15 +288,15 @@ export const PlatformDashboardPage: React.FC = () => {
                   {treeData.map(company => (
                     <div key={company.id} className="mb-2">
                       <div 
-                        className={`flex items-center justify-between p-2.5 rounded-[8px] text-xs font-bold cursor-pointer transition-all hover:bg-[#EFF4FF] select-none ${
-                          selectedNode?.id === company.id ? 'bg-[#EFF4FF] text-[#1A56DB]' : 'text-[#101828]'
+                        className={`flex items-center justify-between p-2.5 rounded-[8px] text-xs font-bold cursor-pointer transition-all hover:bg-[#F4F7F8] select-none ${
+                          selectedNode?.id === company.id ? 'bg-[#E6F6F4] text-[#0B7A70]' : 'text-[#101828]'
                         }`}
                         onClick={() => setSelectedNode(company)}
                       >
                         <div className="flex items-center gap-2">
                           {getNodeIcon('company')}
                           <span>{company.name}</span>
-                          <span className="text-[10px] text-[#667085] bg-[#EFF4FF] px-1.5 py-0.5 rounded-[4px] font-bold uppercase tracking-wider">{company.code}</span>
+                          <span className="text-[10px] text-[#667085] bg-[#E6F6F4] px-1.5 py-0.5 rounded-[4px] font-bold uppercase tracking-wider">{company.code}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <button 
@@ -332,7 +332,7 @@ export const PlatformDashboardPage: React.FC = () => {
         <EnterpriseCard title="Node Inspector">
           {selectedNode ? (
             <div className="flex flex-col gap-4 text-xs font-semibold mt-2">
-              <div className="p-3 bg-[#EFF4FF] rounded-[8px] flex items-center gap-3">
+              <div className="p-3 bg-[#E6F6F4] rounded-[8px] flex items-center gap-3">
                 <div className="p-2.5 bg-white rounded-[6px] shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
                   {getNodeIcon(selectedNode.type)}
                 </div>
@@ -410,7 +410,7 @@ export const PlatformDashboardPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-[#E5E9F2]">
                 {auditLogs.map((log) => (
-                  <tr key={log.id} className="text-[#101828] hover:bg-[#EFF4FF] transition-colors h-[40px]">
+                  <tr key={log.id} className="text-[#101828] hover:bg-[#F4F7F8] transition-colors h-[40px]">
                     <td className="py-2 px-3 font-medium whitespace-nowrap">
                       {new Date(log.timestamp).toLocaleString()}
                     </td>
@@ -428,7 +428,7 @@ export const PlatformDashboardPage: React.FC = () => {
                     <td className="py-2 px-3 font-semibold">{log.tableName}</td>
                     <td className="py-2 px-3 max-w-[200px] truncate" title={log.newValues || log.oldValues || ''}>
                       {log.action === 'Insert' && <span className="font-mono text-[#667085]">{log.newValues}</span>}
-                      {log.action === 'Update' && <span className="font-mono text-[#1A56DB]">{log.newValues}</span>}
+                      {log.action === 'Update' && <span className="font-mono text-[#0B7A70]">{log.newValues}</span>}
                       {log.action === 'Delete' && <span className="text-[#F04438] font-semibold">Deleted Record</span>}
                     </td>
                     <td className="py-2 px-3 font-mono text-[#667085]">{log.ipAddress}</td>

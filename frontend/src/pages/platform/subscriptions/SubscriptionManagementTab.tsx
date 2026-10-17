@@ -155,7 +155,7 @@ export const SubscriptionManagementTab: React.FC = () => {
     displayOrder: 1,
     isPopular: false,
     isRecommended: false,
-    color: '#3B82F6',
+    color: '#12A89A',
     status: 'Published',
     taxType: 'Tax Exclusive',
     autoActivateTrial: true,
@@ -293,7 +293,7 @@ export const SubscriptionManagementTab: React.FC = () => {
       displayOrder: 1,
       isPopular: false,
       isRecommended: false,
-      color: '#3B82F6',
+      color: '#12A89A',
       status: 'Published',
       taxType: 'Tax Exclusive',
       autoActivateTrial: true,
@@ -558,7 +558,7 @@ export const SubscriptionManagementTab: React.FC = () => {
 
                 <div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: plan.color || '#3B82F6' }} />
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: plan.color || '#12A89A' }} />
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{plan.name}</span>
                   </div>
 
@@ -684,7 +684,7 @@ export const SubscriptionManagementTab: React.FC = () => {
                   <tr key={p.id} className="hover:bg-slate-50/50 transition">
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: p.color || '#3B82F6' }} />
+                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: p.color || '#12A89A' }} />
                         <div>
                           <span className="font-bold text-slate-900 block text-xs">{p.name}</span>
                           <span className="text-[10px] text-slate-400 font-mono">{p.code}</span>
@@ -875,7 +875,7 @@ export const SubscriptionManagementTab: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-700 mb-1">Brand Color Accent</label>
                     <input
                       type="color"
-                      value={formData.color || '#3B82F6'}
+                      value={formData.color || '#12A89A'}
                       onChange={(e) => setFormData({ ...formData, color: e.target.value })}
                       className="w-full h-9 p-1 border border-slate-200 rounded-xl bg-white cursor-pointer"
                     />

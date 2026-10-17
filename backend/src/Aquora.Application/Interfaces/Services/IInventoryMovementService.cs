@@ -27,7 +27,8 @@ namespace Aquora.Application.Interfaces.Services
             string? notes,
             Guid tenantId,
             Guid companyId,
-            string createdBy);
+            string createdBy,
+            bool allowNegativeStock = false);
 
         Task<InventoryMovement> RecordOutstandingJarMovementAsync(
             ITenantDbContext context,

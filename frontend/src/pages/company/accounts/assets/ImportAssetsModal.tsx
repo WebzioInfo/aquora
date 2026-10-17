@@ -184,7 +184,7 @@ export const ImportAssetsModal: React.FC<ImportAssetsModalProps> = ({
           <div className="flex items-center gap-2">
             <span
               className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${
-                step >= 1 ? 'bg-[#1A56DB] text-white' : 'bg-slate-100 text-slate-500'
+                step >= 1 ? 'bg-[#05303B] text-white' : 'bg-slate-100 text-slate-500'
               }`}
             >
               1
@@ -197,7 +197,7 @@ export const ImportAssetsModal: React.FC<ImportAssetsModalProps> = ({
           <div className="flex items-center gap-2">
             <span
               className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${
-                step >= 2 ? 'bg-[#1A56DB] text-white' : 'bg-slate-100 text-slate-500'
+                step >= 2 ? 'bg-[#05303B] text-white' : 'bg-slate-100 text-slate-500'
               }`}
             >
               2
@@ -210,7 +210,7 @@ export const ImportAssetsModal: React.FC<ImportAssetsModalProps> = ({
           <div className="flex items-center gap-2">
             <span
               className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${
-                step >= 3 ? 'bg-[#1A56DB] text-white' : 'bg-slate-100 text-slate-500'
+                step >= 3 ? 'bg-[#05303B] text-white' : 'bg-slate-100 text-slate-500'
               }`}
             >
               3
@@ -224,7 +224,7 @@ export const ImportAssetsModal: React.FC<ImportAssetsModalProps> = ({
         {/* STEP 1: DOWNLOAD TEMPLATE */}
         {step === 1 && (
           <div className="py-4 text-center space-y-3">
-            <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#1A56DB] flex items-center justify-center mx-auto border border-blue-100">
+            <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#0B7A70] flex items-center justify-center mx-auto border border-blue-100">
               <FileSpreadsheet className="w-6 h-6" />
             </div>
             <h4 className="font-semibold text-slate-800 text-sm">Download standard CSV template</h4>
@@ -247,7 +247,7 @@ export const ImportAssetsModal: React.FC<ImportAssetsModalProps> = ({
         {/* STEP 2: UPLOAD FILE */}
         {step === 2 && (
           <div className="py-4 space-y-3">
-            <label className="border-2 border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-[#1A56DB] hover:bg-blue-50/20 transition-all block">
+            <label className="border-2 border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-[#12A89A] hover:bg-blue-50/20 transition-all block">
               <Upload className="w-8 h-8 text-slate-400 mb-2" />
               <span className="font-semibold text-slate-800 text-xs">
                 {file ? file.name : 'Click or drag CSV file here to upload'}

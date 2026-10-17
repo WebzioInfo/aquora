@@ -136,7 +136,7 @@ export const OwnerRow: React.FC<OwnerRowProps> = ({
           className="h-[28px] px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg text-xs inline-flex items-center gap-1.5 transition-colors border border-slate-200 shadow-2xs"
           title="Record investment or withdrawal"
         >
-          <ArrowLeftRight className="w-3 h-3 text-[#1A56DB]" />
+          <ArrowLeftRight className="w-3 h-3 text-[#0B7A70]" />
           <span>Transact</span>
         </button>
       </td>

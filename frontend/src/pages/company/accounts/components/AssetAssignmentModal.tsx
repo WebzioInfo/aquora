@@ -140,7 +140,7 @@ export const AssetAssignmentModal: React.FC<AssetAssignmentModalProps> = ({
                 required
                 value={assignForm.assignmentDate?.slice(0, 10) ?? new Date().toISOString().slice(0, 10)}
                 onChange={(e) => setAssignForm((prev) => ({ ...prev, assignmentDate: e.target.value }))}
-                className="w-full pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+                className="w-full pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
               />
             </div>
           </div>
@@ -156,7 +156,7 @@ export const AssetAssignmentModal: React.FC<AssetAssignmentModalProps> = ({
             placeholder="e.g. Issued for Q3 plant production expansion; laptop handed over with original charger and bag."
             value={assignForm.notes || ''}
             onChange={(e) => setAssignForm((prev) => ({ ...prev, notes: e.target.value }))}
-            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#1A56DB]"
+            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#12A89A]"
           />
         </div>
       </form>

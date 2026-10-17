@@ -1290,7 +1290,7 @@ export const AssetSummaryPage: React.FC = () => {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                <Edit className="w-4 h-4 text-[#1A56DB]" /> Edit Unit Price
+                <Edit className="w-4 h-4 text-[#0B7A70]" /> Edit Unit Price
               </h3>
               <button
                 onClick={() => setEditingPriceItem(null)}
@@ -1335,7 +1335,7 @@ export const AssetSummaryPage: React.FC = () => {
                     onChange={(e) => setNewUnitPriceInput(e.target.value)}
                     placeholder="0.00"
                     autoFocus
-                    className="w-full pl-7 pr-3 py-2 text-sm font-mono font-bold bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1A56DB]/20 focus:border-[#1A56DB] transition-all"
+                    className="w-full pl-7 pr-3 py-2 text-sm font-mono font-bold bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#12A89A]/20 focus:border-[#12A89A] transition-all"
                   />
                 </div>
               </div>

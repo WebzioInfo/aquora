@@ -16,7 +16,7 @@ namespace Aquora.Domain.Entities
         public string Time { get; set; }
 
         public Guid ProductId { get; set; }
-        public virtual Product Product { get; set; }
+        public virtual Product? Product { get; set; }
 
         public int CasesProduced { get; set; }
 
@@ -47,6 +47,9 @@ namespace Aquora.Domain.Entities
 
         public bool InkUsed { get; set; }
         public bool MakeupUsed { get; set; }
+
+        public decimal WaterWastageLitres { get; set; } = 0;
+        public string? MaterialConsumptionsJson { get; set; }
 
         // Reference link to inventory movements
         public string InventoryMovementIds { get; set; } = string.Empty;

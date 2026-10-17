@@ -39,7 +39,7 @@ export interface OwnerColorMeta {
  * Curated 10-color palette for owners (no gray, deterministic by ID or Name hash)
  */
 export const OWNER_PALETTE: OwnerColorMeta[] = [
-  { hex: '#1A56DB', bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300', dot: 'bg-blue-600', lightBg: '#EFF6FF' },
+  { hex: '#12A89A', bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300', dot: 'bg-blue-600', lightBg: '#E6F6F4' },
   { hex: '#7C3AED', bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300', dot: 'bg-purple-600', lightBg: '#F5F3FF' },
   { hex: '#059669', bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-300', dot: 'bg-emerald-600', lightBg: '#ECFDF5' },
   { hex: '#D97706', bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-300', dot: 'bg-amber-600', lightBg: '#FFFBEB' },

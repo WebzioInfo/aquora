@@ -1021,7 +1021,7 @@ export const CustomersPage: React.FC = () => {
                     required
                   >
                     <option value="">Select Bank Account...</option>
-                    {banks.map(b => (
+                    {banks.map((b: any) => (
                       <option key={b.id} value={b.id}>{b.bankName} — {b.accountNumber}</option>
                     ))}
                   </select>
@@ -1124,7 +1124,7 @@ export const CustomersPage: React.FC = () => {
                   onClick={() => setFormTab(tab)}
                   className={`py-3 px-4 text-xs font-semibold uppercase tracking-wider border-b-2 -mb-[2px] transition-colors cursor-pointer shrink-0 ${
                     formTab === tab
-                      ? 'border-[#1A56DB] text-[#1A56DB]'
+                      ? 'border-[#12A89A] text-[#0B7A70]'
                       : 'border-transparent text-gray-500 hover:text-gray-900'
                   }`}
                 >
@@ -1585,7 +1585,7 @@ export const CustomersPage: React.FC = () => {
                 type="button"
                 onClick={handleFormSubmit}
                 disabled={createCustomerMutation.isPending || updateCustomerMutation.isPending}
-                className="h-[42px] px-6 bg-[#1A56DB] hover:bg-[#1E40AF] active:bg-[#123E97] text-white text-sm font-semibold rounded-[10px] shadow-sm select-none cursor-pointer transition-all duration-150 active:scale-[0.99] disabled:opacity-50 flex items-center gap-2"
+                className="h-[42px] px-6 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white text-sm font-semibold rounded-[10px] shadow-sm select-none cursor-pointer transition-all duration-150 active:scale-[0.99] disabled:opacity-50 flex items-center gap-2"
               >
                 {(createCustomerMutation.isPending || updateCustomerMutation.isPending) ? (
                   <>
@@ -1731,7 +1731,7 @@ export const CustomersPage: React.FC = () => {
                     <td className="py-3.5 px-4">
                       <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                         c.customerType === 'B2B' 
-                          ? 'bg-[#DBEAFE] text-[#2563EB]' 
+                          ? 'bg-[#E6F6F4] text-[#0B7A70] border border-[#B8E6E0]' 
                           : c.customerType === 'Distributor'
                           ? 'bg-[#F3E8FF] text-[#7E22CE]'
                           : 'bg-[#DCFCE7] text-[#16A34A]'
@@ -1853,7 +1853,7 @@ export const CustomersPage: React.FC = () => {
           {canWrite && (
             <button
               onClick={handleOpenCreateDrawer}
-              className="mt-4 px-4 py-2 bg-[#1A56DB] hover:bg-[#1E40AF] text-white text-xs font-semibold rounded-[8px] cursor-pointer"
+              className="mt-4 px-4 py-2 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white text-xs font-semibold rounded-[8px] cursor-pointer"
             >
               Add First Customer
             </button>

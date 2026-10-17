@@ -17,7 +17,7 @@ namespace Aquora.Domain.Entities
         public string Shift { get; set; } = string.Empty;
         
         public Guid ProductId { get; set; }
-        public virtual Product Product { get; set; } = null!;
+        public virtual Product? Product { get; set; }
 
         public DateTime StartedAt { get; set; }
         public DateTime? EndedAt { get; set; }

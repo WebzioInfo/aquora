@@ -7,6 +7,7 @@ export interface StatTileProps {
   tone?: 'ok' | 'warn' | 'bad' | 'default'
   icon?: React.ReactNode
   iconBg?: string
+  borderAccentColor?: string
   height?: string
   className?: string
   isHero?: boolean
@@ -20,9 +21,9 @@ export const StatTile: React.FC<StatTileProps> = ({
   tone = 'default',
   icon,
   iconBg = 'bg-slate-100 text-slate-600',
-  height = 'h-16',
+  borderAccentColor = 'border-l-slate-400',
+  height = 'h-[74px]',
   className = '',
-  isHero = false,
   onClick
 }) => {
   const toneColor =
@@ -31,50 +32,42 @@ export const StatTile: React.FC<StatTileProps> = ({
       : tone === 'warn'
       ? 'text-amber-600'
       : tone === 'bad'
-      ? 'text-red-600'
+      ? 'text-rose-600'
       : 'text-slate-400'
 
   return (
     <div
       onClick={onClick}
-      className={`min-w-0 ${height} rounded-xl border ${
-        isHero ? 'border-blue-300 bg-blue-50/25' : 'border-slate-200 bg-white'
-      } px-3 py-2 flex items-center gap-3 select-none ${
-        onClick ? 'cursor-pointer hover:border-blue-300 hover:bg-blue-50/40 transition-colors' : ''
+      className={`min-w-0 ${height} rounded-xl bg-white border border-slate-200/90 border-l-4 ${borderAccentColor} px-3.5 py-2.5 shadow-2xs flex flex-col justify-between select-none ${
+        onClick ? 'cursor-pointer hover:border-slate-300 hover:shadow-xs transition-all' : ''
       } ${className}`}
     >
-      {/* Icon chip: 28px rounded-lg tinted square with 16px icon */}
-      {icon && (
-        <div
-          className={`w-7 h-7 rounded-lg shrink-0 flex items-center justify-center [&>svg]:w-4 [&>svg]:h-4 ${iconBg}`}
-        >
-          {icon}
-        </div>
-      )}
-
-      {/* Text block: label on top, value & hint inline */}
-      <div className="flex-1 min-w-0 flex flex-col justify-center">
-        <span className="text-xs text-slate-500 font-normal leading-none truncate">
+      {/* Top row: Label on left, Icon container on right (matching Accounts Dashboard KPI cards) */}
+      <div className="flex items-center justify-between gap-1.5 min-w-0">
+        <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
           {label}
         </span>
-        <div className="flex items-baseline gap-2 mt-1 min-w-0">
-          <span
-            className={`font-mono font-bold tabular-nums leading-none truncate tracking-tight ${
-              isHero
-                ? 'text-[26px] text-blue-600'
-                : 'text-[20px] text-slate-900'
-            }`}
+        {icon && (
+          <div
+            className={`w-6 h-6 rounded-md shrink-0 flex items-center justify-center [&>svg]:w-3.5 [&>svg]:h-3.5 ${iconBg}`}
           >
-            {value}
+            {icon}
+          </div>
+        )}
+      </div>
+
+      {/* Bottom row: Value and Hint */}
+      <div className="flex items-baseline gap-2 min-w-0">
+        <span className="text-lg sm:text-xl font-extrabold text-slate-900 tabular-nums leading-none tracking-tight truncate">
+          {value}
+        </span>
+        {hint && (
+          <span
+            className={`text-[10px] sm:text-[11px] ${toneColor} font-medium truncate leading-none`}
+          >
+            {hint}
           </span>
-          {hint && (
-            <span
-              className={`text-xs ${toneColor} font-normal leading-none truncate`}
-            >
-              {hint}
-            </span>
-          )}
-        </div>
+        )}
       </div>
     </div>
   )

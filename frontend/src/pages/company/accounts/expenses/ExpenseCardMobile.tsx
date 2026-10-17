@@ -77,7 +77,7 @@ export const ExpenseCardMobile: React.FC<ExpenseCardMobileProps> = ({
             type="checkbox"
             checked={isSelected}
             onChange={e => onToggleSelect(e, expense.id)}
-            className="w-4 h-4 rounded border-slate-300 text-[#1A56DB] focus:ring-[#1A56DB]"
+            className="w-4 h-4 rounded border-slate-300 text-[#0B7A70] focus:ring-[#12A89A]"
           />
           <span className="font-mono font-bold text-slate-800 text-xs">
             {expense.expenseNumber || 'EXP-—'}

@@ -240,7 +240,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
               required
               value={formData.expenseDate}
               onChange={e => setFormData({ ...formData, expenseDate: e.target.value })}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB]"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A]"
             />
           </div>
 
@@ -256,7 +256,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
                   setCategoryModalError(null)
                   setIsCreateCategoryOpen(true)
                 }}
-                className="text-xs font-semibold text-[#1A56DB] hover:text-blue-700 active:text-blue-800 transition-colors inline-flex items-center gap-1 cursor-pointer focus:outline-none focus-visible:underline"
+                className="text-xs font-semibold text-[#0B7A70] hover:text-[#05303B] active:text-blue-800 transition-colors inline-flex items-center gap-1 cursor-pointer focus:outline-none focus-visible:underline"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>New Category</span>
@@ -274,7 +274,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
                 onChange={e => setFormData({ ...formData, category: e.target.value })}
                 className={`w-full ${
                   formData.category ? 'pl-7' : 'px-3'
-                } py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB]`}
+                } py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A]`}
               >
                 {categoryOptions.map(c => {
                   const meta = getCategoryMeta(c)
@@ -306,7 +306,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
             <select
               value={formData.paymentMethod}
               onChange={e => setFormData({ ...formData, paymentMethod: e.target.value })}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB]"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A]"
             >
               {PAYMENT_METHODS.map(m => (
                 <option key={m} value={m}>
@@ -399,7 +399,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
             placeholder="Vendor or payee name"
             value={formData.vendor}
             onChange={e => setFormData({ ...formData, vendor: e.target.value })}
-            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB]"
+            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A]"
           />
         </div>
 
@@ -413,7 +413,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
             placeholder="Brief description of expense"
             value={formData.description}
             onChange={e => setFormData({ ...formData, description: e.target.value })}
-            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB]"
+            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A]"
           />
         </div>
 
@@ -426,7 +426,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
             placeholder="Additional remarks..."
             value={formData.notes}
             onChange={e => setFormData({ ...formData, notes: e.target.value })}
-            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB]"
+            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A]"
           />
         </div>
 
@@ -498,7 +498,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
                   if (categoryModalError) setCategoryModalError(null)
                 }}
                 disabled={isCreatingCategory}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#1A56DB] focus:ring-2 focus:ring-blue-100/50"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-[#12A89A] focus:ring-2 focus:ring-blue-100/50"
               />
             </div>
 

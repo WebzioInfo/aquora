@@ -50,7 +50,7 @@ export const PremiumInput: React.FC<PremiumInputProps> = ({ label, error, helpTe
         min={min}
         max={max}
         step={step}
-        className={`w-full h-[44px] px-3.5 border text-[14px] text-gray-900 bg-white placeholder-gray-400 rounded-[10px] transition-all duration-150 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 hover:border-gray-300 disabled:bg-gray-50 disabled:text-gray-400 ${
+        className={`w-full h-[44px] px-3.5 border text-[14px] text-gray-900 bg-white placeholder-gray-400 rounded-[10px] transition-all duration-150 focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 hover:border-gray-300 disabled:bg-gray-50 disabled:text-gray-400 ${
           error ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-100' : 'border-gray-200'
         } ${className}`}
         {...props}
@@ -75,7 +75,7 @@ export const PremiumSelect: React.FC<PremiumSelectProps> = ({ label, error, help
       <PremiumLabel label={label} required={required} />
       <div className="relative">
         <select
-          className={`w-full h-[44px] px-3.5 pr-10 border text-[14px] text-gray-900 bg-white rounded-[10px] transition-all duration-150 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 hover:border-gray-300 disabled:bg-gray-50 disabled:text-gray-400 appearance-none cursor-pointer ${
+          className={`w-full h-[44px] px-3.5 pr-10 border text-[14px] text-gray-900 bg-white rounded-[10px] transition-all duration-150 focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 hover:border-gray-300 disabled:bg-gray-50 disabled:text-gray-400 appearance-none cursor-pointer ${
             error ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-100' : 'border-gray-200'
           } ${className}`}
           {...props}
@@ -107,7 +107,7 @@ export const PremiumTextarea: React.FC<PremiumTextareaProps> = ({ label, error, 
     <div className="flex flex-col w-full text-left">
       <PremiumLabel label={label} required={required} />
       <textarea
-        className={`w-full p-3.5 border text-[14px] text-gray-900 bg-white placeholder-gray-400 rounded-[10px] transition-all duration-150 focus:outline-none focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100/50 hover:border-gray-300 disabled:bg-gray-50 disabled:text-gray-400 ${
+        className={`w-full p-3.5 border text-[14px] text-gray-900 bg-white placeholder-gray-400 rounded-[10px] transition-all duration-150 focus:outline-none focus:border-[#12A89A] focus:ring-4 focus:ring-[#12A89A]/20 hover:border-gray-300 disabled:bg-gray-50 disabled:text-gray-400 ${
           error ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-100' : 'border-gray-200'
         } ${className}`}
         {...props}

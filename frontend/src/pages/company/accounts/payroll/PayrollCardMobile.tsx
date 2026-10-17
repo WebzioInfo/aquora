@@ -106,7 +106,7 @@ export const PayrollCardMobile: React.FC<PayrollCardMobileProps> = ({
               type="checkbox"
               checked={isSelected}
               onChange={() => {}}
-              className="w-4 h-4 rounded border-slate-300 text-[#1A56DB] focus:ring-0 cursor-pointer"
+              className="w-4 h-4 rounded border-slate-300 text-[#0B7A70] focus:ring-0 cursor-pointer"
             />
           </div>
 
@@ -204,7 +204,7 @@ export const PayrollCardMobile: React.FC<PayrollCardMobileProps> = ({
                     }}
                     className="w-full px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-50 flex items-center gap-2 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Calculator className="w-3.5 h-3.5 text-[#1A56DB]" />
+                    <Calculator className="w-3.5 h-3.5 text-[#0B7A70]" />
                     <span>Settle salary</span>
                   </button>
                 )}
@@ -305,7 +305,7 @@ export const PayrollCardMobile: React.FC<PayrollCardMobileProps> = ({
             onClick={onOpenSettle}
             disabled={settleDisabled}
             title={settleTooltip}
-            className="h-[30px] px-3 bg-white border border-[#1A56DB] text-[#1A56DB] font-medium rounded-lg text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-[30px] px-3 bg-white border border-[#12A89A] text-[#0B7A70] font-medium rounded-lg text-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Settle
           </button>

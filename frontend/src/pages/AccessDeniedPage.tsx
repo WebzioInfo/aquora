@@ -1,16 +1,23 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { useAuthStore } from '../store/useAuthStore'
-import { ShieldAlert, Clock, LockKeyhole, KeyRound, ArrowLeft, Home } from 'lucide-react'
-import EnterpriseButton from '../components/ui/EnterpriseButton'
+import { ShieldAlert, Clock, LockKeyhole, ArrowRight, ArrowLeft } from 'lucide-react'
 
 export const AccessDeniedPage: React.FC = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { user, clearAuth } = useAuthStore()
 
-  // Get the security violation reason from the query param
   const reason = searchParams.get('reason') || 'denied'
+
+  useEffect(() => {
+    if (reason === 'expired') {
+      document.title = 'Session expired · Aquzio'
+    } else {
+      document.title = 'Access restricted · Aquzio'
+    }
+  }, [reason])
 
   const handleAction = () => {
     if (reason === 'expired') {
@@ -34,41 +41,41 @@ export const AccessDeniedPage: React.FC = () => {
     }
   }
 
-  // Define screen settings based on reason
   const getScreenConfig = () => {
     switch (reason) {
       case 'unauthorized':
         return {
-          icon: <KeyRound className="w-8 h-8 text-amber-400" />,
-          bgColor: 'bg-amber-500/10 border-amber-500/25',
-          title: 'Unauthorized Action',
-          description: 'Your current credentials do not possess the clearance level required to execute this action. Please re-authenticate or contact your division lead.',
-          buttonText: 'Return to Safety',
+          icon: <ShieldAlert className="w-6 h-6 text-amber-600" />,
+          iconBg: 'bg-amber-50 border-amber-200',
+          title: 'Permission required',
+          description: "You don't have permission to access this area. If you believe this is a mistake, contact your administrator.",
+          buttonText: 'Return to dashboard',
         }
       case 'expired':
         return {
-          icon: <Clock className="w-8 h-8 text-blue-400" />,
-          bgColor: 'bg-blue-500/10 border-blue-500/25',
-          title: 'Session Terminated',
-          description: 'Your authenticated session token has expired due to inactivity. Access tokens are rotated automatically to secure telemetry interfaces.',
-          buttonText: 'Sign In Again',
+          icon: <Clock className="w-6 h-6 text-[#12A89A]" />,
+          iconBg: 'bg-[#12A89A]/10 border-[#12A89A]/30',
+          title: 'Session expired',
+          description: 'Your session has expired due to inactivity. Please sign in again to continue working.',
+          buttonText: 'Sign in again',
         }
       case 'locked':
         return {
-          icon: <LockKeyhole className="w-8 h-8 text-red-400 animate-bounce" />,
-          bgColor: 'bg-red-500/10 border-red-500/25',
-          title: 'Account Locked',
-          description: 'This operator profile has been locked due to repeated authentication failures. Please contact system administrators to restore clearance.',
-          buttonText: 'Contact IT Support',
+          icon: <LockKeyhole className="w-6 h-6 text-red-600" />,
+          iconBg: 'bg-red-50 border-red-200',
+          title: 'Account locked',
+          description: 'This account has been temporarily locked after multiple failed sign-in attempts. Please contact support to unlock it.',
+          buttonText: 'Contact support',
+          isSupport: true,
         }
       case 'denied':
       default:
         return {
-          icon: <ShieldAlert className="w-8 h-8 text-rose-500" />,
-          bgColor: 'bg-rose-500/10 border-rose-500/25',
-          title: 'Security Clearance Error',
-          description: 'Your user profile does not possess the clearance permissions required to access this system module. Clearance level violation logged.',
-          buttonText: 'Return to Terminal',
+          icon: <ShieldAlert className="w-6 h-6 text-red-600" />,
+          iconBg: 'bg-red-50 border-red-200',
+          title: 'Access restricted',
+          description: "You don't have access to this page. Check with your administrator to request the necessary permissions.",
+          buttonText: 'Return to dashboard',
         }
     }
   }
@@ -76,55 +83,70 @@ export const AccessDeniedPage: React.FC = () => {
   const config = getScreenConfig()
 
   return (
-    <div className="min-h-screen bg-[#F5F7FB] text-[#111827] flex items-center justify-center px-4 font-sans relative overflow-hidden">
-      {/* Background radial glow */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-red-500/5 blur-[120px] rounded-full" />
-      </div>
-
-      {/* Main Panel */}
-      <div className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.04)] p-8 md:p-10 text-center flex flex-col items-center gap-6 z-10 animate-fade-in">
-        {/* Animated icon holder */}
-        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center border shadow-sm ${config.bgColor}`}>
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className="auth-card"
+    >
+      {/* Centered Icon Header */}
+      <div className="flex flex-col items-center text-center select-none mb-6">
+        <div className={`w-12 h-12 rounded-full flex items-center justify-center border mb-3 ${config.iconBg}`}>
           {config.icon}
         </div>
-
-        {/* Text */}
-        <div className="space-y-2 select-none">
-          <h1 className="text-xl font-bold text-[#111827] tracking-tight uppercase">{config.title}</h1>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            {config.description}
-          </p>
-        </div>
-
-        {/* Action Button */}
-        <EnterpriseButton
-          onClick={handleAction}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-3 border-none shadow-sm"
-        >
-          {reason === 'expired' ? <KeyRound className="w-4 h-4 mr-2 inline" /> : <Home className="w-4 h-4 mr-2 inline" />}
-          <span>{config.buttonText}</span>
-        </EnterpriseButton>
-
-        {/* Direct Navigation Actions */}
-        <div className="flex justify-center items-center gap-4 text-xs font-bold text-slate-500 mt-2 select-none border-t border-[#E5E7EB] pt-4 w-full">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-1 hover:text-slate-800 cursor-pointer transition-colors"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Go Back</span>
-          </button>
-          <span className="text-slate-200">|</span>
-          <Link
-            to="/login"
-            className="hover:text-slate-800 transition-colors"
-          >
-            Sign In Portal
-          </Link>
-        </div>
+        <h1 className="text-[22px] font-semibold text-[#05303B] tracking-tight leading-tight">
+          {config.title}
+        </h1>
+        <p className="text-[14px] text-[#5B6B75] mt-1.5 leading-normal max-w-sm">
+          {config.description}
+        </p>
       </div>
-    </div>
+
+      {/* Action Button */}
+      <div className="space-y-3">
+        {config.isSupport ? (
+          <a
+            href="mailto:support@aquzio.com?subject=Account Access Assistance"
+            className="auth-button-primary no-underline text-center"
+          >
+            <span>{config.buttonText}</span>
+            <ArrowRight className="w-4 h-4" />
+          </a>
+        ) : (
+          <button
+            type="button"
+            onClick={handleAction}
+            className="auth-button-primary"
+          >
+            <span>{config.buttonText}</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        )}
+
+        {reason !== 'expired' && (
+          <div className="text-center pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                clearAuth()
+                navigate('/login', { replace: true })
+              }}
+              className="auth-link text-xs"
+            >
+              Sign in with a different account
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Footer link */}
+      <div className="border-t border-[#E8EDF0] pt-4 mt-6 text-center text-[13px] text-[#5B6B75] select-none">
+        Need assistance?{' '}
+        <a href="mailto:support@aquzio.com" className="auth-link font-medium">
+          Contact support
+        </a>
+      </div>
+    </motion.div>
   )
 }
 

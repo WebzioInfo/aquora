@@ -247,7 +247,7 @@ export const PayrollDetailDrawer: React.FC<PayrollDetailDrawerProps> = ({
                 onClick={() => setActiveTab('payslip')}
                 className={`pb-2.5 border-b-2 transition-all ${
                   activeTab === 'payslip'
-                    ? 'border-[#1A56DB] text-[#1A56DB] font-semibold'
+                    ? 'border-[#12A89A] text-[#0B7A70] font-semibold'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -258,7 +258,7 @@ export const PayrollDetailDrawer: React.FC<PayrollDetailDrawerProps> = ({
                 onClick={() => setActiveTab('payments')}
                 className={`pb-2.5 border-b-2 transition-all flex items-center gap-1.5 ${
                   activeTab === 'payments'
-                    ? 'border-[#1A56DB] text-[#1A56DB] font-semibold'
+                    ? 'border-[#12A89A] text-[#0B7A70] font-semibold'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -272,7 +272,7 @@ export const PayrollDetailDrawer: React.FC<PayrollDetailDrawerProps> = ({
                 onClick={() => setActiveTab('advances')}
                 className={`pb-2.5 border-b-2 transition-all flex items-center gap-1.5 ${
                   activeTab === 'advances'
-                    ? 'border-[#1A56DB] text-[#1A56DB] font-semibold'
+                    ? 'border-[#12A89A] text-[#0B7A70] font-semibold'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -386,7 +386,7 @@ export const PayrollDetailDrawer: React.FC<PayrollDetailDrawerProps> = ({
                             className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                               p.paymentType?.includes('Advance')
                                 ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                                : 'bg-blue-50 text-[#1A56DB] border border-blue-200'
+                                : 'bg-blue-50 text-[#0B7A70] border border-blue-200'
                             }`}
                           >
                             {p.paymentType || 'Salary Settlement'}
@@ -454,7 +454,7 @@ export const PayrollDetailDrawer: React.FC<PayrollDetailDrawerProps> = ({
                 <button
                   type="button"
                   onClick={() => onOpenSettle(record)}
-                  className="h-[34px] px-3.5 bg-[#1A56DB] hover:bg-blue-700 text-white font-medium rounded-lg text-xs shadow-2xs transition-colors flex items-center gap-1.5"
+                  className="h-[34px] px-3.5 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white font-medium rounded-lg text-xs shadow-2xs transition-colors flex items-center gap-1.5"
                 >
                   <Calculator className="w-3.5 h-3.5" />
                   <span>{isPartiallyPaid ? 'Pay balance' : 'Settle salary'}</span>

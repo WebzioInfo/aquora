@@ -1,4 +1,5 @@
-import { AxiosError } from 'axios'
+import { getFriendlyError } from './getFriendlyError'
+import type { FriendlyErrorResult } from './getFriendlyError'
 
 export interface UserFriendlyError {
   title: string
@@ -6,306 +7,33 @@ export interface UserFriendlyError {
   category: 'validation' | 'duplicate' | 'auth' | 'permission' | 'not_found' | 'rate_limit' | 'network' | 'system'
   canUserFix: boolean
   code: string
+  referenceId?: string
 }
 
 /**
- * Maps raw backend errors, HTTP status codes, DB exceptions, and network failures
- * into clear, actionable, user-friendly feedback without technical jargon.
+ * Adapter ensuring 100% compatibility with existing errorMapper callers,
+ * backed by the single source of truth: getFriendlyError.
  */
-export function mapErrorToUserFriendly(error: any): UserFriendlyError {
-  // 1. Extract raw error info
-  let rawMsg = ''
-  let statusCode = 0
-  let code = ''
-  let details: string[] = []
+export function mapErrorToUserFriendly(error: any, context = 'generic'): UserFriendlyError {
+  const friendly: FriendlyErrorResult = getFriendlyError(error, context)
 
-  if (error?.response) {
-    statusCode = error.response.status
-    const data = error.response.data
-    code = data?.code || ''
-    rawMsg = data?.message || error.message || ''
+  let category: UserFriendlyError['category'] = 'system'
+  if (friendly.statusCode === 401) category = 'auth'
+  else if (friendly.statusCode === 403) category = 'permission'
+  else if (friendly.statusCode === 404) category = 'not_found'
+  else if (friendly.statusCode === 409) category = 'duplicate'
+  else if (friendly.statusCode === 429) category = 'rate_limit'
+  else if (friendly.statusCode === 0) category = 'network'
+  else if (friendly.statusCode && friendly.statusCode < 500) category = 'validation'
 
-    if (Array.isArray(data?.errors) && data.errors.length > 0) {
-      details = data.errors.map((e: any) => (typeof e === 'string' ? e : JSON.stringify(e)))
-      if (!rawMsg || rawMsg === 'An error occurred') {
-        rawMsg = details[0]
-      }
-    }
-  } else if (error?.request) {
-    statusCode = 0
-    code = 'NETWORK_ERROR'
-    rawMsg = error.message || 'Network error'
-  } else if (typeof error === 'string') {
-    rawMsg = error
-    statusCode = 400
-  } else if (error?.message) {
-    rawMsg = error.message
-    code = error.code || ''
-  }
-
-  const msgLower = (rawMsg || '').toLowerCase()
-
-  // 2. Technical / DB Exception Leak Protection Guard
-  const isTechnicalLeak =
-    msgLower.includes('23505') ||
-    msgLower.includes('ix_users_') ||
-    msgLower.includes('npgsql') ||
-    msgLower.includes('postgres') ||
-    msgLower.includes('dbupdate') ||
-    msgLower.includes('nullreference') ||
-    msgLower.includes('object reference') ||
-    msgLower.includes('sql') ||
-    msgLower.includes('exception') ||
-    msgLower.includes('connection refused') ||
-    msgLower.includes('econnrefused') ||
-    msgLower.includes('an error occurred while saving the entity changes')
-
-  // Asset History Exists Guard
-  if (
-    code === 'AssetHistoryExists' ||
-    code === 'ASSET_HISTORY_EXISTS' ||
-    msgLower.includes('assethistoryexists') ||
-    msgLower.includes('historical records')
-  ) {
-    return {
-      title: 'Cannot Permanently Delete',
-      message: 'This asset contains historical records and cannot be permanently deleted. Mark it as Disposed instead.',
-      category: 'validation',
-      canUserFix: true,
-      code: 'ASSET_HISTORY_EXISTS',
-    }
-  }
-
-  // 409 Conflict Handling
-  if (statusCode === 409 || code === 'CONCURRENCY_CONFLICT' || code === 'DUPLICATE_RECORD') {
-    let msg = rawMsg && !isTechnicalLeak ? rawMsg : 'This record conflicts with existing data or was modified by another session. Please reload before saving.'
-    if (code === 'CONCURRENCY_CONFLICT' || msgLower.includes('concurrency') || msgLower.includes('someone else')) {
-      msg = 'This report was updated by someone else. Please reload the latest version before saving.'
-    }
-    return {
-      title: 'Data Conflict',
-      message: msg,
-      category: 'duplicate',
-      canUserFix: true,
-      code: code || 'CONFLICT',
-    }
-  }
-
-  // A. Duplicate Records / Email Already Registered
-  if (
-    code === 'EMAIL_EXISTS' ||
-    msgLower.includes('email is already registered') ||
-    msgLower.includes('email already exists') ||
-    msgLower.includes('account with this email already exists') ||
-    msgLower.includes('already registered')
-  ) {
-    return {
-      title: 'Email Already Registered',
-      message: 'An account with this email address already exists. Please sign in or use a different email.',
-      category: 'duplicate',
-      canUserFix: true,
-      code: 'EMAIL_EXISTS',
-    }
-  }
-
-  if (
-    code === 'DUPLICATE_RECORD' ||
-    code === 'USERNAME_EXISTS' ||
-    code === 'PHONE_EXISTS' ||
-    msgLower.includes('already exists') ||
-    msgLower.includes('already taken') ||
-    msgLower.includes('duplicate key')
-  ) {
-    let title = 'Duplicate Record'
-    let msg = 'A record with this information already exists. Please use unique details.'
-    if (msgLower.includes('username')) {
-      title = 'Username Taken'
-      msg = 'This username is already taken. Please choose another username.'
-    } else if (msgLower.includes('phone')) {
-      title = 'Phone Number Registered'
-      msg = 'This phone number is already registered to another account.'
-    } else if (msgLower.includes('subdomain')) {
-      title = 'Subdomain Taken'
-      msg = 'This company subdomain is already taken. Please choose a different subdomain.'
-    } else if (msgLower.includes('code') || msgLower.includes('sku')) {
-      title = 'Code Already In Use'
-      msg = 'This code is already assigned. Please enter a unique code.'
-    } else if (msgLower.includes('invoice')) {
-      title = 'Duplicate Invoice Number'
-      msg = 'This invoice number already exists. Please enter a unique invoice number.'
-    }
-
-    return {
-      title,
-      message: msg,
-      category: 'duplicate',
-      canUserFix: true,
-      code: code || 'DUPLICATE_RECORD',
-    }
-  }
-
-  // B. Authentication & Credentials
-  if (
-    code === 'INVALID_CREDENTIALS' ||
-    msgLower.includes('invalid username/email or pin') ||
-    msgLower.includes('incorrect pin') ||
-    msgLower.includes('invalid credentials')
-  ) {
-    return {
-      title: 'Invalid Credentials',
-      message: 'The email/username or password entered is incorrect. Please check and try again.',
-      category: 'auth',
-      canUserFix: true,
-      code: 'INVALID_CREDENTIALS',
-    }
-  }
-
-  if (msgLower.includes('already_verified') || msgLower.includes('already verified')) {
-    return {
-      title: 'Account Already Verified',
-      message: 'This email address is already verified. You can sign in directly.',
-      category: 'auth',
-      canUserFix: true,
-      code: 'ALREADY_VERIFIED',
-    }
-  }
-
-  if (msgLower.includes('invalid verification code') || msgLower.includes('invalid pin')) {
-    return {
-      title: 'Invalid Verification PIN',
-      message: 'The verification code entered is incorrect. Please check your email and try again.',
-      category: 'auth',
-      canUserFix: true,
-      code: 'INVALID_OTP',
-    }
-  }
-
-  if (msgLower.includes('verification code has expired') || msgLower.includes('otp expired')) {
-    return {
-      title: 'Verification Code Expired',
-      message: 'This verification code has expired. Please click "Resend Code" to receive a new one.',
-      category: 'auth',
-      canUserFix: true,
-      code: 'OTP_EXPIRED',
-    }
-  }
-
-  if (statusCode === 401 || code === 'UNAUTHORIZED' || code === 'SESSION_EXPIRED') {
-    return {
-      title: 'Session Expired',
-      message: 'Your session has expired or is invalid. Please sign in again to continue.',
-      category: 'auth',
-      canUserFix: true,
-      code: 'UNAUTHORIZED',
-    }
-  }
-
-  // C. Authorization (403)
-  if (statusCode === 403 || code === 'PERMISSION_DENIED' || msgLower.includes('permission') || msgLower.includes('forbidden')) {
-    return {
-      title: 'Access Restricted',
-      message: "You don't have permission to perform this action. Please contact your system administrator.",
-      category: 'permission',
-      canUserFix: false,
-      code: 'PERMISSION_DENIED',
-    }
-  }
-
-  // D. Not Found (404)
-  if (statusCode === 404 || code === 'NOT_FOUND' || msgLower.includes('not found')) {
-    return {
-      title: 'Resource Not Found',
-      message: "We couldn't find the requested item. It may have been removed or moved.",
-      category: 'not_found',
-      canUserFix: false,
-      code: 'NOT_FOUND',
-    }
-  }
-
-  // E. Rate Limit (429)
-  if (statusCode === 429 || code === 'TOO_MANY_REQUESTS' || msgLower.includes('too many attempts') || msgLower.includes('rate limit')) {
-    return {
-      title: 'Too Many Requests',
-      message: 'Too many attempts in a short time. Please wait a moment before trying again.',
-      category: 'rate_limit',
-      canUserFix: true,
-      code: 'TOO_MANY_REQUESTS',
-    }
-  }
-
-  // F. 20L Jar Operations Guards
-  if (
-    msgLower.includes('insufficient outstanding jars') ||
-    msgLower.includes('has no outstanding 20l jars') ||
-    (code === 'INVALID_OPERATION' && (msgLower.includes('outstanding') || msgLower.includes('balance')))
-  ) {
-    const custMatch = rawMsg.match(/customer ['"]([^'"]+)['"]/i) || rawMsg.match(/customer ([A-Za-z0-9_ -]+?)(\.|$|\,|Current)/i)
-    const custName = custMatch ? custMatch[1].trim() : ''
-    const formattedName = custName || 'Customer'
-    return {
-      title: 'Return Not Recorded',
-      message: `${formattedName} has no outstanding 20L jars to return. Please check the customer's jar balance and try again.`,
-      category: 'validation',
-      canUserFix: true,
-      code: 'INVALID_OPERATION',
-    }
-  }
-
-  if (
-    msgLower.includes('insufficient reserved empty jars') ||
-    (code === 'INVALID_OPERATION' && msgLower.includes('reserved empty jars'))
-  ) {
-    const custMatch = rawMsg.match(/customer ['"]([^'"]+)['"]/i) || rawMsg.match(/customer ([A-Za-z0-9_ -]+?)(\.|$|\,|Current)/i)
-    const custName = custMatch ? custMatch[1].trim() : ''
-    const formattedName = custName || 'Customer'
-    return {
-      title: 'Reservation Limit Reached',
-      message: `${formattedName} does not have enough reserved empty jars for this action. Please check customer reservations and try again.`,
-      category: 'validation',
-      canUserFix: true,
-      code: 'INVALID_OPERATION',
-    }
-  }
-
-  // G. Stock / Business Rule Guards
-  if (msgLower.includes('stock') || msgLower.includes('inventory')) {
-    return {
-      title: 'Stock Unavailable',
-      message: rawMsg && !isTechnicalLeak ? rawMsg : 'There is insufficient stock available to fulfill this quantity.',
-      category: 'validation',
-      canUserFix: true,
-      code: 'INSUFFICIENT_STOCK',
-    }
-  }
-
-  // G. Network Errors (StatusCode 0 or network flags)
-  if (statusCode === 0 || code === 'NETWORK_ERROR' || msgLower.includes('network') || msgLower.includes('failed to fetch')) {
-    return {
-      title: 'Connection Error',
-      message: 'Unable to connect to the server. Please check your internet connection and try again.',
-      category: 'network',
-      canUserFix: true,
-      code: 'NETWORK_ERROR',
-    }
-  }
-
-  // H. User-Fixable Clean Business Validation Errors
-  if (!isTechnicalLeak && rawMsg && rawMsg.length < 140 && statusCode < 500) {
-    return {
-      title: statusCode === 400 ? 'Validation Failed' : 'Action Could Not Be Completed',
-      message: rawMsg,
-      category: 'validation',
-      canUserFix: true,
-      code: code || 'VALIDATION_ERROR',
-    }
-  }
-
-  // I. Server / Technical Errors (500, unhandled crashes, DB leaks)
   return {
-    title: 'Unable to Process Request',
-    message: "We couldn't complete your request right now. Please try again in a few moments.",
-    category: 'system',
-    canUserFix: false,
-    code: 'SERVER_ERROR',
+    title: friendly.title,
+    message: friendly.message,
+    category,
+    canUserFix: category !== 'system' && category !== 'permission',
+    code: friendly.statusCode?.toString() || 'ERROR',
+    referenceId: friendly.referenceId,
   }
 }
+
+export default mapErrorToUserFriendly

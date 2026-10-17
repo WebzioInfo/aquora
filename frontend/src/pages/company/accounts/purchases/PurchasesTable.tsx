@@ -166,7 +166,7 @@ export const PurchasesTable: React.FC<PurchasesTableProps> = ({
                 <button
                   type="button"
                   onClick={onClearFilters}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#1A56DB] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#0B7A70] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   Clear filters
@@ -174,7 +174,7 @@ export const PurchasesTable: React.FC<PurchasesTableProps> = ({
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mx-auto text-[#1A56DB]">
+                <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mx-auto text-[#0B7A70]">
                   <ShoppingBag className="w-6 h-6" />
                 </div>
                 <div>
@@ -185,7 +185,7 @@ export const PurchasesTable: React.FC<PurchasesTableProps> = ({
                   <button
                     type="button"
                     onClick={onCreatePurchase}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-[#1A56DB] hover:bg-[#1746B3] rounded-lg shadow-xs transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] rounded-lg shadow-xs transition-colors cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     Create Purchase
@@ -208,7 +208,7 @@ export const PurchasesTable: React.FC<PurchasesTableProps> = ({
                         checked={isAllSelected}
                         onChange={onToggleSelectAll}
                         aria-label="Select all purchases"
-                        className="w-4 h-4 rounded border-slate-300 text-[#1A56DB] focus:ring-0 cursor-pointer"
+                        className="w-4 h-4 rounded border-slate-300 text-[#0B7A70] focus:ring-0 cursor-pointer"
                       />
                     </th>
                     <th className="px-3 py-2.5 bg-[#F8FAFC]">Purchase</th>

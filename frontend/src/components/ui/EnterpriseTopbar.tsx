@@ -62,7 +62,7 @@ export const EnterpriseTopbar: React.FC<EnterpriseTopbarProps> = ({
           onClick={() => openSearch()}
           className="hidden sm:flex items-center gap-3 px-3 py-1.5 rounded-xl bg-slate-100/90 hover:bg-slate-100 text-slate-400 hover:text-slate-600 border border-slate-200/70 transition-all text-xs w-64 md:w-80 cursor-pointer shadow-xs group"
         >
-          <Search className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors shrink-0" />
+          <Search className="w-4 h-4 text-slate-400 group-hover:text-[#12A89A] transition-colors shrink-0" />
           <span className="flex-1 text-left text-slate-500 font-medium">Search Aquzio...</span>
           <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white text-[10px] font-bold text-slate-500 border border-slate-200 shadow-2xs font-mono">
             <span>Ctrl</span>
@@ -70,6 +70,13 @@ export const EnterpriseTopbar: React.FC<EnterpriseTopbarProps> = ({
             <span>K</span>
           </div>
         </button>
+
+        {/* Breadcrumbs (if provided) */}
+        {breadcrumbs && (
+          <div className="hidden xl:flex items-center ml-2 border-l border-slate-200 pl-3">
+            {breadcrumbs}
+          </div>
+        )}
       </div>
 
       {/* Right nav items */}
@@ -115,7 +122,7 @@ export const EnterpriseTopbar: React.FC<EnterpriseTopbarProps> = ({
                 {notificationsCount > 0 && onMarkAllRead && (
                   <button
                     onClick={onMarkAllRead}
-                    className="text-[10px] font-bold text-blue-600 hover:underline cursor-pointer"
+                    className="text-[10px] font-bold text-[#0B7A70] hover:underline cursor-pointer"
                   >
                     Mark All Read
                   </button>
@@ -163,7 +170,7 @@ export const EnterpriseTopbar: React.FC<EnterpriseTopbarProps> = ({
             onClick={onToggleProfileMenu}
             className="flex items-center gap-2.5 p-1 rounded-full hover:bg-slate-50 cursor-pointer"
           >
-            <div className="w-8 h-8 rounded-sm bg-[#1A56DB] text-white flex items-center justify-center font-bold text-xs uppercase">
+            <div className="w-8 h-8 rounded-sm bg-[#05303B] text-white flex items-center justify-center font-bold text-xs uppercase">
               {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
             </div>
           </button>

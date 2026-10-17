@@ -450,7 +450,7 @@ export const SalaryAdvanceModal: React.FC<SalaryAdvanceModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsCreateEmployeeOpen(true)}
-                    className="text-xs text-[#1A56DB] hover:text-blue-700 hover:underline font-semibold flex items-center gap-1 transition-colors"
+                    className="text-xs text-[#0B7A70] hover:text-[#05303B] hover:underline font-semibold flex items-center gap-1 transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>New Employee</span>
@@ -464,7 +464,7 @@ export const SalaryAdvanceModal: React.FC<SalaryAdvanceModalProps> = ({
                   setEmployeeId(e.target.value)
                   fetchEntitlement(e.target.value, salaryMonth)
                 }}
-                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-none focus:border-[#1A56DB] disabled:bg-slate-100"
+                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-none focus:border-[#12A89A] disabled:bg-slate-100"
                 required
               >
                 {allEmployees.length === 0 ? (
@@ -491,7 +491,7 @@ export const SalaryAdvanceModal: React.FC<SalaryAdvanceModalProps> = ({
                   setSalaryMonth(e.target.value)
                   if (employeeId) fetchEntitlement(employeeId, e.target.value)
                 }}
-                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-none focus:border-[#1A56DB] disabled:bg-slate-100"
+                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-none focus:border-[#12A89A] disabled:bg-slate-100"
                 required
               />
             </div>
@@ -574,7 +574,7 @@ export const SalaryAdvanceModal: React.FC<SalaryAdvanceModalProps> = ({
                   aria-disabled={isFormLocked}
                   onChange={e => setAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full h-[36px] pl-7 pr-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-mono font-medium focus:outline-none focus:border-[#1A56DB] disabled:bg-slate-100"
+                  className="w-full h-[36px] pl-7 pr-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-mono font-medium focus:outline-none focus:border-[#12A89A] disabled:bg-slate-100"
                   required={!isFormLocked}
                 />
               </div>
@@ -607,7 +607,7 @@ export const SalaryAdvanceModal: React.FC<SalaryAdvanceModalProps> = ({
                   tabIndex={isFormLocked ? -1 : 0}
                   aria-disabled={isFormLocked}
                   onChange={e => setPaymentDate(e.target.value)}
-                  className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB] disabled:bg-slate-100"
+                  className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#12A89A] disabled:bg-slate-100"
                   required={!isFormLocked}
                 />
               </div>
@@ -621,7 +621,7 @@ export const SalaryAdvanceModal: React.FC<SalaryAdvanceModalProps> = ({
                     onClick={() => setPaymentMethod('BankAccount')}
                     className={`flex-1 h-[36px] rounded-lg font-medium border text-xs transition-all ${
                       paymentMethod === 'BankAccount'
-                        ? 'bg-blue-50 border-[#1A56DB] text-[#1A56DB] font-semibold'
+                        ? 'bg-blue-50 border-[#12A89A] text-[#0B7A70] font-semibold'
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
@@ -634,7 +634,7 @@ export const SalaryAdvanceModal: React.FC<SalaryAdvanceModalProps> = ({
                     onClick={() => setPaymentMethod('CashBook')}
                     className={`flex-1 h-[36px] rounded-lg font-medium border text-xs transition-all ${
                       paymentMethod === 'CashBook'
-                        ? 'bg-blue-50 border-[#1A56DB] text-[#1A56DB] font-semibold'
+                        ? 'bg-blue-50 border-[#12A89A] text-[#0B7A70] font-semibold'
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
@@ -656,7 +656,7 @@ export const SalaryAdvanceModal: React.FC<SalaryAdvanceModalProps> = ({
                   tabIndex={isFormLocked ? -1 : 0}
                   aria-disabled={isFormLocked}
                   onChange={e => setBankAccountId(e.target.value)}
-                  className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB] disabled:bg-slate-100"
+                  className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#12A89A] disabled:bg-slate-100"
                   required={!isFormLocked}
                 >
                   {bankAccounts.map(b => (
@@ -672,7 +672,7 @@ export const SalaryAdvanceModal: React.FC<SalaryAdvanceModalProps> = ({
                   tabIndex={isFormLocked ? -1 : 0}
                   aria-disabled={isFormLocked}
                   onChange={e => setCashBookId(e.target.value)}
-                  className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB] disabled:bg-slate-100"
+                  className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#12A89A] disabled:bg-slate-100"
                   required={!isFormLocked}
                 >
                   {cashBooks.map(c => (
@@ -704,7 +704,7 @@ export const SalaryAdvanceModal: React.FC<SalaryAdvanceModalProps> = ({
                 aria-disabled={isFormLocked}
                 onChange={e => setRemarks(e.target.value)}
                 placeholder="e.g. Festival advance, emergency request..."
-                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#1A56DB] disabled:bg-slate-100"
+                className="w-full h-[36px] px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#12A89A] disabled:bg-slate-100"
               />
             </div>
           </div>
@@ -731,7 +731,7 @@ export const SalaryAdvanceModal: React.FC<SalaryAdvanceModalProps> = ({
                   onClose()
                   onViewPayslip(currentRecordAsDirectory)
                 }}
-                className="text-xs text-[#1A56DB] hover:underline font-semibold"
+                className="text-xs text-[#0B7A70] hover:underline font-semibold"
               >
                 View payslip
               </button>
@@ -754,7 +754,7 @@ export const SalaryAdvanceModal: React.FC<SalaryAdvanceModalProps> = ({
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitting || isAdvanceExceeding || amountNum <= 0}
-                className="h-[34px] px-4 bg-[#1A56DB] hover:bg-blue-700 text-white font-medium rounded-lg text-xs shadow-2xs transition-colors flex items-center gap-1.5 disabled:opacity-60"
+                className="h-[34px] px-4 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white font-medium rounded-lg text-xs shadow-2xs transition-colors flex items-center gap-1.5 disabled:opacity-60"
               >
                 {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 <span>Give advance {formatINR(amountNum)}</span>

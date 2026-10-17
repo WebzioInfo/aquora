@@ -298,7 +298,7 @@ export const OwnerDetailDrawer: React.FC<OwnerDetailDrawerProps> = ({
                   <button
                     type="button"
                     onClick={() => onOpenTransact(owner)}
-                    className="mt-4 px-3.5 py-2 bg-[#1A56DB] hover:bg-blue-700 text-white rounded-lg text-xs font-medium inline-flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                    className="mt-4 px-3.5 py-2 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white rounded-lg text-xs font-medium inline-flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
                   >
                     <ArrowLeftRight className="w-3.5 h-3.5" />
                     <span>Record first transaction</span>
@@ -426,7 +426,7 @@ export const OwnerDetailDrawer: React.FC<OwnerDetailDrawerProps> = ({
                   <button
                     type="button"
                     onClick={() => onOpenEdit(owner)}
-                    className="text-[#1A56DB] hover:underline font-semibold flex items-center gap-1.5 cursor-pointer text-xs"
+                    className="text-[#0B7A70] hover:underline font-semibold flex items-center gap-1.5 cursor-pointer text-xs"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                     <span>Edit profile</span>
@@ -529,7 +529,7 @@ export const OwnerDetailDrawer: React.FC<OwnerDetailDrawerProps> = ({
             <button
               type="button"
               onClick={() => onOpenTransact(owner)}
-              className="h-[36px] px-4 bg-[#1A56DB] hover:bg-blue-700 text-white font-medium rounded-lg text-xs shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="h-[36px] px-4 bg-[#05303B] hover:bg-[#0A4352] active:bg-[#031F27] text-white font-medium rounded-lg text-xs shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <ArrowLeftRight className="w-3.5 h-3.5" />
               <span>Transact</span>

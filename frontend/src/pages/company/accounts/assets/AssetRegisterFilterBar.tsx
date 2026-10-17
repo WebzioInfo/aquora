@@ -186,7 +186,7 @@ export const AssetRegisterFilterBar: React.FC<AssetRegisterFiltersProps> = ({
               <button
                 type="button"
                 onClick={handleApplyCustomDate}
-                className="h-[26px] px-2 text-xs bg-[#1A56DB] text-white rounded font-medium hover:bg-[#1746B3] cursor-pointer"
+                className="h-[26px] px-2 text-xs bg-[#05303B] text-white rounded font-medium hover:bg-[#1746B3] cursor-pointer"
               >
                 Apply
               </button>

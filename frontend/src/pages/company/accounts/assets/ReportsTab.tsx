@@ -22,7 +22,7 @@ export const ReportsTab: React.FC<ReportsTabProps> = ({ onExportRegisterCsv }) =
           {/* Card 1: Asset Register */}
           <div className="bg-white rounded-xl border border-[#E5E9F2] p-5 shadow-2xs flex flex-col justify-between">
             <div className="space-y-2.5">
-              <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1A56DB]">
+              <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0B7A70]">
                 <FileSpreadsheet className="w-5 h-5" />
               </div>
               <h3 className="font-semibold text-slate-900 text-sm">

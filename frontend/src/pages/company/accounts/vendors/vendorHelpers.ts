@@ -24,7 +24,7 @@ export const getVendorInitials = (name: string): string => {
 }
 
 const AVATAR_PALETTES = [
-  { bg: '#EFF6FF', text: '#1D4ED8', border: '#BFDBFE' }, // Blue
+  { bg: '#E6F6F4', text: '#0B7A70', border: '#B8E6E0' }, // Blue
   { bg: '#F5F3FF', text: '#6D28D9', border: '#DDD6FE' }, // Purple
   { bg: '#ECFDF5', text: '#047857', border: '#A7F3D0' }, // Emerald
   { bg: '#FFF7ED', text: '#C2410C', border: '#FED7AA' }, // Orange
