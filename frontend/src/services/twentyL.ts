@@ -23,6 +23,38 @@ export interface RateRule {
   createdBy?: string
 }
 
+export interface CommissionRule {
+  id: string
+  beneficiaryCustomerId?: string
+  beneficiaryName?: string
+  productId?: string
+  productName?: string
+  beneficiaryType: string
+  calculationType: 'PERCENTAGE' | 'FIXED_PER_UNIT'
+  value: number
+  minimumQuantity: number
+  effectiveFrom: string
+  effectiveTo?: string | null
+  priority: number
+  isActive: boolean
+  createdAt?: string
+  createdBy?: string
+}
+
+export interface CommissionTransaction {
+  id: string
+  deliveryId: string
+  beneficiaryCustomerId?: string
+  beneficiaryName?: string
+  beneficiaryType: string
+  transactionType: string
+  amount: number
+  occurredAt: string
+  reason?: string
+  createdAt?: string
+  createdBy?: string
+}
+
 export interface JarMovement {
   id: string
   occurredAt: string
@@ -577,6 +609,32 @@ export const twentyLService = {
 
   async getDriverAccountability() {
     const res = await api.get('/api/v1/20l/trips')
+    return res.data?.data
+  },
+
+  // 14. Commission Rules & Transactions
+  async getCommissionRules() {
+    const res = await api.get('/api/v1/20l/commission-rules')
+    return res.data?.data as CommissionRule[]
+  },
+
+  async createCommissionRule(payload: Partial<CommissionRule>) {
+    const res = await api.post('/api/v1/20l/commission-rules', payload)
+    return res.data?.data
+  },
+
+  async updateCommissionRule(id: string, payload: Partial<CommissionRule>) {
+    const res = await api.put(`/api/v1/20l/commission-rules/${id}`, payload)
+    return res.data?.data
+  },
+
+  async deleteCommissionRule(id: string) {
+    const res = await api.delete(`/api/v1/20l/commission-rules/${id}`)
+    return res.data?.data
+  },
+
+  async getCommissionTransactions(params?: { beneficiaryId?: string; page?: number; pageSize?: number }) {
+    const res = await api.get('/api/v1/20l/commission-transactions', { params })
     return res.data?.data
   }
 }

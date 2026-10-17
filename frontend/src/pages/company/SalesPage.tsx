@@ -6,16 +6,19 @@ import {
   Search, Plus, Eye, Edit2, Trash2, X, AlertTriangle,
   User as UserIcon, Calendar, ArrowUpDown, Filter, ChevronLeft, ChevronRight, CheckCircle2,
   Package, ShoppingCart, Info, Phone, Tag, FileSpreadsheet, FileText, Landmark, Printer, Download, ArrowLeft, Send,
-  Clock, RotateCcw, Loader2, History, Coins, TrendingUp, BarChart3, Users
+  Clock, RotateCcw, Loader2, History, Coins, TrendingUp, BarChart3, Users, Settings
 } from 'lucide-react'
 import { api } from '../../services/api'
 import { salesService, type DailySalesTrend } from '../../services/sales'
 import type { SalesTransaction, CreateSalesTransactionRequest, CollectSalesPaymentRequest, SalesPaymentRecord } from '../../services/sales'
 import { productsService } from '../../services/products'
-import { customersService } from '../../services/customers'
+import { customersService, type ApplicablePriceResponseDto } from '../../services/customers'
 import { simpleAccountsService } from '../../services/simpleAccounts'
 import { caseConfigurationsService, type CaseConfiguration } from '../../services/caseConfigurations'
 import { QuickCreateCaseConfigModal } from './sales/QuickCreateCaseConfigModal'
+import { SearchableDropdown } from '../../components/ui/SearchableDropdown'
+import { QuickAddCustomerModal } from '../../components/modals/QuickAddCustomerModal'
+import { CustomerProductPricingModal } from '../../components/modals/CustomerProductPricingModal'
 import { useAuthStore } from '../../store/useAuthStore'
 import { generateERPDocumentPDF } from '../../utils/pdfTemplateEngine'
 import EnterpriseBadge from '../../components/ui/EnterpriseBadge'
@@ -187,8 +190,17 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
   const [formDiscount, setFormDiscount] = useState('')
   const [isGstEnabled, setIsGstEnabled] = useState(false)
   const [formPaymentMethod, setFormPaymentMethod] = useState('Cash')
+  const [formPaymentTerms, setFormPaymentTerms] = useState('Immediate')
+  const [formAmountReceived, setFormAmountReceived] = useState('')
   const [formBankAccountId, setFormBankAccountId] = useState('')
   const [formCashBookId, setFormCashBookId] = useState('')
+
+  // Product-wise Customer Pricing & Quick Add State
+  const [applicablePricing, setApplicablePricing] = useState<ApplicablePriceResponseDto | null>(null)
+  const [isLoadingPrice, setIsLoadingPrice] = useState(false)
+  const [isQuickAddCustomerOpen, setIsQuickAddCustomerOpen] = useState(false)
+  const [isProductPricingModalOpen, setIsProductPricingModalOpen] = useState(false)
+  const [pricingCustomer, setPricingCustomer] = useState<{ id: string; name: string; code?: string } | null>(null)
 
   // Return specific fields
   const [formOriginalInvoice, setFormOriginalInvoice] = useState('')
@@ -478,31 +490,26 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     })
   }
 
-  // Quick Customer Creation navigation
+  // Quick Customer Creation inline modal
   const handleQuickCreateCustomer = () => {
     if (!canWrite) {
       showToast('You do not have write permissions.', 'warning')
       return
     }
-    const salesForm = {
-      formType,
-      formProductId,
-      formCustomerId,
-      formCases,
-      formDate,
-      formRef,
-      formRemarks,
-      isCreateOpen: true
-    }
-    navigate('/company/customers', {
-      state: {
-        fromSales: true,
-        salesForm
-      }
-    })
+    setIsQuickAddCustomerOpen(true)
   }
 
-  // Restore state after customer creation
+  const handleQuickCustomerSuccess = (created: any) => {
+    refetchCustomers()
+    setFormCustomerId(created.id)
+    setCustomerSearch(created.customerName)
+    if (created.paymentTerms) {
+      setFormPaymentTerms(created.paymentTerms)
+    }
+    showToast(`Customer "${created.customerName}" created and selected!`, 'success')
+  }
+
+  // Restore state after customer creation (legacy support)
   useEffect(() => {
     if (location.state?.fromCustomerCreation) {
       const { salesForm, newCreatedCustomerId } = location.state
@@ -524,6 +531,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
         if (createdCustomer) {
           setFormCustomerId(createdCustomer.id)
           setCustomerSearch(createdCustomer.customerName)
+          if (createdCustomer.paymentTerms) setFormPaymentTerms(createdCustomer.paymentTerms)
         }
       })
     }
@@ -534,12 +542,39 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     return products.find(p => p.id === formProductId)
   }, [products, formProductId])
 
-  // Auto-populate unit price on product selection
+  // Resolve applicable price (Negotiated Customer Price -> 20L Rate Rule -> Product Catalog Fallback)
   useEffect(() => {
-    if (selectedProductInForm && selectedProductInForm.sellingPrice !== undefined && selectedProductInForm.sellingPrice > 0) {
+    let isCancelled = false
+    if (formCustomerId && formProductId && formType === 'Sales Dispatch') {
+      setIsLoadingPrice(true)
+      customersService.getApplicablePrice(formCustomerId, formProductId)
+        .then(res => {
+          if (!isCancelled && res) {
+            setApplicablePricing(res)
+            const price = res.applicablePrice ?? res.unitPrice ?? (selectedProductInForm?.sellingPrice || 0)
+            setFormUnitPrice(price.toString())
+          }
+        })
+        .catch(() => {
+          if (!isCancelled) {
+            setApplicablePricing(null)
+            if (selectedProductInForm && selectedProductInForm.sellingPrice !== undefined) {
+              setFormUnitPrice(selectedProductInForm.sellingPrice.toString())
+            }
+          }
+        })
+        .finally(() => {
+          if (!isCancelled) setIsLoadingPrice(false)
+        })
+    } else if (selectedProductInForm && selectedProductInForm.sellingPrice !== undefined) {
+      setApplicablePricing(null)
       setFormUnitPrice(selectedProductInForm.sellingPrice.toString())
+    } else {
+      setApplicablePricing(null)
     }
-  }, [formProductId, selectedProductInForm])
+
+    return () => { isCancelled = true }
+  }, [formCustomerId, formProductId, formType, selectedProductInForm])
 
   const selectedCustomerInForm = useMemo(() => {
     return customers.find(c => c.id === formCustomerId)
@@ -763,6 +798,9 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     setFormDiscount('')
     setIsGstEnabled(false)
     setFormPaymentMethod('Credit')
+    setFormPaymentTerms('Immediate')
+    setFormAmountReceived('')
+    setApplicablePricing(null)
     setFormBankAccountId('')
     setFormCashBookId('')
     setFormOriginalInvoice('')
@@ -884,6 +922,8 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     setFormDiscount(txn.discountAmount?.toString() || '')
     setIsGstEnabled((txn.taxAmount || 0) > 0)
     setFormPaymentMethod(txn.paymentMethod || 'Credit')
+    setFormPaymentTerms(txn.paymentTerms || 'Immediate')
+    setFormAmountReceived(txn.amountReceived !== undefined ? txn.amountReceived.toString() : '')
     setFormBankAccountId(txn.bankAccountId || '')
     setFormCashBookId(txn.cashBookId || '')
 
@@ -1039,6 +1079,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       referenceNumber: formRef ? formRef.trim() : undefined,
       remarks: formRemarks ? formRemarks.trim() : undefined,
       paymentMethod: effectivePaymentMethod,
+      paymentTerms: formPaymentTerms,
       bankAccountId: formBankAccountId || undefined,
       cashBookId: formCashBookId || undefined,
       unitPrice: up,
@@ -1049,7 +1090,12 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       igst: 0,
       metadataJson: JSON.stringify(meta),
       totalAmount: sub + tax,
-      amountReceived: effectivePaymentMethod === 'Credit' || effectivePaymentMethod === 'Credit Note' ? 0 : (sub + tax),
+      amountReceived: (() => {
+        if (effectivePaymentMethod === 'Credit' || effectivePaymentMethod === 'Credit Note') return 0
+        if (formAmountReceived !== '') return Math.max(0, parseFloat(formAmountReceived) || 0)
+        if (formPaymentTerms === 'COD') return 0
+        return sub + tax
+      })(),
       returnedAmount: formType === 'Customer Return' ? (parseFloat(formCases) || 0) * (parseFloat(formUnitPrice) || 0) : 0,
       refundAmount: (formType === 'Customer Return' && formSettlementMethod === 'Refund') ? (parseFloat(formCases) || 0) * (parseFloat(formUnitPrice) || 0) : 0,
       adjustmentAmount: (formType === 'Customer Return' && formSettlementMethod === 'Deduct from Customer Credit') ? (parseFloat(formCases) || 0) * (parseFloat(formUnitPrice) || 0) : 0,
@@ -2504,37 +2550,29 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
               {/* Sales Dispatch Conditional UI */}
               {formType === 'Sales Dispatch' && (
                 <div className="space-y-4 border-t border-slate-100 pt-4">
-                  {/* Customer search selection */}
-                  <div className="flex flex-col relative">
-                    <PremiumLabel label="Customer *" />
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          placeholder="Search customer..."
-                          value={customerSearch}
-                          onChange={(e) => { setCustomerSearch(e.target.value); setIsCustomerDropdownOpen(true); }}
-                          onFocus={() => setIsCustomerDropdownOpen(true)}
-                          className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none font-medium"
-                        />
-                        {isCustomerDropdownOpen && (
-                          <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                            {filteredCustomersForForm.map(c => (
-                              <button
-                                key={c.id}
-                                type="button"
-                                onClick={() => { setFormCustomerId(c.id); setCustomerSearch(c.customerName); setIsCustomerDropdownOpen(false); }}
-                                className="w-full text-left py-2 px-3 hover:bg-slate-50 text-xs text-slate-700 font-medium"
-                              >
-                                {c.customerName} ({c.customerCode})
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <button type="button" onClick={handleQuickCreateCustomer} className="px-3 border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-lg text-xs font-bold">+ New Customer</button>
-                    </div>
-                  </div>
+                  {/* Customer search selection with Database-Backed SearchableDropdown & Quick Add */}
+                  <SearchableDropdown
+                    label="Customer *"
+                    required
+                    value={formCustomerId}
+                    onChange={(val) => {
+                      setFormCustomerId(val)
+                      const found = customers.find(c => c.id === val)
+                      if (found) {
+                        setCustomerSearch(found.customerName)
+                        if (found.paymentTerms) setFormPaymentTerms(found.paymentTerms)
+                      }
+                    }}
+                    options={customers.map(c => ({
+                      id: c.id,
+                      name: c.customerName,
+                      subtitle: c.phone || c.customerCode,
+                      badge: c.customerType
+                    }))}
+                    placeholder="Search customer by name, code, or phone..."
+                    onQuickAdd={handleQuickCreateCustomer}
+                    quickAddLabel="+ Quick Add Customer"
+                  />
 
                   <div className="grid grid-cols-2 gap-4">
                     <EnterpriseNumberInput label="Cases Quantity *" value={formCases} onChange={(e) => setFormCases(e.target.value)} placeholder="0" allowDecimals={false} />
@@ -2543,6 +2581,65 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                       <input type="number" step="0.01" value={formUnitPrice} onChange={(e) => setFormUnitPrice(e.target.value)} placeholder={selectedProductInForm?.sellingPrice?.toString() || '0.00'} className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg font-semibold focus:outline-none focus:border-blue-500" />
                     </div>
                   </div>
+
+                  {/* Applicable Pricing Engine Banner */}
+                  {formCustomerId && formProductId && (
+                    <div className="p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl text-xs space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Tag className="w-3.5 h-3.5 text-blue-600" />
+                          <span className="font-bold text-blue-900">
+                            {isLoadingPrice ? (
+                              'Resolving applicable price...'
+                            ) : applicablePricing ? (
+                              <>
+                                Price Source: <span className="font-extrabold text-blue-700">{applicablePricing.source === 'CustomerCustomPrice' ? 'Negotiated Customer Price' : applicablePricing.source === 'TwentyLRateRule' ? '20L Tier Rule' : 'Product Catalog Standard'}</span> (₹{applicablePricing.applicablePrice.toFixed(2)}/case)
+                              </>
+                            ) : (
+                              'Standard Price Applied'
+                            )}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const c = customers.find(cust => cust.id === formCustomerId)
+                            if (c) {
+                              setPricingCustomer({ id: c.id, name: c.customerName, code: c.customerCode })
+                              setIsProductPricingModalOpen(true)
+                            }
+                          }}
+                          className="text-[11px] font-bold text-blue-600 hover:text-blue-800 underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Settings className="w-3 h-3" />
+                          Manage Negotiated Prices
+                        </button>
+                      </div>
+
+                      {applicablePricing && (applicablePricing.lastPriceCharged || applicablePricing.lastTransactionDate) && (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1.5 border-t border-blue-200/60 text-[11px] text-blue-950">
+                          <div>
+                            <span className="text-slate-500 block text-[10px]">Last Price:</span>
+                            <span className="font-bold">₹{applicablePricing.lastPriceCharged?.toFixed(2) || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 block text-[10px]">Last Dispatched:</span>
+                            <span className="font-bold">{applicablePricing.lastTransactionDate ? new Date(applicablePricing.lastTransactionDate).toLocaleDateString() : 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 block text-[10px]">Last Qty:</span>
+                            <span className="font-bold">{applicablePricing.lastQuantityCases ? `${applicablePricing.lastQuantityCases} Cases` : 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 block text-[10px]">Current Balance:</span>
+                            <span className={`font-bold ${(applicablePricing.outstandingBalance || 0) > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                              ₹{(applicablePricing.outstandingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Order Overview & Conversion Card */}
                   {formProductId && (
@@ -2598,24 +2695,113 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                     </div>
                   </div>
 
-                  {/* Payment Type Selection */}
+                  {/* Payment Type Selection & Terms */}
                   <div className="border-t border-slate-100 pt-4 space-y-4">
-                    <div className="flex flex-col">
-                      <PremiumLabel label="Payment Method *" />
-                      <div className="flex gap-3">
-                        {['Cash', 'Bank', 'Credit', 'UPI', 'Cheque'].map(m => (
-                          <button
-                            key={m}
-                            type="button"
-                            onClick={() => setFormPaymentMethod(m)}
-                            className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${formPaymentMethod === m ? 'bg-blue-600 text-white border-blue-600 shadow' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                              }`}
-                          >
-                            {m}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    {(() => {
+                      const casesNum = parseFloat(formCases) || 0;
+                      const priceNum = parseFloat(formUnitPrice) || (selectedProductInForm?.sellingPrice || 0);
+                      const discountNum = parseFloat(formDiscount) || 0;
+                      const subtotalNum = Math.max(0, casesNum * priceNum - discountNum);
+                      const gstNum = isGstEnabled ? subtotalNum * 0.18 : 0;
+                      const currentTotal = Math.round((subtotalNum + gstNum) * 100) / 100;
+                      const receivedNum = parseFloat(formAmountReceived) || 0;
+                      const pendingBalance = Math.max(0, currentTotal - receivedNum);
+
+                      return (
+                        <>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="flex flex-col">
+                              <PremiumLabel label="Payment Method *" />
+                              <div className="flex gap-2">
+                                {['Cash', 'Bank', 'Credit', 'UPI', 'Cheque'].map(m => (
+                                  <button
+                                    key={m}
+                                    type="button"
+                                    onClick={() => {
+                                      setFormPaymentMethod(m);
+                                      if (m === 'Credit') {
+                                        setFormAmountReceived('0');
+                                        setFormPaymentTerms('Credit');
+                                      } else if (formPaymentTerms === 'Immediate') {
+                                        setFormAmountReceived(currentTotal.toString());
+                                      }
+                                    }}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${formPaymentMethod === m ? 'bg-blue-600 text-white border-blue-600 shadow' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                                  >
+                                    {m}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col">
+                              <PremiumLabel label="Payment Terms *" />
+                              <select
+                                value={formPaymentTerms}
+                                onChange={(e) => {
+                                  const terms = e.target.value;
+                                  setFormPaymentTerms(terms);
+                                  if (terms === 'COD' || terms === 'Credit' || terms.startsWith('Net')) {
+                                    if (formPaymentMethod === 'Credit' || terms === 'COD') {
+                                      setFormAmountReceived('0');
+                                    }
+                                  } else if (terms === 'Immediate') {
+                                    setFormAmountReceived(currentTotal.toString());
+                                  }
+                                }}
+                                className="w-full h-[40px] px-3 border border-slate-200 rounded-lg text-xs bg-white font-semibold focus:outline-none focus:border-blue-500 cursor-pointer"
+                              >
+                                <option value="Immediate">Immediate / Advance</option>
+                                <option value="COD">Cash on Delivery (COD)</option>
+                                <option value="Net 7">Net 7 Days</option>
+                                <option value="Net 15">Net 15 Days</option>
+                                <option value="Net 30">Net 30 Days</option>
+                                <option value="Credit">Credit Agreement</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Flexible Amount Received Card */}
+                          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                            <div className="flex items-center justify-between">
+                              <PremiumLabel label="Amount Received Now (₹)" />
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setFormAmountReceived(currentTotal.toString())}
+                                  className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 rounded cursor-pointer"
+                                >
+                                  Pay Full (₹{currentTotal.toFixed(2)})
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setFormAmountReceived('0')}
+                                  className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 hover:bg-amber-200 rounded cursor-pointer"
+                                >
+                                  COD / Pending (₹0)
+                                </button>
+                              </div>
+                            </div>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max={currentTotal}
+                              value={formAmountReceived}
+                              onChange={(e) => setFormAmountReceived(e.target.value)}
+                              placeholder={`0.00 (Max: ₹${currentTotal.toFixed(2)})`}
+                              className="w-full h-[38px] px-3 border border-slate-200 text-sm font-semibold rounded-lg bg-white focus:outline-none focus:border-blue-500"
+                            />
+                            <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium px-1">
+                              <span>Total Invoice: <strong className="text-slate-800">₹{currentTotal.toFixed(2)}</strong></span>
+                              <span>Pending Balance: <strong className={pendingBalance > 0 ? 'text-amber-700 font-bold' : 'text-emerald-700 font-bold'}>
+                                ₹{pendingBalance.toFixed(2)}
+                              </strong></span>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
 
                     {/* Credit Details & Limit Warning */}
                     {formPaymentMethod === 'Credit' && selectedCustomerInForm && (
@@ -2679,31 +2865,23 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
               {formType === 'Customer Return' && (
                 <div className="space-y-4 border-t border-slate-100 pt-4">
                   {/* Customer search selection */}
-                  <div className="flex flex-col relative">
-                    <PremiumLabel label="Customer *" />
-                    <input
-                      type="text"
-                      placeholder="Select return customer..."
-                      value={customerSearch}
-                      onChange={(e) => { setCustomerSearch(e.target.value); setIsCustomerDropdownOpen(true); }}
-                      onFocus={() => setIsCustomerDropdownOpen(true)}
-                      className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none font-medium"
-                    />
-                    {isCustomerDropdownOpen && (
-                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                        {filteredCustomersForForm.map(c => (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onClick={() => { setFormCustomerId(c.id); setCustomerSearch(c.customerName); setIsCustomerDropdownOpen(false); }}
-                            className="w-full text-left py-2 px-3 hover:bg-slate-50 text-xs text-slate-700 font-medium"
-                          >
-                            {c.customerName}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <SearchableDropdown
+                    label="Customer *"
+                    required
+                    value={formCustomerId}
+                    onChange={(val) => {
+                      setFormCustomerId(val)
+                      const found = customers.find(c => c.id === val)
+                      if (found) setCustomerSearch(found.customerName)
+                    }}
+                    options={customers.map(c => ({
+                      id: c.id,
+                      name: c.customerName,
+                      subtitle: c.phone || c.customerCode,
+                      badge: c.customerType
+                    }))}
+                    placeholder="Select return customer..."
+                  />
 
                   <div className="grid grid-cols-2 gap-4">
                     <EnterpriseNumberInput label="Returned Cases *" value={formCases} onChange={(e) => setFormCases(e.target.value)} placeholder="0" allowDecimals={false} />
@@ -2915,31 +3093,23 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
               {formType === 'Free Sample' && (
                 <div className="space-y-4 border-t border-slate-100 pt-4">
                   {/* Customer search selection */}
-                  <div className="flex flex-col relative">
-                    <PremiumLabel label="Customer *" />
-                    <input
-                      type="text"
-                      placeholder="Select customer target..."
-                      value={customerSearch}
-                      onChange={(e) => { setCustomerSearch(e.target.value); setIsCustomerDropdownOpen(true); }}
-                      onFocus={() => setIsCustomerDropdownOpen(true)}
-                      className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none"
-                    />
-                    {isCustomerDropdownOpen && (
-                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                        {filteredCustomersForForm.map(c => (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onClick={() => { setFormCustomerId(c.id); setCustomerSearch(c.customerName); setIsCustomerDropdownOpen(false); }}
-                            className="w-full text-left py-2 px-3 hover:bg-slate-50 text-xs text-slate-700"
-                          >
-                            {c.customerName}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <SearchableDropdown
+                    label="Customer *"
+                    required
+                    value={formCustomerId}
+                    onChange={(val) => {
+                      setFormCustomerId(val)
+                      const found = customers.find(c => c.id === val)
+                      if (found) setCustomerSearch(found.customerName)
+                    }}
+                    options={customers.map(c => ({
+                      id: c.id,
+                      name: c.customerName,
+                      subtitle: c.phone || c.customerCode,
+                      badge: c.customerType
+                    }))}
+                    placeholder="Select customer target..."
+                  />
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col">
@@ -3742,6 +3912,49 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
         productName={products.find(p => p.id === formProductId)?.name}
         onSuccess={handleQuickCreateConfigSuccess}
       />
+
+      {/* Quick Add Customer / Distributor Modal */}
+      <QuickAddCustomerModal
+        isOpen={isQuickAddCustomerOpen}
+        onClose={() => setIsQuickAddCustomerOpen(false)}
+        onSuccess={(newCustomer) => {
+          setFormCustomerId(newCustomer.id)
+          setCustomerSearch(newCustomer.customerName)
+          if (newCustomer.paymentTerms) setFormPaymentTerms(newCustomer.paymentTerms)
+        }}
+      />
+
+      {/* Customer Product-Wise Pricing Modal */}
+      {pricingCustomer && (
+        <CustomerProductPricingModal
+          isOpen={isProductPricingModalOpen}
+          onClose={() => {
+            setIsProductPricingModalOpen(false)
+            setPricingCustomer(null)
+          }}
+          customerId={pricingCustomer.id}
+          customerName={pricingCustomer.name}
+          customerCode={pricingCustomer.code}
+          products={products.map(p => ({
+            id: p.id,
+            name: p.name,
+            sku: p.sku || '',
+            baseSellingPrice: p.sellingPrice || 0
+          }))}
+          onSaved={() => {
+            if (formCustomerId && formProductId) {
+              customersService.getApplicablePrice(formCustomerId, formProductId)
+                .then(res => {
+                  setApplicablePricing(res)
+                  if (res?.applicablePrice != null) {
+                    setFormUnitPrice(res.applicablePrice.toString())
+                  }
+                })
+                .catch(() => {})
+            }
+          }}
+        />
+      )}
     </PageContainer>
   )
 }

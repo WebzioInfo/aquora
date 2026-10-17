@@ -633,7 +633,7 @@ export const CustomersPage: React.FC = () => {
       outstandingPlaceholder: customer.outstandingPlaceholder || 0,
       ledgerPlaceholder: customer.ledgerPlaceholder || '',
       accountingPlaceholder: customer.accountingPlaceholder || '',
-      distributorType: customer.distributorType || '',
+      distributorType: customer.distributorType === 'Company Distributor' ? 'Normal Distributor' : (customer.distributorType || ''),
       commissionPercentage: customer.commissionPercentage || 0,
       monthlySalary: customer.monthlySalary || 0,
       securityDeposit: customer.securityDeposit || 0,

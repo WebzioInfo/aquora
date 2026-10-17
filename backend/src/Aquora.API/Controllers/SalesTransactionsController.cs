@@ -236,6 +236,7 @@ namespace Aquora.API.Controllers
                     Remarks = t.Remarks,
                     Status = t.Status,
                     PaymentMethod = t.PaymentMethod,
+                    PaymentTerms = t.PaymentTerms,
                     BankAccountId = t.BankAccountId,
                     BankAccountName = t.BankAccountId.HasValue && bankAccountsDict.TryGetValue(t.BankAccountId.Value, out var bName) ? bName : null,
                     CashBookId = t.CashBookId,
@@ -320,6 +321,7 @@ namespace Aquora.API.Controllers
                     Remarks = txn.Remarks,
                     Status = txn.Status,
                     PaymentMethod = txn.PaymentMethod,
+                    PaymentTerms = txn.PaymentTerms,
                     BankAccountId = txn.BankAccountId,
                     BankAccountName = bankAccount?.BankName,
                     CashBookId = txn.CashBookId,
@@ -488,9 +490,21 @@ namespace Aquora.API.Controllers
 
                 if (request.TransactionType == "Sales Dispatch")
                 {
-                    if (request.UnitPrice <= 0 && product.SellingPrice > 0)
+                    if (request.UnitPrice <= 0)
                     {
-                        request.UnitPrice = product.SellingPrice;
+                        var custPrice = await _tenantContext.CustomerProductPrices
+                            .Where(cp => cp.TenantId == tenantId && cp.CustomerId == customer.Id && cp.ProductId == product.Id && cp.IsActive && !cp.IsDeleted)
+                            .OrderByDescending(cp => cp.CreatedAt)
+                            .FirstOrDefaultAsync();
+
+                        if (custPrice != null && custPrice.CustomPrice > 0)
+                        {
+                            request.UnitPrice = custPrice.CustomPrice;
+                        }
+                        else if (product.SellingPrice > 0)
+                        {
+                            request.UnitPrice = product.SellingPrice;
+                        }
                     }
 
                     if (request.TotalAmount <= 0 && request.Cases > 0)
@@ -499,7 +513,12 @@ namespace Aquora.API.Controllers
                     }
                     totalAmount = request.TotalAmount;
 
-                    var isCreditSale = string.Equals(request.PaymentMethod, "Credit", StringComparison.OrdinalIgnoreCase);
+                    var isCreditSale = string.Equals(request.PaymentMethod, "Credit", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(request.PaymentTerms, "Credit", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(request.PaymentTerms, "Net 7", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(request.PaymentTerms, "Net 15", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(request.PaymentTerms, "Net 30", StringComparison.OrdinalIgnoreCase);
+
                     if (isCreditSale)
                     {
                         if (customer == null || customer.CustomerCode == "CUST-SYS" || request.CustomerId == Guid.Empty)
@@ -517,18 +536,36 @@ namespace Aquora.API.Controllers
                                 HttpContext.TraceIdentifier));
                         }
 
-                        amountReceived = 0m;
-                        outstandingAmount = totalAmount;
-                        paymentStatus = "Pending";
+                        amountReceived = request.AmountReceived > 0 ? request.AmountReceived : 0m;
+                        outstandingAmount = Math.Max(0m, totalAmount - amountReceived);
+                        paymentStatus = outstandingAmount <= 0 ? "Paid" : (amountReceived <= 0 ? "Pending" : "Partial");
 
-                        customer.OutstandingPlaceholder += outstandingAmount;
-                        AppendCustomerLedgerEntry(customer, "Sales Dispatch (Credit)", txnNumber, totalAmount, 0m, customer.OutstandingPlaceholder);
+                        if (outstandingAmount > 0)
+                        {
+                            customer.OutstandingPlaceholder += outstandingAmount;
+                        }
+                        AppendCustomerLedgerEntry(customer, $"Sales Dispatch ({request.PaymentTerms ?? "Credit"})", txnNumber, totalAmount, amountReceived, customer.OutstandingPlaceholder);
                     }
                     else
                     {
-                        amountReceived = request.AmountReceived > 0 ? request.AmountReceived : totalAmount;
-                        outstandingAmount = Math.Max(0m, totalAmount - amountReceived);
-                        paymentStatus = outstandingAmount <= 0 ? "Paid" : (amountReceived <= 0 ? "Pending" : "Partial");
+                        if (request.AmountReceived > 0)
+                        {
+                            amountReceived = request.AmountReceived;
+                            outstandingAmount = Math.Max(0m, totalAmount - amountReceived);
+                            paymentStatus = outstandingAmount <= 0 ? "Paid" : "Partial";
+                        }
+                        else if (string.Equals(request.PaymentTerms, "COD", StringComparison.OrdinalIgnoreCase))
+                        {
+                            amountReceived = 0m;
+                            outstandingAmount = totalAmount;
+                            paymentStatus = "Pending";
+                        }
+                        else
+                        {
+                            amountReceived = totalAmount;
+                            outstandingAmount = 0m;
+                            paymentStatus = "Paid";
+                        }
 
                         if (outstandingAmount > 0)
                         {
@@ -719,6 +756,7 @@ namespace Aquora.API.Controllers
                     Remarks = request.Remarks?.Trim(),
                     Status = "Completed",
                     PaymentMethod = request.PaymentMethod,
+                    PaymentTerms = request.PaymentTerms ?? "Immediate",
                     BankAccountId = request.BankAccountId,
                     CashBookId = request.CashBookId,
                     UnitPrice = request.UnitPrice,
@@ -848,6 +886,7 @@ namespace Aquora.API.Controllers
                     Remarks = transaction.Remarks,
                     Status = transaction.Status,
                     PaymentMethod = transaction.PaymentMethod,
+                    PaymentTerms = transaction.PaymentTerms,
                     BankAccountId = transaction.BankAccountId,
                     BankAccountName = transaction.BankAccountId.HasValue ? (await _tenantContext.BankAccounts.FindAsync(transaction.BankAccountId.Value))?.BankName : null,
                     CashBookId = transaction.CashBookId,
@@ -2512,6 +2551,7 @@ namespace Aquora.API.Controllers
 
         // Simple Accounts V1 & New ERP Fields
         public string? PaymentMethod { get; set; }
+        public string? PaymentTerms { get; set; }
         public Guid? BankAccountId { get; set; }
         public string? BankAccountName { get; set; }
         public Guid? CashBookId { get; set; }
@@ -2558,6 +2598,7 @@ namespace Aquora.API.Controllers
 
         // Simple Accounts V1 & New ERP Fields
         public string? PaymentMethod { get; set; }
+        public string? PaymentTerms { get; set; }
         public Guid? BankAccountId { get; set; }
         public Guid? CashBookId { get; set; }
         public decimal UnitPrice { get; set; }

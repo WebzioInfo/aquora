@@ -102,11 +102,71 @@ export interface QuickCreateCustomerRequest {
   customerName: string
   phone: string
   customerType?: string
+  distributorType?: string
+  businessName?: string
+  email?: string
   assignedVehicle?: string
   assignedRoute?: string
   addressLine1?: string
   city?: string
   paymentTerms?: string
+  openingBalance?: number
+  balanceType?: string
+}
+
+export interface CustomerProductPriceDto {
+  id: string
+  customerId: string
+  customerName?: string
+  productId: string
+  productName?: string
+  productSku?: string
+  customPrice: number
+  discountPercentage?: number
+  effectiveFrom: string
+  effectiveTo?: string | null
+  notes?: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt?: string | null
+}
+
+export interface SaveCustomerProductPriceRequest {
+  productId: string
+  customPrice: number
+  discountPercentage?: number
+  effectiveFrom?: string
+  effectiveTo?: string | null
+  notes?: string | null
+  isActive?: boolean
+}
+
+export interface CustomerPricingHistoryDto {
+  lastPriceCharged?: number | null
+  lastTransactionDate?: string | null
+  lastQuantity?: number | null
+  lastCases?: number | null
+  lastPaymentStatus?: string | null
+  customerOutstandingBalance?: number | null
+  outstandingBalance?: number | null
+}
+
+export interface ApplicablePriceResponseDto {
+  customerId: string
+  customerName: string
+  productId: string
+  productName: string
+  applicablePrice: number
+  unitPrice?: number
+  priceSource: string
+  source?: string
+  standardSellingPrice?: number
+  negotiatedPrice?: number | null
+  history?: CustomerPricingHistoryDto
+  lastPriceCharged?: number | null
+  lastTransactionDate?: string | null
+  lastQuantityCases?: number | null
+  outstandingBalance?: number | null
 }
 
 export interface CreateCustomerRequest {
@@ -342,8 +402,41 @@ export const customersService = {
   recordPayment: async (id: string, data: RecordCustomerPaymentRequest): Promise<ApiResponse<Customer>> => {
     const response = await api.post<ApiResponse<Customer>>(`/api/v1/customers/${id}/payments`, data)
     return response.data
+  },
+
+  getProductPrices: async (customerId: string): Promise<ApiResponse<CustomerProductPriceDto[]>> => {
+    const response = await api.get<ApiResponse<CustomerProductPriceDto[]>>(`/api/v1/customers/${customerId}/product-prices`)
+    return response.data
+  },
+
+  saveProductPrice: async (customerId: string, data: SaveCustomerProductPriceRequest): Promise<ApiResponse<CustomerProductPriceDto>> => {
+    const response = await api.post<ApiResponse<CustomerProductPriceDto>>(`/api/v1/customers/${customerId}/product-prices`, data)
+    return response.data
+  },
+
+  deleteProductPrice: async (customerId: string, id: string): Promise<ApiResponse<boolean>> => {
+    const response = await api.delete<ApiResponse<boolean>>(`/api/v1/customers/${customerId}/product-prices/${id}`)
+    return response.data
+  },
+
+  getApplicablePrice: async (customerId: string, productId: string): Promise<ApplicablePriceResponseDto> => {
+    const response = await api.get<ApiResponse<ApplicablePriceResponseDto>>(`/api/v1/customers/${customerId}/pricing/${productId}`)
+    const data = response.data.data
+    if (data) {
+      data.source = data.priceSource
+      data.unitPrice = data.applicablePrice
+      if (data.history) {
+        data.lastPriceCharged = data.history.lastPriceCharged
+        data.lastTransactionDate = data.history.lastTransactionDate
+        data.lastQuantityCases = data.history.lastQuantity
+        data.outstandingBalance = data.history.customerOutstandingBalance
+      }
+    }
+    return data
   }
 }
+
+export const customerService = customersService
 
 export interface RecordCustomerPaymentRequest {
   amount: number

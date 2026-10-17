@@ -1106,6 +1106,34 @@ namespace Aquora.Persistence.Services
                         CREATE INDEX IF NOT EXISTS ""IX_TwentyLCommissionRules_Effective"" ON ""{schema}"".""TwentyLCommissionRules"" (""TenantId"", ""BeneficiaryCustomerId"", ""ProductId"", ""EffectiveFrom"", ""EffectiveTo"");";
                     await cmd.ExecuteNonQueryAsync();
                 }
+                else if (table.Equals("CustomerProductPrices", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.CommandText = $@"
+                        CREATE TABLE IF NOT EXISTS ""{schema}"".""CustomerProductPrices"" (
+                            ""Id"" uuid NOT NULL PRIMARY KEY,
+                            ""TenantId"" uuid NOT NULL,
+                            ""CompanyId"" uuid NOT NULL,
+                            ""CustomerId"" uuid NOT NULL,
+                            ""ProductId"" uuid NOT NULL,
+                            ""CustomPrice"" numeric NOT NULL DEFAULT 0.0,
+                            ""DiscountPercentage"" numeric NULL,
+                            ""EffectiveFrom"" timestamp with time zone NULL,
+                            ""EffectiveTo"" timestamp with time zone NULL,
+                            ""IsActive"" boolean NOT NULL DEFAULT true,
+                            ""Notes"" text NULL,
+                            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            ""CreatedBy"" text NOT NULL DEFAULT 'System',
+                            ""UpdatedAt"" timestamp with time zone NULL,
+                            ""UpdatedBy"" text NULL,
+                            ""CreatedByIP"" text NULL,
+                            ""UpdatedByIP"" text NULL,
+                            ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                            ""DeletedAt"" timestamp with time zone NULL,
+                            ""DeletedBy"" text NULL
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_CustomerProductPrices_Lookup"" ON ""{schema}"".""CustomerProductPrices"" (""TenantId"", ""CustomerId"", ""ProductId"", ""IsActive"", ""IsDeleted"");";
+                    await cmd.ExecuteNonQueryAsync();
+                }
                 else if (table.Equals("TwentyLCommissionTransactions", StringComparison.OrdinalIgnoreCase))
                 {
                     cmd.CommandText = $@"

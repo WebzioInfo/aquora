@@ -102,11 +102,11 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, handleFormChan
             <PremiumSelect
               label="Distributor Type"
               name="distributorType"
-              value={formData.distributorType}
+              value={formData.distributorType === 'Company Distributor' ? 'Normal Distributor' : formData.distributorType}
               onChange={handleFormChange}
             >
               <option value="">-- Select Type --</option>
-              <option value="Company Distributor">Company Distributor</option>
+              <option value="Normal Distributor">Normal Distributor</option>
               <option value="Commission Distributor">Commission Distributor</option>
               <option value="Salary Distributor">Salary Distributor</option>
             </PremiumSelect>
