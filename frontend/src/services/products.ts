@@ -12,6 +12,8 @@ export interface Product {
   sellingPrice?: number
   costPrice?: number
   unitCost?: number
+  /** Optional product-specific GST rate. A missing value deliberately has no implicit rate. */
+  gstRate?: number | null
   createdAt: string
   updatedAt: string | null
 }
@@ -37,6 +39,7 @@ export interface CreateProductRequest {
   sku?: string
   isActive?: boolean
   openingStock?: number
+  gstRate?: number | null
 }
 
 export interface UpdateProductRequest {
@@ -45,6 +48,7 @@ export interface UpdateProductRequest {
   sku?: string
   isActive: boolean
   currentStock?: number
+  gstRate?: number | null
 }
 
 export const productsService = {

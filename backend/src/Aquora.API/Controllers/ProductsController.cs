@@ -84,6 +84,7 @@ namespace Aquora.API.Controllers
                         SellingPrice = p.SellingPrice,
                         CostPrice = p.CostPrice,
                         UnitCost = p.CostPrice,
+                        GstRate = p.GstRate,
                         Category = p.Category,
                         DisplayOrder = p.DisplayOrder,
                         BottleSize = p.BottleSize,
@@ -130,6 +131,7 @@ namespace Aquora.API.Controllers
                     SellingPrice = product.SellingPrice,
                     CostPrice = product.CostPrice,
                     UnitCost = product.CostPrice,
+                    GstRate = product.GstRate,
                     Category = product.Category,
                     DisplayOrder = product.DisplayOrder,
                     BottleSize = product.BottleSize,
@@ -197,6 +199,7 @@ namespace Aquora.API.Controllers
                     SKU = string.IsNullOrWhiteSpace(request.SKU) ? null : request.SKU.Trim(),
                     IsActive = request.IsActive,
                     CurrentStock = 0.0m, // Initialize to 0, balance engine will set it
+                    GstRate = request.GstRate,
                     Category = request.Category,
                     DisplayOrder = request.DisplayOrder,
                     BottleSize = request.BottleSize,
@@ -268,6 +271,7 @@ namespace Aquora.API.Controllers
                     SellingPrice = product.SellingPrice,
                     CostPrice = product.CostPrice,
                     UnitCost = product.CostPrice,
+                    GstRate = product.GstRate,
                     Category = product.Category,
                     DisplayOrder = product.DisplayOrder,
                     BottleSize = product.BottleSize,
@@ -353,6 +357,7 @@ namespace Aquora.API.Controllers
                     product.ImageUrl = request.ImageUrl;
                     if (request.SellingPrice.HasValue) product.SellingPrice = request.SellingPrice.Value;
                     if (request.CostPrice.HasValue) product.CostPrice = request.CostPrice.Value;
+                    if (request.GstRate.HasValue) product.GstRate = request.GstRate.Value;
 
                     if (request.CurrentStock.HasValue && request.CurrentStock.Value != product.CurrentStock)
                     {
@@ -408,6 +413,7 @@ namespace Aquora.API.Controllers
                     CurrentStock = product.CurrentStock,
                     SellingPrice = product.SellingPrice,
                     CostPrice = product.CostPrice,
+                    GstRate = product.GstRate,
                     Category = product.Category,
                     DisplayOrder = product.DisplayOrder,
                     BottleSize = product.BottleSize,

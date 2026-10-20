@@ -31,6 +31,9 @@ export interface SalesTransaction {
   unitPrice?: number
   discountAmount?: number
   taxAmount?: number
+  gstRate?: number
+  isGstApplicable?: boolean
+  taxTreatment?: string | null
   cgst?: number
   sgst?: number
   igst?: number
@@ -80,6 +83,9 @@ export interface CreateSalesTransactionRequest {
   unitPrice?: number
   discountAmount?: number
   taxAmount?: number
+  gstRate?: number
+  isGstApplicable?: boolean
+  taxTreatment?: string
   cgst?: number
   sgst?: number
   igst?: number

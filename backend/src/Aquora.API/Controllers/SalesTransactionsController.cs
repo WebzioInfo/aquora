@@ -76,6 +76,34 @@ namespace Aquora.API.Controllers
                  method.Equals("UPI", StringComparison.OrdinalIgnoreCase) ||
                  method.Equals("Cheque", StringComparison.OrdinalIgnoreCase));
         }
+
+        private static void CalculateDispatchTax(CreateSalesTransactionRequest request, Product product)
+        {
+            if (!request.IsGstApplicable)
+            {
+                request.GstRate = 0m;
+                request.TaxAmount = request.CGST = request.SGST = request.IGST = 0m;
+                return;
+            }
+            var isProductConfiguredRate = product.GstRate.HasValue && product.GstRate.Value == request.GstRate;
+            if (!new[] { 0m, 5m, 12m, 18m, 28m }.Contains(request.GstRate) && !isProductConfiguredRate)
+                throw new InvalidOperationException("GST rate must be one of 0%, 5%, 12%, 18%, or 28%, or the product's configured GST rate.");
+
+            var taxableAmount = Math.Max(0m, (request.Cases * request.UnitPrice) - request.DiscountAmount);
+            request.TaxAmount = Math.Round(taxableAmount * request.GstRate / 100m, 2, MidpointRounding.AwayFromZero);
+            if (string.Equals(request.TaxTreatment, "InterState", StringComparison.OrdinalIgnoreCase))
+            {
+                request.CGST = request.SGST = 0m;
+                request.IGST = request.TaxAmount;
+            }
+            else
+            {
+                request.CGST = Math.Round(request.TaxAmount / 2m, 2, MidpointRounding.AwayFromZero);
+                request.SGST = request.TaxAmount - request.CGST;
+                request.IGST = 0m;
+                request.TaxTreatment = "IntraState";
+            }
+        }
         private bool IsAuthorizedToWrite()
         {
             var allowedRoles = new[] { "Owner", "CompanyOwner", "SuperAdmin", "PlatformAdmin", "CompanyAdmin", "Accountant", "Admin", "Manager", "Sales" };
@@ -244,6 +272,9 @@ namespace Aquora.API.Controllers
                     UnitPrice = t.UnitPrice,
                     DiscountAmount = t.DiscountAmount,
                     TaxAmount = t.TaxAmount,
+                    GstRate = t.GstRate,
+                    IsGstApplicable = t.IsGstApplicable,
+                    TaxTreatment = t.TaxTreatment,
                     CGST = t.CGST,
                     SGST = t.SGST,
                     IGST = t.IGST,
@@ -329,6 +360,9 @@ namespace Aquora.API.Controllers
                     UnitPrice = txn.UnitPrice,
                     DiscountAmount = txn.DiscountAmount,
                     TaxAmount = txn.TaxAmount,
+                    GstRate = txn.GstRate,
+                    IsGstApplicable = txn.IsGstApplicable,
+                    TaxTreatment = txn.TaxTreatment,
                     CGST = txn.CGST,
                     SGST = txn.SGST,
                     IGST = txn.IGST,
@@ -507,10 +541,8 @@ namespace Aquora.API.Controllers
                         }
                     }
 
-                    if (request.TotalAmount <= 0 && request.Cases > 0)
-                    {
-                        request.TotalAmount = (request.Cases * request.UnitPrice) - request.DiscountAmount + request.TaxAmount;
-                    }
+                    CalculateDispatchTax(request, product);
+                    request.TotalAmount = Math.Round(Math.Max(0m, (request.Cases * request.UnitPrice) - request.DiscountAmount) + request.TaxAmount, 2, MidpointRounding.AwayFromZero);
                     totalAmount = request.TotalAmount;
 
                     var isCreditSale = string.Equals(request.PaymentMethod, "Credit", StringComparison.OrdinalIgnoreCase)
@@ -595,7 +627,10 @@ namespace Aquora.API.Controllers
 
                     // Journal lines
                     journalLines.Add((debitAccount, totalAmount, 0m, $"Customer dispatch record: {txnNumber}"));
-                    journalLines.Add((salesRevenueAccount, 0m, totalAmount, $"Dispatch sales revenue: {txnNumber}"));
+                    journalLines.Add((salesRevenueAccount, 0m, totalAmount - request.TaxAmount, $"Dispatch sales revenue: {txnNumber}"));
+                    if (request.CGST > 0) journalLines.Add((await ResolveAccountAsync("CGST Output Tax", "2101", "Liabilities", "Cr", tenantId, company.Id), 0m, request.CGST, $"CGST liability: {txnNumber}"));
+                    if (request.SGST > 0) journalLines.Add((await ResolveAccountAsync("SGST Output Tax", "2102", "Liabilities", "Cr", tenantId, company.Id), 0m, request.SGST, $"SGST liability: {txnNumber}"));
+                    if (request.IGST > 0) journalLines.Add((await ResolveAccountAsync("IGST Output Tax", "2103", "Liabilities", "Cr", tenantId, company.Id), 0m, request.IGST, $"IGST liability: {txnNumber}"));
 
                     decimal cost = request.Cases * product.CostPrice;
                     if (cost > 0)
@@ -762,6 +797,9 @@ namespace Aquora.API.Controllers
                     UnitPrice = request.UnitPrice,
                     DiscountAmount = request.DiscountAmount,
                     TaxAmount = request.TaxAmount,
+                    GstRate = request.GstRate,
+                    IsGstApplicable = request.IsGstApplicable,
+                    TaxTreatment = request.TaxTreatment,
                     CGST = request.CGST,
                     SGST = request.SGST,
                     IGST = request.IGST,
@@ -894,6 +932,9 @@ namespace Aquora.API.Controllers
                     UnitPrice = transaction.UnitPrice,
                     DiscountAmount = transaction.DiscountAmount,
                     TaxAmount = transaction.TaxAmount,
+                    GstRate = transaction.GstRate,
+                    IsGstApplicable = transaction.IsGstApplicable,
+                    TaxTreatment = transaction.TaxTreatment,
                     CGST = transaction.CGST,
                     SGST = transaction.SGST,
                     IGST = transaction.IGST,
@@ -1056,7 +1097,8 @@ namespace Aquora.API.Controllers
 
                 if (request.TransactionType == "Sales Dispatch")
                 {
-                    totalAmount = request.TotalAmount;
+                    CalculateDispatchTax(request, newProduct);
+                    totalAmount = Math.Round(Math.Max(0m, (request.Cases * request.UnitPrice) - request.DiscountAmount) + request.TaxAmount, 2, MidpointRounding.AwayFromZero);
                     amountReceived = request.AmountReceived;
                     outstandingAmount = Math.Max(0m, totalAmount - amountReceived);
 
@@ -1094,7 +1136,10 @@ namespace Aquora.API.Controllers
                     }
 
                     journalLines.Add((debitAccount, totalAmount, 0m, $"Customer dispatch record: {existingTxn.TransactionNumber}"));
-                    journalLines.Add((salesRevenueAccount, 0m, totalAmount, $"Dispatch sales revenue: {existingTxn.TransactionNumber}"));
+                    journalLines.Add((salesRevenueAccount, 0m, totalAmount - request.TaxAmount, $"Dispatch sales revenue: {existingTxn.TransactionNumber}"));
+                    if (request.CGST > 0) journalLines.Add((await ResolveAccountAsync("CGST Output Tax", "2101", "Liabilities", "Cr", tenantId, company.Id), 0m, request.CGST, $"CGST liability: {existingTxn.TransactionNumber}"));
+                    if (request.SGST > 0) journalLines.Add((await ResolveAccountAsync("SGST Output Tax", "2102", "Liabilities", "Cr", tenantId, company.Id), 0m, request.SGST, $"SGST liability: {existingTxn.TransactionNumber}"));
+                    if (request.IGST > 0) journalLines.Add((await ResolveAccountAsync("IGST Output Tax", "2103", "Liabilities", "Cr", tenantId, company.Id), 0m, request.IGST, $"IGST liability: {existingTxn.TransactionNumber}"));
 
                     decimal cost = request.Cases * newProduct.CostPrice;
                     if (cost > 0)
@@ -1254,6 +1299,9 @@ namespace Aquora.API.Controllers
                 existingTxn.UnitPrice = request.UnitPrice;
                 existingTxn.DiscountAmount = request.DiscountAmount;
                 existingTxn.TaxAmount = request.TaxAmount;
+                existingTxn.GstRate = request.GstRate;
+                existingTxn.IsGstApplicable = request.IsGstApplicable;
+                existingTxn.TaxTreatment = request.TaxTreatment;
                 existingTxn.CGST = request.CGST;
                 existingTxn.SGST = request.SGST;
                 existingTxn.IGST = request.IGST;
@@ -1301,6 +1349,9 @@ namespace Aquora.API.Controllers
                     UnitPrice = existingTxn.UnitPrice,
                     DiscountAmount = existingTxn.DiscountAmount,
                     TaxAmount = existingTxn.TaxAmount,
+                    GstRate = existingTxn.GstRate,
+                    IsGstApplicable = existingTxn.IsGstApplicable,
+                    TaxTreatment = existingTxn.TaxTreatment,
                     CGST = existingTxn.CGST,
                     SGST = existingTxn.SGST,
                     IGST = existingTxn.IGST,
@@ -2138,6 +2189,9 @@ namespace Aquora.API.Controllers
                     UnitPrice = txn.UnitPrice,
                     DiscountAmount = txn.DiscountAmount,
                     TaxAmount = txn.TaxAmount,
+                    GstRate = txn.GstRate,
+                    IsGstApplicable = txn.IsGstApplicable,
+                    TaxTreatment = txn.TaxTreatment,
                     CGST = txn.CGST,
                     SGST = txn.SGST,
                     IGST = txn.IGST,
@@ -2559,6 +2613,9 @@ namespace Aquora.API.Controllers
         public decimal UnitPrice { get; set; }
         public decimal DiscountAmount { get; set; }
         public decimal TaxAmount { get; set; }
+        public decimal GstRate { get; set; }
+        public bool IsGstApplicable { get; set; }
+        public string? TaxTreatment { get; set; }
         public decimal CGST { get; set; }
         public decimal SGST { get; set; }
         public decimal IGST { get; set; }
@@ -2604,6 +2661,9 @@ namespace Aquora.API.Controllers
         public decimal UnitPrice { get; set; }
         public decimal DiscountAmount { get; set; }
         public decimal TaxAmount { get; set; }
+        public decimal GstRate { get; set; }
+        public bool IsGstApplicable { get; set; }
+        public string? TaxTreatment { get; set; }
         public decimal CGST { get; set; }
         public decimal SGST { get; set; }
         public decimal IGST { get; set; }

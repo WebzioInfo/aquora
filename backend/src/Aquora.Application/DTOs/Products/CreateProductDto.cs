@@ -16,6 +16,8 @@ namespace Aquora.Application.DTOs.Products
         public string? SKU { get; set; }
 
         public bool IsActive { get; set; } = true;
+        [Range(0, 100, ErrorMessage = "GST rate must be between 0 and 100.")]
+        public decimal? GstRate { get; set; }
         public decimal? OpeningStock { get; set; }
         public string Category { get; set; } = "Bottle";
         public int DisplayOrder { get; set; } = 0;

@@ -189,6 +189,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
   const [formUnitPrice, setFormUnitPrice] = useState('')
   const [formDiscount, setFormDiscount] = useState('')
   const [isGstEnabled, setIsGstEnabled] = useState(false)
+  const [formGstRate, setFormGstRate] = useState('')
   const [formPaymentMethod, setFormPaymentMethod] = useState('Cash')
   const [formPaymentTerms, setFormPaymentTerms] = useState('Immediate')
   const [formAmountReceived, setFormAmountReceived] = useState('')
@@ -542,6 +543,14 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     return products.find(p => p.id === formProductId)
   }, [products, formProductId])
 
+  // A product may carry an explicitly configured rate. Products without one remain at
+  // 0% until the user makes a choice; dispatches never inherit an implicit 18% rate.
+  useEffect(() => {
+    if (selectedProductInForm?.gstRate !== undefined && selectedProductInForm?.gstRate !== null) {
+      setFormGstRate(String(selectedProductInForm.gstRate))
+    }
+  }, [formProductId, selectedProductInForm?.gstRate])
+
   // Resolve applicable price (Negotiated Customer Price -> 20L Rate Rule -> Product Catalog Fallback)
   useEffect(() => {
     let isCancelled = false
@@ -602,8 +611,9 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     const subtotal = cases * sellingPrice - discount
     let cgst = 0, sgst = 0, igst = 0
     if (isGstEnabled) {
-      cgst = subtotal * 0.09
-      sgst = subtotal * 0.09
+      const gstRate = Math.max(0, parseFloat(formGstRate) || 0)
+      cgst = subtotal * (gstRate / 200)
+      sgst = subtotal * (gstRate / 200)
     }
     const taxAmount = cgst + sgst + igst
     const grandTotal = subtotal + taxAmount
@@ -662,7 +672,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       ]
     }
     return []
-  }, [formType, selectedProductInForm, formCases, formUnitPrice, formDiscount, isGstEnabled, formPaymentMethod, formRefundMethod, formAdjustmentMode])
+  }, [formType, selectedProductInForm, formCases, formUnitPrice, formDiscount, isGstEnabled, formGstRate, formPaymentMethod, formRefundMethod, formAdjustmentMode])
 
   // PDF Exporter
   const handleDownloadPDF = (txn: SalesTransaction) => {
@@ -797,6 +807,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     setFormUnitPrice('')
     setFormDiscount('')
     setIsGstEnabled(false)
+    setFormGstRate('')
     setFormPaymentMethod('Credit')
     setFormPaymentTerms('Immediate')
     setFormAmountReceived('')
@@ -920,7 +931,8 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     // ERP specific state restorations
     setFormUnitPrice(txn.unitPrice?.toString() || '')
     setFormDiscount(txn.discountAmount?.toString() || '')
-    setIsGstEnabled((txn.taxAmount || 0) > 0)
+    setIsGstEnabled(txn.isGstApplicable ?? (txn.taxAmount || 0) > 0)
+    setFormGstRate((txn.gstRate ?? 0).toString())
     setFormPaymentMethod(txn.paymentMethod || 'Credit')
     setFormPaymentTerms(txn.paymentTerms || 'Immediate')
     setFormAmountReceived(txn.amountReceived !== undefined ? txn.amountReceived.toString() : '')
@@ -967,6 +979,11 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
 
     if (formType === 'Sales Dispatch' && formPaymentMethod === 'Credit' && !formCustomerId) {
       showToast('Select a customer for credit sales.', 'warning')
+      return false
+    }
+
+    if (formType === 'Sales Dispatch' && isGstEnabled && formGstRate === '') {
+      showToast('Select the applicable GST rate before saving the dispatch.', 'warning')
       return false
     }
 
@@ -1029,12 +1046,13 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
 
     const up = parseFloat(formUnitPrice) || 0
     const disc = parseFloat(formDiscount) || 0
-    const sub = finalCases * up - disc
+    const sub = Math.max(0, finalCases * up - disc)
 
     let cgst = 0, sgst = 0
     if (isGstEnabled) {
-      cgst = sub * 0.09
-      sgst = sub * 0.09
+      const rate = Math.max(0, parseFloat(formGstRate) || 0)
+      cgst = sub * (rate / 200)
+      sgst = sub * (rate / 200)
     }
     const tax = cgst + sgst
 
@@ -1085,6 +1103,9 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       unitPrice: up,
       discountAmount: disc,
       taxAmount: tax,
+      gstRate: isGstEnabled ? Math.max(0, parseFloat(formGstRate) || 0) : 0,
+      isGstApplicable: isGstEnabled,
+      taxTreatment: 'IntraState',
       cgst: cgst,
       sgst: sgst,
       igst: 0,
@@ -2689,9 +2710,16 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                       <PremiumLabel label="Discount (₹)" />
                       <input type="number" value={formDiscount} onChange={(e) => setFormDiscount(e.target.value)} placeholder="0.00" className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
                     </div>
-                    <div className="flex items-center gap-2 h-10 mt-6 pl-2">
-                      <input type="checkbox" id="isGst" checked={isGstEnabled} onChange={(e) => setIsGstEnabled(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
-                      <label htmlFor="isGst" className="text-xs font-semibold text-slate-650 cursor-pointer">GST Applicable (Calculated 18%)</label>
+                    <div className="flex flex-col gap-1.5 mt-1">
+                      <label className="flex items-center gap-2 h-5 cursor-pointer">
+                        <input type="checkbox" id="isGst" checked={isGstEnabled} onChange={(e) => setIsGstEnabled(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
+                        <span className="text-xs font-semibold text-slate-650">GST Applicable</span>
+                      </label>
+                      {isGstEnabled && <select aria-label="GST Rate" value={formGstRate} onChange={(e) => setFormGstRate(e.target.value)} className="h-[32px] px-2 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-none focus:border-blue-500">
+                        <option value="" disabled>Select GST rate</option>
+                        {[0, 5, 12, 18, 28].map(rate => <option key={rate} value={rate}>{rate}% GST</option>)}
+                        {selectedProductInForm?.gstRate != null && ![0, 5, 12, 18, 28].includes(selectedProductInForm.gstRate) && <option value={selectedProductInForm.gstRate}>{selectedProductInForm.gstRate}% (Product rate)</option>}
+                      </select>}
                     </div>
                   </div>
 
@@ -2702,7 +2730,8 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                       const priceNum = parseFloat(formUnitPrice) || (selectedProductInForm?.sellingPrice || 0);
                       const discountNum = parseFloat(formDiscount) || 0;
                       const subtotalNum = Math.max(0, casesNum * priceNum - discountNum);
-                      const gstNum = isGstEnabled ? subtotalNum * 0.18 : 0;
+                      const gstRate = isGstEnabled ? Math.max(0, parseFloat(formGstRate) || 0) : 0;
+                      const gstNum = subtotalNum * gstRate / 100;
                       const currentTotal = Math.round((subtotalNum + gstNum) * 100) / 100;
                       const receivedNum = parseFloat(formAmountReceived) || 0;
                       const pendingBalance = Math.max(0, currentTotal - receivedNum);
@@ -2793,7 +2822,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                               className="w-full h-[38px] px-3 border border-slate-200 text-sm font-semibold rounded-lg bg-white focus:outline-none focus:border-blue-500"
                             />
                             <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium px-1">
-                              <span>Total Invoice: <strong className="text-slate-800">₹{currentTotal.toFixed(2)}</strong></span>
+                              <span>GST {gstRate}%: <strong className="text-slate-800">₹{gstNum.toFixed(2)}</strong> · Total Invoice: <strong className="text-slate-800">₹{currentTotal.toFixed(2)}</strong></span>
                               <span>Pending Balance: <strong className={pendingBalance > 0 ? 'text-amber-700 font-bold' : 'text-emerald-700 font-bold'}>
                                 ₹{pendingBalance.toFixed(2)}
                               </strong></span>
@@ -3383,9 +3412,16 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                       <PremiumLabel label="Discount (₹)" />
                       <input type="number" value={formDiscount} onChange={(e) => setFormDiscount(e.target.value)} placeholder="0.00" className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
                     </div>
-                    <div className="flex items-center gap-2 h-10 mt-6 pl-2">
-                      <input type="checkbox" id="isGstEdit" checked={isGstEnabled} onChange={(e) => setIsGstEnabled(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
-                      <label htmlFor="isGstEdit" className="text-xs font-semibold text-slate-650 cursor-pointer">GST Applicable (18%)</label>
+                    <div className="flex flex-col gap-1.5 mt-1">
+                      <label className="flex items-center gap-2 h-5 cursor-pointer">
+                        <input type="checkbox" id="isGstEdit" checked={isGstEnabled} onChange={(e) => setIsGstEnabled(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
+                        <span className="text-xs font-semibold text-slate-650">GST Applicable</span>
+                      </label>
+                      {isGstEnabled && <select aria-label="GST Rate" value={formGstRate} onChange={(e) => setFormGstRate(e.target.value)} className="h-[32px] px-2 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-none focus:border-blue-500">
+                        <option value="" disabled>Select GST rate</option>
+                        {[0, 5, 12, 18, 28].map(rate => <option key={rate} value={rate}>{rate}% GST</option>)}
+                        {selectedProductInForm?.gstRate != null && ![0, 5, 12, 18, 28].includes(selectedProductInForm.gstRate) && <option value={selectedProductInForm.gstRate}>{selectedProductInForm.gstRate}% (Product rate)</option>}
+                      </select>}
                     </div>
                   </div>
 

@@ -14,6 +14,7 @@ namespace Aquora.Application.DTOs.Products
         public decimal SellingPrice { get; set; } = 15.0m;
         public decimal CostPrice { get; set; } = 10.0m;
         public decimal UnitCost { get; set; } = 10.0m;
+        public decimal? GstRate { get; set; }
         public string Category { get; set; } = "Bottle";
         public int DisplayOrder { get; set; }
         public string? BottleSize { get; set; }

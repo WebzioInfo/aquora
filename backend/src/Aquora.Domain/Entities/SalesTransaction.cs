@@ -36,6 +36,9 @@ namespace Aquora.Domain.Entities
         public decimal UnitPrice { get; set; }
         public decimal DiscountAmount { get; set; }
         public decimal TaxAmount { get; set; }
+        public decimal GstRate { get; set; }
+        public bool IsGstApplicable { get; set; }
+        public string? TaxTreatment { get; set; }
         public decimal CGST { get; set; }
         public decimal SGST { get; set; }
         public decimal IGST { get; set; }
