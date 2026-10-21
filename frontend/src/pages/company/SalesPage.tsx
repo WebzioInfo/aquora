@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { api } from '../../services/api'
 import { salesService, type DailySalesTrend } from '../../services/sales'
-import type { SalesTransaction, CreateSalesTransactionRequest, CollectSalesPaymentRequest, SalesPaymentRecord } from '../../services/sales'
+import type { SalesTransaction, CreateSalesTransactionRequest, CollectSalesPaymentRequest, SalesPaymentRecord, SalesTransactionItem, SalesTransactionItemRequest } from '../../services/sales'
 import { productsService } from '../../services/products'
 import { customersService, type ApplicablePriceResponseDto } from '../../services/customers'
 import { simpleAccountsService } from '../../services/simpleAccounts'
@@ -133,6 +133,300 @@ const OwnerSalesTrendChart: React.FC<{ data: DailySalesTrend[]; height?: number 
   )
 }
 
+export interface SalesOrderItemRow {
+  id: string
+  productId: string
+  caseConfigId: string
+  cases: string
+  unitPrice: string
+  discount: string
+  isGstEnabled: boolean
+  gstRate: string
+}
+
+const OrderItemsTableSection: React.FC<{
+  orderItems: SalesOrderItemRow[]
+  rowErrors: Record<string, { productId?: string; caseConfigId?: string; cases?: string; unitPrice?: string; discount?: string; gstRate?: string; stock?: string }>
+  products: any[]
+  caseConfigs: CaseConfiguration[]
+  onAddRow: () => void
+  onRemoveRow: (id: string) => void
+  onChangeRow: (id: string, field: keyof SalesOrderItemRow, value: any) => void
+}> = ({ orderItems, rowErrors, products, caseConfigs, onAddRow, onRemoveRow, onChangeRow }) => {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Package className="w-4 h-4 text-blue-600" />
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Order Items ({orderItems.length})</span>
+        </div>
+        <button
+          type="button"
+          onClick={onAddRow}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors cursor-pointer shadow-2xs"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>+ Add Product</span>
+        </button>
+      </div>
+
+      <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse min-w-[880px]">
+            <thead>
+              <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                <th className="py-2.5 px-3 w-[24%]">Product *</th>
+                <th className="py-2.5 px-2 w-[18%]">Case Config</th>
+                <th className="py-2.5 px-2 text-center w-[10%]">Available Stock</th>
+                <th className="py-2.5 px-2 text-right w-[10%]">Cases Qty *</th>
+                <th className="py-2.5 px-2 text-right w-[11%]">Price / Case (₹) *</th>
+                <th className="py-2.5 px-2 text-right w-[9%]">Discount (₹)</th>
+                <th className="py-2.5 px-2 w-[11%]">GST</th>
+                <th className="py-2.5 px-3 text-right w-[12%]">Line Total (₹)</th>
+                <th className="py-2.5 px-2 text-center w-[5%]"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {orderItems.map((row) => {
+                const prod = products.find(p => p.id === row.productId)
+                const matchingConfigs = caseConfigs.filter(c => c.productId === row.productId && c.isActive)
+                const casesNum = parseFloat(row.cases) || 0
+                const priceNum = parseFloat(row.unitPrice) || 0
+                const discNum = parseFloat(row.discount) || 0
+                const gross = casesNum * priceNum
+                const taxable = Math.max(0, gross - discNum)
+                const gstRateNum = row.isGstEnabled ? (parseFloat(row.gstRate) || 0) : 0
+                const gstAmount = Math.round((taxable * gstRateNum / 100) * 100) / 100
+                const lineTotal = Math.round((taxable + gstAmount) * 100) / 100
+                const currentStock = prod ? prod.currentStock : 0
+                const isOverStock = prod && casesNum > currentStock
+                const err = rowErrors[row.id]
+
+                return (
+                  <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
+                    {/* Product */}
+                    <td className="py-2.5 px-3 align-top">
+                      <select
+                        value={row.productId}
+                        onChange={(e) => onChangeRow(row.id, 'productId', e.target.value)}
+                        className={`w-full h-[36px] px-2.5 border text-xs bg-white rounded-lg font-semibold focus:outline-none focus:border-blue-500 cursor-pointer ${err?.productId ? 'border-red-400 bg-red-50/30' : 'border-slate-200'}`}
+                      >
+                        <option value="">Select Product...</option>
+                        {products.map(p => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} {p.sku ? `(${p.sku})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {err?.productId && <span className="text-[10px] text-red-500 font-semibold block mt-1">{err.productId}</span>}
+                    </td>
+
+                    {/* Case Config */}
+                    <td className="py-2.5 px-2 align-top">
+                      <select
+                        value={row.caseConfigId}
+                        onChange={(e) => onChangeRow(row.id, 'caseConfigId', e.target.value)}
+                        disabled={!row.productId}
+                        className="w-full h-[36px] px-2.5 border border-slate-200 text-xs bg-white rounded-lg focus:outline-none focus:border-blue-500 cursor-pointer disabled:bg-slate-50 disabled:cursor-not-allowed"
+                      >
+                        {!row.productId ? (
+                          <option value="">Select product first</option>
+                        ) : matchingConfigs.length === 0 ? (
+                          <option value="">Default (24 Bottles)</option>
+                        ) : (
+                          matchingConfigs.map(c => (
+                            <option key={c.id} value={c.id}>
+                              {c.name ? `${c.name} (${c.unitsPerCase}/cs)` : `${c.unitsPerCase} Bottles/cs`}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </td>
+
+                    {/* Available Stock */}
+                    <td className="py-2.5 px-2 align-top text-center">
+                      <div className="pt-2">
+                        <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold ${!prod ? 'text-slate-400 bg-slate-100' : isOverStock ? 'text-red-700 bg-red-100 border border-red-200' : 'text-emerald-700 bg-emerald-50 border border-emerald-200/60'}`}>
+                          {prod ? `${currentStock} cs` : '—'}
+                        </span>
+                        {isOverStock && (
+                          <span className="text-[10px] text-red-600 font-bold block mt-1">Exceeds Stock!</span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Cases Quantity */}
+                    <td className="py-2.5 px-2 align-top text-right">
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={row.cases}
+                        onChange={(e) => onChangeRow(row.id, 'cases', e.target.value)}
+                        placeholder="0"
+                        className={`w-full h-[36px] px-2 text-right border text-xs rounded-lg font-bold focus:outline-none focus:border-blue-500 ${err?.cases || err?.stock || isOverStock ? 'border-red-400 bg-red-50/30 text-red-700' : 'border-slate-200'}`}
+                      />
+                      {(err?.cases || err?.stock) && (
+                        <span className="text-[10px] text-red-500 font-semibold block mt-1 text-right">{err.cases || err.stock}</span>
+                      )}
+                    </td>
+
+                    {/* Price / Case */}
+                    <td className="py-2.5 px-2 align-top text-right">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={row.unitPrice}
+                        onChange={(e) => onChangeRow(row.id, 'unitPrice', e.target.value)}
+                        placeholder="0.00"
+                        className={`w-full h-[36px] px-2 text-right border text-xs rounded-lg font-bold focus:outline-none focus:border-blue-500 ${err?.unitPrice ? 'border-red-400 bg-red-50/30' : 'border-slate-200'}`}
+                      />
+                      {err?.unitPrice && <span className="text-[10px] text-red-500 font-semibold block mt-1 text-right">{err.unitPrice}</span>}
+                    </td>
+
+                    {/* Discount */}
+                    <td className="py-2.5 px-2 align-top text-right">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={row.discount}
+                        onChange={(e) => onChangeRow(row.id, 'discount', e.target.value)}
+                        placeholder="0.00"
+                        className={`w-full h-[36px] px-2 text-right border text-xs rounded-lg font-medium focus:outline-none focus:border-blue-500 ${err?.discount ? 'border-red-400 bg-red-50/30' : 'border-slate-200'}`}
+                      />
+                      {err?.discount && <span className="text-[10px] text-red-500 font-semibold block mt-1 text-right">{err.discount}</span>}
+                    </td>
+
+                    {/* GST */}
+                    <td className="py-2.5 px-2 align-top">
+                      <div className="flex items-center gap-1.5 pt-1">
+                        <label className="flex items-center gap-1 cursor-pointer shrink-0" title="Toggle GST applicable">
+                          <input
+                            type="checkbox"
+                            checked={row.isGstEnabled}
+                            onChange={(e) => onChangeRow(row.id, 'isGstEnabled', e.target.checked)}
+                            className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
+                          />
+                          <span className="text-[10px] font-semibold text-slate-600">GST</span>
+                        </label>
+                        {row.isGstEnabled ? (
+                          <select
+                            value={row.gstRate}
+                            onChange={(e) => onChangeRow(row.id, 'gstRate', e.target.value)}
+                            className="h-[32px] px-1 border border-slate-200 rounded text-[11px] font-bold bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                          >
+                            <option value="0">0%</option>
+                            <option value="5">5%</option>
+                            <option value="12">12%</option>
+                            <option value="18">18%</option>
+                            <option value="28">28%</option>
+                          </select>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 italic">None</span>
+                        )}
+                      </div>
+                      {err?.gstRate && <span className="text-[10px] text-red-500 font-semibold block mt-1">{err.gstRate}</span>}
+                    </td>
+
+                    {/* Line Total */}
+                    <td className="py-2.5 px-3 align-top text-right font-mono font-black text-slate-900 whitespace-nowrap">
+                      <div className="pt-2 text-[13px]">
+                        ₹{lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {gstAmount > 0 && (
+                          <span className="block text-[10px] font-normal text-slate-400">
+                            (GST: ₹{gstAmount.toFixed(2)})
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Remove Action */}
+                    <td className="py-2.5 px-2 align-top text-center">
+                      <div className="pt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onRemoveRow(row.id)}
+                          disabled={orderItems.length <= 1}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md disabled:opacity-20 disabled:hover:text-slate-400 disabled:hover:bg-transparent transition-all cursor-pointer"
+                          title={orderItems.length <= 1 ? 'At least 1 item required' : 'Remove item'}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="flex justify-start pt-1">
+        <button
+          type="button"
+          onClick={onAddRow}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50/90 hover:bg-blue-100 border border-blue-200/80 rounded-lg transition-colors cursor-pointer"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>+ Add Product Row</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+const OrderTransactionSummaryCard: React.FC<{
+  summary: {
+    totalCases: number
+    subtotal: number
+    totalDiscount: number
+    totalTaxable: number
+    totalGst: number
+    grandTotal: number
+    received: number
+    pendingBalance: number
+  }
+}> = ({ summary }) => (
+  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+    <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">TRANSACTION SUMMARY</div>
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 text-xs">
+      <div>
+        <span className="text-[10px] text-slate-400 block font-semibold">Total Cases</span>
+        <span className="font-extrabold text-slate-900 text-sm font-mono">{summary.totalCases}</span>
+      </div>
+      <div>
+        <span className="text-[10px] text-slate-400 block font-semibold">Subtotal (Gross)</span>
+        <span className="font-bold text-slate-800 font-mono">₹{summary.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+      </div>
+      <div>
+        <span className="text-[10px] text-slate-400 block font-semibold">Total Discounts</span>
+        <span className="font-bold text-rose-600 font-mono">₹{summary.totalDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+      </div>
+      <div>
+        <span className="text-[10px] text-slate-400 block font-semibold">Taxable Amount</span>
+        <span className="font-bold text-slate-800 font-mono">₹{summary.totalTaxable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+      </div>
+      <div>
+        <span className="text-[10px] text-slate-400 block font-semibold">Total GST</span>
+        <span className="font-bold text-slate-800 font-mono">₹{summary.totalGst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+      </div>
+      <div>
+        <span className="text-[10px] text-blue-700 font-bold block">Grand Total</span>
+        <span className="font-black text-blue-900 text-sm font-mono">₹{summary.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+      </div>
+      <div>
+        <span className="text-[10px] text-slate-400 block font-semibold">Pending Balance</span>
+        <span className={`font-black text-sm font-mono ${summary.pendingBalance > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+          ₹{summary.pendingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+        </span>
+      </div>
+    </div>
+  </div>
+)
+
 export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, type: 'success' | 'error' | 'warning' | 'info') => void }> = ({ canWrite, showToast }) => {
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
@@ -195,6 +489,18 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
   const [formAmountReceived, setFormAmountReceived] = useState('')
   const [formBankAccountId, setFormBankAccountId] = useState('')
   const [formCashBookId, setFormCashBookId] = useState('')
+
+  // Dynamic Multi-Product Order Items State
+  const [orderItems, setOrderItems] = useState<SalesOrderItemRow[]>([])
+  const [rowErrors, setRowErrors] = useState<Record<string, {
+    productId?: string
+    caseConfigId?: string
+    cases?: string
+    unitPrice?: string
+    discount?: string
+    gstRate?: string
+    stock?: string
+  }>>({})
 
   // Product-wise Customer Pricing & Quick Add State
   const [applicablePricing, setApplicablePricing] = useState<ApplicablePriceResponseDto | null>(null)
@@ -598,8 +904,218 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     )
   }, [customers, customerSearch])
 
+  // Order Items Row Management
+  const handleAddRow = () => {
+    const usedProductIds = new Set(orderItems.map(r => r.productId))
+    const unusedProduct = products.find(p => !usedProductIds.has(p.id)) || (products.length > 0 ? products[0] : null)
+    const prodId = unusedProduct ? unusedProduct.id : ''
+    const matchingConfigs = prodId ? caseConfigs.filter(c => c.productId === prodId && c.isActive) : []
+
+    const newRow: SalesOrderItemRow = {
+      id: `row_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      productId: prodId,
+      caseConfigId: matchingConfigs.length > 0 ? matchingConfigs[0].id : '',
+      cases: '',
+      unitPrice: unusedProduct?.sellingPrice !== undefined ? unusedProduct.sellingPrice.toString() : '',
+      discount: '',
+      isGstEnabled: (unusedProduct?.gstRate ?? 0) > 0,
+      gstRate: unusedProduct?.gstRate ? String(unusedProduct.gstRate) : ''
+    }
+
+    if (formCustomerId && prodId) {
+      customersService.getApplicablePrice(formCustomerId, prodId)
+        .then(res => {
+          if (res) {
+            const p = res.applicablePrice ?? res.unitPrice
+            if (p !== undefined && p !== null) {
+              setOrderItems(curr => curr.map(r => r.id === newRow.id ? { ...r, unitPrice: p.toString() } : r))
+            }
+          }
+        })
+        .catch(() => {})
+    }
+
+    setOrderItems(prev => [...prev, newRow])
+  }
+
+  const handleRemoveRow = (rowId: string) => {
+    if (orderItems.length <= 1) {
+      showToast('At least one product item is required in the dispatch.', 'info')
+      return
+    }
+    setOrderItems(prev => prev.filter(r => r.id !== rowId))
+    setRowErrors(prev => {
+      const copy = { ...prev }
+      delete copy[rowId]
+      return copy
+    })
+  }
+
+  const handleRowChange = (rowId: string, field: keyof SalesOrderItemRow, value: any) => {
+    setOrderItems(prev => prev.map(row => {
+      if (row.id !== rowId) return row
+
+      const updated = { ...row, [field]: value }
+      if (field === 'productId') {
+        const prod = products.find(p => p.id === value)
+        const matchingConfigs = caseConfigs.filter(c => c.productId === value && c.isActive)
+        updated.caseConfigId = matchingConfigs.length > 0 ? matchingConfigs[0].id : ''
+        updated.unitPrice = prod?.sellingPrice !== undefined ? prod.sellingPrice.toString() : ''
+        const hasGst = (prod?.gstRate ?? 0) > 0
+        updated.isGstEnabled = hasGst
+        updated.gstRate = prod?.gstRate ? String(prod.gstRate) : ''
+
+        if (formCustomerId && value) {
+          customersService.getApplicablePrice(formCustomerId, value)
+            .then(res => {
+              if (res) {
+                const p = res.applicablePrice ?? res.unitPrice
+                if (p !== undefined && p !== null) {
+                  setOrderItems(curr => curr.map(r => r.id === rowId && r.productId === value ? { ...r, unitPrice: p.toString() } : r))
+                }
+              }
+            })
+            .catch(() => {})
+        }
+      }
+      return updated
+    }))
+
+    setRowErrors(prev => {
+      if (!prev[rowId]) return prev
+      const copy = { ...prev[rowId] }
+      delete (copy as any)[field]
+      delete copy.stock
+      return { ...prev, [rowId]: copy }
+    })
+  }
+
+  const handleCustomerSelect = (customerId: string) => {
+    setFormCustomerId(customerId)
+    const found = customers.find(c => c.id === customerId)
+    if (found) {
+      setCustomerSearch(found.customerName)
+      if (found.paymentTerms) {
+        setFormPaymentTerms(found.paymentTerms)
+        if (found.paymentTerms === 'COD' && formPaymentMethod === 'Credit') {
+          setFormPaymentMethod('Cash')
+          setFormAmountReceived('0')
+        } else if (found.paymentTerms === 'Credit' || found.paymentTerms.startsWith('Net')) {
+          setFormPaymentMethod('Credit')
+          setFormAmountReceived('0')
+        }
+      }
+    }
+
+    if (customerId) {
+      orderItems.forEach(item => {
+        if (item.productId) {
+          customersService.getApplicablePrice(customerId, item.productId)
+            .then(res => {
+              if (res) {
+                const p = res.applicablePrice ?? res.unitPrice
+                if (p !== undefined && p !== null) {
+                  setOrderItems(curr => curr.map(r => r.id === item.id ? { ...r, unitPrice: p.toString() } : r))
+                }
+              }
+            })
+            .catch(() => {})
+        }
+      })
+    }
+  }
+
+  // Memoized consolidated order calculations across all line items
+  const orderSummary = useMemo(() => {
+    let totalCases = 0
+    let subtotal = 0
+    let totalDiscount = 0
+    let totalTaxable = 0
+    let totalGst = 0
+    let grandTotal = 0
+
+    const lines = orderItems.map(row => {
+      const cases = parseFloat(row.cases) || 0
+      const price = parseFloat(row.unitPrice) || 0
+      const discount = parseFloat(row.discount) || 0
+      const gross = cases * price
+      const taxable = Math.max(0, gross - discount)
+      const rate = row.isGstEnabled ? (parseFloat(row.gstRate) || 0) : 0
+      const gst = Math.round((taxable * rate / 100) * 100) / 100
+      const lineTotal = Math.round((taxable + gst) * 100) / 100
+
+      totalCases += cases
+      subtotal += gross
+      totalDiscount += discount
+      totalTaxable += taxable
+      totalGst += gst
+      grandTotal += lineTotal
+
+      return {
+        ...row,
+        casesNum: cases,
+        priceNum: price,
+        discountNum: discount,
+        gross,
+        taxable,
+        rate,
+        gst,
+        lineTotal
+      }
+    })
+
+    grandTotal = Math.round(grandTotal * 100) / 100
+    const received = formAmountReceived !== '' ? (parseFloat(formAmountReceived) || 0) : 0
+    const pendingBalance = Math.max(0, Math.round((grandTotal - received) * 100) / 100)
+
+    return {
+      lines,
+      totalCases,
+      subtotal: Math.round(subtotal * 100) / 100,
+      totalDiscount: Math.round(totalDiscount * 100) / 100,
+      totalTaxable: Math.round(totalTaxable * 100) / 100,
+      totalGst: Math.round(totalGst * 100) / 100,
+      grandTotal,
+      received,
+      pendingBalance
+    }
+  }, [orderItems, formAmountReceived])
+
   // Live Accounting preview calculations
   const accountingImpactPreview = useMemo(() => {
+    if (formType === 'Sales Dispatch') {
+      if (orderItems.length === 0 || orderSummary.totalCases <= 0) return []
+
+      let debitAccount = 'Accounts Receivable'
+      if (formPaymentMethod === 'Cash') debitAccount = 'Cash'
+      else if (['Bank', 'UPI', 'Cheque'].includes(formPaymentMethod)) debitAccount = 'Bank Account'
+
+      const lines: { type: string; account: string; amount: number }[] = [
+        { type: 'Debit', account: debitAccount, amount: orderSummary.grandTotal },
+        { type: 'Credit', account: 'Sales Revenue', amount: orderSummary.totalTaxable }
+      ]
+
+      if (orderSummary.totalGst > 0) {
+        const halfTax = Math.round((orderSummary.totalGst / 2) * 100) / 100
+        lines.push({ type: 'Credit', account: 'CGST Output Tax', amount: halfTax })
+        lines.push({ type: 'Credit', account: 'SGST Output Tax', amount: Math.round((orderSummary.totalGst - halfTax) * 100) / 100 })
+      }
+
+      let totalCost = 0
+      for (const item of orderItems) {
+        const p = products.find(prod => prod.id === item.productId)
+        const costPrice = p?.costPrice || p?.unitCost || 0
+        const cases = parseFloat(item.cases) || 0
+        totalCost += cases * costPrice
+      }
+      if (totalCost > 0) {
+        lines.push({ type: 'Debit', account: 'Cost of Goods Sold', amount: Math.round(totalCost * 100) / 100 })
+        lines.push({ type: 'Credit', account: 'Finished Goods Inventory', amount: Math.round(totalCost * 100) / 100 })
+      }
+
+      return lines
+    }
+
     if (!selectedProductInForm || !formCases) return []
     const cases = parseFloat(formCases) || 0
     if (cases <= 0 && formType !== 'Stock Adjustment') return []
@@ -619,24 +1135,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     const grandTotal = subtotal + taxAmount
     const costValue = Math.abs(cases) * costPrice
 
-    if (formType === 'Sales Dispatch') {
-      let debitAccount = 'Accounts Receivable'
-      if (formPaymentMethod === 'Cash') debitAccount = 'Cash'
-      else if (['Bank', 'UPI', 'Cheque'].includes(formPaymentMethod)) debitAccount = 'Bank Account'
-
-      return [
-        { type: 'Debit', account: debitAccount, amount: grandTotal },
-        { type: 'Credit', account: 'Sales Revenue', amount: subtotal },
-        ...(taxAmount > 0 ? [
-          { type: 'Credit', account: 'CGST Output Tax', amount: cgst },
-          { type: 'Credit', account: 'SGST Output Tax', amount: sgst }
-        ] : []),
-        ...(costValue > 0 ? [
-          { type: 'Debit', account: 'Cost of Goods Sold', amount: costValue },
-          { type: 'Credit', account: 'Finished Goods Inventory', amount: costValue }
-        ] : [])
-      ]
-    } else if (formType === 'Customer Return') {
+    if (formType === 'Customer Return') {
       let creditAccount = 'Accounts Receivable'
       if (formRefundMethod === 'Cash') creditAccount = 'Cash'
       else if (formRefundMethod === 'Bank') creditAccount = 'Bank Account'
@@ -672,7 +1171,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       ]
     }
     return []
-  }, [formType, selectedProductInForm, formCases, formUnitPrice, formDiscount, isGstEnabled, formGstRate, formPaymentMethod, formRefundMethod, formAdjustmentMode])
+  }, [formType, orderItems, orderSummary, formPaymentMethod, products, selectedProductInForm, formCases, formUnitPrice, formDiscount, isGstEnabled, formGstRate, formRefundMethod, formAdjustmentMode])
 
   // PDF Exporter
   const handleDownloadPDF = (txn: SalesTransaction) => {
@@ -683,6 +1182,24 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     const total = txn.totalAmount || (txn.cases * (txn.unitPrice || 0))
     const tax = txn.taxAmount || 0
     const sub = total - tax
+
+    const pdfItems = (txn.items && txn.items.length > 0)
+      ? txn.items.map((it, idx) => ({
+          sno: idx + 1,
+          description: `${it.productName || 'Product'}${it.caseConfigurationName ? ` (${it.caseConfigurationName})` : ''} (SKU: ${it.productSku || 'N/A'})`,
+          quantity: Math.abs(it.cases),
+          unitPrice: it.unitPrice || 0,
+          amount: it.lineTotal ?? it.totalAmount ?? (Math.abs(it.cases) * (it.unitPrice || 0))
+        }))
+      : [
+          {
+            sno: 1,
+            description: `${txn.productName} (SKU: ${txn.productSku || 'N/A'})`,
+            quantity: Math.abs(txn.cases),
+            unitPrice: txn.unitPrice || 0,
+            amount: total
+          }
+        ]
 
     const pdf = generateERPDocumentPDF({
       title: `${txn.transactionType.toUpperCase()} TRANSACTION REGISTER`,
@@ -707,15 +1224,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
         reference: txn.referenceNumber || undefined,
         status: txn.paymentStatus || undefined
       },
-      items: [
-        {
-          sno: 1,
-          description: `${txn.productName} (SKU: ${txn.productSku || 'N/A'})`,
-          quantity: txn.cases,
-          unitPrice: txn.unitPrice || 0,
-          amount: total
-        }
-      ],
+      items: pdfItems,
       financialSummary: {
         subTotal: sub,
         taxAmount: tax,
@@ -829,6 +1338,8 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     setFormSalesPerson('')
     setFormAdjustmentReason('Correction')
     setFormAdjustmentMode('Increase')
+    setOrderItems([])
+    setRowErrors({})
   }
 
   const handleOpenCreate = () => {
@@ -839,9 +1350,21 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     setParentDispatch(null)
     setFormType('Sales Dispatch')
     resetForm()
-    if (products.length > 0) {
-      handleProductChangeInForm(products[0].id)
-    }
+    const firstProd = products.length > 0 ? products[0] : null
+    const firstProdId = firstProd ? firstProd.id : ''
+    const matchingConfigs = firstProdId ? caseConfigs.filter(c => c.productId === firstProdId && c.isActive) : []
+
+    setOrderItems([{
+      id: `row_${Date.now()}`,
+      productId: firstProdId,
+      caseConfigId: matchingConfigs.length > 0 ? matchingConfigs[0].id : '',
+      cases: '',
+      unitPrice: firstProd?.sellingPrice !== undefined ? firstProd.sellingPrice.toString() : '',
+      discount: '',
+      isGstEnabled: (firstProd?.gstRate ?? 0) > 0,
+      gstRate: firstProd?.gstRate ? String(firstProd.gstRate) : ''
+    }])
+    setRowErrors({})
     setIsCreateOpen(true)
   }
 
@@ -880,7 +1403,15 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     setIsHistoryOpen(true)
   }
 
-  const handleOpenView = (txn: SalesTransaction) => {
+  const handleOpenView = async (txn: SalesTransaction) => {
+    try {
+      const res = await salesService.getTransaction(txn.id)
+      if (res.data) {
+        setSelectedTxn(res.data)
+        setIsViewingDetails(true)
+        return
+      }
+    } catch {}
     setSelectedTxn(txn)
     setIsViewingDetails(true)
   }
@@ -911,36 +1442,67 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
     }
   }
 
-  const handleOpenEdit = (txn: SalesTransaction) => {
+  const handleOpenEdit = async (txn: SalesTransaction) => {
     if (!canWrite) {
       showToast('You do not have write permissions.', 'warning')
       return
     }
-    setSelectedTxn(txn)
-    setFormType(txn.transactionType)
-    setFormProductId(txn.productId)
-    setFormCustomerId(txn.customerId)
-    setFormCases(Math.abs(txn.cases).toString())
-    setFormDate(txn.transactionDate.substring(0, 10))
-    setFormRef(txn.referenceNumber || '')
-    setFormRemarks(txn.remarks || '')
+    let currentTxn = txn
+    try {
+      const res = await salesService.getTransaction(txn.id)
+      if (res.data) currentTxn = res.data
+    } catch {}
 
-    const matchedCustomer = customers.find(c => c.id === txn.customerId)
+    setSelectedTxn(currentTxn)
+    setFormType(currentTxn.transactionType)
+    setFormProductId(currentTxn.productId)
+    setFormCustomerId(currentTxn.customerId)
+    setFormCases(Math.abs(currentTxn.cases).toString())
+    setFormDate(currentTxn.transactionDate.substring(0, 10))
+    setFormRef(currentTxn.referenceNumber || '')
+    setFormRemarks(currentTxn.remarks || '')
+
+    const matchedCustomer = customers.find(c => c.id === currentTxn.customerId)
     setCustomerSearch(matchedCustomer ? matchedCustomer.customerName : '')
 
     // ERP specific state restorations
-    setFormUnitPrice(txn.unitPrice?.toString() || '')
-    setFormDiscount(txn.discountAmount?.toString() || '')
-    setIsGstEnabled(txn.isGstApplicable ?? (txn.taxAmount || 0) > 0)
-    setFormGstRate((txn.gstRate ?? 0).toString())
-    setFormPaymentMethod(txn.paymentMethod || 'Credit')
-    setFormPaymentTerms(txn.paymentTerms || 'Immediate')
-    setFormAmountReceived(txn.amountReceived !== undefined ? txn.amountReceived.toString() : '')
-    setFormBankAccountId(txn.bankAccountId || '')
-    setFormCashBookId(txn.cashBookId || '')
+    setFormUnitPrice(currentTxn.unitPrice?.toString() || '')
+    setFormDiscount(currentTxn.discountAmount?.toString() || '')
+    setIsGstEnabled(currentTxn.isGstApplicable ?? (currentTxn.taxAmount || 0) > 0)
+    setFormGstRate((currentTxn.gstRate ?? 0).toString())
+    setFormPaymentMethod(currentTxn.paymentMethod || 'Credit')
+    setFormPaymentTerms(currentTxn.paymentTerms || 'Immediate')
+    setFormAmountReceived(currentTxn.amountReceived !== undefined ? currentTxn.amountReceived.toString() : '')
+    setFormBankAccountId(currentTxn.bankAccountId || '')
+    setFormCashBookId(currentTxn.cashBookId || '')
+
+    if (currentTxn.items && currentTxn.items.length > 0) {
+      setOrderItems(currentTxn.items.map(it => ({
+        id: it.id || `row_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        productId: it.productId,
+        caseConfigId: it.caseConfigurationId || '',
+        cases: Math.abs(it.cases).toString(),
+        unitPrice: (it.unitPrice || 0).toString(),
+        discount: (it.discountAmount || 0).toString(),
+        isGstEnabled: it.isGstApplicable ?? ((it.gstRate || 0) > 0),
+        gstRate: (it.gstRate || 0).toString()
+      })))
+    } else {
+      setOrderItems([{
+        id: `row_${Date.now()}`,
+        productId: currentTxn.productId,
+        caseConfigId: (currentTxn.metadataJson ? (JSON.parse(currentTxn.metadataJson).caseConfigurationId || '') : ''),
+        cases: Math.abs(currentTxn.cases).toString(),
+        unitPrice: (currentTxn.unitPrice || 0).toString(),
+        discount: (currentTxn.discountAmount || 0).toString(),
+        isGstEnabled: currentTxn.isGstApplicable ?? ((currentTxn.taxAmount || 0) > 0),
+        gstRate: (currentTxn.gstRate || 0).toString()
+      }])
+    }
+    setRowErrors({})
 
     try {
-      const meta = txn.metadataJson ? JSON.parse(txn.metadataJson) : {}
+      const meta = currentTxn.metadataJson ? JSON.parse(currentTxn.metadataJson) : {}
       setFormOriginalInvoice(meta.originalInvoice || '')
       setFormReturnReason(meta.returnReason || '')
       setFormReturnCondition(meta.returnCondition || 'Good')
@@ -953,7 +1515,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       setFormMarketingCampaign(meta.marketingCampaign || '')
       setFormSalesPerson(meta.salesPerson || '')
       setFormAdjustmentReason(meta.adjustmentReason || 'Correction')
-      setFormAdjustmentMode(txn.cases >= 0 ? 'Increase' : 'Decrease')
+      setFormAdjustmentMode(currentTxn.cases >= 0 ? 'Increase' : 'Decrease')
     } catch {
       // safe fallback
     }
@@ -977,13 +1539,144 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       return false
     }
 
-    if (!formProductId) {
-      showToast('Please select a product.', 'warning')
+    if (!formDate) {
+      showToast('Transaction date is required.', 'warning')
       return false
     }
 
-    if (!formDate) {
-      showToast('Transaction date is required.', 'warning')
+    if (formType === 'Sales Dispatch') {
+      if (orderItems.length === 0) {
+        showToast('Please add at least one product to the order.', 'warning')
+        return false
+      }
+
+      const errors: Record<string, { productId?: string; caseConfigId?: string; cases?: string; unitPrice?: string; discount?: string; gstRate?: string; stock?: string }> = {}
+      let hasError = false
+      const productCasesSum: Record<string, number> = {}
+
+      orderItems.forEach((row) => {
+        const rowErr: any = {}
+        if (!row.productId) {
+          rowErr.productId = 'Product is required'
+          hasError = true
+        }
+        const casesNum = parseFloat(row.cases)
+        if (!row.cases || isNaN(casesNum) || casesNum <= 0) {
+          rowErr.cases = 'Cases must be > 0'
+          hasError = true
+        }
+        const priceNum = parseFloat(row.unitPrice)
+        if (row.unitPrice === '' || isNaN(priceNum) || priceNum < 0) {
+          rowErr.unitPrice = 'Price must be >= 0'
+          hasError = true
+        }
+        if (row.discount !== '') {
+          const discNum = parseFloat(row.discount)
+          if (isNaN(discNum) || discNum < 0) {
+            rowErr.discount = 'Invalid discount'
+            hasError = true
+          }
+        }
+        if (row.isGstEnabled) {
+          const rateNum = parseFloat(row.gstRate)
+          if (row.gstRate === '' || isNaN(rateNum) || rateNum < 0) {
+            rowErr.gstRate = 'Select GST rate'
+            hasError = true
+          }
+        }
+
+        if (row.productId && !isNaN(casesNum) && casesNum > 0) {
+          productCasesSum[row.productId] = (productCasesSum[row.productId] || 0) + casesNum
+          const prod = products.find(p => p.id === row.productId)
+          if (prod) {
+            let maxStock = prod.currentStock
+            if (isEditOpen && selectedTxn && selectedTxn.productId === row.productId) {
+              maxStock += Math.abs(selectedTxn.cases)
+            }
+            if (casesNum > maxStock) {
+              rowErr.stock = `Max: ${maxStock}`
+              hasError = true
+            }
+          }
+        }
+
+        if (Object.keys(rowErr).length > 0) {
+          errors[row.id] = rowErr
+        }
+      })
+
+      for (const [prodId, totalCases] of Object.entries(productCasesSum)) {
+        const prod = products.find(p => p.id === prodId)
+        if (prod) {
+          let maxStock = prod.currentStock
+          if (isEditOpen && selectedTxn && selectedTxn.productId === prodId) {
+            maxStock += Math.abs(selectedTxn.cases)
+          }
+          if (totalCases > maxStock) {
+            hasError = true
+            showToast(`Total quantity for ${prod.name} (${totalCases} cases) exceeds available stock (${maxStock} cases).`, 'error')
+            return false
+          }
+        }
+      }
+
+      if (hasError) {
+        setRowErrors(errors)
+        showToast('Please correct the validation errors in the product table.', 'warning')
+        return false
+      }
+
+      setRowErrors({})
+
+      const currentTotal = orderSummary.grandTotal
+      const receivedVal = formAmountReceived !== '' ? (parseFloat(formAmountReceived) || 0) : 0
+
+      if (formPaymentMethod === 'Credit' && formPaymentTerms === 'COD') {
+        showToast('Payment Method "Credit" cannot have Payment Terms "Cash on Delivery". For COD, select Cash or Bank.', 'warning')
+        return false
+      }
+
+      if (formPaymentMethod === 'Credit' && currentTotal > 0 && receivedVal >= currentTotal) {
+        showToast(`Full invoice amount (₹${currentTotal.toFixed(2)}) is received upfront. Please select Cash, Bank, or UPI instead of Credit.`, 'warning')
+        return false
+      }
+
+      if (formPaymentTerms === 'COD' && receivedVal > 0) {
+        showToast('Cash on Delivery implies payment is collected on delivery. If amount is received now, set Payment Terms to "Immediate / Advance".', 'warning')
+        return false
+      }
+
+      if (formAmountReceived !== '') {
+        if (isNaN(receivedVal) || receivedVal < 0) {
+          showToast('Amount received cannot be negative.', 'warning')
+          return false
+        }
+        if (receivedVal > currentTotal + 0.001) {
+          showToast(`Amount received (₹${receivedVal.toFixed(2)}) cannot exceed total invoice amount (₹${currentTotal.toFixed(2)}).`, 'warning')
+          return false
+        }
+      }
+
+      if (['Bank', 'UPI', 'Cheque'].includes(formPaymentMethod) && !formBankAccountId) {
+        if (banks.length > 0) {
+          setFormBankAccountId(banks[0].id)
+        } else {
+          showToast(`Company Bank Account is required for ${formPaymentMethod} payments.`, 'warning')
+          return false
+        }
+      }
+      if (formPaymentMethod === 'Cash' && !formCashBookId) {
+        if (cashRegisters.length > 0) {
+          setFormCashBookId(cashRegisters[0].id)
+        }
+      }
+
+      return true
+    }
+
+    // Non-dispatch validation
+    if (!formProductId) {
+      showToast('Please select a product.', 'warning')
       return false
     }
 
@@ -998,70 +1691,6 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       return false
     }
 
-    if (formType === 'Sales Dispatch') {
-      if (formUnitPrice.trim() === '' || isNaN(parseFloat(formUnitPrice)) || parseFloat(formUnitPrice) < 0) {
-        showToast('Please enter a valid price per case (cannot be negative).', 'warning')
-        return false
-      }
-
-      if (isGstEnabled && (formGstRate === '' || isNaN(parseFloat(formGstRate)))) {
-        showToast('Select the applicable GST rate before saving the dispatch.', 'warning')
-        return false
-      }
-
-      const up = parseFloat(formUnitPrice) || 0
-      const disc = parseFloat(formDiscount) || 0
-      const sub = Math.max(0, casesNum * up - disc)
-      const rate = isGstEnabled ? (parseFloat(formGstRate) || 0) : 0
-      const currentTotal = Math.round((sub + (sub * rate / 100)) * 100) / 100
-      const receivedVal = formAmountReceived !== '' ? (parseFloat(formAmountReceived) || 0) : 0
-
-      // Business rule: Payment Method "Credit" cannot have Payment Terms "COD"
-      if (formPaymentMethod === 'Credit' && formPaymentTerms === 'COD') {
-        showToast('Payment Method "Credit" cannot have Payment Terms "Cash on Delivery". For COD, select Cash or Bank.', 'warning')
-        return false
-      }
-
-      // Business rule: If invoice is 100% paid upfront, it cannot be a Credit transaction
-      if (formPaymentMethod === 'Credit' && currentTotal > 0 && receivedVal >= currentTotal) {
-        showToast(`Full invoice amount (₹${currentTotal.toFixed(2)}) is received upfront. Please select Cash, Bank, or UPI instead of Credit.`, 'warning')
-        return false
-      }
-
-      // Business rule: Cash on Delivery implies payment is collected on delivery, not upfront
-      if (formPaymentTerms === 'COD' && receivedVal > 0) {
-        showToast('Cash on Delivery implies payment is collected on delivery. If amount is received now, set Payment Terms to "Immediate / Advance".', 'warning')
-        return false
-      }
-
-      // Validate bounds of amount received
-      if (formAmountReceived !== '') {
-        if (isNaN(receivedVal) || receivedVal < 0) {
-          showToast('Amount received cannot be negative.', 'warning')
-          return false
-        }
-        if (receivedVal > currentTotal + 0.001) {
-          showToast(`Amount received (₹${receivedVal.toFixed(2)}) cannot exceed total invoice amount (₹${currentTotal.toFixed(2)}).`, 'warning')
-          return false
-        }
-      }
-
-      // Ensure payment register / bank account is set
-      if (['Bank', 'UPI', 'Cheque'].includes(formPaymentMethod) && !formBankAccountId) {
-        if (banks.length > 0) {
-          setFormBankAccountId(banks[0].id)
-        } else {
-          showToast(`Company Bank Account is required for ${formPaymentMethod} payments.`, 'warning')
-          return false
-        }
-      }
-      if (formPaymentMethod === 'Cash' && !formCashBookId) {
-        if (cashRegisters.length > 0) {
-          setFormCashBookId(cashRegisters[0].id)
-        }
-      }
-    }
-
     if (parentDispatch && (formType === 'Customer Return' || formType === 'Damage')) {
       if (casesNum > (availableRemainingCases + 0.0001)) {
         showToast(`Cannot process ${casesNum} cases. Maximum remaining available cases on dispatch ${parentDispatch.transactionNumber} is ${availableRemainingCases} cases.`, 'error')
@@ -1069,8 +1698,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       }
     }
 
-    // Verify stock availability
-    if (formType === 'Sales Dispatch' || formType === 'Damage' || formType === 'Damaged Goods' || formType === 'Internal Consumption' || formType === 'Free Sample' || (formType === 'Stock Adjustment' && formAdjustmentMode === 'Decrease')) {
+    if (formType === 'Damage' || formType === 'Damaged Goods' || formType === 'Internal Consumption' || formType === 'Free Sample' || (formType === 'Stock Adjustment' && formAdjustmentMode === 'Decrease')) {
       const prod = products.find(p => p.id === formProductId)
       if (prod) {
         let maxAvailable = prod.currentStock
@@ -1088,6 +1716,88 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
   }
 
   const buildRequestPayload = (): CreateSalesTransactionRequest => {
+    if (formType === 'Sales Dispatch') {
+      const itemsPayload: SalesTransactionItemRequest[] = orderItems.map(item => {
+        const p = products.find(x => x.id === item.productId)
+        const cfg = caseConfigs.find(x => x.id === item.caseConfigId)
+        const upc = cfg ? cfg.unitsPerCase : 24
+        const cases = parseFloat(item.cases) || 0
+        const up = parseFloat(item.unitPrice) || 0
+        const disc = parseFloat(item.discount) || 0
+        const gross = cases * up
+        const taxable = Math.max(0, gross - disc)
+        const rate = item.isGstEnabled ? (parseFloat(item.gstRate) || 0) : 0
+        const tax = Math.round((taxable * rate / 100) * 100) / 100
+        const lineTotal = Math.round((taxable + tax) * 100) / 100
+
+        return {
+          productId: item.productId,
+          productName: p?.name,
+          productSku: p?.sku,
+          caseConfigurationId: item.caseConfigId || undefined,
+          caseConfigurationName: cfg?.name,
+          unitsPerCase: upc,
+          cases: cases,
+          unitPrice: up,
+          discountAmount: disc,
+          taxableAmount: taxable,
+          gstRate: rate,
+          taxAmount: tax,
+          totalAmount: lineTotal,
+          lineTotal: lineTotal,
+          cgst: tax > 0 ? Math.round((tax / 2) * 100) / 100 : 0,
+          sgst: tax > 0 ? Math.round((tax - Math.round((tax / 2) * 100) / 100) * 100) / 100 : 0,
+          igst: 0,
+          isGstApplicable: item.isGstEnabled && rate > 0
+        }
+      })
+
+      const totalCases = itemsPayload.reduce((s, it) => s + it.cases, 0)
+      const totalTax = itemsPayload.reduce((s, it) => s + (it.taxAmount || 0), 0)
+      const totalDiscount = itemsPayload.reduce((s, it) => s + (it.discountAmount || 0), 0)
+      const grandTotal = itemsPayload.reduce((s, it) => s + (it.lineTotal || 0), 0)
+      const firstItem = itemsPayload[0] || {}
+
+      let effectiveAmountReceived = 0
+      if (formAmountReceived !== '') {
+        const parsed = Math.max(0, parseFloat(formAmountReceived) || 0)
+        effectiveAmountReceived = Math.min(parsed, grandTotal)
+      } else if (formPaymentMethod !== 'Credit' && formPaymentTerms === 'Immediate') {
+        effectiveAmountReceived = grandTotal
+      }
+
+      return {
+        customerId: formCustomerId || '00000000-0000-0000-0000-000000000000',
+        productId: firstItem.productId || '00000000-0000-0000-0000-000000000000',
+        caseConfigurationId: firstItem.caseConfigurationId,
+        unitsPerCase: firstItem.unitsPerCase || 24,
+        cases: totalCases,
+        transactionType: formType,
+        transactionDate: formDate,
+        referenceNumber: formRef ? formRef.trim() : undefined,
+        remarks: formRemarks ? formRemarks.trim() : undefined,
+        paymentMethod: formPaymentMethod,
+        paymentTerms: formPaymentTerms,
+        bankAccountId: formBankAccountId || undefined,
+        cashBookId: formCashBookId || undefined,
+        unitPrice: firstItem.unitPrice || 0,
+        discountAmount: totalDiscount,
+        isGstApplicable: totalTax > 0,
+        gstRate: firstItem.gstRate || 0,
+        taxAmount: totalTax,
+        totalAmount: grandTotal,
+        amountReceived: effectiveAmountReceived,
+        items: itemsPayload,
+        metadataJson: JSON.stringify({
+          caseConfigurationId: firstItem.caseConfigurationId,
+          unitsPerCase: firstItem.unitsPerCase || 24,
+          totalUnits: totalCases * (firstItem.unitsPerCase || 24),
+          totalLineItems: itemsPayload.length,
+          remarks: formRemarks
+        })
+      }
+    }
+
     const casesVal = parseFloat(formCases)
     const finalCases = (formType === 'Stock Adjustment' && formAdjustmentMode === 'Decrease') ? -casesVal : casesVal
 
@@ -1377,33 +2087,90 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                      <tr className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-2 px-3.5 font-bold text-slate-900">
-                          {selectedTxn.productName}
-                        </td>
-                        <td className="py-2 px-3 font-mono text-[11px] text-slate-500">
-                          {selectedTxn.productSku || matchedProduct?.sku || 'NO_SKU_CODE'}
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
-                          {Math.abs(selectedTxn.cases)} Cases
-                          {totalUnits > 0 && (
-                            <span className="block text-[10px] font-normal text-slate-400">{totalUnits} Units</span>
-                          )}
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono whitespace-nowrap">
-                          ₹{(selectedTxn.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono text-rose-600 whitespace-nowrap">
-                          ₹{(selectedTxn.discountAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono whitespace-nowrap">
-                          ₹{sub.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="py-2 px-3.5 text-right font-mono font-black text-slate-900 whitespace-nowrap">
-                          ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
-                      </tr>
+                      {selectedTxn.items && selectedTxn.items.length > 0 ? (
+                        selectedTxn.items.map((it, idx) => {
+                          const itemUnits = it.unitsPerCase ? Math.abs(it.cases) * it.unitsPerCase : 0
+                          const itemTaxable = it.taxableAmount ?? ((Math.abs(it.cases) * (it.unitPrice || 0)) - (it.discountAmount || 0))
+                          const itemTotal = it.lineTotal ?? it.totalAmount ?? (itemTaxable + (it.taxAmount || 0))
+                          return (
+                            <tr key={it.id || idx} className="hover:bg-slate-50/60 transition-colors">
+                              <td className="py-2.5 px-3.5 font-bold text-slate-900">
+                                {it.productName || selectedTxn.productName}
+                                {it.caseConfigurationName && (
+                                  <span className="block text-[11px] font-normal text-slate-500">
+                                    Config: {it.caseConfigurationName} ({it.unitsPerCase || 24} btls/cs)
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 font-mono text-[11px] text-slate-500">
+                                {it.productSku || '—'}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                                {Math.abs(it.cases)} Cases
+                                {itemUnits > 0 && (
+                                  <span className="block text-[10px] font-normal text-slate-400">{itemUnits} Units</span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono whitespace-nowrap">
+                                ₹{(it.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono text-rose-600 whitespace-nowrap">
+                                ₹{(it.discountAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono whitespace-nowrap">
+                                ₹{itemTaxable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td className="py-2.5 px-3.5 text-right font-mono font-black text-slate-900 whitespace-nowrap">
+                                ₹{itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                {it.taxAmount && it.taxAmount > 0 && (
+                                  <span className="block text-[10px] font-normal text-slate-400">
+                                    (incl. ₹{it.taxAmount.toFixed(2)} GST)
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })
+                      ) : (
+                        <tr className="hover:bg-slate-50/60 transition-colors">
+                          <td className="py-2 px-3.5 font-bold text-slate-900">
+                            {selectedTxn.productName}
+                          </td>
+                          <td className="py-2 px-3 font-mono text-[11px] text-slate-500">
+                            {selectedTxn.productSku || matchedProduct?.sku || 'NO_SKU_CODE'}
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                            {Math.abs(selectedTxn.cases)} Cases
+                            {totalUnits > 0 && (
+                              <span className="block text-[10px] font-normal text-slate-400">{totalUnits} Units</span>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono whitespace-nowrap">
+                            ₹{(selectedTxn.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono text-rose-600 whitespace-nowrap">
+                            ₹{(selectedTxn.discountAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono whitespace-nowrap">
+                            ₹{sub.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-2 px-3.5 text-right font-mono font-black text-slate-900 whitespace-nowrap">
+                            ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
+                    {selectedTxn.items && selectedTxn.items.length > 1 && (
+                      <tfoot className="bg-slate-50 border-t border-slate-200 text-xs font-bold text-slate-800">
+                        <tr>
+                          <td colSpan={2} className="py-2.5 px-3.5 text-slate-600">Total ({selectedTxn.items.length} items)</td>
+                          <td className="py-2.5 px-3 text-right font-mono text-slate-900">{selectedTxn.items.reduce((s, it) => s + Math.abs(it.cases), 0)} Cases</td>
+                          <td colSpan={2}></td>
+                          <td className="py-2.5 px-3 text-right font-mono text-slate-600">Taxable: ₹{sub.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          <td className="py-2.5 px-3.5 text-right font-mono font-black text-blue-900">₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                      </tfoot>
+                    )}
                   </table>
                 </div>
 
@@ -2466,7 +3233,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       {/* CREATE MODAL */}
       {isCreateOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-center items-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+          <div className={`bg-white border border-slate-200 w-full ${formType === 'Sales Dispatch' ? 'max-w-5xl' : 'max-w-2xl'} rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden transition-all duration-200`}>
             <div className="flex justify-between items-center border-b border-slate-100 px-6 py-4">
               <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-blue-600" />
@@ -2517,7 +3284,8 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Shared Transaction Details Header */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Transaction Type */}
                 <div className="flex flex-col">
                   <PremiumLabel label="Transaction Type *" />
@@ -2532,7 +3300,14 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                         <option value="Damage">Damage</option>
                       </>
                     ) : (
-                      <option value="Sales Dispatch">Sales Dispatch</option>
+                      <>
+                        <option value="Sales Dispatch">Sales Dispatch</option>
+                        <option value="Customer Return">Customer Return</option>
+                        <option value="Damage">Damaged Goods</option>
+                        <option value="Internal Consumption">Internal Consumption</option>
+                        <option value="Free Sample">Free Sample</option>
+                        <option value="Stock Adjustment">Stock Adjustment</option>
+                      </>
                     )}
                   </select>
                 </div>
@@ -2547,103 +3322,99 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                     className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none"
                   />
                 </div>
+
+                {/* Reference Number / PO */}
+                <div className="flex flex-col">
+                  <PremiumLabel label="Reference / PO Number" />
+                  <input
+                    type="text"
+                    value={formRef}
+                    onChange={(e) => setFormRef(e.target.value)}
+                    placeholder="e.g. PO-89214"
+                    className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] rounded-lg focus:outline-none focus:border-blue-500 font-medium"
+                  />
+                </div>
               </div>
 
-              {/* Product Selection */}
-              <div className="flex flex-col">
-                <PremiumLabel label="Product *" />
-                <select
-                  value={formProductId}
-                  onChange={(e) => handleProductChangeInForm(e.target.value)}
-                  className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] bg-white rounded-lg focus:outline-none focus:border-blue-500 font-medium cursor-pointer"
-                  required
-                >
-                  <option value="">Select Finished Product...</option>
-                  {products.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} {p.sku ? `(SKU: ${p.sku})` : ''}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Case Configuration Dropdown */}
-              <div className="flex flex-col">
-                <div className="flex items-center justify-between mb-1.5">
-                  <PremiumLabel label="Case Configuration *" />
-                  {formProductId && (
-                    <button
-                      type="button"
-                      onClick={() => setIsQuickCreateConfigOpen(true)}
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50/80 hover:bg-blue-100/80 px-2 py-0.5 rounded transition-colors cursor-pointer border border-blue-200/60"
-                      title="Quick add a new packaging/case configuration for this product"
+              {/* SINGLE PRODUCT SELECTION (Only for Non-Dispatch transactions like Returns, Damage, Adjustments) */}
+              {formType !== 'Sales Dispatch' && (
+                <>
+                  <div className="flex flex-col">
+                    <PremiumLabel label="Product *" />
+                    <select
+                      value={formProductId}
+                      onChange={(e) => handleProductChangeInForm(e.target.value)}
+                      className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] bg-white rounded-lg focus:outline-none focus:border-blue-500 font-medium cursor-pointer"
+                      required
                     >
-                      <Plus className="w-3 h-3" />
-                      <span>New Configuration</span>
-                    </button>
-                  )}
-                </div>
-                <select
-                  value={formCaseConfigId}
-                  onChange={(e) => setFormCaseConfigId(e.target.value)}
-                  disabled={!formProductId}
-                  className={`w-full h-[40px] px-3.5 border border-slate-200 text-[14px] bg-white rounded-lg focus:outline-none focus:border-blue-500 font-medium ${!formProductId ? 'opacity-60 bg-slate-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                >
-                  {!formProductId ? (
-                    <option value="">Select Product first...</option>
-                  ) : availableCaseConfigsForSelectedProduct.length === 0 ? (
-                    <option value="">Default — 24 Bottles / Case (Standard)</option>
-                  ) : (
-                    availableCaseConfigsForSelectedProduct.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.name ? `${c.name} (${c.unitsPerCase} Bottles / Case)` : `${c.unitsPerCase} Bottles / Case`}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
+                      <option value="">Select Finished Product...</option>
+                      {products.map(p => (
+                        <option key={p.id} value={p.id}>{p.name} {p.sku ? `(SKU: ${p.sku})` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
 
-              {/* Case Configuration Information Banner */}
-              {formProductId && (
-                <div className="p-3 bg-blue-50/80 border border-blue-200/80 rounded-xl text-xs flex items-center justify-between text-blue-900 shadow-2xs">
-                  <div className="flex items-center gap-2">
-                    <Package className="w-4 h-4 text-blue-600 shrink-0" />
-                    <div>
-                      <span className="font-extrabold block text-blue-950 uppercase text-[10px] tracking-wider">CASE CONFIGURATION</span>
-                      <span className="font-semibold text-blue-800">{activeUnitsPerCase} Bottles / Case</span>
+                  <div className="flex flex-col">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <PremiumLabel label="Case Configuration *" />
+                      {formProductId && (
+                        <button
+                          type="button"
+                          onClick={() => setIsQuickCreateConfigOpen(true)}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50/80 hover:bg-blue-100/80 px-2 py-0.5 rounded transition-colors cursor-pointer border border-blue-200/60"
+                          title="Quick add a new packaging/case configuration for this product"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>New Configuration</span>
+                        </button>
+                      )}
                     </div>
+                    <select
+                      value={formCaseConfigId}
+                      onChange={(e) => setFormCaseConfigId(e.target.value)}
+                      disabled={!formProductId}
+                      className={`w-full h-[40px] px-3.5 border border-slate-200 text-[14px] bg-white rounded-lg focus:outline-none focus:border-blue-500 font-medium ${!formProductId ? 'opacity-60 bg-slate-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      {!formProductId ? (
+                        <option value="">Select Product first...</option>
+                      ) : availableCaseConfigsForSelectedProduct.length === 0 ? (
+                        <option value="">Default — 24 Bottles / Case (Standard)</option>
+                      ) : (
+                        availableCaseConfigsForSelectedProduct.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.name ? `${c.name} (${c.unitsPerCase} Bottles / Case)` : `${c.unitsPerCase} Bottles / Case`}
+                          </option>
+                        ))
+                      )}
+                    </select>
                   </div>
-                  <div className="px-2.5 py-1 bg-white/90 border border-blue-200 rounded-md font-bold text-[11px] text-blue-700 shadow-2xs">
-                    1 Case = {activeUnitsPerCase} Bottles
-                  </div>
-                </div>
+
+                  {formProductId && (
+                    <div className="p-3 bg-blue-50/80 border border-blue-200/80 rounded-xl text-xs flex items-center justify-between text-blue-900 shadow-2xs">
+                      <div className="flex items-center gap-2">
+                        <Package className="w-4 h-4 text-blue-600 shrink-0" />
+                        <div>
+                          <span className="font-extrabold block text-blue-950 uppercase text-[10px] tracking-wider">CASE CONFIGURATION</span>
+                          <span className="font-semibold text-blue-800">{activeUnitsPerCase} Bottles / Case</span>
+                        </div>
+                      </div>
+                      <div className="px-2.5 py-1 bg-white/90 border border-blue-200 rounded-md font-bold text-[11px] text-blue-700 shadow-2xs">
+                        1 Case = {activeUnitsPerCase} Bottles
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
-              {/* CONDITIONAL FIELDSETS DEPENDING ON TRANSACTION TYPE */}
-
-              {/* Sales Dispatch Conditional UI */}
+              {/* SALES DISPATCH MULTI-PRODUCT UI */}
               {formType === 'Sales Dispatch' && (
                 <div className="space-y-4 border-t border-slate-100 pt-4">
-                  {/* Customer search selection with Database-Backed SearchableDropdown & Quick Add */}
+                  {/* Shared Customer Selection */}
                   <SearchableDropdown
-                    label="Customer *"
+                    label="Customer / Distributor *"
                     required
                     value={formCustomerId}
-                    onChange={(val) => {
-                      setFormCustomerId(val)
-                      const found = customers.find(c => c.id === val)
-                      if (found) {
-                        setCustomerSearch(found.customerName)
-                        if (found.paymentTerms) {
-                          setFormPaymentTerms(found.paymentTerms)
-                          if (found.paymentTerms === 'COD' && formPaymentMethod === 'Credit') {
-                            setFormPaymentMethod('Cash')
-                            setFormAmountReceived('0')
-                          } else if (found.paymentTerms === 'Credit' || found.paymentTerms.startsWith('Net')) {
-                            setFormPaymentMethod('Credit')
-                            setFormAmountReceived('0')
-                          }
-                        }
-                      }
-                    }}
+                    onChange={handleCustomerSelect}
                     options={customers.map(c => ({
                       id: c.id,
                       name: c.customerName,
@@ -2655,292 +3426,164 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                     quickAddLabel="+ Quick Add Customer"
                   />
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <EnterpriseNumberInput label="Cases Quantity *" value={formCases} onChange={(e) => setFormCases(e.target.value)} placeholder="0" allowDecimals={false} />
-                    <div className="flex flex-col">
-                      <PremiumLabel label="Price / Case (₹) *" />
-                      <input type="number" step="0.01" value={formUnitPrice} onChange={(e) => setFormUnitPrice(e.target.value)} placeholder={selectedProductInForm?.sellingPrice?.toString() || '0.00'} className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg font-semibold focus:outline-none focus:border-blue-500" />
-                    </div>
-                  </div>
+                  {/* Dynamic Multi-Product Order Items Table */}
+                  <OrderItemsTableSection
+                    orderItems={orderItems}
+                    rowErrors={rowErrors}
+                    products={products}
+                    caseConfigs={caseConfigs}
+                    onAddRow={handleAddRow}
+                    onRemoveRow={handleRemoveRow}
+                    onChangeRow={handleRowChange}
+                  />
 
-                  {/* Applicable Pricing Engine Banner */}
-                  {formCustomerId && formProductId && (
-                    <div className="p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl text-xs space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <Tag className="w-3.5 h-3.5 text-blue-600" />
-                          <span className="font-bold text-blue-900">
-                            {isLoadingPrice ? (
-                              'Resolving applicable price...'
-                            ) : applicablePricing ? (
-                              <>
-                                Price Source: <span className="font-extrabold text-blue-700">{applicablePricing.source === 'CustomerCustomPrice' ? 'Negotiated Customer Price' : applicablePricing.source === 'TwentyLRateRule' ? '20L Tier Rule' : 'Product Catalog Standard'}</span> (₹{applicablePricing.applicablePrice.toFixed(2)}/case)
-                              </>
-                            ) : (
-                              'Standard Price Applied'
-                            )}
-                          </span>
+                  {/* Consolidated Transaction Summary Card */}
+                  <OrderTransactionSummaryCard summary={orderSummary} />
+
+                  {/* Shared Payment Details Section */}
+                  <div className="border-t border-slate-100 pt-4 space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Payment Method */}
+                      <div className="flex flex-col">
+                        <PremiumLabel label="Payment Method *" />
+                        <div className="flex gap-2">
+                          {['Cash', 'Bank', 'Credit', 'UPI', 'Cheque'].map(m => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => {
+                                setFormPaymentMethod(m)
+                                if (m === 'Credit') {
+                                  setFormAmountReceived('0')
+                                  if (formPaymentTerms === 'COD' || formPaymentTerms === 'Immediate') {
+                                    setFormPaymentTerms('Credit')
+                                  }
+                                } else {
+                                  if (formPaymentTerms === 'Credit' || formPaymentTerms.startsWith('Net')) {
+                                    setFormPaymentTerms('Immediate')
+                                    setFormAmountReceived(orderSummary.grandTotal.toString())
+                                  } else if (formPaymentTerms === 'Immediate') {
+                                    setFormAmountReceived(orderSummary.grandTotal.toString())
+                                  }
+                                }
+                              }}
+                              className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${formPaymentMethod === m ? 'bg-blue-600 text-white border-blue-600 shadow' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                            >
+                              {m}
+                            </button>
+                          ))}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const c = customers.find(cust => cust.id === formCustomerId)
-                            if (c) {
-                              setPricingCustomer({ id: c.id, name: c.customerName, code: c.customerCode })
-                              setIsProductPricingModalOpen(true)
+                      </div>
+
+                      {/* Payment Terms */}
+                      <div className="flex flex-col">
+                        <PremiumLabel label="Payment Terms *" />
+                        <select
+                          value={formPaymentTerms}
+                          onChange={(e) => {
+                            const terms = e.target.value
+                            setFormPaymentTerms(terms)
+                            if (terms === 'COD') {
+                              if (formPaymentMethod === 'Credit') setFormPaymentMethod('Cash')
+                              setFormAmountReceived('0')
+                            } else if (terms === 'Credit' || terms.startsWith('Net')) {
+                              setFormPaymentMethod('Credit')
+                              setFormAmountReceived('0')
+                            } else if (terms === 'Immediate') {
+                              if (formPaymentMethod === 'Credit') setFormPaymentMethod('Cash')
+                              setFormAmountReceived(orderSummary.grandTotal.toString())
                             }
                           }}
-                          className="text-[11px] font-bold text-blue-600 hover:text-blue-800 underline flex items-center gap-1 cursor-pointer"
+                          className="w-full h-[40px] px-3 border border-slate-200 rounded-lg text-xs bg-white font-semibold focus:outline-none focus:border-blue-500 cursor-pointer"
                         >
-                          <Settings className="w-3 h-3" />
-                          Manage Negotiated Prices
-                        </button>
+                          <option value="Immediate">Immediate / Advance</option>
+                          <option value="COD" disabled={formPaymentMethod === 'Credit'}>Cash on Delivery (COD){formPaymentMethod === 'Credit' ? ' (Select Cash/Bank method)' : ''}</option>
+                          <option value="Net 7">Net 7 Days</option>
+                          <option value="Net 15">Net 15 Days</option>
+                          <option value="Net 30">Net 30 Days</option>
+                          <option value="Credit">Credit Agreement</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Amount Received Now Card */}
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <PremiumLabel label="Amount Received Now (₹)" />
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (formPaymentMethod === 'Credit') setFormPaymentMethod('Cash')
+                              setFormPaymentTerms('Immediate')
+                              setFormAmountReceived(orderSummary.grandTotal.toString())
+                            }}
+                            className="px-2.5 py-1 text-[11px] font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-md cursor-pointer transition-colors"
+                          >
+                            Pay Full (₹{orderSummary.grandTotal.toFixed(2)})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormAmountReceived('0')
+                              if (formPaymentMethod === 'Credit') {
+                                setFormPaymentTerms('Credit')
+                              } else if (formPaymentTerms === 'Immediate') {
+                                setFormPaymentTerms('COD')
+                              }
+                            }}
+                            className="px-2.5 py-1 text-[11px] font-bold bg-amber-100 text-amber-800 hover:bg-amber-200 rounded-md cursor-pointer transition-colors"
+                          >
+                            COD / Pending (₹0)
+                          </button>
+                        </div>
+                      </div>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max={orderSummary.grandTotal}
+                        value={formAmountReceived}
+                        onChange={(e) => setFormAmountReceived(e.target.value)}
+                        placeholder={`0.00 (Max: ₹${orderSummary.grandTotal.toFixed(2)})`}
+                        className="w-full h-[38px] px-3 border border-slate-200 text-sm font-semibold rounded-lg bg-white focus:outline-none focus:border-blue-500 font-mono"
+                      />
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium px-1">
+                        <span>Total GST: <strong className="text-slate-800 font-mono">₹{orderSummary.totalGst.toFixed(2)}</strong> · Total Invoice: <strong className="text-slate-800 font-mono">₹{orderSummary.grandTotal.toFixed(2)}</strong></span>
+                        <span>Pending Balance: <strong className={`font-mono font-bold ${orderSummary.pendingBalance > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                          ₹{orderSummary.pendingBalance.toFixed(2)}
+                        </strong></span>
                       </div>
 
-                      {applicablePricing && (applicablePricing.lastPriceCharged || applicablePricing.lastTransactionDate) && (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1.5 border-t border-blue-200/60 text-[11px] text-blue-950">
-                          <div>
-                            <span className="text-slate-500 block text-[10px]">Last Price:</span>
-                            <span className="font-bold">₹{applicablePricing.lastPriceCharged?.toFixed(2) || 'N/A'}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-500 block text-[10px]">Last Dispatched:</span>
-                            <span className="font-bold">{applicablePricing.lastTransactionDate ? new Date(applicablePricing.lastTransactionDate).toLocaleDateString() : 'N/A'}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-500 block text-[10px]">Last Qty:</span>
-                            <span className="font-bold">{applicablePricing.lastQuantityCases ? `${applicablePricing.lastQuantityCases} Cases` : 'N/A'}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-500 block text-[10px]">Current Balance:</span>
-                            <span className={`font-bold ${(applicablePricing.outstandingBalance || 0) > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
-                              ₹{(applicablePricing.outstandingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
+                      {formPaymentMethod === 'Credit' && orderSummary.received >= orderSummary.grandTotal && orderSummary.grandTotal > 0 && (
+                        <div className="flex items-center gap-1.5 text-blue-700 bg-blue-50 border border-blue-200/60 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold mt-1">
+                          <Info className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span>Full invoice amount received upfront. This is an immediate cash/bank sale rather than credit.</span>
                         </div>
                       )}
                     </div>
-                  )}
 
-                  {/* Order Overview & Conversion Card */}
-                  {formProductId && (
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
-                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">ORDER OVERVIEW</div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-slate-700">
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">Product</span>
-                          <span className="font-bold text-slate-900">{selectedProductInForm?.name || '-'}</span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">Configuration</span>
-                          <span className="font-bold text-slate-900">{activeUnitsPerCase} Bottles/Case</span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">Cases</span>
-                          <span className="font-bold text-slate-900">{parseFloat(formCases) || 0}</span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">Total Bottles</span>
-                          <span className="font-extrabold text-blue-700 tabular-nums">{(parseFloat(formCases) || 0) * activeUnitsPerCase} Bottles</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Available Stock Indicator */}
-                  {selectedProductInForm && (
-                    <div className="p-3 bg-slate-100/80 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
-                      <div>
-                        <span className="text-[10px] font-extrabold uppercase text-slate-500 block">AVAILABLE STOCK</span>
-                        <span className="font-bold text-slate-800">{selectedProductInForm.currentStock.toLocaleString()} Cases ({ (selectedProductInForm.currentStock * activeUnitsPerCase).toLocaleString() } Bottles)</span>
-                      </div>
-                      {parseFloat(formCases) > 0 && (
-                        <div className="text-right">
-                          <span className="text-[10px] font-extrabold uppercase text-slate-500 block">AFTER DISPATCH</span>
-                          <span className={`font-extrabold ${selectedProductInForm.currentStock - parseFloat(formCases) < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
-                            {(selectedProductInForm.currentStock - parseFloat(formCases)).toLocaleString()} Cases
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex flex-col">
-                      <PremiumLabel label="Discount (₹)" />
-                      <input type="number" value={formDiscount} onChange={(e) => setFormDiscount(e.target.value)} placeholder="0.00" className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
-                    </div>
-                    <div className="flex flex-col gap-1.5 mt-1">
-                      <label className="flex items-center gap-2 h-5 cursor-pointer">
-                        <input type="checkbox" id="isGst" checked={isGstEnabled} onChange={(e) => setIsGstEnabled(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
-                        <span className="text-xs font-semibold text-slate-650">GST Applicable</span>
-                      </label>
-                      {isGstEnabled && <select aria-label="GST Rate" value={formGstRate} onChange={(e) => setFormGstRate(e.target.value)} className="h-[32px] px-2 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-none focus:border-blue-500">
-                        <option value="" disabled>Select GST rate</option>
-                        {[0, 5, 12, 18, 28].map(rate => <option key={rate} value={rate}>{rate}% GST</option>)}
-                        {selectedProductInForm?.gstRate != null && ![0, 5, 12, 18, 28].includes(selectedProductInForm.gstRate) && <option value={selectedProductInForm.gstRate}>{selectedProductInForm.gstRate}% (Product rate)</option>}
-                      </select>}
-                    </div>
-                  </div>
-
-                  {/* Payment Type Selection & Terms */}
-                  <div className="border-t border-slate-100 pt-4 space-y-4">
-                    {(() => {
-                      const casesNum = parseFloat(formCases) || 0;
-                      const priceNum = parseFloat(formUnitPrice) || (selectedProductInForm?.sellingPrice || 0);
-                      const discountNum = parseFloat(formDiscount) || 0;
-                      const subtotalNum = Math.max(0, casesNum * priceNum - discountNum);
-                      const gstRate = isGstEnabled ? Math.max(0, parseFloat(formGstRate) || 0) : 0;
-                      const gstNum = subtotalNum * gstRate / 100;
-                      const currentTotal = Math.round((subtotalNum + gstNum) * 100) / 100;
-                      const receivedNum = parseFloat(formAmountReceived) || 0;
-                      const pendingBalance = Math.max(0, currentTotal - receivedNum);
-
-                      return (
-                        <>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="flex flex-col">
-                              <PremiumLabel label="Payment Method *" />
-                              <div className="flex gap-2">
-                                {['Cash', 'Bank', 'Credit', 'UPI', 'Cheque'].map(m => (
-                                  <button
-                                    key={m}
-                                    type="button"
-                                    onClick={() => {
-                                      setFormPaymentMethod(m);
-                                      if (m === 'Credit') {
-                                        setFormAmountReceived('0');
-                                        if (formPaymentTerms === 'COD' || formPaymentTerms === 'Immediate') {
-                                          setFormPaymentTerms('Credit');
-                                        }
-                                      } else {
-                                        if (formPaymentTerms === 'Credit' || formPaymentTerms.startsWith('Net')) {
-                                          setFormPaymentTerms('Immediate');
-                                          setFormAmountReceived(currentTotal.toString());
-                                        } else if (formPaymentTerms === 'Immediate') {
-                                          setFormAmountReceived(currentTotal.toString());
-                                        }
-                                      }
-                                    }}
-                                    className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${formPaymentMethod === m ? 'bg-blue-600 text-white border-blue-600 shadow' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
-                                  >
-                                    {m}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-
-                            <div className="flex flex-col">
-                              <PremiumLabel label="Payment Terms *" />
-                              <select
-                                value={formPaymentTerms}
-                                onChange={(e) => {
-                                  const terms = e.target.value;
-                                  setFormPaymentTerms(terms);
-                                  if (terms === 'COD') {
-                                    if (formPaymentMethod === 'Credit') setFormPaymentMethod('Cash');
-                                    setFormAmountReceived('0');
-                                  } else if (terms === 'Credit' || terms.startsWith('Net')) {
-                                    setFormPaymentMethod('Credit');
-                                    setFormAmountReceived('0');
-                                  } else if (terms === 'Immediate') {
-                                    if (formPaymentMethod === 'Credit') setFormPaymentMethod('Cash');
-                                    setFormAmountReceived(currentTotal.toString());
-                                  }
-                                }}
-                                className="w-full h-[40px] px-3 border border-slate-200 rounded-lg text-xs bg-white font-semibold focus:outline-none focus:border-blue-500 cursor-pointer"
-                              >
-                                <option value="Immediate">Immediate / Advance</option>
-                                <option value="COD" disabled={formPaymentMethod === 'Credit'}>Cash on Delivery (COD){formPaymentMethod === 'Credit' ? ' (Select Cash/Bank method)' : ''}</option>
-                                <option value="Net 7">Net 7 Days</option>
-                                <option value="Net 15">Net 15 Days</option>
-                                <option value="Net 30">Net 30 Days</option>
-                                <option value="Credit">Credit Agreement</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          {/* Flexible Amount Received Card */}
-                          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                            <div className="flex items-center justify-between">
-                              <PremiumLabel label="Amount Received Now (₹)" />
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (formPaymentMethod === 'Credit') setFormPaymentMethod('Cash');
-                                    setFormPaymentTerms('Immediate');
-                                    setFormAmountReceived(currentTotal.toString());
-                                  }}
-                                  className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 rounded cursor-pointer"
-                                >
-                                  Pay Full (₹{currentTotal.toFixed(2)})
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setFormAmountReceived('0');
-                                    if (formPaymentMethod === 'Credit') {
-                                      setFormPaymentTerms('Credit');
-                                    } else if (formPaymentTerms === 'Immediate') {
-                                      setFormPaymentTerms('COD');
-                                    }
-                                  }}
-                                  className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 hover:bg-amber-200 rounded cursor-pointer"
-                                >
-                                  COD / Pending (₹0)
-                                </button>
-                              </div>
-                            </div>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              max={currentTotal}
-                              value={formAmountReceived}
-                              onChange={(e) => setFormAmountReceived(e.target.value)}
-                              placeholder={`0.00 (Max: ₹${currentTotal.toFixed(2)})`}
-                              className="w-full h-[38px] px-3 border border-slate-200 text-sm font-semibold rounded-lg bg-white focus:outline-none focus:border-blue-500"
-                            />
-                            <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium px-1">
-                              <span>GST {gstRate}%: <strong className="text-slate-800">₹{gstNum.toFixed(2)}</strong> · Total Invoice: <strong className="text-slate-800">₹{currentTotal.toFixed(2)}</strong></span>
-                              <span>Pending Balance: <strong className={pendingBalance > 0 ? 'text-amber-700 font-bold' : 'text-emerald-700 font-bold'}>
-                                ₹{pendingBalance.toFixed(2)}
-                              </strong></span>
-                            </div>
-
-                            {formPaymentMethod === 'Credit' && receivedNum >= currentTotal && currentTotal > 0 && (
-                              <div className="flex items-center gap-1.5 text-blue-700 bg-blue-50 border border-blue-200/60 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold mt-1">
-                                <Info className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                                <span>Full invoice amount received upfront. This is an immediate cash/bank sale rather than credit.</span>
-                              </div>
-                            )}
-                          </div>
-                        </>
-                      );
-                    })()}
-
-                    {/* Credit Details & Limit Warning */}
+                    {/* Customer Credit exposure warning */}
                     {formPaymentMethod === 'Credit' && selectedCustomerInForm && (
                       <div className="p-3 bg-[#FFFBEB] border border-[#FDE68A] rounded-xl space-y-2 text-xs select-none">
                         <div className="flex justify-between items-center text-[#92400E] font-semibold">
                           <span>Customer Outstanding Balance:</span>
-                          <span className="font-bold text-[#78350F]">₹{(selectedCustomerInForm.outstandingPlaceholder || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          <span className="font-bold text-[#78350F] font-mono">₹{(selectedCustomerInForm.outstandingPlaceholder || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between items-center text-slate-600">
                           <span>Credit Limit:</span>
-                          <span className="font-bold">₹{(selectedCustomerInForm.creditLimit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          <span className="font-bold font-mono">₹{(selectedCustomerInForm.creditLimit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                         </div>
                         {selectedCustomerInForm.creditLimit > 0 && (
                           <div className="flex justify-between items-center text-slate-600">
                             <span>Available Credit:</span>
-                            <span className={`font-bold ${(selectedCustomerInForm.creditLimit - (selectedCustomerInForm.outstandingPlaceholder || 0)) < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
+                            <span className={`font-bold font-mono ${(selectedCustomerInForm.creditLimit - (selectedCustomerInForm.outstandingPlaceholder || 0)) < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
                               ₹{(selectedCustomerInForm.creditLimit - (selectedCustomerInForm.outstandingPlaceholder || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </span>
                           </div>
                         )}
                         {selectedCustomerInForm.creditLimit > 0 &&
-                          ((selectedCustomerInForm.outstandingPlaceholder || 0) + (parseFloat(formCases) || 0) * (parseFloat(formUnitPrice) || selectedProductInForm?.sellingPrice || 0)) > selectedCustomerInForm.creditLimit && (
+                          ((selectedCustomerInForm.outstandingPlaceholder || 0) + orderSummary.grandTotal) > selectedCustomerInForm.creditLimit && (
                             <div className="flex items-center gap-1.5 text-red-700 bg-red-100/80 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold mt-1">
                               <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
                               <span>Warning: Total credit exposure exceeds customer credit limit!</span>
@@ -2974,6 +3617,18 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                         </select>
                       </div>
                     )}
+
+                    {/* Optional Transaction Remarks */}
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Transaction Remarks (Optional)" />
+                      <input
+                        type="text"
+                        value={formRemarks}
+                        onChange={(e) => setFormRemarks(e.target.value)}
+                        placeholder="e.g. Dispatched via Express Logistics / Truck #KA-01-1234"
+                        className="w-full h-[40px] px-3.5 border border-slate-200 text-sm rounded-lg bg-white font-medium focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -3409,13 +4064,13 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       {/* EDIT MODAL */}
       {isEditOpen && selectedTxn && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-center items-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div className={`bg-white border border-slate-200 w-full ${formType === 'Sales Dispatch' ? 'max-w-5xl' : 'max-w-2xl'} rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden transition-all duration-200`}>
             <div className="flex justify-between items-center border-b border-slate-100 px-6 py-4">
               <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-amber-500" />
                 Edit Transaction: {selectedTxn.transactionNumber}
               </h2>
-              <button onClick={() => setIsEditOpen(false)} className="text-slate-400 hover:text-slate-650">
+              <button onClick={() => setIsEditOpen(false)} className="text-slate-400 hover:text-slate-650 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -3459,76 +4114,245 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                 </div>
               </div>
 
-              {/* Product Selection */}
-              <div className="flex flex-col">
-                <PremiumLabel label="Product *" />
-                <select
-                  value={formProductId}
-                  onChange={(e) => setFormProductId(e.target.value)}
-                  className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] bg-white rounded-lg focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">Select Finished Product...</option>
-                  {products.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} {p.sku ? `(SKU: ${p.sku})` : ''}</option>
-                  ))}
-                </select>
-              </div>
+              {/* Single Product Selection (for non-Sales Dispatch types) */}
+              {formType !== 'Sales Dispatch' && (
+                <div className="flex flex-col">
+                  <PremiumLabel label="Product *" />
+                  <select
+                    value={formProductId}
+                    onChange={(e) => setFormProductId(e.target.value)}
+                    className="w-full h-[40px] px-3.5 border border-slate-200 text-[14px] bg-white rounded-lg focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="">Select Finished Product...</option>
+                    {products.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} {p.sku ? `(SKU: ${p.sku})` : ''}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-              {/* Conditional sections mapped identically to create form */}
+              {/* Multi-Product Sales Dispatch Form */}
               {formType === 'Sales Dispatch' && (
                 <div className="space-y-4 border-t border-slate-100 pt-4">
-                  <div className="flex flex-col">
-                    <PremiumLabel label="Customer *" />
-                    <select value={formCustomerId} onChange={(e) => setFormCustomerId(e.target.value)} className="w-full h-[40px] border border-slate-200 text-sm bg-white rounded-lg">
-                      <option value="">Select Customer...</option>
-                      {customers.map(c => (
-                        <option key={c.id} value={c.id}>{c.customerName}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {/* Shared Customer Selection */}
+                  <SearchableDropdown
+                    label="Customer / Distributor *"
+                    required
+                    value={formCustomerId}
+                    onChange={handleCustomerSelect}
+                    options={customers.map(c => ({
+                      id: c.id,
+                      name: c.customerName,
+                      subtitle: c.phone || c.customerCode,
+                      badge: c.customerType
+                    }))}
+                    placeholder="Search customer by name, code, or phone..."
+                    onQuickAdd={handleQuickCreateCustomer}
+                    quickAddLabel="+ Quick Add Customer"
+                  />
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <EnterpriseNumberInput label="Cases Quantity *" value={formCases} onChange={(e) => setFormCases(e.target.value)} placeholder="0" allowDecimals={false} />
-                    <div className="flex flex-col">
-                      <PremiumLabel label="Unit Price (₹) *" />
-                      <input type="number" value={formUnitPrice} onChange={(e) => setFormUnitPrice(e.target.value)} placeholder="0.00" className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
-                    </div>
-                  </div>
+                  {/* Dynamic Multi-Product Order Items Table */}
+                  <OrderItemsTableSection
+                    orderItems={orderItems}
+                    rowErrors={rowErrors}
+                    products={products}
+                    caseConfigs={caseConfigs}
+                    onAddRow={handleAddRow}
+                    onRemoveRow={handleRemoveRow}
+                    onChangeRow={handleRowChange}
+                  />
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex flex-col">
-                      <PremiumLabel label="Discount (₹)" />
-                      <input type="number" value={formDiscount} onChange={(e) => setFormDiscount(e.target.value)} placeholder="0.00" className="w-full h-[40px] px-3 border border-slate-200 text-sm rounded-lg" />
-                    </div>
-                    <div className="flex flex-col gap-1.5 mt-1">
-                      <label className="flex items-center gap-2 h-5 cursor-pointer">
-                        <input type="checkbox" id="isGstEdit" checked={isGstEnabled} onChange={(e) => setIsGstEnabled(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
-                        <span className="text-xs font-semibold text-slate-650">GST Applicable</span>
-                      </label>
-                      {isGstEnabled && <select aria-label="GST Rate" value={formGstRate} onChange={(e) => setFormGstRate(e.target.value)} className="h-[32px] px-2 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-none focus:border-blue-500">
-                        <option value="" disabled>Select GST rate</option>
-                        {[0, 5, 12, 18, 28].map(rate => <option key={rate} value={rate}>{rate}% GST</option>)}
-                        {selectedProductInForm?.gstRate != null && ![0, 5, 12, 18, 28].includes(selectedProductInForm.gstRate) && <option value={selectedProductInForm.gstRate}>{selectedProductInForm.gstRate}% (Product rate)</option>}
-                      </select>}
-                    </div>
-                  </div>
+                  {/* Consolidated Transaction Summary Card */}
+                  <OrderTransactionSummaryCard summary={orderSummary} />
 
+                  {/* Shared Payment Details Section */}
                   <div className="border-t border-slate-100 pt-4 space-y-4">
-                    <div className="flex flex-col">
-                      <PremiumLabel label="Payment Method *" />
-                      <div className="flex gap-3">
-                        {['Cash', 'Bank', 'Credit', 'UPI', 'Cheque'].map(m => (
-                          <button
-                            key={m}
-                            type="button"
-                            onClick={() => setFormPaymentMethod(m)}
-                            className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${formPaymentMethod === m ? 'bg-blue-600 text-white border-blue-600 shadow' : 'bg-slate-50 text-slate-600 border-slate-200'
-                              }`}
-                          >
-                            {m}
-                          </button>
-                        ))}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Payment Method */}
+                      <div className="flex flex-col">
+                        <PremiumLabel label="Payment Method *" />
+                        <div className="flex gap-2">
+                          {['Cash', 'Bank', 'Credit', 'UPI', 'Cheque'].map(m => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => {
+                                setFormPaymentMethod(m)
+                                if (m === 'Credit') {
+                                  setFormAmountReceived('0')
+                                  if (formPaymentTerms === 'COD' || formPaymentTerms === 'Immediate') {
+                                    setFormPaymentTerms('Credit')
+                                  }
+                                } else {
+                                  if (formPaymentTerms === 'Credit' || formPaymentTerms.startsWith('Net')) {
+                                    setFormPaymentTerms('Immediate')
+                                    setFormAmountReceived(orderSummary.grandTotal.toString())
+                                  } else if (formPaymentTerms === 'Immediate') {
+                                    setFormAmountReceived(orderSummary.grandTotal.toString())
+                                  }
+                                }
+                              }}
+                              className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${formPaymentMethod === m ? 'bg-blue-600 text-white border-blue-600 shadow' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                            >
+                              {m}
+                            </button>
+                          ))}
+                        </div>
                       </div>
+
+                      {/* Payment Terms */}
+                      <div className="flex flex-col">
+                        <PremiumLabel label="Payment Terms *" />
+                        <select
+                          value={formPaymentTerms}
+                          onChange={(e) => {
+                            const terms = e.target.value
+                            setFormPaymentTerms(terms)
+                            if (terms === 'COD') {
+                              if (formPaymentMethod === 'Credit') setFormPaymentMethod('Cash')
+                              setFormAmountReceived('0')
+                            } else if (terms === 'Credit' || terms.startsWith('Net')) {
+                              setFormPaymentMethod('Credit')
+                              setFormAmountReceived('0')
+                            } else if (terms === 'Immediate') {
+                              if (formPaymentMethod === 'Credit') setFormPaymentMethod('Cash')
+                              setFormAmountReceived(orderSummary.grandTotal.toString())
+                            }
+                          }}
+                          className="w-full h-[40px] px-3 border border-slate-200 rounded-lg text-xs bg-white font-semibold focus:outline-none focus:border-blue-500 cursor-pointer"
+                        >
+                          <option value="Immediate">Immediate / Advance</option>
+                          <option value="COD" disabled={formPaymentMethod === 'Credit'}>Cash on Delivery (COD){formPaymentMethod === 'Credit' ? ' (Select Cash/Bank method)' : ''}</option>
+                          <option value="Net 7">Net 7 Days</option>
+                          <option value="Net 15">Net 15 Days</option>
+                          <option value="Net 30">Net 30 Days</option>
+                          <option value="Credit">Credit Agreement</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Amount Received Now Card */}
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <PremiumLabel label="Amount Received Now (₹)" />
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (formPaymentMethod === 'Credit') setFormPaymentMethod('Cash')
+                              setFormPaymentTerms('Immediate')
+                              setFormAmountReceived(orderSummary.grandTotal.toString())
+                            }}
+                            className="px-2.5 py-1 text-[11px] font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-md cursor-pointer transition-colors"
+                          >
+                            Pay Full (₹{orderSummary.grandTotal.toFixed(2)})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormAmountReceived('0')
+                              if (formPaymentMethod === 'Credit') {
+                                setFormPaymentTerms('Credit')
+                              } else if (formPaymentTerms === 'Immediate') {
+                                setFormPaymentTerms('COD')
+                              }
+                            }}
+                            className="px-2.5 py-1 text-[11px] font-bold bg-amber-100 text-amber-800 hover:bg-amber-200 rounded-md cursor-pointer transition-colors"
+                          >
+                            COD / Pending (₹0)
+                          </button>
+                        </div>
+                      </div>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max={orderSummary.grandTotal}
+                        value={formAmountReceived}
+                        onChange={(e) => setFormAmountReceived(e.target.value)}
+                        placeholder={`0.00 (Max: ₹${orderSummary.grandTotal.toFixed(2)})`}
+                        className="w-full h-[38px] px-3 border border-slate-200 text-sm font-semibold rounded-lg bg-white focus:outline-none focus:border-blue-500 font-mono"
+                      />
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium px-1">
+                        <span>Total GST: <strong className="text-slate-800 font-mono">₹{orderSummary.totalGst.toFixed(2)}</strong> · Total Invoice: <strong className="text-slate-800 font-mono">₹{orderSummary.grandTotal.toFixed(2)}</strong></span>
+                        <span>Pending Balance: <strong className={`font-mono font-bold ${orderSummary.pendingBalance > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                          ₹{orderSummary.pendingBalance.toFixed(2)}
+                        </strong></span>
+                      </div>
+
+                      {formPaymentMethod === 'Credit' && orderSummary.received >= orderSummary.grandTotal && orderSummary.grandTotal > 0 && (
+                        <div className="flex items-center gap-1.5 text-blue-700 bg-blue-50 border border-blue-200/60 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold mt-1">
+                          <Info className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span>Full invoice amount received upfront. This is an immediate cash/bank sale rather than credit.</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Customer Credit exposure warning */}
+                    {formPaymentMethod === 'Credit' && selectedCustomerInForm && (
+                      <div className="p-3 bg-[#FFFBEB] border border-[#FDE68A] rounded-xl space-y-2 text-xs select-none">
+                        <div className="flex justify-between items-center text-[#92400E] font-semibold">
+                          <span>Customer Outstanding Balance:</span>
+                          <span className="font-bold text-[#78350F] font-mono">₹{(selectedCustomerInForm.outstandingPlaceholder || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-slate-600">
+                          <span>Credit Limit:</span>
+                          <span className="font-bold font-mono">₹{(selectedCustomerInForm.creditLimit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        {selectedCustomerInForm.creditLimit > 0 && (
+                          <div className="flex justify-between items-center text-slate-600">
+                            <span>Available Credit:</span>
+                            <span className={`font-bold font-mono ${(selectedCustomerInForm.creditLimit - (selectedCustomerInForm.outstandingPlaceholder || 0)) < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
+                              ₹{(selectedCustomerInForm.creditLimit - (selectedCustomerInForm.outstandingPlaceholder || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        )}
+                        {selectedCustomerInForm.creditLimit > 0 &&
+                          ((selectedCustomerInForm.outstandingPlaceholder || 0) + orderSummary.grandTotal) > selectedCustomerInForm.creditLimit && (
+                            <div className="flex items-center gap-1.5 text-red-700 bg-red-100/80 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold mt-1">
+                              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                              <span>Warning: Total credit exposure exceeds customer credit limit!</span>
+                            </div>
+                          )}
+                      </div>
+                    )}
+
+                    {/* Bank Account dropdown */}
+                    {['Bank', 'UPI', 'Cheque'].includes(formPaymentMethod) && (
+                      <div className="flex flex-col">
+                        <PremiumLabel label="Company Bank Account *" />
+                        <select value={formBankAccountId} onChange={(e) => setFormBankAccountId(e.target.value)} className="w-full h-[40px] border border-slate-200 rounded-lg text-sm bg-white font-medium">
+                          <option value="">Select Account...</option>
+                          {banks.map((b: any) => (
+                            <option key={b.id} value={b.id}>{b.bankName} — {b.accountNumber}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Cash Book dropdown */}
+                    {formPaymentMethod === 'Cash' && (
+                      <div className="flex flex-col">
+                        <PremiumLabel label="Company Cash Book Register *" />
+                        <select value={formCashBookId} onChange={(e) => setFormCashBookId(e.target.value)} className="w-full h-[40px] border border-slate-200 rounded-lg text-sm bg-white font-medium">
+                          <option value="">Select Cash Register...</option>
+                          {cashRegisters.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Optional Transaction Remarks */}
+                    <div className="flex flex-col">
+                      <PremiumLabel label="Transaction Remarks (Optional)" />
+                      <input
+                        type="text"
+                        value={formRemarks}
+                        onChange={(e) => setFormRemarks(e.target.value)}
+                        placeholder="e.g. Dispatched via Express Logistics / Truck #KA-01-1234"
+                        className="w-full h-[40px] px-3.5 border border-slate-200 text-sm rounded-lg bg-white font-medium focus:outline-none focus:border-blue-500"
+                      />
                     </div>
                   </div>
                 </div>

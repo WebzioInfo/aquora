@@ -74,6 +74,8 @@ namespace Aquora.Domain.Entities
         public bool IsDeleted { get; set; }
         public DateTime? DeletedAt { get; set; }
         public string? DeletedBy { get; set; }
+
+        public virtual ICollection<SalesTransactionItem> Items { get; set; } = new List<SalesTransactionItem>();
     }
 }
 

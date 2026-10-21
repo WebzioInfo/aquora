@@ -127,6 +127,28 @@ namespace Aquora.API.Controllers
                     ALTER TABLE ""{schema}"".""Customers"" ADD COLUMN IF NOT EXISTS ""Discount"" numeric NOT NULL DEFAULT 0;
                     ALTER TABLE ""{schema}"".""SalesTransactions"" ADD COLUMN IF NOT EXISTS ""ParentTransactionId"" uuid NULL;
                     CREATE INDEX IF NOT EXISTS ""IX_SalesTransactions_ParentTransactionId"" ON ""{schema}"".""SalesTransactions"" (""ParentTransactionId"");
+                    CREATE TABLE IF NOT EXISTS ""{schema}"".""SalesTransactionItems"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""TenantId"" uuid NOT NULL,
+                        ""CompanyId"" uuid NOT NULL,
+                        ""SalesTransactionId"" uuid NOT NULL,
+                        ""ProductId"" uuid NOT NULL,
+                        ""CaseConfigurationId"" uuid NULL,
+                        ""UnitsPerCase"" integer NOT NULL DEFAULT 24,
+                        ""Cases"" numeric NOT NULL DEFAULT 0,
+                        ""UnitPrice"" numeric NOT NULL DEFAULT 0,
+                        ""DiscountAmount"" numeric NOT NULL DEFAULT 0,
+                        ""TaxAmount"" numeric NOT NULL DEFAULT 0,
+                        ""GstRate"" numeric NOT NULL DEFAULT 0,
+                        ""IsGstApplicable"" boolean NOT NULL DEFAULT false,
+                        ""CGST"" numeric NOT NULL DEFAULT 0,
+                        ""SGST"" numeric NOT NULL DEFAULT 0,
+                        ""IGST"" numeric NOT NULL DEFAULT 0,
+                        ""TotalAmount"" numeric NOT NULL DEFAULT 0,
+                        ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT now()
+                    );
+                    CREATE INDEX IF NOT EXISTS ""IX_SalesTransactionItems_SalesTransactionId"" ON ""{schema}"".""SalesTransactionItems"" (""SalesTransactionId"");
+                    CREATE INDEX IF NOT EXISTS ""IX_SalesTransactionItems_ProductId"" ON ""{schema}"".""SalesTransactionItems"" (""ProductId"");
                 ";
                 await _tenantContext.Database.ExecuteSqlRawAsync(sql);
                 _healedSalesCustomerSchemas.TryAdd(schema, true);
@@ -135,6 +157,66 @@ namespace Aquora.API.Controllers
             {
                 Console.WriteLine($"[SALES DB HEAL WARNING]: {ex.Message}");
             }
+        }
+
+        private static List<SalesTransactionItemDto> ParseMetadataItemsOrFallback(SalesTransaction t)
+        {
+            if (!string.IsNullOrWhiteSpace(t.MetadataJson))
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(t.MetadataJson);
+                    if (doc.RootElement.TryGetProperty("items", out var itemsElem) && itemsElem.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    {
+                        var parsed = new List<SalesTransactionItemDto>();
+                        foreach (var el in itemsElem.EnumerateArray())
+                        {
+                            parsed.Add(new SalesTransactionItemDto
+                            {
+                                Id = Guid.NewGuid(),
+                                ProductId = el.TryGetProperty("productId", out var pId) && Guid.TryParse(pId.GetString(), out var gId) ? gId : t.ProductId,
+                                ProductName = el.TryGetProperty("productName", out var pName) ? pName.GetString() ?? "" : (t.Product?.Name ?? "Product"),
+                                ProductSku = el.TryGetProperty("productSku", out var pSku) ? pSku.GetString() ?? "" : (t.Product?.SKU ?? ""),
+                                CaseConfigurationId = el.TryGetProperty("caseConfigurationId", out var ccId) && Guid.TryParse(ccId.GetString(), out var gccId) ? gccId : null,
+                                UnitsPerCase = el.TryGetProperty("unitsPerCase", out var upc) ? upc.GetInt32() : 24,
+                                Cases = el.TryGetProperty("cases", out var cVal) ? cVal.GetDecimal() : 0,
+                                UnitPrice = el.TryGetProperty("unitPrice", out var upVal) ? upVal.GetDecimal() : 0,
+                                DiscountAmount = el.TryGetProperty("discountAmount", out var discVal) ? discVal.GetDecimal() : 0,
+                                TaxAmount = el.TryGetProperty("taxAmount", out var taxVal) ? taxVal.GetDecimal() : 0,
+                                GstRate = el.TryGetProperty("gstRate", out var rateVal) ? rateVal.GetDecimal() : 0,
+                                IsGstApplicable = el.TryGetProperty("isGstApplicable", out var gstAppVal) && gstAppVal.GetBoolean(),
+                                CGST = el.TryGetProperty("cgst", out var cgstVal) ? cgstVal.GetDecimal() : 0,
+                                SGST = el.TryGetProperty("sgst", out var sgstVal) ? sgstVal.GetDecimal() : 0,
+                                IGST = el.TryGetProperty("igst", out var igstVal) ? igstVal.GetDecimal() : 0,
+                                TotalAmount = el.TryGetProperty("totalAmount", out var totVal) ? totVal.GetDecimal() : 0
+                            });
+                        }
+                        if (parsed.Any()) return parsed;
+                    }
+                }
+                catch { }
+            }
+
+            return new List<SalesTransactionItemDto>
+            {
+                new SalesTransactionItemDto
+                {
+                    Id = t.Id,
+                    ProductId = t.ProductId,
+                    ProductName = t.Product?.Name ?? "Product",
+                    ProductSku = t.Product?.SKU ?? string.Empty,
+                    Cases = t.Cases,
+                    UnitPrice = t.UnitPrice,
+                    DiscountAmount = t.DiscountAmount,
+                    TaxAmount = t.TaxAmount,
+                    GstRate = t.GstRate,
+                    IsGstApplicable = t.IsGstApplicable,
+                    CGST = t.CGST,
+                    SGST = t.SGST,
+                    IGST = t.IGST,
+                    TotalAmount = t.TotalAmount
+                }
+            };
         }
 
         [HttpGet]
@@ -245,6 +327,20 @@ namespace Aquora.API.Controllers
                 var bankAccountsDict = await _tenantContext.BankAccounts.ToDictionaryAsync(b => b.Id, b => b.BankName);
                 var cashBooksDict = await _tenantContext.CashBooks.ToDictionaryAsync(c => c.Id, c => c.Name);
 
+                // Batch load multi-product line items for page
+                var allTxnIds = items.Select(t => t.Id).ToList();
+                List<SalesTransactionItem> dbLineItems = new();
+                try
+                {
+                    dbLineItems = await _tenantContext.SalesTransactionItems
+                        .Include(i => i.Product)
+                        .Include(i => i.CaseConfiguration)
+                        .Where(i => allTxnIds.Contains(i.SalesTransactionId))
+                        .ToListAsync();
+                }
+                catch { }
+                var itemsByTxnId = dbLineItems.GroupBy(i => i.SalesTransactionId).ToDictionary(g => g.Key, g => g.ToList());
+
                 var dtos = items.Select(t => new SalesTransactionDto
                 {
                     Id = t.Id,
@@ -291,6 +387,28 @@ namespace Aquora.API.Controllers
                     ProductValue = t.ProductValue,
                     DamageCost = t.DamageCost,
                     DamageReason = t.DamageReason,
+                    Items = itemsByTxnId.TryGetValue(t.Id, out var lines) && lines.Any()
+                        ? lines.Select(li => new SalesTransactionItemDto
+                        {
+                            Id = li.Id,
+                            ProductId = li.ProductId,
+                            ProductName = li.Product?.Name ?? "Product",
+                            ProductSku = li.Product?.SKU ?? string.Empty,
+                            CaseConfigurationId = li.CaseConfigurationId,
+                            CaseConfigurationName = li.CaseConfiguration?.Name,
+                            UnitsPerCase = li.UnitsPerCase,
+                            Cases = li.Cases,
+                            UnitPrice = li.UnitPrice,
+                            DiscountAmount = li.DiscountAmount,
+                            TaxAmount = li.TaxAmount,
+                            GstRate = li.GstRate,
+                            IsGstApplicable = li.IsGstApplicable,
+                            CGST = li.CGST,
+                            SGST = li.SGST,
+                            IGST = li.IGST,
+                            TotalAmount = li.TotalAmount
+                        }).ToList()
+                        : ParseMetadataItemsOrFallback(t),
                     CreatedBy = t.CreatedBy,
                     CreatedByName = users.TryGetValue(t.CreatedBy, out var name) ? name : "System",
                     CreatedAt = t.CreatedAt,
@@ -334,6 +452,46 @@ namespace Aquora.API.Controllers
 
                 var bankAccount = txn.BankAccountId.HasValue ? await _tenantContext.BankAccounts.FindAsync(txn.BankAccountId.Value) : null;
                 var cashBook = txn.CashBookId.HasValue ? await _tenantContext.CashBooks.FindAsync(txn.CashBookId.Value) : null;
+
+                List<SalesTransactionItemDto> itemDtos = new();
+                try
+                {
+                    var dbLines = await _tenantContext.SalesTransactionItems
+                        .Include(i => i.Product)
+                        .Include(i => i.CaseConfiguration)
+                        .Where(i => i.SalesTransactionId == txn.Id)
+                        .ToListAsync();
+
+                    if (dbLines.Any())
+                    {
+                        itemDtos = dbLines.Select(li => new SalesTransactionItemDto
+                        {
+                            Id = li.Id,
+                            ProductId = li.ProductId,
+                            ProductName = li.Product?.Name ?? "Product",
+                            ProductSku = li.Product?.SKU ?? string.Empty,
+                            CaseConfigurationId = li.CaseConfigurationId,
+                            CaseConfigurationName = li.CaseConfiguration?.Name,
+                            UnitsPerCase = li.UnitsPerCase,
+                            Cases = li.Cases,
+                            UnitPrice = li.UnitPrice,
+                            DiscountAmount = li.DiscountAmount,
+                            TaxAmount = li.TaxAmount,
+                            GstRate = li.GstRate,
+                            IsGstApplicable = li.IsGstApplicable,
+                            CGST = li.CGST,
+                            SGST = li.SGST,
+                            IGST = li.IGST,
+                            TotalAmount = li.TotalAmount
+                        }).ToList();
+                    }
+                }
+                catch { }
+
+                if (!itemDtos.Any())
+                {
+                    itemDtos = ParseMetadataItemsOrFallback(txn);
+                }
 
                 var dto = new SalesTransactionDto
                 {
@@ -379,6 +537,7 @@ namespace Aquora.API.Controllers
                     ProductValue = txn.ProductValue,
                     DamageCost = txn.DamageCost,
                     DamageReason = txn.DamageReason,
+                    Items = itemDtos,
                     CreatedBy = txn.CreatedBy,
                     CreatedByName = createdByName,
                     CreatedAt = txn.CreatedAt,
@@ -401,6 +560,15 @@ namespace Aquora.API.Controllers
                 return Unauthorized(ApiResponse<SalesTransactionDto>.CreateFailure("Unauthorized to create transactions.", "Unauthorized", HttpContext.TraceIdentifier));
             }
 
+            if (request.Items != null && request.Items.Any())
+            {
+                request.Cases = request.Items.Sum(i => i.Cases);
+                if (request.ProductId == Guid.Empty)
+                {
+                    request.ProductId = request.Items[0].ProductId;
+                }
+            }
+
             if (request.Cases <= 0 && request.TransactionType != "Stock Adjustment")
             {
                 return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Quantity of cases must be greater than zero.", "Validation Error", HttpContext.TraceIdentifier));
@@ -412,6 +580,8 @@ namespace Aquora.API.Controllers
                 return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Database context is invalid.", "Infrastructure Error", HttpContext.TraceIdentifier));
             }
 
+            await EnsureCustomerColumnsAsync();
+
             var strategy = dbContext.Database.CreateExecutionStrategy();
             return await strategy.ExecuteAsync(async () =>
             {
@@ -421,9 +591,9 @@ namespace Aquora.API.Controllers
                 var tenantId = _currentUserContext.TenantId;
                 var currentUserId = _currentUserContext.UserId ?? "System";
 
-                // Load product
+                // Load primary product
                 var product = await _tenantContext.Products.FirstOrDefaultAsync(p => p.Id == request.ProductId && !p.IsDeleted);
-                if (product == null)
+                if (product == null && (request.Items == null || !request.Items.Any()))
                 {
                     return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Product not found.", "Validation Error", HttpContext.TraceIdentifier));
                 }
@@ -525,28 +695,141 @@ namespace Aquora.API.Controllers
                 // Journal ledger lines accumulator
                 var journalLines = new List<(Account account, decimal debit, decimal credit, string description)>();
 
+                var dispatchItems = new List<(SalesTransactionItem ItemEntity, Product Product)>();
+
                 if (request.TransactionType == "Sales Dispatch")
                 {
-                    if (request.UnitPrice <= 0)
-                    {
-                        var custPrice = await _tenantContext.CustomerProductPrices
-                            .Where(cp => cp.TenantId == tenantId && cp.CustomerId == customer.Id && cp.ProductId == product.Id && cp.IsActive && !cp.IsDeleted)
-                            .OrderByDescending(cp => cp.CreatedAt)
-                            .FirstOrDefaultAsync();
+                    var requestedItems = (request.Items != null && request.Items.Any())
+                        ? request.Items
+                        : new List<SalesTransactionItemRequest>
+                        {
+                            new SalesTransactionItemRequest
+                            {
+                                ProductId = request.ProductId,
+                                CaseConfigurationId = request.CaseConfigurationId,
+                                UnitsPerCase = request.UnitsPerCase,
+                                Cases = request.Cases,
+                                UnitPrice = request.UnitPrice,
+                                DiscountAmount = request.DiscountAmount,
+                                TaxAmount = request.TaxAmount,
+                                GstRate = request.GstRate,
+                                IsGstApplicable = request.IsGstApplicable,
+                                CGST = request.CGST,
+                                SGST = request.SGST,
+                                IGST = request.IGST,
+                                TotalAmount = request.TotalAmount
+                            }
+                        };
 
-                        if (custPrice != null && custPrice.CustomPrice > 0)
+                    foreach (var itemReq in requestedItems)
+                    {
+                        if (itemReq.ProductId == Guid.Empty)
                         {
-                            request.UnitPrice = custPrice.CustomPrice;
+                            return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Each order item must specify a product.", "Validation Error", HttpContext.TraceIdentifier));
                         }
-                        else if (product.SellingPrice > 0)
+
+                        if (itemReq.Cases <= 0)
                         {
-                            request.UnitPrice = product.SellingPrice;
+                            return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Each order item must have a positive quantity of cases.", "Validation Error", HttpContext.TraceIdentifier));
+                        }
+
+                        var itemProduct = await _tenantContext.Products.FirstOrDefaultAsync(p => p.Id == itemReq.ProductId && !p.IsDeleted);
+                        if (itemProduct == null)
+                        {
+                            return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure($"Product with ID '{itemReq.ProductId}' not found.", "Validation Error", HttpContext.TraceIdentifier));
+                        }
+
+                        if (itemReq.UnitPrice <= 0)
+                        {
+                            var custPrice = await _tenantContext.CustomerProductPrices
+                                .Where(cp => cp.TenantId == tenantId && cp.CustomerId == customer.Id && cp.ProductId == itemProduct.Id && cp.IsActive && !cp.IsDeleted)
+                                .OrderByDescending(cp => cp.CreatedAt)
+                                .FirstOrDefaultAsync();
+
+                            if (custPrice != null && custPrice.CustomPrice > 0)
+                            {
+                                itemReq.UnitPrice = custPrice.CustomPrice;
+                            }
+                            else if (itemProduct.SellingPrice > 0)
+                            {
+                                itemReq.UnitPrice = itemProduct.SellingPrice;
+                            }
+                        }
+
+                        decimal lineGross = itemReq.Cases * itemReq.UnitPrice;
+                        decimal lineTaxable = Math.Max(0m, lineGross - itemReq.DiscountAmount);
+                        decimal lineTax = 0m;
+                        decimal lineCgst = 0m, lineSgst = 0m, lineIgst = 0m;
+
+                        if (itemReq.IsGstApplicable && itemReq.GstRate > 0)
+                        {
+                            lineTax = Math.Round(lineTaxable * itemReq.GstRate / 100m, 2, MidpointRounding.AwayFromZero);
+                            var isInterState = string.Equals(request.TaxTreatment, "InterState", StringComparison.OrdinalIgnoreCase);
+                            if (isInterState)
+                            {
+                                lineIgst = lineTax;
+                            }
+                            else
+                            {
+                                lineCgst = Math.Round(lineTax / 2m, 2, MidpointRounding.AwayFromZero);
+                                lineSgst = lineTax - lineCgst;
+                            }
+                        }
+
+                        decimal lineTotal = Math.Round(lineTaxable + lineTax, 2, MidpointRounding.AwayFromZero);
+
+                        var itemEntity = new SalesTransactionItem
+                        {
+                            Id = Guid.NewGuid(),
+                            TenantId = tenantId,
+                            CompanyId = company.Id,
+                            SalesTransactionId = transactionId,
+                            ProductId = itemProduct.Id,
+                            CaseConfigurationId = itemReq.CaseConfigurationId,
+                            UnitsPerCase = itemReq.UnitsPerCase > 0 ? itemReq.UnitsPerCase : 24,
+                            Cases = itemReq.Cases,
+                            UnitPrice = itemReq.UnitPrice,
+                            DiscountAmount = itemReq.DiscountAmount,
+                            TaxAmount = lineTax,
+                            GstRate = itemReq.GstRate,
+                            IsGstApplicable = itemReq.IsGstApplicable,
+                            CGST = lineCgst,
+                            SGST = lineSgst,
+                            IGST = lineIgst,
+                            TotalAmount = lineTotal,
+                            CreatedAt = DateTime.UtcNow
+                        };
+
+                        dispatchItems.Add((itemEntity, itemProduct));
+                    }
+
+                    // Stock availability verification
+                    var groupedStockReq = dispatchItems.GroupBy(x => x.Product.Id).ToDictionary(g => g.Key, g => g.Sum(x => x.ItemEntity.Cases));
+                    foreach (var kvp in groupedStockReq)
+                    {
+                        var prod = dispatchItems.First(x => x.Product.Id == kvp.Key).Product;
+                        if (kvp.Value > prod.CurrentStock)
+                        {
+                            return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure(
+                                $"Insufficient stock for '{prod.Name}'. Available: {prod.CurrentStock} Cases, Requested: {kvp.Value} Cases.",
+                                "Insufficient Stock",
+                                HttpContext.TraceIdentifier));
                         }
                     }
 
-                    CalculateDispatchTax(request, product);
-                    request.TotalAmount = Math.Round(Math.Max(0m, (request.Cases * request.UnitPrice) - request.DiscountAmount) + request.TaxAmount, 2, MidpointRounding.AwayFromZero);
+                    // Consolidated transaction metrics
+                    request.Cases = dispatchItems.Sum(x => x.ItemEntity.Cases);
+                    request.DiscountAmount = dispatchItems.Sum(x => x.ItemEntity.DiscountAmount);
+                    request.TaxAmount = dispatchItems.Sum(x => x.ItemEntity.TaxAmount);
+                    request.CGST = dispatchItems.Sum(x => x.ItemEntity.CGST);
+                    request.SGST = dispatchItems.Sum(x => x.ItemEntity.SGST);
+                    request.IGST = dispatchItems.Sum(x => x.ItemEntity.IGST);
+                    request.TotalAmount = dispatchItems.Sum(x => x.ItemEntity.TotalAmount);
                     totalAmount = request.TotalAmount;
+                    request.ProductId = dispatchItems[0].Product.Id;
+                    request.UnitPrice = dispatchItems.Count == 1 ? dispatchItems[0].ItemEntity.UnitPrice : (request.Cases > 0 ? Math.Round((totalAmount - request.TaxAmount + request.DiscountAmount) / request.Cases, 2) : 0);
+                    request.IsGstApplicable = dispatchItems.Any(x => x.ItemEntity.IsGstApplicable);
+                    request.GstRate = dispatchItems.Count == 1 ? dispatchItems[0].ItemEntity.GstRate : (request.TaxAmount > 0 && (totalAmount - request.TaxAmount) > 0 ? Math.Round(request.TaxAmount / (totalAmount - request.TaxAmount) * 100m, 2) : 0);
 
                     var isCreditSale = string.Equals(request.PaymentMethod, "Credit", StringComparison.OrdinalIgnoreCase)
                         || string.Equals(request.PaymentTerms, "Credit", StringComparison.OrdinalIgnoreCase)
@@ -635,14 +918,12 @@ namespace Aquora.API.Controllers
                     if (request.SGST > 0) journalLines.Add((await ResolveAccountAsync("SGST Output Tax", "2102", "Liabilities", "Cr", tenantId, company.Id), 0m, request.SGST, $"SGST liability: {txnNumber}"));
                     if (request.IGST > 0) journalLines.Add((await ResolveAccountAsync("IGST Output Tax", "2103", "Liabilities", "Cr", tenantId, company.Id), 0m, request.IGST, $"IGST liability: {txnNumber}"));
 
-                    decimal cost = request.Cases * product.CostPrice;
-                    if (cost > 0)
+                    decimal totalCogs = dispatchItems.Sum(x => x.ItemEntity.Cases * x.Product.CostPrice);
+                    if (totalCogs > 0)
                     {
-                        journalLines.Add((cogsAccount, cost, 0m, $"Cost of goods sold: {txnNumber}"));
-                        journalLines.Add((inventoryAccount, 0m, cost, $"Inventory deduction: {txnNumber}"));
+                        journalLines.Add((cogsAccount, totalCogs, 0m, $"Cost of goods sold: {txnNumber}"));
+                        journalLines.Add((inventoryAccount, 0m, totalCogs, $"Inventory deduction: {txnNumber}"));
                     }
-
-                    stockAdjustment = -request.Cases;
                 }
                 else if (request.TransactionType == "Customer Return")
                 {
@@ -829,8 +1110,56 @@ namespace Aquora.API.Controllers
                     await CreateJournalEntryAsync(tenantId, company.Id, "Journal Voucher", $"Sales module auto-posting: {txnNumber}", txnNumber, journalLines, currentUserId);
                 }
 
-                // Apply stock movement
-                if (stockAdjustment != 0)
+                // Apply stock movement and persist line items
+                if (dispatchItems.Any())
+                {
+                    foreach (var (itemEntity, itemProduct) in dispatchItems)
+                    {
+                        await _inventoryMovementService.RecordProductMovementAsync(
+                            _tenantContext,
+                            itemEntity.ProductId,
+                            -itemEntity.Cases,
+                            "SalesTransaction",
+                            transaction.Id,
+                            $"{request.TransactionType}: {txnNumber} ({itemProduct.Name})",
+                            tenantId,
+                            company.Id,
+                            currentUserId);
+
+                        _tenantContext.SalesTransactionItems.Add(itemEntity);
+                    }
+
+                    // Embed structured items into MetadataJson
+                    try
+                    {
+                        var metaItems = dispatchItems.Select(x => new
+                        {
+                            productId = x.ItemEntity.ProductId,
+                            productName = x.Product.Name,
+                            productSku = x.Product.SKU ?? string.Empty,
+                            caseConfigurationId = x.ItemEntity.CaseConfigurationId,
+                            unitsPerCase = x.ItemEntity.UnitsPerCase,
+                            cases = x.ItemEntity.Cases,
+                            unitPrice = x.ItemEntity.UnitPrice,
+                            discountAmount = x.ItemEntity.DiscountAmount,
+                            taxAmount = x.ItemEntity.TaxAmount,
+                            gstRate = x.ItemEntity.GstRate,
+                            isGstApplicable = x.ItemEntity.IsGstApplicable,
+                            cgst = x.ItemEntity.CGST,
+                            sgst = x.ItemEntity.SGST,
+                            igst = x.ItemEntity.IGST,
+                            totalAmount = x.ItemEntity.TotalAmount
+                        }).ToList();
+
+                        var dict = string.IsNullOrWhiteSpace(request.MetadataJson)
+                            ? new Dictionary<string, object?>()
+                            : (System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object?>>(request.MetadataJson) ?? new Dictionary<string, object?>());
+                        dict["items"] = metaItems;
+                        transaction.MetadataJson = System.Text.Json.JsonSerializer.Serialize(dict);
+                    }
+                    catch { }
+                }
+                else if (stockAdjustment != 0)
                 {
                     await _inventoryMovementService.RecordProductMovementAsync(
                         _tenantContext,
@@ -885,7 +1214,7 @@ namespace Aquora.API.Controllers
                             transaction.TransactionDate,
                             transaction.ReferenceNumber ?? transaction.TransactionNumber,
                             "Sales Return Refund",
-                            $"Sales return refund: {transaction.TransactionNumber} - {customer.CustomerName} - {product.Name}",
+                            $"Sales return refund: {transaction.TransactionNumber} - {customer.CustomerName} - {(product?.Name ?? "Product")}",
                             transaction.RefundAmount,
                             0m,
                             transaction.Id,
@@ -898,7 +1227,7 @@ namespace Aquora.API.Controllers
                             transaction.TransactionDate,
                             transaction.ReferenceNumber ?? transaction.TransactionNumber,
                             "Sales Return Refund",
-                            $"Sales return refund: {transaction.TransactionNumber} - {customer.CustomerName} - {product.Name}",
+                            $"Sales return refund: {transaction.TransactionNumber} - {customer.CustomerName} - {(product?.Name ?? "Product")}",
                             transaction.RefundAmount,
                             0m,
                             transaction.Id,
@@ -910,6 +1239,9 @@ namespace Aquora.API.Controllers
 
                 await NotifyDashboardAsync(request.TransactionType == "Customer Return" ? "dispatch-returned" : "dispatch-created");
 
+                var primaryProductName = product?.Name ?? (dispatchItems.Any() ? dispatchItems[0].Product.Name : "Product");
+                var primaryProductSku = product?.SKU ?? (dispatchItems.Any() ? (dispatchItems[0].Product.SKU ?? string.Empty) : string.Empty);
+
                 var dto = new SalesTransactionDto
                 {
                     Id = transaction.Id,
@@ -918,8 +1250,8 @@ namespace Aquora.API.Controllers
                     CustomerName = customer.CustomerName,
                     CustomerCode = customer.CustomerCode,
                     ProductId = transaction.ProductId,
-                    ProductName = product.Name,
-                    ProductSku = product.SKU ?? string.Empty,
+                    ProductName = primaryProductName,
+                    ProductSku = primaryProductSku,
                     Cases = transaction.Cases,
                     TransactionType = transaction.TransactionType,
                     TransactionDate = transaction.TransactionDate,
@@ -953,7 +1285,47 @@ namespace Aquora.API.Controllers
                     IsReplacementRequired = transaction.IsReplacementRequired,
                     ProductValue = transaction.ProductValue,
                     DamageCost = transaction.DamageCost,
-                    DamageReason = transaction.DamageReason,
+                    DamageReason = damageReason,
+                    Items = dispatchItems.Any()
+                        ? dispatchItems.Select(x => new SalesTransactionItemDto
+                        {
+                            Id = x.ItemEntity.Id,
+                            ProductId = x.ItemEntity.ProductId,
+                            ProductName = x.Product.Name,
+                            ProductSku = x.Product.SKU ?? string.Empty,
+                            CaseConfigurationId = x.ItemEntity.CaseConfigurationId,
+                            UnitsPerCase = x.ItemEntity.UnitsPerCase,
+                            Cases = x.ItemEntity.Cases,
+                            UnitPrice = x.ItemEntity.UnitPrice,
+                            DiscountAmount = x.ItemEntity.DiscountAmount,
+                            TaxAmount = x.ItemEntity.TaxAmount,
+                            GstRate = x.ItemEntity.GstRate,
+                            IsGstApplicable = x.ItemEntity.IsGstApplicable,
+                            CGST = x.ItemEntity.CGST,
+                            SGST = x.ItemEntity.SGST,
+                            IGST = x.ItemEntity.IGST,
+                            TotalAmount = x.ItemEntity.TotalAmount
+                        }).ToList()
+                        : new List<SalesTransactionItemDto>
+                        {
+                            new SalesTransactionItemDto
+                            {
+                                Id = transaction.Id,
+                                ProductId = transaction.ProductId,
+                                ProductName = primaryProductName,
+                                ProductSku = primaryProductSku,
+                                Cases = transaction.Cases,
+                                UnitPrice = transaction.UnitPrice,
+                                DiscountAmount = transaction.DiscountAmount,
+                                TaxAmount = transaction.TaxAmount,
+                                GstRate = transaction.GstRate,
+                                IsGstApplicable = transaction.IsGstApplicable,
+                                CGST = transaction.CGST,
+                                SGST = transaction.SGST,
+                                IGST = transaction.IGST,
+                                TotalAmount = transaction.TotalAmount
+                            }
+                        },
                     CreatedBy = transaction.CreatedBy,
                     CreatedByName = _currentUserContext.Email?.Split('@')[0] ?? "System",
                     CreatedAt = transaction.CreatedAt,
@@ -1050,11 +1422,12 @@ namespace Aquora.API.Controllers
                     }
                 }
 
-                // 2. REVERSE STOCK MOVEMENT ALGORITHM
-                var oldMovement = await _tenantContext.InventoryMovements
-                    .FirstOrDefaultAsync(m => m.ReferenceType == "SalesTransaction" && m.ReferenceId == existingTxn.Id && !m.IsDeleted);
+                // 2. REVERSE STOCK MOVEMENT ALGORITHM & PREVIOUS LINE ITEMS
+                var oldMovements = await _tenantContext.InventoryMovements
+                    .Where(m => m.ReferenceType == "SalesTransaction" && m.ReferenceId == existingTxn.Id && !m.IsDeleted)
+                    .ToListAsync();
 
-                if (oldMovement != null)
+                foreach (var oldMovement in oldMovements)
                 {
                     var oldProduct = await _tenantContext.Products.FirstOrDefaultAsync(p => p.Id == oldMovement.ProductId && !p.IsDeleted);
                     if (oldProduct != null)
@@ -1065,6 +1438,16 @@ namespace Aquora.API.Controllers
                     oldMovement.DeletedAt = DateTime.UtcNow;
                     oldMovement.DeletedBy = currentUserId;
                 }
+
+                try
+                {
+                    var prevItems = await _tenantContext.SalesTransactionItems.Where(i => i.SalesTransactionId == existingTxn.Id).ToListAsync();
+                    if (prevItems.Any())
+                    {
+                        _tenantContext.SalesTransactionItems.RemoveRange(prevItems);
+                    }
+                }
+                catch { }
 
                 await _tenantContext.SaveChangesAsync();
 
@@ -1485,10 +1868,11 @@ namespace Aquora.API.Controllers
                 }
 
                 // 2. REVERSE STOCK MOVEMENT ALGORITHM
-                var oldMovement = await _tenantContext.InventoryMovements
-                    .FirstOrDefaultAsync(m => m.ReferenceType == "SalesTransaction" && m.ReferenceId == transaction.Id && !m.IsDeleted);
+                var oldMovements = await _tenantContext.InventoryMovements
+                    .Where(m => m.ReferenceType == "SalesTransaction" && m.ReferenceId == transaction.Id && !m.IsDeleted)
+                    .ToListAsync();
 
-                if (oldMovement != null)
+                foreach (var oldMovement in oldMovements)
                 {
                     var product = await _tenantContext.Products.FirstOrDefaultAsync(p => p.Id == oldMovement.ProductId && !p.IsDeleted);
                     if (product != null)
@@ -2650,10 +3034,50 @@ namespace Aquora.API.Controllers
         public decimal DamageCost { get; set; }
         public string? DamageReason { get; set; }
 
+        public List<SalesTransactionItemDto> Items { get; set; } = new();
+
         public string CreatedBy { get; set; } = string.Empty;
         public string CreatedByName { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+    }
+
+    public class SalesTransactionItemRequest
+    {
+        public Guid ProductId { get; set; }
+        public Guid? CaseConfigurationId { get; set; }
+        public int UnitsPerCase { get; set; } = 24;
+        public decimal Cases { get; set; }
+        public decimal UnitPrice { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal TaxAmount { get; set; }
+        public decimal GstRate { get; set; }
+        public bool IsGstApplicable { get; set; }
+        public decimal CGST { get; set; }
+        public decimal SGST { get; set; }
+        public decimal IGST { get; set; }
+        public decimal TotalAmount { get; set; }
+    }
+
+    public class SalesTransactionItemDto
+    {
+        public Guid Id { get; set; }
+        public Guid ProductId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public string ProductSku { get; set; } = string.Empty;
+        public Guid? CaseConfigurationId { get; set; }
+        public string? CaseConfigurationName { get; set; }
+        public int UnitsPerCase { get; set; } = 24;
+        public decimal Cases { get; set; }
+        public decimal UnitPrice { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal TaxAmount { get; set; }
+        public decimal GstRate { get; set; }
+        public bool IsGstApplicable { get; set; }
+        public decimal CGST { get; set; }
+        public decimal SGST { get; set; }
+        public decimal IGST { get; set; }
+        public decimal TotalAmount { get; set; }
     }
 
     public class CreateSalesTransactionRequest
@@ -2668,6 +3092,9 @@ namespace Aquora.API.Controllers
         public DateTime TransactionDate { get; set; }
         public string? ReferenceNumber { get; set; }
         public string? Remarks { get; set; }
+
+        // Multi-Product Line Items
+        public List<SalesTransactionItemRequest>? Items { get; set; }
 
         // Simple Accounts V1 & New ERP Fields
         public string? PaymentMethod { get; set; }

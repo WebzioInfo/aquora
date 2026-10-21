@@ -53,6 +53,53 @@ export interface SalesTransaction {
   relatedCount?: number
   damageCost?: number
   damageReason?: string
+  items?: SalesTransactionItem[]
+}
+
+export interface SalesTransactionItem {
+  id?: string
+  salesTransactionId?: string
+  productId: string
+  productName?: string | null
+  productSku?: string | null
+  caseConfigurationId?: string | null
+  caseConfigurationName?: string | null
+  unitsPerCase?: number
+  cases: number
+  unitPrice: number
+  discountAmount?: number
+  taxableAmount?: number
+  taxAmount?: number
+  gstRate?: number
+  isGstApplicable?: boolean
+  cgst?: number
+  sgst?: number
+  igst?: number
+  totalAmount?: number
+  lineTotal?: number
+  remarks?: string | null
+}
+
+export interface SalesTransactionItemRequest {
+  productId: string
+  productName?: string | null
+  productSku?: string | null
+  caseConfigurationId?: string | null
+  caseConfigurationName?: string | null
+  unitsPerCase?: number
+  cases: number
+  unitPrice: number
+  discountAmount?: number
+  taxableAmount?: number
+  taxAmount?: number
+  gstRate?: number
+  isGstApplicable?: boolean
+  cgst?: number
+  sgst?: number
+  igst?: number
+  totalAmount?: number
+  lineTotal?: number
+  remarks?: string | null
 }
 
 export interface SalesDashboard {
@@ -67,13 +114,16 @@ export interface CreateSalesTransactionRequest {
   customerId: string
   productId: string
   parentTransactionId?: string | null
-  caseConfigurationId?: string
+  caseConfigurationId?: string | null
   unitsPerCase?: number
   cases: number
   transactionType: string
   transactionDate: string
   referenceNumber?: string
   remarks?: string
+
+  // Multi-Product Line Items
+  items?: SalesTransactionItemRequest[]
 
   // ERP & V1 Fields
   paymentMethod?: string

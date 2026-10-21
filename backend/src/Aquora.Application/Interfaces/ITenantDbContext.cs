@@ -31,6 +31,7 @@ namespace Aquora.Application.Interfaces
         DbSet<Customer> Customers { get; }
         DbSet<CustomerProductPrice> CustomerProductPrices { get; }
         DbSet<SalesTransaction> SalesTransactions { get; }
+        DbSet<SalesTransactionItem> SalesTransactionItems { get; }
         DbSet<PriceList> PriceLists { get; }
         DbSet<DiscountGroup> DiscountGroups { get; }
         

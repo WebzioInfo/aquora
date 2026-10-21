@@ -99,6 +99,7 @@ namespace Aquora.Persistence.Context
         public DbSet<Role> Roles => Set<Role>();
         public DbSet<Aquora.Domain.Entities.Payroll.SalaryPayment> SalaryPayments => Set<Aquora.Domain.Entities.Payroll.SalaryPayment>();
         public DbSet<SalesTransaction> SalesTransactions => Set<SalesTransaction>();
+        public DbSet<SalesTransactionItem> SalesTransactionItems => Set<SalesTransactionItem>();
 
         public string SchemaName => !string.IsNullOrWhiteSpace(_tenantProvider.TenantSchemaName)
             ? _tenantProvider.TenantSchemaName
