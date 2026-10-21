@@ -212,75 +212,87 @@ namespace Aquora.API.Controllers
                     return BadRequest(ApiResponse<ProductDto>.CreateFailure("Database context is invalid.", "Infrastructure Error", HttpContext.TraceIdentifier));
                 }
 
-                using var transaction = await dbContext.Database.BeginTransactionAsync();
-                try
+                var strategy = dbContext.Database.CreateExecutionStrategy();
+                return await strategy.ExecuteAsync(async () =>
                 {
-                    _tenantContext.Products.Add(product);
-                    await _tenantContext.SaveChangesAsync();
-
-                    decimal openingStockQty = request.OpeningStock ?? 0.0m;
-
-                    await _inventoryMovementService.RecordProductMovementAsync(
-                        _tenantContext,
-                        product.Id,
-                        openingStockQty,
-                        "OpeningStock",
-                        product.Id,
-                        "Opening Stock",
-                        _currentUserContext.TenantId,
-                        company.Id,
-                        _currentUserContext.UserId?.ToString() ?? "System");
-
-                    await _tenantContext.SaveChangesAsync();
-                    await transaction.CommitAsync();
-                }
-                catch (DbUpdateException ex)
-                {
-                    await transaction.RollbackAsync();
-                    var innerMessage = ex.InnerException?.Message ?? ex.Message;
-                    _logger.LogError(ex, "Database update error during product creation. TenantId: {TenantId}, UserId: {UserId}, Error: {Error}", _currentUserContext.TenantId, _currentUserContext.UserId, innerMessage);
-                    
-                    if (innerMessage.Contains("42703") || innerMessage.Contains("does not exist"))
+                    using var transaction = await dbContext.Database.BeginTransactionAsync();
+                    try
                     {
-                        return BadRequest(ApiResponse<ProductDto>.CreateFailure($"Database schema mismatch: {innerMessage}. Please contact support.", "Schema Error", HttpContext.TraceIdentifier));
+                        var existing = await _tenantContext.Products
+                            .IgnoreQueryFilters()
+                            .FirstOrDefaultAsync(p => p.Id == product.Id);
+
+                        if (existing == null)
+                        {
+                            _tenantContext.Products.Add(product);
+                            await _tenantContext.SaveChangesAsync();
+
+                            decimal openingStockQty = request.OpeningStock ?? 0.0m;
+
+                            await _inventoryMovementService.RecordProductMovementAsync(
+                                _tenantContext,
+                                product.Id,
+                                openingStockQty,
+                                "OpeningStock",
+                                product.Id,
+                                "Opening Stock",
+                                _currentUserContext.TenantId,
+                                company.Id,
+                                _currentUserContext.UserId?.ToString() ?? "System");
+
+                            await _tenantContext.SaveChangesAsync();
+                        }
+
+                        await transaction.CommitAsync();
+
+                        var dto = new ProductDto
+                        {
+                            Id = product.Id,
+                            Name = product.Name,
+                            BrandId = product.BrandId,
+                            BrandName = brand.Name,
+                            SKU = product.SKU,
+                            IsActive = product.IsActive,
+                            CurrentStock = product.CurrentStock,
+                            SellingPrice = product.SellingPrice,
+                            CostPrice = product.CostPrice,
+                            UnitCost = product.CostPrice,
+                            GstRate = product.GstRate,
+                            Category = product.Category,
+                            DisplayOrder = product.DisplayOrder,
+                            BottleSize = product.BottleSize,
+                            ImageUrl = product.ImageUrl,
+                            CreatedAt = product.CreatedAt,
+                            UpdatedAt = product.UpdatedAt
+                        };
+
+                        return Success(dto, "Product created successfully.");
                     }
-                    if (innerMessage.Contains("23505")) // Unique constraint
+                    catch (DbUpdateException ex)
                     {
-                        return BadRequest(ApiResponse<ProductDto>.CreateFailure("A unique constraint violation occurred (e.g., duplicate SKU or Name).", "Validation Error", HttpContext.TraceIdentifier));
+                        await transaction.RollbackAsync();
+                        var innerMessage = ex.InnerException?.Message ?? ex.Message;
+                        _logger.LogError(ex, "Database update error during product creation. TenantId: {TenantId}, UserId: {UserId}, Error: {Error}", _currentUserContext.TenantId, _currentUserContext.UserId, innerMessage);
+                        
+                        if (innerMessage.Contains("42703") || innerMessage.Contains("does not exist"))
+                        {
+                            return BadRequest(ApiResponse<ProductDto>.CreateFailure($"Database schema mismatch: {innerMessage}. Please contact support.", "Schema Error", HttpContext.TraceIdentifier));
+                        }
+                        if (innerMessage.Contains("23505")) // Unique constraint
+                        {
+                            return BadRequest(ApiResponse<ProductDto>.CreateFailure("A unique constraint violation occurred (e.g., duplicate SKU or Name).", "Validation Error", HttpContext.TraceIdentifier));
+                        }
+                        
+                        return BadRequest(ApiResponse<ProductDto>.CreateFailure($"Database error: {innerMessage}", "Database Error", HttpContext.TraceIdentifier));
                     }
-                    
-                    return BadRequest(ApiResponse<ProductDto>.CreateFailure($"Database error: {innerMessage}", "Database Error", HttpContext.TraceIdentifier));
-                }
-                catch (Exception ex)
-                {
-                    await transaction.RollbackAsync();
-                    var innerMessage = ex.InnerException?.Message ?? ex.Message;
-                    _logger.LogError(ex, "Transaction error in ProductsController CreateProduct. TenantId: {TenantId}, UserId: {UserId}, DTO: {@Request}", _currentUserContext.TenantId, _currentUserContext.UserId, request);
-                    return BadRequest(ApiResponse<ProductDto>.CreateFailure($"Transaction failed: {innerMessage}", "Transaction Error", HttpContext.TraceIdentifier));
-                }
-
-                var dto = new ProductDto
-                {
-                    Id = product.Id,
-                    Name = product.Name,
-                    BrandId = product.BrandId,
-                    BrandName = brand.Name,
-                    SKU = product.SKU,
-                    IsActive = product.IsActive,
-                    CurrentStock = product.CurrentStock,
-                    SellingPrice = product.SellingPrice,
-                    CostPrice = product.CostPrice,
-                    UnitCost = product.CostPrice,
-                    GstRate = product.GstRate,
-                    Category = product.Category,
-                    DisplayOrder = product.DisplayOrder,
-                    BottleSize = product.BottleSize,
-                    ImageUrl = product.ImageUrl,
-                    CreatedAt = product.CreatedAt,
-                    UpdatedAt = product.UpdatedAt
-                };
-
-                return Success(dto, "Product created successfully.");
+                    catch (Exception ex)
+                    {
+                        await transaction.RollbackAsync();
+                        var innerMessage = ex.InnerException?.Message ?? ex.Message;
+                        _logger.LogError(ex, "Transaction error in ProductsController CreateProduct. TenantId: {TenantId}, UserId: {UserId}, DTO: {@Request}", _currentUserContext.TenantId, _currentUserContext.UserId, request);
+                        return BadRequest(ApiResponse<ProductDto>.CreateFailure($"Transaction failed: {innerMessage}", "Transaction Error", HttpContext.TraceIdentifier));
+                    }
+                });
             }
             catch (Exception ex)
             {
@@ -344,85 +356,89 @@ namespace Aquora.API.Controllers
                     return BadRequest(ApiResponse<ProductDto>.CreateFailure("Database context is invalid.", "Infrastructure Error", HttpContext.TraceIdentifier));
                 }
 
-                using var transaction = await dbContext.Database.BeginTransactionAsync();
-                try
+                var strategy = dbContext.Database.CreateExecutionStrategy();
+                return await strategy.ExecuteAsync(async () =>
                 {
-                    product.Name = request.Name.Trim();
-                    product.BrandId = request.BrandId;
-                    product.SKU = string.IsNullOrWhiteSpace(request.SKU) ? null : request.SKU.Trim();
-                    product.IsActive = request.IsActive;
-                    product.Category = request.Category;
-                    product.DisplayOrder = request.DisplayOrder;
-                    product.BottleSize = request.BottleSize;
-                    product.ImageUrl = request.ImageUrl;
-                    if (request.SellingPrice.HasValue) product.SellingPrice = request.SellingPrice.Value;
-                    if (request.CostPrice.HasValue) product.CostPrice = request.CostPrice.Value;
-                    if (request.GstRate.HasValue) product.GstRate = request.GstRate.Value;
-
-                    if (request.CurrentStock.HasValue && request.CurrentStock.Value != product.CurrentStock)
+                    using var transaction = await dbContext.Database.BeginTransactionAsync();
+                    try
                     {
-                        decimal diff = request.CurrentStock.Value - product.CurrentStock;
-                        await _inventoryMovementService.RecordProductMovementAsync(
-                            _tenantContext,
-                            product.Id,
-                            diff,
-                            "StockAdjustment",
-                            product.Id,
-                            "Manual Stock Correction",
-                            _currentUserContext.TenantId,
-                            company.Id,
-                            _currentUserContext.UserId?.ToString() ?? "System");
-                    }
+                        product.Name = request.Name.Trim();
+                        product.BrandId = request.BrandId;
+                        product.SKU = string.IsNullOrWhiteSpace(request.SKU) ? null : request.SKU.Trim();
+                        product.IsActive = request.IsActive;
+                        product.Category = request.Category;
+                        product.DisplayOrder = request.DisplayOrder;
+                        product.BottleSize = request.BottleSize;
+                        product.ImageUrl = request.ImageUrl;
+                        if (request.SellingPrice.HasValue) product.SellingPrice = request.SellingPrice.Value;
+                        if (request.CostPrice.HasValue) product.CostPrice = request.CostPrice.Value;
+                        if (request.GstRate.HasValue) product.GstRate = request.GstRate.Value;
 
-                    await _tenantContext.SaveChangesAsync();
-                    await transaction.CommitAsync();
-                }
-                catch (DbUpdateException ex)
-                {
-                    await transaction.RollbackAsync();
-                    var innerMessage = ex.InnerException?.Message ?? ex.Message;
-                    _logger.LogError(ex, "Database update error during product update. TenantId: {TenantId}, ProductId: {ProductId}, Error: {Error}", _currentUserContext.TenantId, id, innerMessage);
-                    
-                    if (innerMessage.Contains("42703") || innerMessage.Contains("does not exist"))
+                        if (request.CurrentStock.HasValue && request.CurrentStock.Value != product.CurrentStock)
+                        {
+                            decimal diff = request.CurrentStock.Value - product.CurrentStock;
+                            await _inventoryMovementService.RecordProductMovementAsync(
+                                _tenantContext,
+                                product.Id,
+                                diff,
+                                "StockAdjustment",
+                                product.Id,
+                                "Manual Stock Correction",
+                                _currentUserContext.TenantId,
+                                company.Id,
+                                _currentUserContext.UserId?.ToString() ?? "System");
+                        }
+
+                        await _tenantContext.SaveChangesAsync();
+                        await transaction.CommitAsync();
+
+                        var dto = new ProductDto
+                        {
+                            Id = product.Id,
+                            Name = product.Name,
+                            BrandId = product.BrandId,
+                            BrandName = brand.Name,
+                            SKU = product.SKU,
+                            IsActive = product.IsActive,
+                            CurrentStock = product.CurrentStock,
+                            SellingPrice = product.SellingPrice,
+                            CostPrice = product.CostPrice,
+                            GstRate = product.GstRate,
+                            Category = product.Category,
+                            DisplayOrder = product.DisplayOrder,
+                            BottleSize = product.BottleSize,
+                            ImageUrl = product.ImageUrl,
+                            CreatedAt = product.CreatedAt,
+                            UpdatedAt = product.UpdatedAt
+                        };
+
+                        return Success(dto, "Product updated successfully.");
+                    }
+                    catch (DbUpdateException ex)
                     {
-                        return BadRequest(ApiResponse<ProductDto>.CreateFailure($"Database schema mismatch: {innerMessage}. Please contact support.", "Schema Error", HttpContext.TraceIdentifier));
+                        await transaction.RollbackAsync();
+                        var innerMessage = ex.InnerException?.Message ?? ex.Message;
+                        _logger.LogError(ex, "Database update error during product update. TenantId: {TenantId}, ProductId: {ProductId}, Error: {Error}", _currentUserContext.TenantId, id, innerMessage);
+                        
+                        if (innerMessage.Contains("42703") || innerMessage.Contains("does not exist"))
+                        {
+                            return BadRequest(ApiResponse<ProductDto>.CreateFailure($"Database schema mismatch: {innerMessage}. Please contact support.", "Schema Error", HttpContext.TraceIdentifier));
+                        }
+                        if (innerMessage.Contains("23505")) // Unique constraint
+                        {
+                            return BadRequest(ApiResponse<ProductDto>.CreateFailure("A unique constraint violation occurred (e.g., duplicate SKU or Name).", "Validation Error", HttpContext.TraceIdentifier));
+                        }
+                        
+                        return BadRequest(ApiResponse<ProductDto>.CreateFailure($"Database error: {innerMessage}", "Database Error", HttpContext.TraceIdentifier));
                     }
-                    if (innerMessage.Contains("23505")) // Unique constraint
+                    catch (Exception ex)
                     {
-                        return BadRequest(ApiResponse<ProductDto>.CreateFailure("A unique constraint violation occurred (e.g., duplicate SKU or Name).", "Validation Error", HttpContext.TraceIdentifier));
+                        await transaction.RollbackAsync();
+                        var innerMessage = ex.InnerException?.Message ?? ex.Message;
+                        _logger.LogError(ex, "Transaction error in ProductsController UpdateProduct. TenantId: {TenantId}, ProductId: {ProductId}", _currentUserContext.TenantId, id);
+                        return BadRequest(ApiResponse<ProductDto>.CreateFailure($"Transaction failed: {innerMessage}", "Transaction Error", HttpContext.TraceIdentifier));
                     }
-                    
-                    return BadRequest(ApiResponse<ProductDto>.CreateFailure($"Database error: {innerMessage}", "Database Error", HttpContext.TraceIdentifier));
-                }
-                catch (Exception ex)
-                {
-                    await transaction.RollbackAsync();
-                    var innerMessage = ex.InnerException?.Message ?? ex.Message;
-                    _logger.LogError(ex, "Transaction error in ProductsController UpdateProduct. TenantId: {TenantId}, ProductId: {ProductId}", _currentUserContext.TenantId, id);
-                    return BadRequest(ApiResponse<ProductDto>.CreateFailure($"Transaction failed: {innerMessage}", "Transaction Error", HttpContext.TraceIdentifier));
-                }
-
-                var dto = new ProductDto
-                {
-                    Id = product.Id,
-                    Name = product.Name,
-                    BrandId = product.BrandId,
-                    BrandName = brand.Name,
-                    SKU = product.SKU,
-                    IsActive = product.IsActive,
-                    CurrentStock = product.CurrentStock,
-                    SellingPrice = product.SellingPrice,
-                    CostPrice = product.CostPrice,
-                    GstRate = product.GstRate,
-                    Category = product.Category,
-                    DisplayOrder = product.DisplayOrder,
-                    BottleSize = product.BottleSize,
-                    ImageUrl = product.ImageUrl,
-                    CreatedAt = product.CreatedAt,
-                    UpdatedAt = product.UpdatedAt
-                };
-
-                return Success(dto, "Product updated successfully.");
+                });
             }
             catch (Exception ex)
             {

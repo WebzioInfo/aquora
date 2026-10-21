@@ -26,7 +26,8 @@ namespace Aquora.Persistence
             {
                 options.UseNpgsql(
                     connectionString,
-                    b => b.MigrationsAssembly(typeof(PlatformDbContext).Assembly.FullName))
+                    b => b.MigrationsAssembly(typeof(PlatformDbContext).Assembly.FullName)
+                          .EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null))
                        .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
 
                 if (logEfParameters && isDevelopment)
@@ -44,7 +45,8 @@ namespace Aquora.Persistence
                     : "public";
                 options.UseNpgsql(connectionString,
                     b => b.MigrationsAssembly(typeof(TenantDbContext).Assembly.FullName)
-                          .MigrationsHistoryTable("__EFMigrationsHistory", schema))
+                          .MigrationsHistoryTable("__EFMigrationsHistory", schema)
+                          .EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null))
                        .ReplaceService<IModelCacheKeyFactory, TenantModelCacheKeyFactory>()
                        .ReplaceService<IMigrationsSqlGenerator, TenantMigrationsSqlGenerator>()
                        .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));

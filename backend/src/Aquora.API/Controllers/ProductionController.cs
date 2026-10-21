@@ -1554,106 +1554,119 @@ namespace Aquora.API.Controllers
                 return Failure<object>("Database context is invalid.", "Infrastructure error");
             }
 
-            using var transaction = await dbContext.Database.BeginTransactionAsync();
-            try
+            var strategy = dbContext.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
-                // 1. Fetch ProductionBatch
-                var batch = await _tenantContext.ProductionBatches
-                    .Include(b => b.ProductionLine)
-                    .FirstOrDefaultAsync(b => b.Id == batchId && !b.IsDeleted);
-
-                if (batch == null)
+                using var transaction = await dbContext.Database.BeginTransactionAsync();
+                try
                 {
-                    return Failure<object>("Production batch not found.", "Validation failed");
+                    // 1. Fetch ProductionBatch
+                    var batch = await _tenantContext.ProductionBatches
+                        .Include(b => b.ProductionLine)
+                        .FirstOrDefaultAsync(b => b.Id == batchId && !b.IsDeleted);
+
+                    if (batch == null)
+                    {
+                        return Failure<object>("Production batch not found.", "Validation failed");
+                    }
+
+                    if (batch.Status == "Completed" || batch.Status == "Stopped" || batch.Status == "Closed")
+                    {
+                        var existingLineName = batch.ProductionLine?.Name ?? "Production Line";
+                        return Success<object>(new
+                        {
+                            batch.Id,
+                            batch.BatchNumber,
+                            Status = batch.Status,
+                            batch.ProducedQuantity,
+                            CompletedAt = batch.CompletedAt,
+                            LineName = existingLineName
+                        }, $"Production batch is already {batch.Status.ToLower()}.");
+                    }
+
+                    var now = DateTime.UtcNow;
+
+                    // 2. Fetch corresponding ProductionSession (if matching by ID or BatchNumber)
+                    var session = await _tenantContext.ProductionSessions
+                        .Include(s => s.ProductionEntries)
+                        .FirstOrDefaultAsync(s => (s.Id == batchId || (s.BatchNumber == batch.BatchNumber && s.ProductionLineId == batch.ProductionLineId)) && s.Status == "Running" && !s.IsDeleted);
+
+                    int producedQty = batch.ProducedQuantity;
+                    if (session != null)
+                    {
+                        session.Status = "Completed";
+                        session.EndedAt = now;
+                        var stopReasonText = !string.IsNullOrWhiteSpace(request?.Reason) ? request.Reason : "Batch Stopped";
+                        var remarksText = !string.IsNullOrWhiteSpace(request?.Remarks) ? request.Remarks : null;
+                        session.Remarks = remarksText != null ? $"{stopReasonText} - {remarksText}" : stopReasonText;
+                        session.TotalCasesProduced = session.ProductionEntries.Where(e => !e.IsDeleted).Sum(e => e.CasesProduced);
+                        producedQty = session.TotalCasesProduced;
+                    }
+
+                    // 3. Update Batch state
+                    batch.Status = "Completed";
+                    batch.CompletedAt = now;
+                    batch.ProducedQuantity = producedQty;
+
+                    // 4. Record Audit Log
+                    var tenantId = GetTenantId();
+                    var userIdStr = GetCurrentUserId();
+                    var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "operator@aquzio.com";
+                    var lineName = batch.ProductionLine?.Name ?? "Production Line";
+
+                    var auditLog = new AuditLog
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenantId,
+                        UserId = userIdStr,
+                        UserEmail = userEmail,
+                        Action = "StopBatch",
+                        TableName = "ProductionBatch",
+                        PrimaryKey = batch.Id.ToString(),
+                        Timestamp = now,
+                        IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
+                        Device = Request.Headers["User-Agent"].ToString() ?? "Aquzio Console",
+                        Reason = $"Production batch {batch.BatchNumber} stopped on line '{lineName}'. Reason: {request?.Reason ?? "Production Completed"}. Total cases: {producedQty}.",
+                        Module = "Production"
+                    };
+                    _tenantContext.AuditLogs.Add(auditLog);
+
+                    await _tenantContext.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    // Live SignalR Dashboard Notification
+                    await NotifyDashboardAsync("BatchStopped", new
+                    {
+                        batchId = batch.Id,
+                        batchNumber = batch.BatchNumber,
+                        lineId = batch.ProductionLineId,
+                        lineName = lineName,
+                        producedQuantity = producedQty,
+                        stoppedAt = now
+                    });
+
+                    Serilog.Log.Information(
+                        "[BATCH STOP TRANSACTION SUCCESS]: TenantId={TenantId}, BatchId={BatchId}, BatchNumber={BatchNumber}, ProducedQty={ProducedQty}, StoppedAt={StoppedAt}",
+                        tenantId, batch.Id, batch.BatchNumber, producedQty, now
+                    );
+
+                    return Success<object>(new
+                    {
+                        batch.Id,
+                        batch.BatchNumber,
+                        Status = batch.Status,
+                        batch.ProducedQuantity,
+                        CompletedAt = batch.CompletedAt,
+                        LineName = lineName
+                    }, "Production batch stopped successfully.");
                 }
-
-                if (batch.Status == "Completed" || batch.Status == "Stopped" || batch.Status == "Closed")
+                catch (Exception ex)
                 {
-                    return Failure<object>($"Production batch is already {batch.Status.ToLower()}.", "Validation failed");
+                    await transaction.RollbackAsync();
+                    Serilog.Log.Error(ex, "[BATCH STOP FAILURE]: BatchId={BatchId}", batchId);
+                    return Failure<object>(ex.Message, "Unable to stop the production batch. Please try again.");
                 }
-
-                var now = DateTime.UtcNow;
-
-                // 2. Fetch corresponding ProductionSession (if matching by ID or BatchNumber)
-                var session = await _tenantContext.ProductionSessions
-                    .Include(s => s.ProductionEntries)
-                    .FirstOrDefaultAsync(s => (s.Id == batchId || (s.BatchNumber == batch.BatchNumber && s.ProductionLineId == batch.ProductionLineId)) && s.Status == "Running" && !s.IsDeleted);
-
-                int producedQty = batch.ProducedQuantity;
-                if (session != null)
-                {
-                    session.Status = "Completed";
-                    session.EndedAt = now;
-                    var stopReasonText = !string.IsNullOrWhiteSpace(request?.Reason) ? request.Reason : "Batch Stopped";
-                    var remarksText = !string.IsNullOrWhiteSpace(request?.Remarks) ? request.Remarks : null;
-                    session.Remarks = remarksText != null ? $"{stopReasonText} - {remarksText}" : stopReasonText;
-                    session.TotalCasesProduced = session.ProductionEntries.Where(e => !e.IsDeleted).Sum(e => e.CasesProduced);
-                    producedQty = session.TotalCasesProduced;
-                }
-
-                // 3. Update Batch state
-                batch.Status = "Completed";
-                batch.CompletedAt = now;
-                batch.ProducedQuantity = producedQty;
-
-                // 4. Record Audit Log
-                var tenantId = GetTenantId();
-                var userIdStr = GetCurrentUserId();
-                var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "operator@aquzio.com";
-                var lineName = batch.ProductionLine?.Name ?? "Production Line";
-
-                var auditLog = new AuditLog
-                {
-                    Id = Guid.NewGuid(),
-                    TenantId = tenantId,
-                    UserId = userIdStr,
-                    UserEmail = userEmail,
-                    Action = "StopBatch",
-                    TableName = "ProductionBatch",
-                    PrimaryKey = batch.Id.ToString(),
-                    Timestamp = now,
-                    IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
-                    Device = Request.Headers["User-Agent"].ToString() ?? "Aquzio Console",
-                    Reason = $"Production batch {batch.BatchNumber} stopped on line '{lineName}'. Reason: {request?.Reason ?? "Production Completed"}. Total cases: {producedQty}.",
-                    Module = "Production"
-                };
-                _tenantContext.AuditLogs.Add(auditLog);
-
-                await _tenantContext.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                // Live SignalR Dashboard Notification
-                await NotifyDashboardAsync("BatchStopped", new
-                {
-                    batchId = batch.Id,
-                    batchNumber = batch.BatchNumber,
-                    lineId = batch.ProductionLineId,
-                    lineName = lineName,
-                    producedQuantity = producedQty,
-                    stoppedAt = now
-                });
-
-                Serilog.Log.Information(
-                    "[BATCH STOP TRANSACTION SUCCESS]: TenantId={TenantId}, BatchId={BatchId}, BatchNumber={BatchNumber}, ProducedQty={ProducedQty}, StoppedAt={StoppedAt}",
-                    tenantId, batch.Id, batch.BatchNumber, producedQty, now
-                );
-
-                return Success<object>(new
-                {
-                    batch.Id,
-                    batch.BatchNumber,
-                    Status = batch.Status,
-                    batch.ProducedQuantity,
-                    CompletedAt = batch.CompletedAt,
-                    LineName = lineName
-                }, "Production batch stopped successfully.");
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                Serilog.Log.Error(ex, "[BATCH STOP FAILURE]: BatchId={BatchId}", batchId);
-                return Failure<object>(ex.Message, "Unable to stop the production batch. Please try again.");
-            }
+            });
         }
 
         // 2b. GET /api/operator/production-context
@@ -1816,108 +1829,112 @@ namespace Aquora.API.Controllers
                     return Failure<object>("Database context is invalid.", "Infrastructure error");
                 }
 
-                using var transaction = await dbContext.Database.BeginTransactionAsync();
-                try
+                var strategy = dbContext.Database.CreateExecutionStrategy();
+                return await strategy.ExecuteAsync(async () =>
                 {
-                    var batchId = Guid.NewGuid();
-
-                    var newBatch = new ProductionBatch
+                    using var transaction = await dbContext.Database.BeginTransactionAsync();
+                    try
                     {
-                        Id = batchId,
-                        BatchNumber = batchNumber,
-                        Product = request.Product,
-                        Shift = request.Shift,
-                        ProductionLineId = request.ProductionLineId,
-                        OperatorId = userGuid,
-                        OperatorName = GetCurrentUserName(),
-                        StartedAt = DateTime.UtcNow,
-                        Status = "Active",
-                        TargetQuantity = request.TargetQuantity,
-                        ProducedQuantity = 0,
-                        TenantId = tenantId,
-                        CompanyId = company.Id,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = userIdStr
-                    };
+                        var batchId = Guid.NewGuid();
 
-                    var session = new ProductionSession
-                    {
-                        Id = batchId,
-                        TenantId = tenantId,
-                        CompanyId = company.Id,
-                        BatchNumber = batchNumber,
-                        ProductionLineId = request.ProductionLineId,
-                        OperatorId = userGuid,
-                        OperatorName = GetCurrentUserName(),
-                        Shift = request.Shift,
-                        ProductId = sku.Id,
-                        StartedAt = newBatch.StartedAt,
-                        Status = "Running",
-                        Remarks = "Started from admin panel",
-                        TotalCasesProduced = 0,
-                        CreatedBy = userIdStr,
-                        CreatedAt = DateTime.UtcNow
-                    };
+                        var newBatch = new ProductionBatch
+                        {
+                            Id = batchId,
+                            BatchNumber = batchNumber,
+                            Product = request.Product,
+                            Shift = request.Shift,
+                            ProductionLineId = request.ProductionLineId,
+                            OperatorId = userGuid,
+                            OperatorName = GetCurrentUserName(),
+                            StartedAt = DateTime.UtcNow,
+                            Status = "Active",
+                            TargetQuantity = request.TargetQuantity,
+                            ProducedQuantity = 0,
+                            TenantId = tenantId,
+                            CompanyId = company.Id,
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedBy = userIdStr
+                        };
 
-                    var userEmail = userRecord?.Email ?? "admin@aquora.com";
-                    var auditLog = new AuditLog
-                    {
-                        Id = Guid.NewGuid(),
-                        TenantId = tenantId,
-                        UserId = userIdStr,
-                        UserEmail = userEmail,
-                        Action = "StartBatch",
-                        TableName = "ProductionBatch",
-                        PrimaryKey = batchId.ToString(),
-                        Timestamp = DateTime.UtcNow,
-                        IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
-                        Device = Request.Headers["User-Agent"].ToString() ?? "Admin Panel",
-                        Reason = $"Production batch {batchNumber} started on line {request.ProductionLineId} via Admin Console.",
-                        Module = "Production"
-                    };
+                        var session = new ProductionSession
+                        {
+                            Id = batchId,
+                            TenantId = tenantId,
+                            CompanyId = company.Id,
+                            BatchNumber = batchNumber,
+                            ProductionLineId = request.ProductionLineId,
+                            OperatorId = userGuid,
+                            OperatorName = GetCurrentUserName(),
+                            Shift = request.Shift,
+                            ProductId = sku.Id,
+                            StartedAt = newBatch.StartedAt,
+                            Status = "Running",
+                            Remarks = "Started from admin panel",
+                            TotalCasesProduced = 0,
+                            CreatedBy = userIdStr,
+                            CreatedAt = DateTime.UtcNow
+                        };
 
-                    _tenantContext.ProductionBatches.Add(newBatch);
-                    _tenantContext.ProductionSessions.Add(session);
-                    _tenantContext.AuditLogs.Add(auditLog);
+                        var userEmail = userRecord?.Email ?? "admin@aquora.com";
+                        var auditLog = new AuditLog
+                        {
+                            Id = Guid.NewGuid(),
+                            TenantId = tenantId,
+                            UserId = userIdStr,
+                            UserEmail = userEmail,
+                            Action = "StartBatch",
+                            TableName = "ProductionBatch",
+                            PrimaryKey = batchId.ToString(),
+                            Timestamp = DateTime.UtcNow,
+                            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
+                            Device = Request.Headers["User-Agent"].ToString() ?? "Admin Panel",
+                            Reason = $"Production batch {batchNumber} started on line {request.ProductionLineId} via Admin Console.",
+                            Module = "Production"
+                        };
 
-                    var affectedRows = await _tenantContext.SaveChangesAsync();
-                    if (affectedRows <= 0)
-                    {
-                        throw new Exception("Database operation failed: no rows were affected when persisting the production session.");
+                        _tenantContext.ProductionBatches.Add(newBatch);
+                        _tenantContext.ProductionSessions.Add(session);
+                        _tenantContext.AuditLogs.Add(auditLog);
+
+                        var affectedRows = await _tenantContext.SaveChangesAsync();
+                        if (affectedRows <= 0)
+                        {
+                            throw new Exception("Database operation failed: no rows were affected when persisting the production session.");
+                        }
+
+                        await transaction.CommitAsync();
+
+                        await NotifyDashboardAsync("batch-started");
+
+                        Serilog.Log.Information(
+                            "[ADMIN BATCH START TRANSACTION SUCCESS]: TenantId={TenantId}, CompanyId={CompanyId}, SchemaName={SchemaName}, BatchId={BatchId}, ProductionLineId={ProductionLineId}, OperatorId={OperatorId}, TransactionId={TransactionId}, RowsAffected={RowsAffected}",
+                            tenantId,
+                            company.Id,
+                            (_tenantContext as Aquora.Persistence.Context.TenantDbContext)?.SchemaName ?? "public",
+                            batchId,
+                            request.ProductionLineId,
+                            userGuid,
+                            transaction.TransactionId,
+                            affectedRows
+                        );
+
+                        return Success<object>(new
+                        {
+                            BatchId = newBatch.Id,
+                            BatchNumber = newBatch.BatchNumber,
+                            Product = newBatch.Product,
+                            Shift = newBatch.Shift,
+                            ProductionLineId = newBatch.ProductionLineId,
+                            StartedAt = newBatch.StartedAt,
+                            Status = newBatch.Status
+                        }, "Production batch started successfully.");
                     }
-
-                    await transaction.CommitAsync();
-
-                    await NotifyDashboardAsync("batch-started");
-
-                    Serilog.Log.Information(
-                        "[ADMIN BATCH START TRANSACTION SUCCESS]: TenantId={TenantId}, CompanyId={CompanyId}, SchemaName={SchemaName}, BatchId={BatchId}, ProductionLineId={ProductionLineId}, OperatorId={OperatorId}, TransactionId={TransactionId}, RowsAffected={RowsAffected}",
-                        tenantId,
-                        company.Id,
-                        (_tenantContext as Aquora.Persistence.Context.TenantDbContext)?.SchemaName ?? "public",
-                        batchId,
-                        request.ProductionLineId,
-                        userGuid,
-                        transaction.TransactionId,
-                        affectedRows
-                    );
-
-                    return Success<object>(new
+                    catch (Exception ex)
                     {
-                        BatchId = newBatch.Id,
-                        BatchNumber = newBatch.BatchNumber,
-                        Product = newBatch.Product,
-                        Shift = newBatch.Shift,
-                        ProductionLineId = newBatch.ProductionLineId,
-                        StartedAt = newBatch.StartedAt,
-                        Status = newBatch.Status
-                    }, "Production batch started successfully.");
-                }
-                catch (Exception ex)
-                {
-                    await transaction.RollbackAsync();
-                    return Failure<object>(ex.Message, "Failed to start batch.");
-                }
+                        await transaction.RollbackAsync();
+                        return Failure<object>(ex.Message, "Failed to start batch.");
+                    }
+                });
             }
             catch (Exception ex)
             {

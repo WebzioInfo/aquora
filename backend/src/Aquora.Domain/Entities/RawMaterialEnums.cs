@@ -3,6 +3,7 @@ namespace Aquora.Domain.Enums
     public enum RawMaterialCategory
     {
         PREFORM,
+        BOTTLE,
         CAP,
         LABEL,
         SHRINK_FILM,

@@ -977,18 +977,18 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       return false
     }
 
-    if (formType === 'Sales Dispatch' && formPaymentMethod === 'Credit' && !formCustomerId) {
-      showToast('Select a customer for credit sales.', 'warning')
+    if (!formProductId) {
+      showToast('Please select a product.', 'warning')
       return false
     }
 
-    if (formType === 'Sales Dispatch' && isGstEnabled && formGstRate === '') {
-      showToast('Select the applicable GST rate before saving the dispatch.', 'warning')
+    if (!formDate) {
+      showToast('Transaction date is required.', 'warning')
       return false
     }
 
-    if (!formProductId || !formCases || !formDate) {
-      showToast('Please fill in all required fields.', 'warning')
+    if (!formCases || formCases.trim() === '') {
+      showToast('Please enter the quantity of cases.', 'warning')
       return false
     }
 
@@ -998,20 +998,60 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       return false
     }
 
-    if (parentDispatch && (formType === 'Customer Return' || formType === 'Damage')) {
-      if (casesNum > (availableRemainingCases + 0.0001)) {
-        showToast(`Cannot process ${casesNum} cases. Maximum remaining available cases on dispatch ${parentDispatch.transactionNumber} is ${availableRemainingCases} cases.`, 'error')
+    if (formType === 'Sales Dispatch') {
+      if (formUnitPrice.trim() === '' || isNaN(parseFloat(formUnitPrice)) || parseFloat(formUnitPrice) < 0) {
+        showToast('Please enter a valid price per case (cannot be negative).', 'warning')
         return false
       }
-    }
 
-    // Ensure payment register / bank account is set
-    if (formType === 'Sales Dispatch') {
+      if (isGstEnabled && (formGstRate === '' || isNaN(parseFloat(formGstRate)))) {
+        showToast('Select the applicable GST rate before saving the dispatch.', 'warning')
+        return false
+      }
+
+      const up = parseFloat(formUnitPrice) || 0
+      const disc = parseFloat(formDiscount) || 0
+      const sub = Math.max(0, casesNum * up - disc)
+      const rate = isGstEnabled ? (parseFloat(formGstRate) || 0) : 0
+      const currentTotal = Math.round((sub + (sub * rate / 100)) * 100) / 100
+      const receivedVal = formAmountReceived !== '' ? (parseFloat(formAmountReceived) || 0) : 0
+
+      // Business rule: Payment Method "Credit" cannot have Payment Terms "COD"
+      if (formPaymentMethod === 'Credit' && formPaymentTerms === 'COD') {
+        showToast('Payment Method "Credit" cannot have Payment Terms "Cash on Delivery". For COD, select Cash or Bank.', 'warning')
+        return false
+      }
+
+      // Business rule: If invoice is 100% paid upfront, it cannot be a Credit transaction
+      if (formPaymentMethod === 'Credit' && currentTotal > 0 && receivedVal >= currentTotal) {
+        showToast(`Full invoice amount (₹${currentTotal.toFixed(2)}) is received upfront. Please select Cash, Bank, or UPI instead of Credit.`, 'warning')
+        return false
+      }
+
+      // Business rule: Cash on Delivery implies payment is collected on delivery, not upfront
+      if (formPaymentTerms === 'COD' && receivedVal > 0) {
+        showToast('Cash on Delivery implies payment is collected on delivery. If amount is received now, set Payment Terms to "Immediate / Advance".', 'warning')
+        return false
+      }
+
+      // Validate bounds of amount received
+      if (formAmountReceived !== '') {
+        if (isNaN(receivedVal) || receivedVal < 0) {
+          showToast('Amount received cannot be negative.', 'warning')
+          return false
+        }
+        if (receivedVal > currentTotal + 0.001) {
+          showToast(`Amount received (₹${receivedVal.toFixed(2)}) cannot exceed total invoice amount (₹${currentTotal.toFixed(2)}).`, 'warning')
+          return false
+        }
+      }
+
+      // Ensure payment register / bank account is set
       if (['Bank', 'UPI', 'Cheque'].includes(formPaymentMethod) && !formBankAccountId) {
         if (banks.length > 0) {
           setFormBankAccountId(banks[0].id)
         } else {
-          showToast('Company Bank Account is required.', 'warning')
+          showToast(`Company Bank Account is required for ${formPaymentMethod} payments.`, 'warning')
           return false
         }
       }
@@ -1019,6 +1059,13 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
         if (cashRegisters.length > 0) {
           setFormCashBookId(cashRegisters[0].id)
         }
+      }
+    }
+
+    if (parentDispatch && (formType === 'Customer Return' || formType === 'Damage')) {
+      if (casesNum > (availableRemainingCases + 0.0001)) {
+        showToast(`Cannot process ${casesNum} cases. Maximum remaining available cases on dispatch ${parentDispatch.transactionNumber} is ${availableRemainingCases} cases.`, 'error')
+        return false
       }
     }
 
@@ -1112,9 +1159,13 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       metadataJson: JSON.stringify(meta),
       totalAmount: sub + tax,
       amountReceived: (() => {
-        if (effectivePaymentMethod === 'Credit' || effectivePaymentMethod === 'Credit Note') return 0
-        if (formAmountReceived !== '') return Math.max(0, parseFloat(formAmountReceived) || 0)
-        if (formPaymentTerms === 'COD') return 0
+        if (formAmountReceived !== '') {
+          const parsed = Math.max(0, parseFloat(formAmountReceived) || 0)
+          return Math.min(parsed, sub + tax)
+        }
+        if (effectivePaymentMethod === 'Credit' || effectivePaymentMethod === 'Credit Note' || formPaymentTerms === 'COD' || formPaymentTerms === 'Credit' || formPaymentTerms.startsWith('Net')) {
+          return 0
+        }
         return sub + tax
       })(),
       returnedAmount: formType === 'Customer Return' ? (parseFloat(formCases) || 0) * (parseFloat(formUnitPrice) || 0) : 0,
@@ -2581,7 +2632,16 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                       const found = customers.find(c => c.id === val)
                       if (found) {
                         setCustomerSearch(found.customerName)
-                        if (found.paymentTerms) setFormPaymentTerms(found.paymentTerms)
+                        if (found.paymentTerms) {
+                          setFormPaymentTerms(found.paymentTerms)
+                          if (found.paymentTerms === 'COD' && formPaymentMethod === 'Credit') {
+                            setFormPaymentMethod('Cash')
+                            setFormAmountReceived('0')
+                          } else if (found.paymentTerms === 'Credit' || found.paymentTerms.startsWith('Net')) {
+                            setFormPaymentMethod('Credit')
+                            setFormAmountReceived('0')
+                          }
+                        }
                       }
                     }}
                     options={customers.map(c => ({
@@ -2750,9 +2810,16 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                                       setFormPaymentMethod(m);
                                       if (m === 'Credit') {
                                         setFormAmountReceived('0');
-                                        setFormPaymentTerms('Credit');
-                                      } else if (formPaymentTerms === 'Immediate') {
-                                        setFormAmountReceived(currentTotal.toString());
+                                        if (formPaymentTerms === 'COD' || formPaymentTerms === 'Immediate') {
+                                          setFormPaymentTerms('Credit');
+                                        }
+                                      } else {
+                                        if (formPaymentTerms === 'Credit' || formPaymentTerms.startsWith('Net')) {
+                                          setFormPaymentTerms('Immediate');
+                                          setFormAmountReceived(currentTotal.toString());
+                                        } else if (formPaymentTerms === 'Immediate') {
+                                          setFormAmountReceived(currentTotal.toString());
+                                        }
                                       }
                                     }}
                                     className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${formPaymentMethod === m ? 'bg-blue-600 text-white border-blue-600 shadow' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
@@ -2770,18 +2837,21 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                                 onChange={(e) => {
                                   const terms = e.target.value;
                                   setFormPaymentTerms(terms);
-                                  if (terms === 'COD' || terms === 'Credit' || terms.startsWith('Net')) {
-                                    if (formPaymentMethod === 'Credit' || terms === 'COD') {
-                                      setFormAmountReceived('0');
-                                    }
+                                  if (terms === 'COD') {
+                                    if (formPaymentMethod === 'Credit') setFormPaymentMethod('Cash');
+                                    setFormAmountReceived('0');
+                                  } else if (terms === 'Credit' || terms.startsWith('Net')) {
+                                    setFormPaymentMethod('Credit');
+                                    setFormAmountReceived('0');
                                   } else if (terms === 'Immediate') {
+                                    if (formPaymentMethod === 'Credit') setFormPaymentMethod('Cash');
                                     setFormAmountReceived(currentTotal.toString());
                                   }
                                 }}
                                 className="w-full h-[40px] px-3 border border-slate-200 rounded-lg text-xs bg-white font-semibold focus:outline-none focus:border-blue-500 cursor-pointer"
                               >
                                 <option value="Immediate">Immediate / Advance</option>
-                                <option value="COD">Cash on Delivery (COD)</option>
+                                <option value="COD" disabled={formPaymentMethod === 'Credit'}>Cash on Delivery (COD){formPaymentMethod === 'Credit' ? ' (Select Cash/Bank method)' : ''}</option>
                                 <option value="Net 7">Net 7 Days</option>
                                 <option value="Net 15">Net 15 Days</option>
                                 <option value="Net 30">Net 30 Days</option>
@@ -2797,14 +2867,25 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                               <div className="flex items-center gap-2">
                                 <button
                                   type="button"
-                                  onClick={() => setFormAmountReceived(currentTotal.toString())}
+                                  onClick={() => {
+                                    if (formPaymentMethod === 'Credit') setFormPaymentMethod('Cash');
+                                    setFormPaymentTerms('Immediate');
+                                    setFormAmountReceived(currentTotal.toString());
+                                  }}
                                   className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 rounded cursor-pointer"
                                 >
                                   Pay Full (₹{currentTotal.toFixed(2)})
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => setFormAmountReceived('0')}
+                                  onClick={() => {
+                                    setFormAmountReceived('0');
+                                    if (formPaymentMethod === 'Credit') {
+                                      setFormPaymentTerms('Credit');
+                                    } else if (formPaymentTerms === 'Immediate') {
+                                      setFormPaymentTerms('COD');
+                                    }
+                                  }}
                                   className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 hover:bg-amber-200 rounded cursor-pointer"
                                 >
                                   COD / Pending (₹0)
@@ -2827,6 +2908,13 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                                 ₹{pendingBalance.toFixed(2)}
                               </strong></span>
                             </div>
+
+                            {formPaymentMethod === 'Credit' && receivedNum >= currentTotal && currentTotal > 0 && (
+                              <div className="flex items-center gap-1.5 text-blue-700 bg-blue-50 border border-blue-200/60 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold mt-1">
+                                <Info className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                <span>Full invoice amount received upfront. This is an immediate cash/bank sale rather than credit.</span>
+                              </div>
+                            )}
                           </div>
                         </>
                       );

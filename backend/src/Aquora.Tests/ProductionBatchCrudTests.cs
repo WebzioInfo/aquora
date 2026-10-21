@@ -11,6 +11,7 @@ using Xunit;
 using Aquora.API.Controllers;
 using Aquora.API.Hubs;
 using Aquora.Application.Interfaces;
+using Aquora.Application.Interfaces.Services;
 using Aquora.Domain.Entities;
 using Aquora.Persistence.Context;
 using Aquora.Shared.Models;
@@ -363,6 +364,263 @@ namespace Aquora.Tests
             var detailOk = Assert.IsType<OkObjectResult>(detailResult.Result);
             var detailResponse = Assert.IsType<ApiResponse<object>>(detailOk.Value);
             Assert.True(detailResponse.Success);
+        }
+
+        [Fact]
+        public async Task StopBatch_ClosesBatch_Atomically_And_Audits()
+        {
+            var (tenantDb, _, controller, tenantId, lineId) = SetupController();
+
+            var batch = CreateBatch(tenantId, lineId, "BAT-STOP-01", targetQty: 1000, producedQty: 200, status: "Active");
+            var session = new ProductionSession
+            {
+                Id = batch.Id,
+                TenantId = tenantId,
+                CompanyId = Guid.NewGuid(),
+                BatchNumber = batch.BatchNumber,
+                ProductionLineId = lineId,
+                OperatorId = batch.OperatorId,
+                OperatorName = batch.OperatorName,
+                Shift = "Morning",
+                ProductId = Guid.NewGuid(),
+                StartedAt = DateTime.UtcNow.AddHours(-2),
+                Status = "Running",
+                TotalCasesProduced = 200,
+                CreatedBy = "Admin",
+                CreatedAt = DateTime.UtcNow.AddHours(-2)
+            };
+
+            var entry = new ProductionEntry
+            {
+                Id = Guid.NewGuid(),
+                ProductionSessionId = session.Id,
+                ProductionLineId = lineId,
+                OperatorId = batch.OperatorId,
+                OperatorName = batch.OperatorName,
+                Shift = "Morning",
+                Date = DateTime.UtcNow.Date,
+                Time = DateTime.UtcNow.ToString("O"),
+                ProductId = session.ProductId,
+                CasesProduced = 250,
+                TenantId = tenantId,
+                CompanyId = session.CompanyId,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-30),
+                CreatedBy = "Admin"
+            };
+
+            tenantDb.ProductionBatches.Add(batch);
+            tenantDb.ProductionSessions.Add(session);
+            tenantDb.ProductionEntries.Add(entry);
+            await tenantDb.SaveChangesAsync();
+
+            var stopRequest = new StopProductionBatchRequest
+            {
+                Reason = "Shift ended",
+                Remarks = "Normal completion"
+            };
+
+            var result = await controller.StopBatch(batch.Id, stopRequest);
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var apiResponse = Assert.IsType<ApiResponse<object>>(okResult.Value);
+
+            Assert.True(apiResponse.Success);
+
+            // Verify batch is marked Completed with updated ProducedQuantity
+            var updatedBatch = await tenantDb.ProductionBatches.FindAsync(batch.Id);
+            Assert.NotNull(updatedBatch);
+            Assert.Equal("Completed", updatedBatch.Status);
+            Assert.NotNull(updatedBatch.CompletedAt);
+            Assert.Equal(250, updatedBatch.ProducedQuantity);
+
+            // Verify session is marked Completed
+            var updatedSession = await tenantDb.ProductionSessions.FindAsync(session.Id);
+            Assert.NotNull(updatedSession);
+            Assert.Equal("Completed", updatedSession.Status);
+            Assert.NotNull(updatedSession.EndedAt);
+
+            // Verify Audit Log was recorded
+            var auditLog = await tenantDb.AuditLogs.FirstOrDefaultAsync(a => a.PrimaryKey == batch.Id.ToString() && a.Action == "StopBatch");
+            Assert.NotNull(auditLog);
+            Assert.Equal("Production", auditLog.Module);
+        }
+
+        [Fact]
+        public async Task StopBatch_RepeatedRequest_IsIdempotent()
+        {
+            var (tenantDb, _, controller, tenantId, lineId) = SetupController();
+
+            var batch = CreateBatch(tenantId, lineId, "BAT-STOP-02", targetQty: 500, producedQty: 500, status: "Completed");
+            batch.CompletedAt = DateTime.UtcNow.AddMinutes(-10);
+            tenantDb.ProductionBatches.Add(batch);
+            await tenantDb.SaveChangesAsync();
+
+            var stopRequest = new StopProductionBatchRequest { Reason = "Shift ended" };
+
+            // Repeating StopBatch on an already completed batch should return success gracefully
+            var result = await controller.StopBatch(batch.Id, stopRequest);
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var apiResponse = Assert.IsType<ApiResponse<object>>(okResult.Value);
+
+            Assert.True(apiResponse.Success);
+            Assert.Contains("already completed", apiResponse.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public async Task EndSession_ClosesSession_Atomically_And_Audits()
+        {
+            var tenantId = Guid.NewGuid();
+            var lineId = Guid.NewGuid();
+
+            var tenantOptions = new DbContextOptionsBuilder<TenantDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning))
+                .Options;
+
+            var mockTenantProvider = new Mock<ITenantProvider>();
+            mockTenantProvider.Setup(p => p.TenantId).Returns(tenantId);
+            mockTenantProvider.Setup(p => p.TenantSchemaName).Returns("tenant_test");
+
+            var mockCurrentUser = new Mock<ICurrentUserContext>();
+            mockCurrentUser.Setup(c => c.TenantId).Returns(tenantId);
+            mockCurrentUser.Setup(c => c.UserId).Returns(Guid.NewGuid().ToString());
+            mockCurrentUser.Setup(c => c.Email).Returns("operator@test.com");
+            mockCurrentUser.Setup(c => c.Roles).Returns(new List<string> { "Operator" });
+
+            var tenantContext = new TenantDbContext(tenantOptions, mockTenantProvider.Object, mockCurrentUser.Object);
+
+            var platformOptions = new DbContextOptionsBuilder<PlatformDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning))
+                .Options;
+            var platformContext = new PlatformDbContext(platformOptions);
+
+            var mockHubContext = new Mock<IHubContext<DashboardHub>>();
+            var mockClients = new Mock<IHubClients>();
+            var mockClientProxy = new Mock<IClientProxy>();
+            mockClients.Setup(c => c.Group(It.IsAny<string>())).Returns(mockClientProxy.Object);
+            mockHubContext.Setup(h => h.Clients).Returns(mockClients.Object);
+
+            var mockLogger = new Mock<Microsoft.Extensions.Logging.ILogger<ProductionEntriesController>>();
+            var mockInvService = new Mock<IInventoryMovementService>();
+            var mockProdService = new Mock<IProductionService>();
+
+            var entriesController = new ProductionEntriesController(
+                tenantContext,
+                platformContext,
+                mockLogger.Object,
+                mockInvService.Object,
+                mockProdService.Object,
+                mockHubContext.Object
+            );
+
+            var userClaims = new List<Claim>
+            {
+                new Claim("tenant_id", tenantId.ToString()),
+                new Claim("user_id", Guid.NewGuid().ToString()),
+                new Claim(ClaimTypes.Role, "Operator"),
+                new Claim(ClaimTypes.Name, "Operator Bob"),
+                new Claim(ClaimTypes.Email, "operator@aquora.com")
+            };
+            entriesController.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(userClaims, "TestAuth")) }
+            };
+
+            var batchId = Guid.NewGuid();
+            var batch = new ProductionBatch
+            {
+                Id = batchId,
+                BatchNumber = "BAT-SESSION-01",
+                Product = "Aquora 1L",
+                Shift = "Morning",
+                ProductionLineId = lineId,
+                OperatorId = Guid.NewGuid(),
+                OperatorName = "Operator Bob",
+                TargetQuantity = 1000,
+                ProducedQuantity = 100,
+                Status = "Active",
+                TenantId = tenantId,
+                CreatedBy = "Operator",
+                CreatedAt = DateTime.UtcNow.AddHours(-1)
+            };
+
+            var session = new ProductionSession
+            {
+                Id = batchId,
+                TenantId = tenantId,
+                CompanyId = Guid.NewGuid(),
+                BatchNumber = batch.BatchNumber,
+                ProductionLineId = lineId,
+                OperatorId = batch.OperatorId,
+                OperatorName = batch.OperatorName,
+                Shift = "Morning",
+                ProductId = Guid.NewGuid(),
+                StartedAt = DateTime.UtcNow.AddHours(-1),
+                Status = "Running",
+                TotalCasesProduced = 100,
+                CreatedBy = "Operator",
+                CreatedAt = DateTime.UtcNow.AddHours(-1)
+            };
+
+            var entry = new ProductionEntry
+            {
+                Id = Guid.NewGuid(),
+                ProductionSessionId = session.Id,
+                ProductionLineId = lineId,
+                OperatorId = batch.OperatorId,
+                OperatorName = batch.OperatorName,
+                Shift = "Morning",
+                Date = DateTime.UtcNow.Date,
+                Time = DateTime.UtcNow.ToString("O"),
+                ProductId = session.ProductId,
+                CasesProduced = 180,
+                TenantId = tenantId,
+                CompanyId = session.CompanyId,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-15),
+                CreatedBy = "Operator"
+            };
+
+            tenantContext.ProductionBatches.Add(batch);
+            tenantContext.ProductionSessions.Add(session);
+            tenantContext.ProductionEntries.Add(entry);
+            await tenantContext.SaveChangesAsync();
+
+            var endRequest = new ProductionEntriesController.EndProductionSessionRequest
+            {
+                SessionId = session.Id,
+                Remarks = "Shift completed normally",
+                ConfirmClose = true
+            };
+
+            var result = await entriesController.EndSession(endRequest);
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var apiResponse = Assert.IsType<ApiResponse<object>>(okResult.Value);
+
+            Assert.True(apiResponse.Success);
+
+            // Verify session status and total cases
+            var updatedSession = await tenantContext.ProductionSessions.FindAsync(session.Id);
+            Assert.NotNull(updatedSession);
+            Assert.Equal("Completed", updatedSession.Status);
+            Assert.Equal(180, updatedSession.TotalCasesProduced);
+            Assert.NotNull(updatedSession.EndedAt);
+
+            // Verify batch updated
+            var updatedBatch = await tenantContext.ProductionBatches.FindAsync(batch.Id);
+            Assert.NotNull(updatedBatch);
+            Assert.Equal("Completed", updatedBatch.Status);
+            Assert.Equal(180, updatedBatch.ProducedQuantity);
+
+            // Verify audit log
+            var audit = await tenantContext.AuditLogs.FirstOrDefaultAsync(a => a.PrimaryKey == session.Id.ToString() && a.Action == "EndBatch");
+            Assert.NotNull(audit);
+
+            // Test idempotency on repeated request
+            var repeatedResult = await entriesController.EndSession(endRequest);
+            var repeatedOk = Assert.IsType<OkObjectResult>(repeatedResult.Result);
+            var repeatedResponse = Assert.IsType<ApiResponse<object>>(repeatedOk.Value);
+            Assert.True(repeatedResponse.Success);
+            Assert.Contains("already closed", repeatedResponse.Message, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

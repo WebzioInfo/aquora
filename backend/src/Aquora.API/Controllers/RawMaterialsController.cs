@@ -168,95 +168,99 @@ namespace Aquora.API.Controllers
                     return BadRequest(ApiResponse<RawMaterialDto>.CreateFailure("Database context is invalid.", "Infrastructure Error", HttpContext.TraceIdentifier));
                 }
 
-                using var transaction = await dbContext.Database.BeginTransactionAsync();
-                try
+                var strategy = dbContext.Database.CreateExecutionStrategy();
+                return await strategy.ExecuteAsync(async () =>
                 {
-                    // Check for existing raw materials ignoring query filters (find soft-deleted ones as well)
-                    var existingMaterial = await _tenantContext.RawMaterials
-                        .IgnoreQueryFilters()
-                        .FirstOrDefaultAsync(rm => rm.Name.ToLower() == trimmedName.ToLower());
-
-                    RawMaterial rawMaterial;
-
-                    if (existingMaterial != null)
+                    using var transaction = await dbContext.Database.BeginTransactionAsync();
+                    try
                     {
-                        if (!existingMaterial.IsDeleted)
+                        // Check for existing raw materials ignoring query filters (find soft-deleted ones as well)
+                        var existingMaterial = await _tenantContext.RawMaterials
+                            .IgnoreQueryFilters()
+                            .FirstOrDefaultAsync(rm => rm.Name.ToLower() == trimmedName.ToLower());
+
+                        RawMaterial rawMaterial;
+
+                        if (existingMaterial != null)
                         {
-                            return BadRequest(ApiResponse<RawMaterialDto>.CreateFailure(
-                                "A raw material with this name already exists in this company.", 
-                                "Validation Error", 
-                                HttpContext.TraceIdentifier));
+                            if (!existingMaterial.IsDeleted)
+                            {
+                                return BadRequest(ApiResponse<RawMaterialDto>.CreateFailure(
+                                    "A raw material with this name already exists in this company.", 
+                                    "Validation Error", 
+                                    HttpContext.TraceIdentifier));
+                            }
+
+                            // Reuse and restore the soft-deleted raw material
+                            rawMaterial = existingMaterial;
+                            rawMaterial.IsDeleted = false;
+                            rawMaterial.DeletedAt = null;
+                            rawMaterial.DeletedBy = null;
+                            rawMaterial.IsActive = request.IsActive;
+                            rawMaterial.Category = categoryEnum.ToString();
+                            rawMaterial.Unit = unitEnum.ToString();
+                            rawMaterial.BaseUnit = unitEnum.ToString();
+                            rawMaterial.CurrentStock = 0.0m; // Centralized balance engine will calculate new balance
+                        }
+                        else
+                        {
+                            // Create a brand new raw material
+                            rawMaterial = new RawMaterial
+                            {
+                                Id = Guid.NewGuid(),
+                                Name = trimmedName,
+                                Category = categoryEnum.ToString(),
+                                Unit = unitEnum.ToString(),
+                                IsActive = request.IsActive,
+                                CompanyId = company.Id,
+                                TenantId = _currentUserContext.TenantId,
+                                // Populate legacy fields required by db constraints
+                                Code = trimmedName.Replace(" ", "_").ToUpperInvariant(),
+                                BaseUnit = unitEnum.ToString(),
+                                ConversionFactor = 1.0m,
+                                CurrentStock = 0.0m // Centralized balance engine will set it
+                            };
+
+                            _tenantContext.RawMaterials.Add(rawMaterial);
                         }
 
-                        // Reuse and restore the soft-deleted raw material
-                        rawMaterial = existingMaterial;
-                        rawMaterial.IsDeleted = false;
-                        rawMaterial.DeletedAt = null;
-                        rawMaterial.DeletedBy = null;
-                        rawMaterial.IsActive = request.IsActive;
-                        rawMaterial.Category = categoryEnum.ToString();
-                        rawMaterial.Unit = unitEnum.ToString();
-                        rawMaterial.BaseUnit = unitEnum.ToString();
-                        rawMaterial.CurrentStock = 0.0m; // Centralized balance engine will calculate new balance
-                    }
-                    else
-                    {
-                        // Create a brand new raw material
-                        rawMaterial = new RawMaterial
+                        await _tenantContext.SaveChangesAsync();
+
+                        // Every stock modification must create one ledger entry (even if 0 for opening stock)
+                        await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                            _tenantContext,
+                            rawMaterial.Id,
+                            request.CurrentStock,
+                            "OpeningStock",
+                            rawMaterial.Id,
+                            "Opening Stock",
+                            _currentUserContext.TenantId,
+                            company.Id,
+                            _currentUserContext.UserId?.ToString() ?? "System");
+
+                        await _tenantContext.SaveChangesAsync();
+                        await transaction.CommitAsync();
+
+                        var dto = new RawMaterialDto
                         {
-                            Id = Guid.NewGuid(),
-                            Name = trimmedName,
-                            Category = categoryEnum.ToString(),
-                            Unit = unitEnum.ToString(),
-                            IsActive = request.IsActive,
-                            CompanyId = company.Id,
-                            TenantId = _currentUserContext.TenantId,
-                            // Populate legacy fields required by db constraints
-                            Code = trimmedName.Replace(" ", "_").ToUpperInvariant(),
-                            BaseUnit = unitEnum.ToString(),
-                            ConversionFactor = 1.0m,
-                            CurrentStock = 0.0m // Centralized balance engine will set it
+                            Id = rawMaterial.Id,
+                            Name = rawMaterial.Name,
+                            Category = rawMaterial.Category,
+                            Unit = rawMaterial.Unit,
+                            IsActive = rawMaterial.IsActive,
+                            CurrentStock = rawMaterial.CurrentStock,
+                            CreatedAt = rawMaterial.CreatedAt,
+                            UpdatedAt = rawMaterial.UpdatedAt
                         };
 
-                        _tenantContext.RawMaterials.Add(rawMaterial);
+                        return Success(dto, "Raw material created successfully.");
                     }
-
-                    await _tenantContext.SaveChangesAsync();
-
-                    // Every stock modification must create one ledger entry (even if 0 for opening stock)
-                    await _inventoryMovementService.RecordRawMaterialMovementAsync(
-                        _tenantContext,
-                        rawMaterial.Id,
-                        request.CurrentStock,
-                        "OpeningStock",
-                        rawMaterial.Id,
-                        "Opening Stock",
-                        _currentUserContext.TenantId,
-                        company.Id,
-                        _currentUserContext.UserId?.ToString() ?? "System");
-
-                    await _tenantContext.SaveChangesAsync();
-                    await transaction.CommitAsync();
-
-                    var dto = new RawMaterialDto
+                    catch (Exception)
                     {
-                        Id = rawMaterial.Id,
-                        Name = rawMaterial.Name,
-                        Category = rawMaterial.Category,
-                        Unit = rawMaterial.Unit,
-                        IsActive = rawMaterial.IsActive,
-                        CurrentStock = rawMaterial.CurrentStock,
-                        CreatedAt = rawMaterial.CreatedAt,
-                        UpdatedAt = rawMaterial.UpdatedAt
-                    };
-
-                    return Success(dto, "Raw material created successfully.");
-                }
-                catch (Exception)
-                {
-                    await transaction.RollbackAsync();
-                    throw;
-                }
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                });
             }
             catch (DbUpdateException ex)
             {
@@ -351,54 +355,58 @@ namespace Aquora.API.Controllers
                     return BadRequest(ApiResponse<RawMaterialDto>.CreateFailure("Database context is invalid.", "Infrastructure Error", HttpContext.TraceIdentifier));
                 }
 
-                using var transaction = await dbContext.Database.BeginTransactionAsync();
-                try
+                var strategy = dbContext.Database.CreateExecutionStrategy();
+                return await strategy.ExecuteAsync(async () =>
                 {
-                    rawMaterial.Name = trimmedName;
-                    rawMaterial.Category = categoryEnum.ToString();
-                    rawMaterial.Unit = unitEnum.ToString();
-                    rawMaterial.IsActive = request.IsActive;
-                    rawMaterial.CompanyId = company.Id;
-                    if (request.CostPerUnit.HasValue) rawMaterial.CostPerUnit = request.CostPerUnit.Value;
-
-                    if (request.CurrentStock.HasValue && request.CurrentStock.Value != rawMaterial.CurrentStock)
+                    using var transaction = await dbContext.Database.BeginTransactionAsync();
+                    try
                     {
-                        decimal diff = request.CurrentStock.Value - rawMaterial.CurrentStock;
-                        await _inventoryMovementService.RecordRawMaterialMovementAsync(
-                            _tenantContext,
-                            rawMaterial.Id,
-                            diff,
-                            "StockAdjustment",
-                            rawMaterial.Id,
-                            "Manual Stock Correction",
-                            tenantId,
-                            company.Id,
-                            userIdStr);
+                        rawMaterial.Name = trimmedName;
+                        rawMaterial.Category = categoryEnum.ToString();
+                        rawMaterial.Unit = unitEnum.ToString();
+                        rawMaterial.IsActive = request.IsActive;
+                        rawMaterial.CompanyId = company.Id;
+                        if (request.CostPerUnit.HasValue) rawMaterial.CostPerUnit = request.CostPerUnit.Value;
+
+                        if (request.CurrentStock.HasValue && request.CurrentStock.Value != rawMaterial.CurrentStock)
+                        {
+                            decimal diff = request.CurrentStock.Value - rawMaterial.CurrentStock;
+                            await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                                _tenantContext,
+                                rawMaterial.Id,
+                                diff,
+                                "StockAdjustment",
+                                rawMaterial.Id,
+                                "Manual Stock Correction",
+                                tenantId,
+                                company.Id,
+                                userIdStr);
+                        }
+
+                        await _tenantContext.SaveChangesAsync();
+                        await transaction.CommitAsync();
+
+                        var dto = new RawMaterialDto
+                        {
+                            Id = rawMaterial.Id,
+                            Name = rawMaterial.Name,
+                            Category = rawMaterial.Category,
+                            Unit = rawMaterial.Unit,
+                            IsActive = rawMaterial.IsActive,
+                            CurrentStock = rawMaterial.CurrentStock,
+                            CostPerUnit = rawMaterial.CostPerUnit,
+                            CreatedAt = rawMaterial.CreatedAt,
+                            UpdatedAt = rawMaterial.UpdatedAt
+                        };
+
+                        return Success(dto, "Raw material updated successfully.");
                     }
-
-                    await _tenantContext.SaveChangesAsync();
-                    await transaction.CommitAsync();
-                }
-                catch (Exception)
-                {
-                    await transaction.RollbackAsync();
-                    throw;
-                }
-
-                var dto = new RawMaterialDto
-                {
-                    Id = rawMaterial.Id,
-                    Name = rawMaterial.Name,
-                    Category = rawMaterial.Category,
-                    Unit = rawMaterial.Unit,
-                    IsActive = rawMaterial.IsActive,
-                    CurrentStock = rawMaterial.CurrentStock,
-                    CostPerUnit = rawMaterial.CostPerUnit,
-                    CreatedAt = rawMaterial.CreatedAt,
-                    UpdatedAt = rawMaterial.UpdatedAt
-                };
-
-                return Success(dto, "Raw material updated successfully.");
+                    catch (Exception)
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                });
             }
             catch (DbUpdateException ex)
             {
@@ -534,53 +542,57 @@ namespace Aquora.API.Controllers
                 return BadRequest(ApiResponse<RawMaterialDto>.CreateFailure("Database context is invalid.", "Infrastructure Error", HttpContext.TraceIdentifier));
             }
 
-            using var transaction = await dbContext.Database.BeginTransactionAsync();
-            try
+            var strategy = dbContext.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
-                var rawMaterial = await _tenantContext.RawMaterials.FirstOrDefaultAsync(rm => rm.Id == id && !rm.IsDeleted);
-                if (rawMaterial == null)
+                using var transaction = await dbContext.Database.BeginTransactionAsync();
+                try
                 {
-                    return NotFound(ApiResponse<RawMaterialDto>.CreateFailure("Raw material not found.", "Not Found", HttpContext.TraceIdentifier));
+                    var rawMaterial = await _tenantContext.RawMaterials.FirstOrDefaultAsync(rm => rm.Id == id && !rm.IsDeleted);
+                    if (rawMaterial == null)
+                    {
+                        return NotFound(ApiResponse<RawMaterialDto>.CreateFailure("Raw material not found.", "Not Found", HttpContext.TraceIdentifier));
+                    }
+
+                    if (!rawMaterial.IsActive)
+                    {
+                        return BadRequest(ApiResponse<RawMaterialDto>.CreateFailure("Cannot add stock to an inactive raw material.", "Validation Error", HttpContext.TraceIdentifier));
+                    }
+
+                    await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                        _tenantContext,
+                        rawMaterial.Id,
+                        request.Quantity,
+                        "StockAdded",
+                        rawMaterial.Id,
+                        request.Notes?.Trim(),
+                        _currentUserContext.TenantId,
+                        rawMaterial.CompanyId,
+                        _currentUserContext.UserId?.ToString() ?? "System");
+
+                    await _tenantContext.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    var dto = new RawMaterialDto
+                    {
+                        Id = rawMaterial.Id,
+                        Name = rawMaterial.Name,
+                        Category = rawMaterial.Category,
+                        Unit = rawMaterial.Unit,
+                        IsActive = rawMaterial.IsActive,
+                        CurrentStock = rawMaterial.CurrentStock,
+                        CreatedAt = rawMaterial.CreatedAt,
+                        UpdatedAt = rawMaterial.UpdatedAt
+                    };
+
+                    return Success(dto, "Stock added successfully.");
                 }
-
-                if (!rawMaterial.IsActive)
+                catch (Exception ex)
                 {
-                    return BadRequest(ApiResponse<RawMaterialDto>.CreateFailure("Cannot add stock to an inactive raw material.", "Validation Error", HttpContext.TraceIdentifier));
+                    await transaction.RollbackAsync();
+                    return Failure<RawMaterialDto>(ex.Message, "Failed to add stock.");
                 }
-
-                await _inventoryMovementService.RecordRawMaterialMovementAsync(
-                    _tenantContext,
-                    rawMaterial.Id,
-                    request.Quantity,
-                    "StockAdded",
-                    rawMaterial.Id,
-                    request.Notes?.Trim(),
-                    _currentUserContext.TenantId,
-                    rawMaterial.CompanyId,
-                    _currentUserContext.UserId?.ToString() ?? "System");
-
-                await _tenantContext.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                var dto = new RawMaterialDto
-                {
-                    Id = rawMaterial.Id,
-                    Name = rawMaterial.Name,
-                    Category = rawMaterial.Category,
-                    Unit = rawMaterial.Unit,
-                    IsActive = rawMaterial.IsActive,
-                    CurrentStock = rawMaterial.CurrentStock,
-                    CreatedAt = rawMaterial.CreatedAt,
-                    UpdatedAt = rawMaterial.UpdatedAt
-                };
-
-                return Success(dto, "Stock added successfully.");
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return Failure<RawMaterialDto>(ex.Message, "Failed to add stock.");
-            }
+            });
         }
 
         /// <summary>

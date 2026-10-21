@@ -412,9 +412,12 @@ namespace Aquora.API.Controllers
                 return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Database context is invalid.", "Infrastructure Error", HttpContext.TraceIdentifier));
             }
 
-            using var dbTransaction = await dbContext.Database.BeginTransactionAsync();
-            try
+            var strategy = dbContext.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
+                using var dbTransaction = await dbContext.Database.BeginTransactionAsync();
+                try
+                {
                 var tenantId = _currentUserContext.TenantId;
                 var currentUserId = _currentUserContext.UserId ?? "System";
 
@@ -969,6 +972,7 @@ namespace Aquora.API.Controllers
                 await dbTransaction.RollbackAsync();
                 return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure(ex.Message, "Transaction Failed", HttpContext.TraceIdentifier));
             }
+            });
         }
 
         [HttpPut("{id:guid}")]
@@ -985,9 +989,12 @@ namespace Aquora.API.Controllers
                 return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Database context is invalid.", "Infrastructure Error", HttpContext.TraceIdentifier));
             }
 
-            using var dbTransaction = await dbContext.Database.BeginTransactionAsync();
-            try
+            var strategy = dbContext.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
+                using var dbTransaction = await dbContext.Database.BeginTransactionAsync();
+                try
+                {
                 var tenantId = _currentUserContext.TenantId;
                 var currentUserId = _currentUserContext.UserId ?? "System";
 
@@ -1386,6 +1393,7 @@ namespace Aquora.API.Controllers
                 await dbTransaction.RollbackAsync();
                 return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure(ex.Message, "Transaction Failed", HttpContext.TraceIdentifier));
             }
+            });
         }
 
         [HttpDelete("{id:guid}")]
@@ -1402,9 +1410,12 @@ namespace Aquora.API.Controllers
                 return BadRequest(ApiResponse<object>.CreateFailure("Database context is invalid.", "Infrastructure Error", HttpContext.TraceIdentifier));
             }
 
-            using var dbTransaction = await dbContext.Database.BeginTransactionAsync();
-            try
+            var strategy = dbContext.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
+                using var dbTransaction = await dbContext.Database.BeginTransactionAsync();
+                try
+                {
                 var tenantId = _currentUserContext.TenantId;
                 var currentUserId = _currentUserContext.UserId ?? "System";
 
@@ -1506,6 +1517,7 @@ namespace Aquora.API.Controllers
                 await dbTransaction.RollbackAsync();
                 return BadRequest(ApiResponse<object>.CreateFailure(ex.Message, "Transaction Failed", HttpContext.TraceIdentifier));
             }
+            });
         }
 
         [HttpGet("{id}/history")]
@@ -1977,9 +1989,12 @@ namespace Aquora.API.Controllers
                 return BadRequest(ApiResponse<SalesTransactionDto>.CreateFailure("Database context is invalid.", "Infrastructure Error", HttpContext.TraceIdentifier));
             }
 
-            using var dbTransaction = await dbContext.Database.BeginTransactionAsync();
-            try
+            var strategy = dbContext.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
+                using var dbTransaction = await dbContext.Database.BeginTransactionAsync();
+                try
+                {
                 var tenantId = _currentUserContext.TenantId;
                 var currentUserId = _currentUserContext.UserId ?? "System";
                 var userEmail = _currentUserContext.Email ?? "system@aquzio.com";
@@ -2221,6 +2236,7 @@ namespace Aquora.API.Controllers
                 await dbTransaction.RollbackAsync();
                 return Failure<SalesTransactionDto>(ex.Message, "Failed to collect sales payment.");
             }
+            });
         }
 
         [HttpGet("{id:guid}/payments")]

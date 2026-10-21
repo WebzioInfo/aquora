@@ -320,24 +320,53 @@ using (var scope = app.Services.CreateScope())
         Log.Information("Verifying database connectivity...");
         
         bool canConnect = false;
-        try
+        Exception? lastConnectEx = null;
+        const int maxAttempts = 3;
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            await platformContext.Database.OpenConnectionAsync();
-            using var cmd = platformContext.Database.GetDbConnection().CreateCommand();
-            cmd.CommandText = "SELECT 1;";
-            var result = await cmd.ExecuteScalarAsync();
-            canConnect = result != null && Convert.ToInt32(result) == 1;
-            await platformContext.Database.CloseConnectionAsync();
-        }
-        catch (Exception connectEx)
-        {
-            Log.Error(connectEx, "Database connectivity check failed.");
+            try
+            {
+                if (attempt > 1)
+                {
+                    Log.Information("Retrying database connectivity check (attempt {Attempt} of {MaxAttempts})...", attempt, maxAttempts);
+                }
+
+                await platformContext.Database.OpenConnectionAsync();
+                try
+                {
+                    using var cmd = platformContext.Database.GetDbConnection().CreateCommand();
+                    cmd.CommandText = "SELECT 1;";
+                    cmd.CommandTimeout = 15;
+                    var result = await cmd.ExecuteScalarAsync();
+                    canConnect = result != null && Convert.ToInt32(result) == 1;
+                }
+                finally
+                {
+                    await platformContext.Database.CloseConnectionAsync();
+                }
+
+                if (canConnect)
+                {
+                    break;
+                }
+            }
+            catch (Exception connectEx)
+            {
+                lastConnectEx = connectEx;
+                Log.Warning("Database connectivity attempt {Attempt} of {MaxAttempts} failed: {ErrorMessage}", attempt, maxAttempts, connectEx.Message);
+
+                if (attempt < maxAttempts)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(attempt * 2));
+                }
+            }
         }
 
         if (!canConnect)
         {
-            Log.Fatal("Database connectivity check failed. Please verify database connection credentials.");
-            throw new InvalidOperationException("Database connectivity check failed.");
+            Log.Fatal(lastConnectEx, "Database connectivity check failed after {MaxAttempts} attempts. Please verify network access and Supabase credentials.", maxAttempts);
+            throw new InvalidOperationException($"Database connectivity check failed: {lastConnectEx?.Message}", lastConnectEx);
         }
         Log.Information("Database connection verified.");
 

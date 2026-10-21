@@ -457,5 +457,195 @@ namespace Aquora.Tests
             Assert.Equal(1500m, updatedSale2.OutstandingAmount);
             Assert.Equal("Partially Paid", updatedSale2.PaymentStatus);
         }
+
+        [Fact]
+        public async Task Test06_CreateSalesTransaction_WithCreditAndGst_CalculatesCorrectly_AndUsesExecutionStrategy()
+        {
+            var (context, tenantId, companyId) = CreateContext();
+            var mockUserContext = CreateUserContextMock(tenantId);
+            var mockInventoryMovementService = new Mock<IInventoryMovementService>();
+            var mockPlatformContext = new Mock<IPlatformDbContext>();
+            var mockDashboardHub = new Mock<Microsoft.AspNetCore.SignalR.IHubContext<Aquora.API.Hubs.DashboardHub>>();
+            var mockLedgerService = new Mock<ILedgerService>();
+            var mockTenantProvider = new Mock<ITenantProvider>();
+
+            var controller = new SalesController(
+                context,
+                mockUserContext.Object,
+                mockInventoryMovementService.Object,
+                mockPlatformContext.Object,
+                mockDashboardHub.Object,
+                mockLedgerService.Object,
+                mockTenantProvider.Object
+            );
+            controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Packaged Water 500ml",
+                SellingPrice = 100m,
+                CostPrice = 60m,
+                CurrentStock = 50,
+                IsActive = true
+            };
+            context.Products.Add(product);
+
+            var customer = new Customer
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                CustomerCode = "CUS-CREDIT",
+                CustomerName = "Shibal Distributor",
+                OutstandingPlaceholder = 10m,
+                CreditLimit = 5000m,
+                IsActive = true
+            };
+            context.Customers.Add(customer);
+            await context.SaveChangesAsync();
+
+            var request = new CreateSalesTransactionRequest
+            {
+                CustomerId = customer.Id,
+                ProductId = product.Id,
+                Cases = 1,
+                UnitPrice = 100m,
+                IsGstApplicable = true,
+                GstRate = 5m,
+                PaymentMethod = "Credit",
+                PaymentTerms = "Credit",
+                AmountReceived = 0m,
+                TransactionType = "Sales Dispatch",
+                TransactionDate = DateTime.UtcNow
+            };
+
+            var actionResult = await controller.CreateSalesTransaction(request);
+            var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
+            var response = Assert.IsType<ApiResponse<SalesTransactionDto>>(okResult.Value);
+
+            Assert.True(response.Success);
+            Assert.NotNull(response.Data);
+            Assert.Equal(105m, response.Data.TotalAmount); // 100 + 5% GST
+            Assert.Equal(0m, response.Data.AmountReceived);
+            Assert.Equal(105m, response.Data.OutstandingAmount);
+            Assert.Equal("Pending", response.Data.PaymentStatus);
+
+            // Verify customer outstanding increased: 10 + 105 = 115
+            var updatedCustomer = await context.Customers.FindAsync(customer.Id);
+            Assert.Equal(115m, updatedCustomer!.OutstandingPlaceholder);
+
+            // Verify inventory movement recorded
+            mockInventoryMovementService.Verify(m => m.RecordProductMovementAsync(
+                It.IsAny<ITenantDbContext>(),
+                product.Id,
+                -1m,
+                "SalesTransaction",
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                tenantId,
+                companyId,
+                It.IsAny<string>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task Test07_CreateSalesTransaction_DirectPayment_SetsAmountReceived_AndPaidStatus()
+        {
+            var (context, tenantId, companyId) = CreateContext();
+            var mockUserContext = CreateUserContextMock(tenantId);
+            var mockInventoryMovementService = new Mock<IInventoryMovementService>();
+            var mockPlatformContext = new Mock<IPlatformDbContext>();
+            var mockDashboardHub = new Mock<Microsoft.AspNetCore.SignalR.IHubContext<Aquora.API.Hubs.DashboardHub>>();
+            var mockLedgerService = new Mock<ILedgerService>();
+            var mockTenantProvider = new Mock<ITenantProvider>();
+
+            var controller = new SalesController(
+                context,
+                mockUserContext.Object,
+                mockInventoryMovementService.Object,
+                mockPlatformContext.Object,
+                mockDashboardHub.Object,
+                mockLedgerService.Object,
+                mockTenantProvider.Object
+            );
+            controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Packaged Water 20L",
+                SellingPrice = 100m,
+                CostPrice = 40m,
+                CurrentStock = 20,
+                IsActive = true
+            };
+            context.Products.Add(product);
+
+            var customer = new Customer
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                CustomerCode = "CUS-CASH",
+                CustomerName = "Direct Cash Customer",
+                OutstandingPlaceholder = 0m,
+                IsActive = true
+            };
+            context.Customers.Add(customer);
+
+            var cashBook = new CashBook
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CompanyId = companyId,
+                Name = "Main Cash Register",
+                IsActive = true
+            };
+            context.CashBooks.Add(cashBook);
+            await context.SaveChangesAsync();
+
+            var request = new CreateSalesTransactionRequest
+            {
+                CustomerId = customer.Id,
+                ProductId = product.Id,
+                Cases = 1,
+                UnitPrice = 100m,
+                IsGstApplicable = true,
+                GstRate = 5m,
+                PaymentMethod = "Cash",
+                PaymentTerms = "Immediate",
+                AmountReceived = 105m,
+                CashBookId = cashBook.Id,
+                TransactionType = "Sales Dispatch",
+                TransactionDate = DateTime.UtcNow
+            };
+
+            var actionResult = await controller.CreateSalesTransaction(request);
+            var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
+            var response = Assert.IsType<ApiResponse<SalesTransactionDto>>(okResult.Value);
+
+            Assert.True(response.Success);
+            Assert.NotNull(response.Data);
+            Assert.Equal(105m, response.Data.TotalAmount);
+            Assert.Equal(105m, response.Data.AmountReceived);
+            Assert.Equal(0m, response.Data.OutstandingAmount);
+            Assert.Equal("Paid", response.Data.PaymentStatus);
+
+            // Customer outstanding remains 0
+            var updatedCustomer = await context.Customers.FindAsync(customer.Id);
+            Assert.Equal(0m, updatedCustomer!.OutstandingPlaceholder);
+
+            // Verify cash book ledger was recorded
+            mockLedgerService.Verify(l => l.RecordCashTransactionAsync(
+                cashBook.Id,
+                It.IsAny<DateTime>(),
+                It.IsAny<string>(),
+                "Sales Receipt",
+                It.IsAny<string>(),
+                0m,
+                105m,
+                It.IsAny<Guid>(),
+                "SalesTransaction"), Times.Once);
+        }
     }
 }

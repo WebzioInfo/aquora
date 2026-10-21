@@ -4,6 +4,7 @@
  */
 export const RAW_MATERIAL_CATEGORIES = {
   PREFORM: { value: 'PREFORM', label: 'PREFORM' },
+  BOTTLE: { value: 'BOTTLE', label: 'BOTTLE' },
   CAP: { value: 'CAP', label: 'CAP' },
   LABEL: { value: 'LABEL', label: 'LABEL' },
   SHRINK_FILM: { value: 'SHRINK_FILM', label: 'SHRINK FILM' },

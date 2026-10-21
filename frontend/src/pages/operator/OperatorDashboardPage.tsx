@@ -444,6 +444,11 @@ export const OperatorDashboardPage: React.FC = () => {
   const [selectedMakeupId, setSelectedMakeupId] = useState('')
   const [makeupUsed, setMakeupUsed] = useState(false)
 
+  // Direct Bottle Usage (when Blowing Station is disabled)
+  const [selectedBottleId, setSelectedBottleId] = useState('')
+  const [bottleUsage, setBottleUsage] = useState('')
+  const [bottleWastage, setBottleWastage] = useState('')
+
   // UI elements states
   const [isSaving, setIsSaving] = useState(false)
   const [showSuccessSplash, setShowSuccessSplash] = useState(false)
@@ -485,7 +490,9 @@ export const OperatorDashboardPage: React.FC = () => {
     shrinkWastage !== '' ||
     glueUsage !== '' ||
     inkUsed ||
-    makeupUsed
+    makeupUsed ||
+    bottleUsage !== '' ||
+    bottleWastage !== ''
   )
 
   useEffect(() => {
@@ -509,6 +516,8 @@ export const OperatorDashboardPage: React.FC = () => {
     setGlueUsage('')
     setInkUsed(false)
     setMakeupUsed(false)
+    setBottleUsage('')
+    setBottleWastage('')
   }
 
   useEffect(() => {
@@ -541,6 +550,20 @@ export const OperatorDashboardPage: React.FC = () => {
       showToast('Preform material selection is required.', 'error')
       return false
     }
+    // When blowing is disabled, require bottle selection if any bottle quantity entered
+    if (!blowingEnabled && (parseFloat(bottleUsage) > 0 || parseFloat(bottleWastage) > 0) && !selectedBottleId) {
+      showToast('Bottle material must be selected when bottle usage or wastage is entered.', 'error')
+      return false
+    }
+    // Validate bottle wastage doesn't exceed usage
+    if (!blowingEnabled && selectedBottleId) {
+      const bUsage = parseFloat(bottleUsage) || 0
+      const bWaste = parseFloat(bottleWastage) || 0
+      if (bWaste > bUsage) {
+        showToast('Bottle wastage cannot exceed bottle usage.', 'error')
+        return false
+      }
+    }
     if (labelingEnabled && !selectedLabelId) {
       showToast('Label material selection is required.', 'error')
       return false
@@ -555,11 +578,17 @@ export const OperatorDashboardPage: React.FC = () => {
       return false
     }
 
+    // Build materials array - use dynamic Materials path for bottle
+    const materialsPayload = !blowingEnabled && selectedBottleId && (parseFloat(bottleUsage) > 0 || parseFloat(bottleWastage) > 0)
+      ? [{ rawMaterialId: selectedBottleId, usageQuantity: parseFloat(bottleUsage) || 0, wastageQuantity: parseFloat(bottleWastage) || 0 }]
+      : undefined
+
     try {
       setIsSaving(true)
       await submitEntryMutation.mutateAsync({
         productionLineId: selectedLine.lineId,
         casesProduced: parseInt(casesProduced),
+        materials: materialsPayload,
 
         preformMaterialId: blowingEnabled ? selectedPreformId : null,
         preformUsage: blowingEnabled ? (parseFloat(preformUsage) || 0) : 0,
@@ -620,6 +649,9 @@ export const OperatorDashboardPage: React.FC = () => {
     inkUsed,
     selectedMakeupId,
     makeupUsed,
+    selectedBottleId,
+    bottleUsage,
+    bottleWastage,
     stockErrors,
     activeSession,
     selectedLine
@@ -690,6 +722,7 @@ export const OperatorDashboardPage: React.FC = () => {
 
   // Material filters
   const preforms = rawMaterials.filter(m => m.category === RAW_MATERIAL_CATEGORIES.PREFORM.value)
+  const bottles = rawMaterials.filter(m => m.category === RAW_MATERIAL_CATEGORIES.BOTTLE.value || (m.category || '').toUpperCase() === 'BOTTLE')
   const caps = rawMaterials.filter(m => m.category === 'CAP')
   const labels = rawMaterials.filter(m => m.category === RAW_MATERIAL_CATEGORIES.LABEL.value)
   const shrinks = rawMaterials.filter(m => m.category === RAW_MATERIAL_CATEGORIES.SHRINK_FILM.value || m.category === 'SHRINK FILM')
@@ -823,6 +856,18 @@ export const OperatorDashboardPage: React.FC = () => {
       }
     }
 
+    // Bottle check (when blowing disabled)
+    if (!enabledStations.includes('Blowing') && selectedBottleId) {
+      const mat = bottles.find(b => b.id === selectedBottleId)
+      const usageVal = parseFloat(bottleUsage) || 0
+      if (mat) {
+        const required = usageVal * mat.conversionFactor
+        if (required > mat.currentStock) {
+          errors.bottle = `Insufficient bottles. Available: ${mat.currentStock} ${mat.baseUnit}`
+        }
+      }
+    }
+
     setStockErrors(prev => JSON.stringify(prev) === JSON.stringify(errors) ? prev : errors)
   }, [
     selectedPreformId, preformUsage, preformWastage,
@@ -831,7 +876,9 @@ export const OperatorDashboardPage: React.FC = () => {
     selectedShrinkId, shrinkUsage, shrinkWastage,
     selectedGlueId, glueUsage,
     inkUsed, makeupUsed,
+    selectedBottleId, bottleUsage, bottleWastage,
     inventorySettings,
+    enabledStations,
     rawMaterials
   ])
 
@@ -1004,6 +1051,8 @@ export const OperatorDashboardPage: React.FC = () => {
       setGlueUsage('')
       setInkUsed(false)
       setMakeupUsed(false)
+      setBottleUsage('')
+      setBottleWastage('')
     },
     onError: (error: any) => {
       const msg = error.response?.data?.message || 'Failed to save production entry.'
@@ -1032,6 +1081,19 @@ export const OperatorDashboardPage: React.FC = () => {
       showToast('Preform material selection is required.', 'error')
       return
     }
+    // When blowing is disabled, validate bottle selection
+    if (!blowingEnabled && (parseFloat(bottleUsage) > 0 || parseFloat(bottleWastage) > 0) && !selectedBottleId) {
+      showToast('Bottle material must be selected when bottle usage or wastage is entered.', 'error')
+      return
+    }
+    if (!blowingEnabled && selectedBottleId) {
+      const bUsage = parseFloat(bottleUsage) || 0
+      const bWaste = parseFloat(bottleWastage) || 0
+      if (bWaste > bUsage) {
+        showToast('Bottle wastage cannot exceed bottle usage.', 'error')
+        return
+      }
+    }
     if (labelingEnabled && !selectedLabelId) {
       showToast('Label material selection is required.', 'error')
       return
@@ -1046,11 +1108,17 @@ export const OperatorDashboardPage: React.FC = () => {
       return
     }
 
+    // Build materials array for bottle (direct bottle usage path)
+    const materialsPayload = !blowingEnabled && selectedBottleId && (parseFloat(bottleUsage) > 0 || parseFloat(bottleWastage) > 0)
+      ? [{ rawMaterialId: selectedBottleId, usageQuantity: parseFloat(bottleUsage) || 0, wastageQuantity: parseFloat(bottleWastage) || 0 }]
+      : undefined
+
     try {
       setIsSaving(true)
       await submitEntryMutation.mutateAsync({
         productionLineId: selectedLine.lineId,
         casesProduced: parseInt(casesProduced),
+        materials: materialsPayload,
 
         preformMaterialId: blowingEnabled ? selectedPreformId : null,
         preformUsage: blowingEnabled ? (parseFloat(preformUsage) || 0) : 0,
@@ -2093,6 +2161,54 @@ export const OperatorDashboardPage: React.FC = () => {
                             />
                           </td>
                           <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">{preformWastageUnit}</td>
+                        </tr>
+                      )}
+
+                      {/* DIRECT BOTTLE USAGE ROW — shown when Blowing Station is disabled */}
+                      {!enabledStations.includes('Blowing') && (
+                        <tr className="hover:bg-amber-50/30 bg-amber-50/20">
+                          <td className="px-3 py-1 font-bold text-amber-700 select-none">Bottle</td>
+                          <td className="px-3 py-1">
+                            <select
+                              value={selectedBottleId}
+                              onChange={(e) => setSelectedBottleId(e.target.value)}
+                              className={`w-full h-7.5 border px-2 py-0.5 rounded-[6px] text-xs bg-white focus:outline-none focus-line-theme text-slate-800 font-semibold ${stockErrors.bottle ? 'border-red-500 bg-red-50/30' : 'border-amber-300'}`}
+                            >
+                              {bottles.length > 0 ? (
+                                <>
+                                  <option value="">Select Bottle</option>
+                                  {bottles.map(b => (
+                                    <option key={b.id} value={b.id}>{b.name} (Stock: {b.currentStock} {b.baseUnit})</option>
+                                  ))}
+                                </>
+                              ) : (
+                                <option value="">No BOTTLE materials in inventory</option>
+                              )}
+                            </select>
+                          </td>
+                          <td className="px-3 py-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              placeholder="Usage"
+                              value={bottleUsage}
+                              onChange={(e) => setBottleUsage(e.target.value)}
+                              className={`w-full h-7.5 border px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold ${stockErrors.bottle ? 'border-red-500 bg-red-50/30' : 'border-[#D0D5DD]'}`}
+                            />
+                          </td>
+                          <td className="px-3 py-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              placeholder="Wastage"
+                              value={bottleWastage}
+                              onChange={(e) => setBottleWastage(e.target.value)}
+                              className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
+                            />
+                          </td>
+                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">PCS</td>
                         </tr>
                       )}
 
