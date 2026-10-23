@@ -578,21 +578,66 @@ export const OperatorDashboardPage: React.FC = () => {
       return false
     }
 
-    // Build materials array - use dynamic Materials path for bottle
-    const materialsPayload = !blowingEnabled && selectedBottleId && (parseFloat(bottleUsage) > 0 || parseFloat(bottleWastage) > 0)
-      ? [{ rawMaterialId: selectedBottleId, usageQuantity: parseFloat(bottleUsage) || 0, wastageQuantity: parseFloat(bottleWastage) || 0 }]
-      : undefined
+    // Build materials array for all active station selections
+    const materialsPayload: Array<{ rawMaterialId: string; usageQuantity: number; wastageQuantity: number }> = []
+
+    if (blowingEnabled && selectedPreformId && (parseFloat(preformUsage) > 0 || parseFloat(preformWastage) > 0)) {
+      materialsPayload.push({
+        rawMaterialId: selectedPreformId,
+        usageQuantity: parseFloat(preformUsage) || 0,
+        wastageQuantity: parseFloat(preformWastage) || 0
+      })
+    }
+    if (!blowingEnabled && selectedBottleId && (parseFloat(bottleUsage) > 0 || parseFloat(bottleWastage) > 0)) {
+      materialsPayload.push({
+        rawMaterialId: selectedBottleId,
+        usageQuantity: parseFloat(bottleUsage) || 0,
+        wastageQuantity: parseFloat(bottleWastage) || 0
+      })
+    }
+    if (fillingEnabled && selectedCapId && (parseFloat(capUsage) > 0 || parseFloat(capWastage) > 0)) {
+      materialsPayload.push({
+        rawMaterialId: selectedCapId,
+        usageQuantity: parseFloat(capUsage) || 0,
+        wastageQuantity: parseFloat(capWastage) || 0
+      })
+    }
+    if (labelingEnabled && selectedLabelId && (parseFloat(labelUsage) > 0 || parseFloat(labelWastage) > 0)) {
+      materialsPayload.push({
+        rawMaterialId: selectedLabelId,
+        usageQuantity: parseFloat(labelUsage) || 0,
+        wastageQuantity: parseFloat(labelWastage) || 0
+      })
+    }
+    if (packingEnabled && selectedShrinkId && (parseFloat(shrinkUsage) > 0 || parseFloat(shrinkWastage) > 0)) {
+      materialsPayload.push({
+        rawMaterialId: selectedShrinkId,
+        usageQuantity: parseFloat(shrinkUsage) || 0,
+        wastageQuantity: parseFloat(shrinkWastage) || 0
+      })
+    }
+    if (packingEnabled && selectedGlueId && (parseFloat(glueUsage) > 0)) {
+      materialsPayload.push({
+        rawMaterialId: selectedGlueId,
+        usageQuantity: parseFloat(glueUsage) || 0,
+        wastageQuantity: 0
+      })
+    }
 
     try {
       setIsSaving(true)
       await submitEntryMutation.mutateAsync({
         productionLineId: selectedLine.lineId,
         casesProduced: parseInt(casesProduced),
-        materials: materialsPayload,
+        materials: materialsPayload.length > 0 ? materialsPayload : undefined,
 
         preformMaterialId: blowingEnabled ? selectedPreformId : null,
         preformUsage: blowingEnabled ? (parseFloat(preformUsage) || 0) : 0,
         preformWastage: blowingEnabled ? (parseFloat(preformWastage) || 0) : 0,
+
+        bottleMaterialId: (!blowingEnabled && selectedBottleId) ? selectedBottleId : null,
+        bottleUsage: !blowingEnabled ? (parseFloat(bottleUsage) || 0) : 0,
+        bottleWastage: !blowingEnabled ? (parseFloat(bottleWastage) || 0) : 0,
 
         capMaterialId: (fillingEnabled && selectedCapId) ? selectedCapId : null,
         capUsage: fillingEnabled ? (parseFloat(capUsage) || 0) : 0,
@@ -1108,21 +1153,66 @@ export const OperatorDashboardPage: React.FC = () => {
       return
     }
 
-    // Build materials array for bottle (direct bottle usage path)
-    const materialsPayload = !blowingEnabled && selectedBottleId && (parseFloat(bottleUsage) > 0 || parseFloat(bottleWastage) > 0)
-      ? [{ rawMaterialId: selectedBottleId, usageQuantity: parseFloat(bottleUsage) || 0, wastageQuantity: parseFloat(bottleWastage) || 0 }]
-      : undefined
+    // Build materials array for all active station selections
+    const materialsPayload: Array<{ rawMaterialId: string; usageQuantity: number; wastageQuantity: number }> = []
+
+    if (blowingEnabled && selectedPreformId && (parseFloat(preformUsage) > 0 || parseFloat(preformWastage) > 0)) {
+      materialsPayload.push({
+        rawMaterialId: selectedPreformId,
+        usageQuantity: parseFloat(preformUsage) || 0,
+        wastageQuantity: parseFloat(preformWastage) || 0
+      })
+    }
+    if (!blowingEnabled && selectedBottleId && (parseFloat(bottleUsage) > 0 || parseFloat(bottleWastage) > 0)) {
+      materialsPayload.push({
+        rawMaterialId: selectedBottleId,
+        usageQuantity: parseFloat(bottleUsage) || 0,
+        wastageQuantity: parseFloat(bottleWastage) || 0
+      })
+    }
+    if (fillingEnabled && selectedCapId && (parseFloat(capUsage) > 0 || parseFloat(capWastage) > 0)) {
+      materialsPayload.push({
+        rawMaterialId: selectedCapId,
+        usageQuantity: parseFloat(capUsage) || 0,
+        wastageQuantity: parseFloat(capWastage) || 0
+      })
+    }
+    if (labelingEnabled && selectedLabelId && (parseFloat(labelUsage) > 0 || parseFloat(labelWastage) > 0)) {
+      materialsPayload.push({
+        rawMaterialId: selectedLabelId,
+        usageQuantity: parseFloat(labelUsage) || 0,
+        wastageQuantity: parseFloat(labelWastage) || 0
+      })
+    }
+    if (packingEnabled && selectedShrinkId && (parseFloat(shrinkUsage) > 0 || parseFloat(shrinkWastage) > 0)) {
+      materialsPayload.push({
+        rawMaterialId: selectedShrinkId,
+        usageQuantity: parseFloat(shrinkUsage) || 0,
+        wastageQuantity: parseFloat(shrinkWastage) || 0
+      })
+    }
+    if (packingEnabled && selectedGlueId && (parseFloat(glueUsage) > 0)) {
+      materialsPayload.push({
+        rawMaterialId: selectedGlueId,
+        usageQuantity: parseFloat(glueUsage) || 0,
+        wastageQuantity: 0
+      })
+    }
 
     try {
       setIsSaving(true)
       await submitEntryMutation.mutateAsync({
         productionLineId: selectedLine.lineId,
         casesProduced: parseInt(casesProduced),
-        materials: materialsPayload,
+        materials: materialsPayload.length > 0 ? materialsPayload : undefined,
 
         preformMaterialId: blowingEnabled ? selectedPreformId : null,
         preformUsage: blowingEnabled ? (parseFloat(preformUsage) || 0) : 0,
         preformWastage: blowingEnabled ? (parseFloat(preformWastage) || 0) : 0,
+
+        bottleMaterialId: (!blowingEnabled && selectedBottleId) ? selectedBottleId : null,
+        bottleUsage: !blowingEnabled ? (parseFloat(bottleUsage) || 0) : 0,
+        bottleWastage: !blowingEnabled ? (parseFloat(bottleWastage) || 0) : 0,
 
         capMaterialId: (fillingEnabled && selectedCapId) ? selectedCapId : null,
         capUsage: fillingEnabled ? (parseFloat(capUsage) || 0) : 0,
@@ -1947,30 +2037,30 @@ export const OperatorDashboardPage: React.FC = () => {
     )
   }
 
-  // Unit-aware raw material wastage helpers
+  // Unit-aware raw material helpers
   const selectedPreformMat = preforms.find(m => m.id === selectedPreformId)
+  const selectedBottleMat = bottles.find(m => m.id === selectedBottleId)
   const selectedCapMat = caps.find(m => m.id === selectedCapId)
   const selectedLabelMat = labels.find(m => m.id === selectedLabelId)
   const selectedShrinkMat = shrinks.find(m => m.id === selectedShrinkId)
+  const selectedGlueMat = glues.find(m => m.id === selectedGlueId)
 
   const isDecimalUnit = (unit: string): boolean => {
     const u = (unit || '').toUpperCase()
-    return u === 'KG' || u === 'KGS' || u === 'GRAM' || u === 'GRAMS' || u === 'GM' || u === 'G' || u === 'LITRE' || u === 'L'
+    return u === 'KG' || u === 'KGS' || u === 'GRAM' || u === 'GRAMS' || u === 'GM' || u === 'G' || u === 'LITRE' || u === 'L' || u.includes('KG') || u.includes('GM') || u.includes('LIT')
   }
 
-  const getWastageUnit = (mat?: any, defaultUnit = 'PCS'): string => {
-    return mat?.unit || defaultUnit
+  const getMaterialUnitLabel = (mat?: any): string => {
+    if (!mat) return '—'
+    const u = (mat.unit || '').trim()
+    return u || 'No Unit'
   }
 
-  const getWastagePlaceholder = (unit: string): string => {
-    const u = (unit || '').toUpperCase()
-    if (u === 'KG' || u === 'KGS') {
-      return 'Enter wastage (KG)'
+  const getWastagePlaceholder = (unitLabel: string): string => {
+    if (!unitLabel || unitLabel === '—' || unitLabel === 'No Unit') {
+      return 'Enter wastage'
     }
-    if (u === 'GRAM' || u === 'GRAMS' || u === 'GM' || u === 'G') {
-      return 'Enter wastage (Gram)'
-    }
-    return `Enter wastage (${unit})`
+    return `Enter wastage (${unitLabel})`
   }
 
   const handleWastageInputChange = (
@@ -1993,10 +2083,12 @@ export const OperatorDashboardPage: React.FC = () => {
     }
   }
 
-  const preformWastageUnit = 'PCS'
-  const capWastageUnit = 'PCS'
-  const labelWastageUnit = getWastageUnit(selectedLabelMat, 'KG')
-  const shrinkWastageUnit = getWastageUnit(selectedShrinkMat, 'KG')
+  const preformUnitLabel = getMaterialUnitLabel(selectedPreformMat)
+  const bottleUnitLabel = getMaterialUnitLabel(selectedBottleMat)
+  const capUnitLabel = getMaterialUnitLabel(selectedCapMat)
+  const labelUnitLabel = getMaterialUnitLabel(selectedLabelMat)
+  const shrinkUnitLabel = getMaterialUnitLabel(selectedShrinkMat)
+  const glueUnitLabel = getMaterialUnitLabel(selectedGlueMat)
 
   return (
     <div
@@ -2152,15 +2244,15 @@ export const OperatorDashboardPage: React.FC = () => {
                             <input
                               type="number"
                               min="0"
-                              step={isDecimalUnit(preformWastageUnit) ? "any" : "1"}
-                              placeholder={getWastagePlaceholder(preformWastageUnit)}
-                              title={`Enter preform wastage (${preformWastageUnit}).`}
+                              step={isDecimalUnit(preformUnitLabel) ? "any" : "1"}
+                              placeholder={getWastagePlaceholder(preformUnitLabel)}
+                              title={`Enter preform wastage (${preformUnitLabel}).`}
                               value={preformWastage}
-                              onChange={(e) => handleWastageInputChange(e.target.value, preformWastageUnit, setPreformWastage)}
+                              onChange={(e) => handleWastageInputChange(e.target.value, preformUnitLabel, setPreformWastage)}
                               className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
                             />
                           </td>
-                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">{preformWastageUnit}</td>
+                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">{preformUnitLabel}</td>
                         </tr>
                       )}
 
@@ -2178,7 +2270,7 @@ export const OperatorDashboardPage: React.FC = () => {
                                 <>
                                   <option value="">Select Bottle</option>
                                   {bottles.map(b => (
-                                    <option key={b.id} value={b.id}>{b.name} (Stock: {b.currentStock} {b.baseUnit})</option>
+                                    <option key={b.id} value={b.id}>{b.name}</option>
                                   ))}
                                 </>
                               ) : (
@@ -2190,7 +2282,7 @@ export const OperatorDashboardPage: React.FC = () => {
                             <input
                               type="number"
                               min="0"
-                              step="1"
+                              step={isDecimalUnit(bottleUnitLabel) ? "any" : "1"}
                               placeholder="Usage"
                               value={bottleUsage}
                               onChange={(e) => setBottleUsage(e.target.value)}
@@ -2201,14 +2293,15 @@ export const OperatorDashboardPage: React.FC = () => {
                             <input
                               type="number"
                               min="0"
-                              step="1"
-                              placeholder="Wastage"
+                              step={isDecimalUnit(bottleUnitLabel) ? "any" : "1"}
+                              placeholder={getWastagePlaceholder(bottleUnitLabel)}
+                              title={`Enter bottle wastage (${bottleUnitLabel}).`}
                               value={bottleWastage}
-                              onChange={(e) => setBottleWastage(e.target.value)}
+                              onChange={(e) => handleWastageInputChange(e.target.value, bottleUnitLabel, setBottleWastage)}
                               className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
                             />
                           </td>
-                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">PCS</td>
+                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">{bottleUnitLabel}</td>
                         </tr>
                       )}
 
@@ -2250,15 +2343,15 @@ export const OperatorDashboardPage: React.FC = () => {
                             <input
                               type="number"
                               min="0"
-                              step={isDecimalUnit(capWastageUnit) ? "any" : "1"}
-                              placeholder={getWastagePlaceholder(capWastageUnit)}
-                              title={`Enter cap wastage (${capWastageUnit}).`}
+                              step={isDecimalUnit(capUnitLabel) ? "any" : "1"}
+                              placeholder={getWastagePlaceholder(capUnitLabel)}
+                              title={`Enter cap wastage (${capUnitLabel}).`}
                               value={capWastage}
-                              onChange={(e) => handleWastageInputChange(e.target.value, capWastageUnit, setCapWastage)}
+                              onChange={(e) => handleWastageInputChange(e.target.value, capUnitLabel, setCapWastage)}
                               className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
                             />
                           </td>
-                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">{capWastageUnit}</td>
+                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">{capUnitLabel}</td>
                         </tr>
                       )}
 
@@ -2300,15 +2393,15 @@ export const OperatorDashboardPage: React.FC = () => {
                             <input
                               type="number"
                               min="0"
-                              step={isDecimalUnit(labelWastageUnit) ? "any" : "1"}
-                              placeholder={getWastagePlaceholder(labelWastageUnit)}
-                              title={`Enter label wastage (${labelWastageUnit}).`}
+                              step={isDecimalUnit(labelUnitLabel) ? "any" : "1"}
+                              placeholder={getWastagePlaceholder(labelUnitLabel)}
+                              title={`Enter label wastage (${labelUnitLabel}).`}
                               value={labelWastage}
-                              onChange={(e) => handleWastageInputChange(e.target.value, labelWastageUnit, setLabelWastage)}
+                              onChange={(e) => handleWastageInputChange(e.target.value, labelUnitLabel, setLabelWastage)}
                               className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
                             />
                           </td>
-                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">{labelWastageUnit}</td>
+                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">{labelUnitLabel}</td>
                         </tr>
                       )}
 
@@ -2350,15 +2443,15 @@ export const OperatorDashboardPage: React.FC = () => {
                             <input
                               type="number"
                               min="0"
-                              step={isDecimalUnit(shrinkWastageUnit) ? "any" : "1"}
-                              placeholder={getWastagePlaceholder(shrinkWastageUnit)}
-                              title={`Enter shrink film wastage (${shrinkWastageUnit}).`}
+                              step={isDecimalUnit(shrinkUnitLabel) ? "any" : "1"}
+                              placeholder={getWastagePlaceholder(shrinkUnitLabel)}
+                              title={`Enter shrink film wastage (${shrinkUnitLabel}).`}
                               value={shrinkWastage}
-                              onChange={(e) => handleWastageInputChange(e.target.value, shrinkWastageUnit, setShrinkWastage)}
+                              onChange={(e) => handleWastageInputChange(e.target.value, shrinkUnitLabel, setShrinkWastage)}
                               className="w-full h-7.5 border border-[#D0D5DD] px-2 py-0.5 rounded-[6px] text-xs focus:outline-none focus-line-theme font-bold"
                             />
                           </td>
-                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">{shrinkWastageUnit}</td>
+                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">{shrinkUnitLabel}</td>
                         </tr>
                       )}
 
@@ -2388,7 +2481,7 @@ export const OperatorDashboardPage: React.FC = () => {
                             <input
                               type="number"
                               min="0"
-                              step="0.01"
+                              step={isDecimalUnit(glueUnitLabel) ? "any" : "1"}
                               placeholder="Usage"
                               value={glueUsage}
                               onChange={(e) => setGlueUsage(e.target.value)}
@@ -2399,7 +2492,7 @@ export const OperatorDashboardPage: React.FC = () => {
                             />
                           </td>
                           <td className="px-3 py-1 text-center text-[#9CA3AF] select-none font-extrabold">-</td>
-                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">KG</td>
+                          <td className="px-3 py-1 font-bold text-slate-500 text-right select-none">{glueUnitLabel}</td>
                         </tr>
                       )}
 
@@ -2564,9 +2657,10 @@ export const OperatorDashboardPage: React.FC = () => {
                       </div>
 
                       <div className="text-[8px] font-bold text-[#344054] grid grid-cols-2 gap-x-2 gap-y-0.5 pt-1 border-t border-[#F1F5F9]">
-                        {enabledStations.includes('Blowing') && entry.preformName && <div>Preform: {formatRawMaterialUsage(entry.preformUsage, 'PREFORM', 'Bag')}</div>}
-                        {enabledStations.includes('Filling') && entry.capUsage > 0 && entry.capName && <div>Cap: {formatRawMaterialUsage(entry.capUsage, 'CAP', entry.capUnit)}</div>}
-                        {enabledStations.includes('Labeling') && entry.labelName && <div>Label: {formatRawMaterialUsage(entry.labelUsage, 'LABEL', entry.labelUnit)}</div>}
+                        {enabledStations.includes('Blowing') && entry.preformName && <div>Preform: {formatRawMaterialUsage(entry.preformUsage, entry.preformUnit)}</div>}
+                        {!enabledStations.includes('Blowing') && (entry.bottleUsage > 0 || entry.bottleWastage > 0) && (entry.bottleName || 'Bottle') && <div>Bottle: {formatRawMaterialUsage(entry.bottleUsage, entry.bottleUnit)}</div>}
+                        {enabledStations.includes('Filling') && (entry.capUsage > 0 || entry.capWastage > 0) && entry.capName && <div>Cap: {formatRawMaterialUsage(entry.capUsage, entry.capUnit)}</div>}
+                        {enabledStations.includes('Labeling') && (entry.labelUsage > 0 || entry.labelWastage > 0) && entry.labelName && <div>Label: {formatRawMaterialUsage(entry.labelUsage, entry.labelUnit)}</div>}
                       </div>
                     </div>
 
@@ -2580,27 +2674,32 @@ export const OperatorDashboardPage: React.FC = () => {
                         <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 font-semibold">
                           {enabledStations.includes('Blowing') && entry.preformName && (
                             <div className="col-span-2">
-                              <span className="text-[#6B7280]">Preform:</span> {entry.preformName} ({formatRawMaterialUsage(entry.preformUsage, 'PREFORM', 'Bag')}, Waste: {formatRawMaterialWastage(entry.preformWastage, 'PREFORM')})
+                              <span className="text-[#6B7280]">Preform:</span> {entry.preformName} ({formatRawMaterialUsage(entry.preformUsage, entry.preformUnit)}, Waste: {formatRawMaterialWastage(entry.preformWastage, entry.preformUnit)})
+                            </div>
+                          )}
+                          {!enabledStations.includes('Blowing') && (entry.bottleUsage > 0 || entry.bottleWastage > 0) && (
+                            <div className="col-span-2">
+                              <span className="text-[#6B7280]">Bottle:</span> {entry.bottleName || 'Bottle'} ({formatRawMaterialUsage(entry.bottleUsage, entry.bottleUnit)}, Waste: {formatRawMaterialWastage(entry.bottleWastage, entry.bottleUnit)})
                             </div>
                           )}
                           {enabledStations.includes('Filling') && (entry.capUsage > 0 || entry.capWastage > 0) && entry.capName && (
                             <div className="col-span-2">
-                              <span className="text-[#6B7280]">Cap:</span> {entry.capName} ({formatRawMaterialUsage(entry.capUsage, 'CAP', entry.capUnit)}, Waste: {formatRawMaterialWastage(entry.capWastage, 'CAP')})
+                              <span className="text-[#6B7280]">Cap:</span> {entry.capName} ({formatRawMaterialUsage(entry.capUsage, entry.capUnit)}, Waste: {formatRawMaterialWastage(entry.capWastage, entry.capUnit)})
                             </div>
                           )}
-                          {enabledStations.includes('Labeling') && entry.labelName && (
+                          {enabledStations.includes('Labeling') && (entry.labelUsage > 0 || entry.labelWastage > 0) && entry.labelName && (
                             <div className="col-span-2">
-                              <span className="text-[#6B7280]">Label:</span> {entry.labelName} ({formatRawMaterialUsage(entry.labelUsage, 'LABEL', entry.labelUnit)}, Waste: {formatRawMaterialWastage(entry.labelWastage, 'LABEL')})
+                              <span className="text-[#6B7280]">Label:</span> {entry.labelName} ({formatRawMaterialUsage(entry.labelUsage, entry.labelUnit)}, Waste: {formatRawMaterialWastage(entry.labelWastage, entry.labelUnit)})
                             </div>
                           )}
-                          {enabledStations.includes('Packing') && entry.shrinkName && (
+                          {enabledStations.includes('Packing') && (entry.shrinkUsage > 0 || entry.shrinkWastage > 0) && entry.shrinkName && (
                             <div className="col-span-2">
-                              <span className="text-[#6B7280]">Shrink Film:</span> {entry.shrinkName} ({formatRawMaterialUsage(entry.shrinkUsage, 'SHRINK', 'KG')}, Waste: {formatRawMaterialWastage(entry.shrinkWastage, 'SHRINK')})
+                              <span className="text-[#6B7280]">Shrink Film:</span> {entry.shrinkName} ({formatRawMaterialUsage(entry.shrinkUsage, entry.shrinkUnit)}, Waste: {formatRawMaterialWastage(entry.shrinkWastage, entry.shrinkUnit)})
                             </div>
                           )}
                           {enabledStations.includes('Packing') && entry.glueUsage > 0 && entry.glueName && (
                             <div className="col-span-2">
-                              <span className="text-[#6B7280]">Glue:</span> {entry.glueName} ({entry.glueUsage} KG)
+                              <span className="text-[#6B7280]">Glue:</span> {entry.glueName} ({formatRawMaterialUsage(entry.glueUsage, entry.glueUnit)})
                             </div>
                           )}
                           {enabledStations.includes('Packing') && (entry.inkUsed || entry.makeupUsed) && (

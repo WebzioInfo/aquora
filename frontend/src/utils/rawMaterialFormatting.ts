@@ -1,48 +1,67 @@
 /**
  * Centralized Raw Material Usage & Wastage Formatting Utility for Aquzio ERP
+ *
+ * The unit configured for each raw material in Inventory is the single source of truth.
+ * Units are never derived from material categories or hardcoded.
  */
 
-export function formatWeightValue(val: number): string {
-  if (val >= 1) {
-    return `${val} KG`;
-  }
-  const gm = Math.round(val * 1000);
-  return `${gm} GM`;
+export function formatMaterialUnit(unit?: string | null): string {
+  const u = (unit || '').trim();
+  return u || '—';
 }
 
-export function formatRawMaterialUsage(usage: number | string, categoryOrType?: string, defaultUnit?: string): string {
-  const val = typeof usage === 'string' ? parseFloat(usage) || 0 : usage || 0;
-  const cat = (categoryOrType || '').toUpperCase();
+export function formatRawMaterialQuantity(
+  val: number | string | null | undefined,
+  configuredUnit?: string | null
+): string {
+  if (val === null || val === undefined || val === '') return '—';
+  const num = typeof val === 'string' ? parseFloat(val) : val;
+  if (isNaN(num)) return '—';
 
-  if (cat.includes('PREFORM')) {
-    return val === 1 ? `${val} Bag` : `${val} Bags`;
-  }
-  if (cat.includes('CAP')) {
-    return `${val} BOX`;
-  }
-  if (cat.includes('LABEL') || cat.includes('SHRINK')) {
-    return formatWeightValue(val);
-  }
+  const formattedNum = Number.isInteger(num) ? num.toString() : parseFloat(num.toFixed(4)).toString();
+  const unit = (configuredUnit || '').trim();
 
-  return `${val} ${defaultUnit || ''}`.trim();
+  if (!unit) {
+    return formattedNum;
+  }
+  return `${formattedNum} ${unit}`;
 }
 
-export function formatRawMaterialWastage(wastage: number | string, categoryOrType?: string, defaultUnit?: string): string {
-  const val = typeof wastage === 'string' ? parseFloat(wastage) || 0 : wastage || 0;
-  const cat = (categoryOrType || '').toUpperCase();
+export function formatRawMaterialUsage(
+  usage: number | string | null | undefined,
+  unitOrCategory?: string | null,
+  legacyUnit?: string | null
+): string {
+  const isCategory = isCategoryName(unitOrCategory || '');
+  const resolvedUnit = isCategory ? (legacyUnit || '') : (unitOrCategory || legacyUnit || '');
+  return formatRawMaterialQuantity(usage, resolvedUnit);
+}
 
-  if (cat.includes('PREFORM')) {
-    return `${val} PCS`;
-  }
-  if (cat.includes('CAP')) {
-    return `${val} PCS`;
-  }
-  if (cat.includes('LABEL') || cat.includes('SHRINK')) {
-    return formatWeightValue(val);
-  }
-  if (cat.includes('GLUE') || cat.includes('INK') || cat.includes('MAKEUP')) {
-    return `${val} ${defaultUnit || 'KG'}`.trim();
-  }
+export function formatRawMaterialWastage(
+  wastage: number | string | null | undefined,
+  unitOrCategory?: string | null,
+  legacyUnit?: string | null
+): string {
+  const isCategory = isCategoryName(unitOrCategory || '');
+  const resolvedUnit = isCategory ? (legacyUnit || '') : (unitOrCategory || legacyUnit || '');
+  return formatRawMaterialQuantity(wastage, resolvedUnit);
+}
 
-  return `${val} ${defaultUnit || 'PCS'}`.trim();
+export function formatWeightValue(val: number, unit = 'KG'): string {
+  return `${val} ${unit}`;
+}
+
+function isCategoryName(str: string): boolean {
+  const s = str.trim().toUpperCase();
+  return (
+    s === 'PREFORM' ||
+    s === 'BOTTLE' ||
+    s === 'CAP' ||
+    s === 'LABEL' ||
+    s === 'SHRINK' ||
+    s === 'GLUE' ||
+    s === 'INK' ||
+    s === 'MAKEUP' ||
+    s === 'CHEMICAL'
+  );
 }

@@ -117,6 +117,11 @@ const timelineIconMap: Record<string, React.ReactNode> = {
   slate: <CheckCircle2 className="w-4 h-4" />,
 }
 
+const isDecimalUnit = (unit?: string | null): boolean => {
+  const u = (unit || '').toUpperCase()
+  return u === 'KG' || u === 'KGS' || u === 'GRAM' || u === 'GRAMS' || u === 'GM' || u === 'G' || u === 'LITRE' || u === 'L' || u.includes('KG') || u.includes('GM') || u.includes('LIT')
+}
+
 interface StationMaterialCardProps {
   stationName: string
   stationBadge: string
@@ -193,7 +198,7 @@ const StationMaterialCard: React.FC<StationMaterialCardProps> = ({
         <div className="flex flex-col gap-2.5">
           {rows.map((row, idx) => {
             const selectedMat = rawMaterials.find((m: any) => m.id === row.rawMaterialId)
-            const unitLabel = selectedMat?.unit || (isIntegerUsage ? 'Units' : 'KG')
+            const unitLabel = selectedMat ? (selectedMat.unit?.trim() || 'No Unit') : '—'
             const stockVal = selectedMat ? Number(selectedMat.currentStock || 0) : null
 
             return (
@@ -255,8 +260,8 @@ const StationMaterialCard: React.FC<StationMaterialCardProps> = ({
                       <input
                         type="number"
                         min="0"
-                        step={isIntegerUsage ? '1' : 'any'}
-                        placeholder={isIntegerUsage ? '0' : '0.00'}
+                        step={isIntegerUsage && !isDecimalUnit(unitLabel) ? '1' : 'any'}
+                        placeholder={isIntegerUsage && !isDecimalUnit(unitLabel) ? '0' : '0.00'}
                         value={row.usageQuantity}
                         onChange={(e) => onUpdateRow(row.id, 'usageQuantity', e.target.value)}
                         className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 pr-12"
@@ -270,20 +275,20 @@ const StationMaterialCard: React.FC<StationMaterialCardProps> = ({
                   {!hideWastage && (
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-600 mb-1">
-                        Wastage (PCS)
+                        Wastage ({unitLabel})
                       </label>
                       <div className="relative">
                         <input
                           type="number"
                           min="0"
-                          step="1"
+                          step={isDecimalUnit(unitLabel) ? 'any' : '1'}
                           placeholder="0"
                           value={row.wastageQuantity}
                           onChange={(e) => onUpdateRow(row.id, 'wastageQuantity', e.target.value)}
                           className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 pr-10"
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 pointer-events-none">
-                          PCS
+                          {unitLabel}
                         </span>
                       </div>
                     </div>
@@ -520,8 +525,9 @@ export const BatchDetailsPage: React.FC = () => {
           setAddEntryError(`Quantities for "${name}" cannot be negative.`)
           return
         }
-        if (!Number.isInteger(usage) || !Number.isInteger(waste)) {
-          setAddEntryError(`Usage (${mat?.unit || 'Bags'}) and wastage (PCS) for "${name}" must be whole numbers.`)
+        const unit = mat?.unit?.trim() || 'Units'
+        if (!isDecimalUnit(unit) && (!Number.isInteger(usage) || !Number.isInteger(waste))) {
+          setAddEntryError(`Usage and wastage (${unit}) for "${name}" must be whole numbers.`)
           return
         }
         if (usage > 0 || waste > 0) {
@@ -534,7 +540,7 @@ export const BatchDetailsPage: React.FC = () => {
       }
     }
 
-    // 2. Filling Station (Caps: Boxes usage, PCS wastage)
+    // 2. Filling Station (Caps)
     if (isFillingEnabled) {
       for (const row of fillingRows) {
         if (!row.rawMaterialId) continue
@@ -547,8 +553,9 @@ export const BatchDetailsPage: React.FC = () => {
           setAddEntryError(`Quantities for "${name}" cannot be negative.`)
           return
         }
-        if (!Number.isInteger(usage) || !Number.isInteger(waste)) {
-          setAddEntryError(`Usage (${mat?.unit || 'Boxes'}) and wastage (PCS) for "${name}" must be whole numbers.`)
+        const unit = mat?.unit?.trim() || 'Units'
+        if (!isDecimalUnit(unit) && (!Number.isInteger(usage) || !Number.isInteger(waste))) {
+          setAddEntryError(`Usage and wastage (${unit}) for "${name}" must be whole numbers.`)
           return
         }
         if (usage > 0 || waste > 0) {
@@ -561,7 +568,7 @@ export const BatchDetailsPage: React.FC = () => {
       }
     }
 
-    // 3. Labelling Station (Labels: Unit usage, PCS wastage)
+    // 3. Labelling Station (Labels)
     if (isLabelingEnabled) {
       for (const row of labelingRows) {
         if (!row.rawMaterialId) continue
@@ -574,8 +581,9 @@ export const BatchDetailsPage: React.FC = () => {
           setAddEntryError(`Quantities for "${name}" cannot be negative.`)
           return
         }
-        if (!Number.isInteger(waste)) {
-          setAddEntryError(`Wastage (PCS) for "${name}" must be a whole number.`)
+        const unit = mat?.unit?.trim() || 'Units'
+        if (!isDecimalUnit(unit) && !Number.isInteger(waste)) {
+          setAddEntryError(`Wastage (${unit}) for "${name}" must be a whole number.`)
           return
         }
         if (usage > 0 || waste > 0) {
@@ -588,7 +596,7 @@ export const BatchDetailsPage: React.FC = () => {
       }
     }
 
-    // 4. Packing Station (Shrink Film: Unit usage, PCS wastage)
+    // 4. Packing Station (Shrink Film)
     if (isPackingEnabled) {
       for (const row of packingRows) {
         if (!row.rawMaterialId) continue
@@ -601,8 +609,9 @@ export const BatchDetailsPage: React.FC = () => {
           setAddEntryError(`Quantities for "${name}" cannot be negative.`)
           return
         }
-        if (!Number.isInteger(waste)) {
-          setAddEntryError(`Wastage (PCS) for "${name}" must be a whole number.`)
+        const unit = mat?.unit?.trim() || 'Units'
+        if (!isDecimalUnit(unit) && !Number.isInteger(waste)) {
+          setAddEntryError(`Wastage (${unit}) for "${name}" must be a whole number.`)
           return
         }
         if (usage > 0 || waste > 0) {

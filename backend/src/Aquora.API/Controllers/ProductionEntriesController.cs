@@ -320,10 +320,9 @@ namespace Aquora.API.Controllers
                             {
                                 return Failure<object>($"Material '{rm.Name}' is measured in '{rm.Unit}' and requires a whole-number usage quantity.", "Validation failed");
                             }
-                            // Wastage is always measured in whole number pieces (PCS)
-                            if (matInput.WastageQuantity % 1 != 0)
+                            if (isWholeUsageUnit && matInput.WastageQuantity % 1 != 0)
                             {
-                                return Failure<object>($"Wastage quantity for '{rm.Name}' must be a whole number (PCS).", "Validation failed");
+                                return Failure<object>($"Wastage quantity for '{rm.Name}' must be a whole number ({rm.Unit}).", "Validation failed");
                             }
                         }
 
@@ -382,7 +381,7 @@ namespace Aquora.API.Controllers
                                     -totalDeduction,
                                     "ProductionEntry",
                                     entryId,
-                                    $"Production usage: {matInput.UsageQuantity} {rm.Unit} (Wastage recorded: {matInput.WastageQuantity} PCS) | Batch: {activeSession.BatchNumber}",
+                                    $"Production usage: {matInput.UsageQuantity} {rm.Unit} (Wastage recorded: {matInput.WastageQuantity} {rm.Unit}) | Batch: {activeSession.BatchNumber}",
                                     tenantId,
                                     line.CompanyId,
                                     userIdStr,
@@ -455,9 +454,14 @@ namespace Aquora.API.Controllers
                             if (defShrink != null) request.ShrinkMaterialId = defShrink.Id;
                         }
 
+                        RawMaterial? bottle = null;
                         if (blowingEnabled && request.PreformMaterialId.HasValue && request.PreformMaterialId != Guid.Empty)
                         {
                             preform = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.PreformMaterialId.Value && !m.IsDeleted);
+                        }
+                        if (!blowingEnabled && request.BottleMaterialId.HasValue && request.BottleMaterialId != Guid.Empty)
+                        {
+                            bottle = await _tenantContext.RawMaterials.FirstOrDefaultAsync(m => m.Id == request.BottleMaterialId.Value && !m.IsDeleted);
                         }
                         if (fillingEnabled && request.CapMaterialId.HasValue && request.CapMaterialId != Guid.Empty)
                         {
@@ -477,48 +481,99 @@ namespace Aquora.API.Controllers
                         }
 
                         // Deduct stock (Usage only; wastage recorded separately)
-                        if (preform != null && request.PreformUsage > 0)
+                        if (preform != null && (request.PreformUsage > 0 || request.PreformWastage > 0))
                         {
-                            var deduction = request.PreformUsage * (preform.ConversionFactor > 0 ? preform.ConversionFactor : 1.0m);
-                            var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
-                                _tenantContext, preform.Id, -deduction, "ProductionEntry", entryId,
-                                $"Production usage: {request.PreformUsage} {preform.Unit} (Wastage: {request.PreformWastage} PCS) | Batch: {activeSession.BatchNumber}",
-                                tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
-                            movementIds.Add(mov.Id);
-                            persistedMaterialLines.Add(new { rawMaterialId = preform.Id, rawMaterialName = preform.Name, materialName = preform.Name, category = preform.Category, unit = preform.Unit, usageQuantity = request.PreformUsage, wastageQuantity = request.PreformWastage, totalQuantity = request.PreformUsage, totalDeduction = deduction, inventoryMovementId = mov.Id, balanceAfter = mov.BalanceAfter });
+                            Guid? movId = null;
+                            decimal deduction = 0m;
+                            decimal balanceAfter = preform.CurrentStock;
+                            if (request.PreformUsage > 0)
+                            {
+                                deduction = request.PreformUsage * (preform.ConversionFactor > 0 ? preform.ConversionFactor : 1.0m);
+                                var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                                    _tenantContext, preform.Id, -deduction, "ProductionEntry", entryId,
+                                    $"Production usage: {request.PreformUsage} {preform.Unit} (Wastage: {request.PreformWastage} {preform.Unit}) | Batch: {activeSession.BatchNumber}",
+                                    tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
+                                movementIds.Add(mov.Id);
+                                movId = mov.Id;
+                                balanceAfter = mov.BalanceAfter;
+                            }
+                            persistedMaterialLines.Add(new { rawMaterialId = preform.Id, rawMaterialName = preform.Name, materialName = preform.Name, category = preform.Category, unit = preform.Unit ?? "", usageQuantity = request.PreformUsage, wastageQuantity = request.PreformWastage, totalQuantity = request.PreformUsage, totalDeduction = deduction, inventoryMovementId = movId, balanceAfter = balanceAfter });
                         }
 
-                        if (cap != null && request.CapUsage > 0)
+                        if (bottle != null && (request.BottleUsage > 0 || request.BottleWastage > 0))
                         {
-                            var deduction = request.CapUsage * (cap.ConversionFactor > 0 ? cap.ConversionFactor : 1.0m);
-                            var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
-                                _tenantContext, cap.Id, -deduction, "ProductionEntry", entryId,
-                                $"Production usage: {request.CapUsage} {cap.Unit} (Wastage: {request.CapWastage} PCS) | Batch: {activeSession.BatchNumber}",
-                                tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
-                            movementIds.Add(mov.Id);
-                            persistedMaterialLines.Add(new { rawMaterialId = cap.Id, rawMaterialName = cap.Name, materialName = cap.Name, category = cap.Category, unit = cap.Unit, usageQuantity = request.CapUsage, wastageQuantity = request.CapWastage, totalQuantity = request.CapUsage, totalDeduction = deduction, inventoryMovementId = mov.Id, balanceAfter = mov.BalanceAfter });
+                            Guid? movId = null;
+                            decimal deduction = 0m;
+                            decimal balanceAfter = bottle.CurrentStock;
+                            if (request.BottleUsage > 0)
+                            {
+                                deduction = request.BottleUsage * (bottle.ConversionFactor > 0 ? bottle.ConversionFactor : 1.0m);
+                                var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                                    _tenantContext, bottle.Id, -deduction, "ProductionEntry", entryId,
+                                    $"Production usage: {request.BottleUsage} {bottle.Unit} (Wastage: {request.BottleWastage} {bottle.Unit}) | Batch: {activeSession.BatchNumber}",
+                                    tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
+                                movementIds.Add(mov.Id);
+                                movId = mov.Id;
+                                balanceAfter = mov.BalanceAfter;
+                            }
+                            persistedMaterialLines.Add(new { rawMaterialId = bottle.Id, rawMaterialName = bottle.Name, materialName = bottle.Name, category = bottle.Category, unit = bottle.Unit ?? "", usageQuantity = request.BottleUsage, wastageQuantity = request.BottleWastage, totalQuantity = request.BottleUsage, totalDeduction = deduction, inventoryMovementId = movId, balanceAfter = balanceAfter });
                         }
 
-                        if (label != null && request.LabelUsage > 0)
+                        if (cap != null && (request.CapUsage > 0 || request.CapWastage > 0))
                         {
-                            var deduction = request.LabelUsage * (label.ConversionFactor > 0 ? label.ConversionFactor : 1.0m);
-                            var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
-                                _tenantContext, label.Id, -deduction, "ProductionEntry", entryId,
-                                $"Production usage: {request.LabelUsage} {label.Unit} (Wastage: {request.LabelWastage} PCS) | Batch: {activeSession.BatchNumber}",
-                                tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
-                            movementIds.Add(mov.Id);
-                            persistedMaterialLines.Add(new { rawMaterialId = label.Id, rawMaterialName = label.Name, materialName = label.Name, category = label.Category, unit = label.Unit, usageQuantity = request.LabelUsage, wastageQuantity = request.LabelWastage, totalQuantity = request.LabelUsage, totalDeduction = deduction, inventoryMovementId = mov.Id, balanceAfter = mov.BalanceAfter });
+                            Guid? movId = null;
+                            decimal deduction = 0m;
+                            decimal balanceAfter = cap.CurrentStock;
+                            if (request.CapUsage > 0)
+                            {
+                                deduction = request.CapUsage * (cap.ConversionFactor > 0 ? cap.ConversionFactor : 1.0m);
+                                var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                                    _tenantContext, cap.Id, -deduction, "ProductionEntry", entryId,
+                                    $"Production usage: {request.CapUsage} {cap.Unit} (Wastage: {request.CapWastage} {cap.Unit}) | Batch: {activeSession.BatchNumber}",
+                                    tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
+                                movementIds.Add(mov.Id);
+                                movId = mov.Id;
+                                balanceAfter = mov.BalanceAfter;
+                            }
+                            persistedMaterialLines.Add(new { rawMaterialId = cap.Id, rawMaterialName = cap.Name, materialName = cap.Name, category = cap.Category, unit = cap.Unit ?? "", usageQuantity = request.CapUsage, wastageQuantity = request.CapWastage, totalQuantity = request.CapUsage, totalDeduction = deduction, inventoryMovementId = movId, balanceAfter = balanceAfter });
                         }
 
-                        if (shrink != null && request.ShrinkUsage > 0)
+                        if (label != null && (request.LabelUsage > 0 || request.LabelWastage > 0))
                         {
-                            var deduction = request.ShrinkUsage * (shrink.ConversionFactor > 0 ? shrink.ConversionFactor : 1.0m);
-                            var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
-                                _tenantContext, shrink.Id, -deduction, "ProductionEntry", entryId,
-                                $"Production usage: {request.ShrinkUsage} {shrink.Unit} (Wastage: {request.ShrinkWastage} PCS) | Batch: {activeSession.BatchNumber}",
-                                tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
-                            movementIds.Add(mov.Id);
-                            persistedMaterialLines.Add(new { rawMaterialId = shrink.Id, rawMaterialName = shrink.Name, materialName = shrink.Name, category = shrink.Category, unit = shrink.Unit, usageQuantity = request.ShrinkUsage, wastageQuantity = request.ShrinkWastage, totalQuantity = request.ShrinkUsage, totalDeduction = deduction, inventoryMovementId = mov.Id, balanceAfter = mov.BalanceAfter });
+                            Guid? movId = null;
+                            decimal deduction = 0m;
+                            decimal balanceAfter = label.CurrentStock;
+                            if (request.LabelUsage > 0)
+                            {
+                                deduction = request.LabelUsage * (label.ConversionFactor > 0 ? label.ConversionFactor : 1.0m);
+                                var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                                    _tenantContext, label.Id, -deduction, "ProductionEntry", entryId,
+                                    $"Production usage: {request.LabelUsage} {label.Unit} (Wastage: {request.LabelWastage} {label.Unit}) | Batch: {activeSession.BatchNumber}",
+                                    tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
+                                movementIds.Add(mov.Id);
+                                movId = mov.Id;
+                                balanceAfter = mov.BalanceAfter;
+                            }
+                            persistedMaterialLines.Add(new { rawMaterialId = label.Id, rawMaterialName = label.Name, materialName = label.Name, category = label.Category, unit = label.Unit ?? "", usageQuantity = request.LabelUsage, wastageQuantity = request.LabelWastage, totalQuantity = request.LabelUsage, totalDeduction = deduction, inventoryMovementId = movId, balanceAfter = balanceAfter });
+                        }
+
+                        if (shrink != null && (request.ShrinkUsage > 0 || request.ShrinkWastage > 0))
+                        {
+                            Guid? movId = null;
+                            decimal deduction = 0m;
+                            decimal balanceAfter = shrink.CurrentStock;
+                            if (request.ShrinkUsage > 0)
+                            {
+                                deduction = request.ShrinkUsage * (shrink.ConversionFactor > 0 ? shrink.ConversionFactor : 1.0m);
+                                var mov = await _inventoryMovementService.RecordRawMaterialMovementAsync(
+                                    _tenantContext, shrink.Id, -deduction, "ProductionEntry", entryId,
+                                    $"Production usage: {request.ShrinkUsage} {shrink.Unit} (Wastage: {request.ShrinkWastage} {shrink.Unit}) | Batch: {activeSession.BatchNumber}",
+                                    tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
+                                movementIds.Add(mov.Id);
+                                movId = mov.Id;
+                                balanceAfter = mov.BalanceAfter;
+                            }
+                            persistedMaterialLines.Add(new { rawMaterialId = shrink.Id, rawMaterialName = shrink.Name, materialName = shrink.Name, category = shrink.Category, unit = shrink.Unit ?? "", usageQuantity = request.ShrinkUsage, wastageQuantity = request.ShrinkWastage, totalQuantity = request.ShrinkUsage, totalDeduction = deduction, inventoryMovementId = movId, balanceAfter = balanceAfter });
                         }
 
                         if (glue != null && request.GlueUsage.GetValueOrDefault() > 0)
@@ -530,7 +585,7 @@ namespace Aquora.API.Controllers
                                 $"Usage: {gVal} {glue.Unit} | Batch: {activeSession.BatchNumber}",
                                 tenantId, line.CompanyId, userIdStr, allowNegativeStock: true);
                             movementIds.Add(mov.Id);
-                            persistedMaterialLines.Add(new { rawMaterialId = glue.Id, rawMaterialName = glue.Name, materialName = glue.Name, category = glue.Category, unit = glue.Unit, usageQuantity = gVal, wastageQuantity = 0m, totalQuantity = gVal, totalDeduction = deduction, inventoryMovementId = mov.Id, balanceAfter = mov.BalanceAfter });
+                            persistedMaterialLines.Add(new { rawMaterialId = glue.Id, rawMaterialName = glue.Name, materialName = glue.Name, category = glue.Category, unit = glue.Unit ?? "", usageQuantity = gVal, wastageQuantity = 0m, totalQuantity = gVal, totalDeduction = deduction, inventoryMovementId = mov.Id, balanceAfter = mov.BalanceAfter });
                         }
 
                         if (packingEnabled && request.InkUsed)
@@ -1237,128 +1292,121 @@ namespace Aquora.API.Controllers
 
                 // We'll query all active raw materials to compare stocks
                 var rawMaterialsList = await _tenantContext.RawMaterials.Where(m => !m.IsDeleted).ToListAsync();
+                var rawMaterialDict = rawMaterialsList.ToDictionary(m => m.Id);
 
-                // 1. Preforms
-                var preformEntries = activeEntries.Where(e => e.PreformMaterialId != Guid.Empty).ToList();
-                var preformGroups = preformEntries.GroupBy(e => e.PreformMaterialId);
-                foreach (var g in preformGroups)
+                // Collect consumption lines across entries using snapshots when available
+                var consumedLines = new List<(Guid? MaterialId, string Name, string Category, string Unit, decimal Usage, decimal Wastage)>();
+                decimal bottleUsedTotal = 0m;
+                decimal bottleWasteTotal = 0m;
+
+                foreach (var entry in activeEntries)
                 {
-                    var mat = rawMaterialsList.FirstOrDefault(m => m.Id == g.Key);
-                    if (mat != null)
+                    bool parsedFromSnapshot = false;
+                    if (!string.IsNullOrWhiteSpace(entry.MaterialConsumptionsJson))
                     {
-                        var consumedBase = g.Sum(e => e.PreformUsage * mat.ConversionFactor);
-                        var wasteBase = g.Sum(e => e.PreformWastage);
-                        var totalBase = consumedBase + wasteBase;
-                        materialConsumption.Add(new
+                        try
                         {
-                            MaterialName = mat.Name,
-                            Category = mat.Category,
-                            Unit = mat.Unit,
-                            BaseUnit = mat.BaseUnit,
-                            Consumed = g.Sum(e => e.PreformUsage),
-                            Waste = g.Sum(e => e.PreformWastage),
-                            OpeningStock = mat.CurrentStock + totalBase,
-                            RemainingStock = mat.CurrentStock
-                        });
+                            using var doc = System.Text.Json.JsonDocument.Parse(entry.MaterialConsumptionsJson);
+                            if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+                            {
+                                foreach (var elem in doc.RootElement.EnumerateArray())
+                                {
+                                    Guid? rId = null;
+                                    if (elem.TryGetProperty("rawMaterialId", out var rIdProp) && rIdProp.TryGetGuid(out var parsedGuid))
+                                        rId = parsedGuid;
+
+                                    string name = elem.TryGetProperty("rawMaterialName", out var n) ? n.GetString() ?? "" :
+                                                  elem.TryGetProperty("materialName", out var mn) ? mn.GetString() ?? "" : "";
+                                    string cat = elem.TryGetProperty("category", out var c) ? c.GetString() ?? "" : "";
+                                    string unit = elem.TryGetProperty("unit", out var u) ? u.GetString() ?? "" : "";
+                                    decimal usage = elem.TryGetProperty("usageQuantity", out var uq) && uq.TryGetDecimal(out var parsedUq) ? parsedUq : 0m;
+                                    decimal waste = elem.TryGetProperty("wastageQuantity", out var wq) && wq.TryGetDecimal(out var parsedWq) ? parsedWq : 0m;
+
+                                    if (rId.HasValue && rawMaterialDict.TryGetValue(rId.Value, out var rm))
+                                    {
+                                        if (string.IsNullOrWhiteSpace(unit)) unit = rm.Unit ?? "";
+                                        if (string.IsNullOrWhiteSpace(name)) name = rm.Name;
+                                        if (string.IsNullOrWhiteSpace(cat)) cat = rm.Category ?? "";
+                                    }
+
+                                    if (cat.ToUpperInvariant().Contains("BOTTLE") || name.ToUpperInvariant().Contains("BOTTLE"))
+                                    {
+                                        bottleUsedTotal += usage;
+                                        bottleWasteTotal += waste;
+                                    }
+
+                                    consumedLines.Add((rId, name, cat, unit, usage, waste));
+                                    parsedFromSnapshot = true;
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+
+                    if (!parsedFromSnapshot)
+                    {
+                        if (entry.PreformMaterialId.HasValue && entry.PreformMaterialId != Guid.Empty)
+                        {
+                            rawMaterialDict.TryGetValue(entry.PreformMaterialId.Value, out var rm);
+                            consumedLines.Add((entry.PreformMaterialId.Value, rm?.Name ?? "Preform", rm?.Category ?? "PREFORM", rm?.Unit ?? "", entry.PreformUsage, entry.PreformWastage));
+                        }
+                        if (entry.CapMaterialId.HasValue && entry.CapMaterialId != Guid.Empty)
+                        {
+                            rawMaterialDict.TryGetValue(entry.CapMaterialId.Value, out var rm);
+                            consumedLines.Add((entry.CapMaterialId.Value, rm?.Name ?? "Cap", rm?.Category ?? "CAP", rm?.Unit ?? "", entry.CapUsage, entry.CapWastage));
+                        }
+                        if (entry.LabelMaterialId.HasValue && entry.LabelMaterialId != Guid.Empty)
+                        {
+                            rawMaterialDict.TryGetValue(entry.LabelMaterialId.Value, out var rm);
+                            consumedLines.Add((entry.LabelMaterialId.Value, rm?.Name ?? "Label", rm?.Category ?? "LABEL", rm?.Unit ?? "", entry.LabelUsage, entry.LabelWastage));
+                        }
+                        if (entry.ShrinkMaterialId.HasValue && entry.ShrinkMaterialId != Guid.Empty)
+                        {
+                            rawMaterialDict.TryGetValue(entry.ShrinkMaterialId.Value, out var rm);
+                            consumedLines.Add((entry.ShrinkMaterialId.Value, rm?.Name ?? "Shrink Film", rm?.Category ?? "SHRINK", rm?.Unit ?? "", entry.ShrinkUsage, entry.ShrinkWastage));
+                        }
+                        if (entry.GlueMaterialId.HasValue && entry.GlueMaterialId != Guid.Empty)
+                        {
+                            rawMaterialDict.TryGetValue(entry.GlueMaterialId.Value, out var rm);
+                            consumedLines.Add((entry.GlueMaterialId.Value, rm?.Name ?? "Glue", rm?.Category ?? "GLUE", rm?.Unit ?? "", entry.GlueUsage.GetValueOrDefault(), 0m));
+                        }
                     }
                 }
 
-                // 1b. Caps
-                var capEntries = activeEntries.Where(e => e.CapMaterialId.HasValue && e.CapMaterialId != Guid.Empty).ToList();
-                var capGroups = capEntries.GroupBy(e => e.CapMaterialId!.Value);
-                foreach (var g in capGroups)
-                {
-                    var mat = rawMaterialsList.FirstOrDefault(m => m.Id == g.Key);
-                    if (mat != null)
-                    {
-                        var consumedBase = g.Sum(e => e.CapUsage * mat.ConversionFactor);
-                        var wasteBase = g.Sum(e => e.CapWastage);
-                        var totalBase = consumedBase + wasteBase;
-                        materialConsumption.Add(new
-                        {
-                            MaterialName = mat.Name,
-                            Category = mat.Category,
-                            Unit = mat.Unit,
-                            BaseUnit = mat.BaseUnit,
-                            Consumed = g.Sum(e => e.CapUsage),
-                            Waste = g.Sum(e => e.CapWastage),
-                            OpeningStock = mat.CurrentStock + totalBase,
-                            RemainingStock = mat.CurrentStock
-                        });
-                    }
-                }
+                // Group by MaterialId or Name
+                var groupedByMaterial = consumedLines
+                    .GroupBy(l => l.MaterialId.HasValue ? l.MaterialId.Value.ToString() : l.Name)
+                    .ToList();
 
-                // 2. Labels
-                var labelEntries = activeEntries.Where(e => e.LabelMaterialId != Guid.Empty).ToList();
-                var labelGroups = labelEntries.GroupBy(e => e.LabelMaterialId);
-                foreach (var g in labelGroups)
+                foreach (var group in groupedByMaterial)
                 {
-                    var mat = rawMaterialsList.FirstOrDefault(m => m.Id == g.Key);
-                    if (mat != null)
-                    {
-                        var consumedBase = g.Sum(e => e.LabelUsage * mat.ConversionFactor);
-                        var wasteBase = g.Sum(e => e.LabelWastage);
-                        var totalBase = consumedBase + wasteBase;
-                        materialConsumption.Add(new
-                        {
-                            MaterialName = mat.Name,
-                            Category = mat.Category,
-                            Unit = mat.Unit,
-                            BaseUnit = mat.BaseUnit,
-                            Consumed = g.Sum(e => e.LabelUsage),
-                            Waste = g.Sum(e => e.LabelWastage),
-                            OpeningStock = mat.CurrentStock + totalBase,
-                            RemainingStock = mat.CurrentStock
-                        });
-                    }
-                }
+                    var first = group.First();
+                    RawMaterial? mat = null;
+                    if (first.MaterialId.HasValue)
+                        rawMaterialDict.TryGetValue(first.MaterialId.Value, out mat);
 
-                // 3. Shrink Film
-                var shrinkEntries = activeEntries.Where(e => e.ShrinkMaterialId != Guid.Empty).ToList();
-                var shrinkGroups = shrinkEntries.GroupBy(e => e.ShrinkMaterialId);
-                foreach (var g in shrinkGroups)
-                {
-                    var mat = rawMaterialsList.FirstOrDefault(m => m.Id == g.Key);
-                    if (mat != null)
-                    {
-                        var consumedBase = g.Sum(e => e.ShrinkUsage * mat.ConversionFactor);
-                        var wasteBase = g.Sum(e => e.ShrinkWastage);
-                        var totalBase = consumedBase + wasteBase;
-                        materialConsumption.Add(new
-                        {
-                            MaterialName = mat.Name,
-                            Category = mat.Category,
-                            Unit = mat.Unit,
-                            BaseUnit = mat.BaseUnit,
-                            Consumed = g.Sum(e => e.ShrinkUsage),
-                            Waste = g.Sum(e => e.ShrinkWastage),
-                            OpeningStock = mat.CurrentStock + totalBase,
-                            RemainingStock = mat.CurrentStock
-                        });
-                    }
-                }
+                    var unit = !string.IsNullOrWhiteSpace(first.Unit) ? first.Unit : (mat?.Unit ?? "");
+                    var name = !string.IsNullOrWhiteSpace(first.Name) ? first.Name : (mat?.Name ?? "Unknown Material");
+                    var category = !string.IsNullOrWhiteSpace(first.Category) ? first.Category : (mat?.Category ?? "");
+                    var totalUsage = group.Sum(x => x.Usage);
+                    var totalWaste = group.Sum(x => x.Wastage);
+                    var convFactor = (mat != null && mat.ConversionFactor > 0) ? mat.ConversionFactor : 1.0m;
+                    var consumedBase = totalUsage * convFactor;
+                    var wasteBase = totalWaste;
+                    var totalBase = consumedBase + wasteBase;
 
-                // 4. Glue
-                var glueEntries = activeEntries.Where(e => e.GlueMaterialId.HasValue && e.GlueMaterialId != Guid.Empty).ToList();
-                var glueGroups = glueEntries.GroupBy(e => e.GlueMaterialId!.Value);
-                foreach (var g in glueGroups)
-                {
-                    var mat = rawMaterialsList.FirstOrDefault(m => m.Id == g.Key);
-                    if (mat != null)
+                    materialConsumption.Add(new
                     {
-                        var consumedBase = g.Sum(e => (e.GlueUsage ?? 0) * mat.ConversionFactor);
-                        materialConsumption.Add(new
-                        {
-                            MaterialName = mat.Name,
-                            Category = mat.Category,
-                            Unit = mat.Unit,
-                            BaseUnit = mat.BaseUnit,
-                            Consumed = g.Sum(e => e.GlueUsage ?? 0),
-                            Waste = 0.0m,
-                            OpeningStock = mat.CurrentStock + consumedBase,
-                            RemainingStock = mat.CurrentStock
-                        });
-                    }
+                        MaterialId = first.MaterialId,
+                        MaterialName = name,
+                        Category = category,
+                        Unit = unit,
+                        BaseUnit = mat?.BaseUnit ?? unit,
+                        Consumed = totalUsage,
+                        Waste = totalWaste,
+                        OpeningStock = (mat != null ? mat.CurrentStock : 0m) + totalBase,
+                        RemainingStock = mat != null ? mat.CurrentStock : 0m
+                    });
                 }
 
                 // 5. Ink Used (Toggles)
@@ -1370,6 +1418,7 @@ namespace Aquora.API.Controllers
                     {
                         materialConsumption.Add(new
                         {
+                            MaterialId = (Guid?)inkMat.Id,
                             MaterialName = inkMat.Name,
                             Category = inkMat.Category,
                             Unit = inkMat.Unit,
@@ -1391,6 +1440,7 @@ namespace Aquora.API.Controllers
                     {
                         materialConsumption.Add(new
                         {
+                            MaterialId = (Guid?)makeupMat.Id,
                             MaterialName = makeupMat.Name,
                             Category = makeupMat.Category,
                             Unit = makeupMat.Unit,
@@ -1649,6 +1699,10 @@ namespace Aquora.API.Controllers
         public Guid? PreformMaterialId { get; set; }
         public decimal PreformUsage { get; set; }
         public decimal PreformWastage { get; set; }
+
+        public Guid? BottleMaterialId { get; set; }
+        public decimal BottleUsage { get; set; }
+        public decimal BottleWastage { get; set; }
 
         public Guid? CapMaterialId { get; set; }
         public decimal CapUsage { get; set; }

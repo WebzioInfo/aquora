@@ -107,42 +107,48 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({
           if (existing.name === 'Material' && displayName !== 'Material') {
             existing.name = displayName
           }
+          if (!existing.unit && m.unit) {
+            existing.unit = m.unit
+          }
           existing.used += Number(m.usageQuantity) || 0
           existing.waste += Number(m.wastageQuantity) || 0
           matMap.set(key, existing)
         })
       } else {
         const legacy = [
-          { rawMaterialId: e.preformMaterialId, name: 'Preform', used: Number(e.preformUsage) || 0, waste: Number(e.preformWastage) || 0, unit: e.preformUnit || 'Bags' },
-          { rawMaterialId: e.capMaterialId, name: 'Cap', used: Number(e.capUsage) || 0, waste: Number(e.capWastage) || 0, unit: e.capUnit || 'Boxes' },
-          { rawMaterialId: e.labelMaterialId, name: 'Label', used: Number(e.labelUsage) || 0, waste: Number(e.labelWastage) || 0, unit: e.labelUnit || 'KG' },
-          { rawMaterialId: e.shrinkMaterialId, name: 'Shrink', used: Number(e.shrinkUsage) || 0, waste: Number(e.shrinkWastage) || 0, unit: e.shrinkUnit || 'KG' },
-          { rawMaterialId: e.glueMaterialId, name: 'Glue', used: Number(e.glueUsage) || 0, waste: Number(e.glueWastage) || 0, unit: e.glueUnit || 'KG' },
+          { rawMaterialId: e.preformMaterialId, name: e.preformName || 'Preform', used: Number(e.preformUsage) || 0, waste: Number(e.preformWastage) || 0, unit: e.preformUnit || '' },
+          { rawMaterialId: e.bottleMaterialId, name: e.bottleName || 'Bottle', used: Number(e.bottleUsage) || 0, waste: Number(e.bottleWastage) || 0, unit: e.bottleUnit || '' },
+          { rawMaterialId: e.capMaterialId, name: e.capName || 'Cap', used: Number(e.capUsage) || 0, waste: Number(e.capWastage) || 0, unit: e.capUnit || '' },
+          { rawMaterialId: e.labelMaterialId, name: e.labelName || 'Label', used: Number(e.labelUsage) || 0, waste: Number(e.labelWastage) || 0, unit: e.labelUnit || '' },
+          { rawMaterialId: e.shrinkMaterialId, name: e.shrinkName || 'Shrink Film', used: Number(e.shrinkUsage) || 0, waste: Number(e.shrinkWastage) || 0, unit: e.shrinkUnit || '' },
+          { rawMaterialId: e.glueMaterialId, name: e.glueName || 'Glue', used: Number(e.glueUsage) || 0, waste: Number(e.glueWastage) || 0, unit: e.glueUnit || '' },
         ]
         legacy.forEach((m) => {
           if (m.used > 0 || m.waste > 0) {
-            const existing = matMap.get(m.name) || { rawMaterialId: m.rawMaterialId, name: m.name, unit: m.unit, used: 0, waste: 0 }
+            const key = (m.rawMaterialId || m.name).toString().trim()
+            const existing = matMap.get(key) || { rawMaterialId: m.rawMaterialId, name: m.name, unit: m.unit, used: 0, waste: 0 }
+            if (!existing.unit && m.unit) existing.unit = m.unit
             existing.used += m.used
             existing.waste += m.waste
-            matMap.set(m.name, existing)
+            matMap.set(key, existing)
           }
         })
       }
     })
 
     if (matMap.size === 0 && summaryData) {
-      const raw = [
-        { name: 'Preform', used: summaryData.preformUsed ?? 0, waste: summaryData.preformWaste ?? 0, unit: 'Bags' },
-        { name: 'Cap', used: summaryData.capUsed ?? 0, waste: summaryData.capWaste ?? 0, unit: 'Boxes' },
-        { name: 'Label', used: summaryData.labelUsed ?? 0, waste: summaryData.labelWaste ?? 0, unit: 'KG' },
-        { name: 'Shrink', used: summaryData.shrinkUsed ?? 0, waste: summaryData.shrinkWaste ?? 0, unit: 'KG' },
-        { name: 'Glue', used: summaryData.glueUsed ?? 0, waste: summaryData.glueWaste ?? 0, unit: 'KG' },
-      ]
-      raw.forEach((m) => {
-        if (m.used > 0 || m.waste > 0) {
-          matMap.set(m.name, m)
-        }
-      })
+      if (Array.isArray(summaryData.inventorySummary) && summaryData.inventorySummary.length > 0) {
+        summaryData.inventorySummary.forEach((it: any) => {
+          const key = (it.materialId || it.materialName || 'mat').toString().trim()
+          matMap.set(key, {
+            rawMaterialId: it.materialId,
+            name: it.materialName || 'Material',
+            unit: it.unit || '',
+            used: Number(it.consumed) || 0,
+            waste: Number(it.waste) || 0
+          })
+        })
+      }
     }
 
     return Array.from(matMap.values())
@@ -170,38 +176,45 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({
     const all = [
       {
         rawMaterialId: entry.preformMaterialId,
-        name: 'Preform',
+        name: entry.preformName || 'Preform',
         used: Number(entry.preformUsage) || 0,
         waste: Number(entry.preformWastage) || 0,
-        unit: entry.preformUnit || 'Bags'
+        unit: entry.preformUnit || ''
+      },
+      {
+        rawMaterialId: entry.bottleMaterialId,
+        name: entry.bottleName || 'Bottle',
+        used: Number(entry.bottleUsage) || 0,
+        waste: Number(entry.bottleWastage) || 0,
+        unit: entry.bottleUnit || ''
       },
       {
         rawMaterialId: entry.capMaterialId,
-        name: 'Cap',
+        name: entry.capName || 'Cap',
         used: Number(entry.capUsage) || 0,
         waste: Number(entry.capWastage) || 0,
-        unit: entry.capUnit || 'Boxes'
+        unit: entry.capUnit || ''
       },
       {
         rawMaterialId: entry.labelMaterialId,
-        name: 'Label',
+        name: entry.labelName || 'Label',
         used: Number(entry.labelUsage) || 0,
         waste: Number(entry.labelWastage) || 0,
-        unit: entry.labelUnit || 'KG'
+        unit: entry.labelUnit || ''
       },
       {
         rawMaterialId: entry.shrinkMaterialId,
-        name: 'Shrink',
+        name: entry.shrinkName || 'Shrink Film',
         used: Number(entry.shrinkUsage) || 0,
         waste: Number(entry.shrinkWastage) || 0,
-        unit: entry.shrinkUnit || 'KG'
+        unit: entry.shrinkUnit || ''
       },
       {
         rawMaterialId: entry.glueMaterialId,
-        name: 'Glue',
+        name: entry.glueName || 'Glue',
         used: Number(entry.glueUsage) || 0,
         waste: Number(entry.glueWastage) || 0,
-        unit: entry.glueUnit || 'KG'
+        unit: entry.glueUnit || ''
       }
     ]
     const used = all.filter((m) => m.used > 0 || m.waste > 0).map((m) => ({ ...m, total: m.used + m.waste }))
