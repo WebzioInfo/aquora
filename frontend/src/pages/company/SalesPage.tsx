@@ -1637,7 +1637,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
       }
 
       if (formPaymentMethod === 'Credit' && currentTotal > 0 && receivedVal >= currentTotal) {
-        showToast(`Full invoice amount (₹${currentTotal.toFixed(2)}) is received upfront. Please select Cash, Bank, or UPI instead of Credit.`, 'warning')
+        showToast(`Full invoice amount (₹${currentTotal.toFixed(2)}) is received upfront. Please select Cash or Bank instead of Credit.`, 'warning')
         return false
       }
 
@@ -3447,7 +3447,7 @@ export const SalesPage: React.FC<{ canWrite: boolean; showToast: (msg: string, t
                       <div className="flex flex-col">
                         <PremiumLabel label="Payment Method *" />
                         <div className="flex gap-2">
-                          {['Cash', 'Bank', 'Credit', 'UPI', 'Cheque'].map(m => (
+                          {['Cash', 'Bank', 'Credit'].map(m => (
                             <button
                               key={m}
                               type="button"
